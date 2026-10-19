@@ -1,7 +1,6 @@
 """CPU-only hang controls for the local CLI and workflow execution boundaries."""
 
 import json
-import os
 import subprocess
 import sys
 import time
@@ -51,10 +50,7 @@ def test_cli_cleanup_failure_is_retained_without_replacing_timeout(tmp_path, mon
     def denied(*args, **kwargs):
         raise PermissionError('controlled cleanup access denied')
 
-    if os.name == 'nt':
-        monkeypatch.setattr(ci_local.subprocess, 'run', denied)
-    else:
-        monkeypatch.setattr(ci_local.os, 'killpg', denied)
+    monkeypatch.setattr(ci_local.ProcessTree, 'terminate', denied)
     with pytest.raises(subprocess.TimeoutExpired):
         conftest.cli(entry='hung_cli', timeout=1)
     evidence, = (tmp_path / '.tmp/cli-timeouts').iterdir()
@@ -179,7 +175,7 @@ def test_local_ci_artifact_step_keeps_reports_after_successful_cleanup(tmp_path,
     assert (run / 'cpu-checks/artifacts/test-reports/run/events.jsonl').read_text() == 'phase evidence'
 
 
-@pytest.mark.parametrize('phase', ['process-tree', 'direct-process', 'output-drain'])
+@pytest.mark.parametrize('phase', ['process-tree', 'direct-process', 'output-drain', 'ownership-handle'])
 @pytest.mark.parametrize('interrupt', [False, True])
 def test_cleanup_failure_preserves_the_primary_error(monkeypatch, phase, interrupt):
     primary = KeyboardInterrupt('controller interrupted') if interrupt else subprocess.TimeoutExpired(['owned'], 1)
@@ -187,15 +183,6 @@ def test_cleanup_failure_preserves_the_primary_error(monkeypatch, phase, interru
     class ControlledProcess:
         pid = 123456
         returncode = None
-        calls = 0
-
-        def communicate(self, timeout):
-            self.calls += 1
-            if self.calls == 1:
-                raise primary
-            if phase == 'output-drain':
-                raise PermissionError('controlled drain failure')
-            return 'partial output', ''
 
         def poll(self):
             return self.returncode
@@ -205,21 +192,124 @@ def test_cleanup_failure_preserves_the_primary_error(monkeypatch, phase, interru
                 raise PermissionError('controlled direct-process failure')
             self.returncode = -9
 
+        def wait(self, timeout):
+            return self.returncode
+
     proc = ControlledProcess()
-    monkeypatch.setattr(ci_local.subprocess, 'Popen', lambda *a, **k: proc)
 
-    def stop_tree(*args, **kwargs):
-        if phase == 'process-tree':
-            raise PermissionError('controlled process-tree failure')
-        return subprocess.CompletedProcess(args, 0)
+    class Tree:
+        job = None
 
-    if os.name == 'nt':
-        monkeypatch.setattr(ci_local.subprocess, 'run', stop_tree)
-    else:
-        monkeypatch.setattr(ci_local.os, 'killpg', stop_tree)
+        def __init__(self):
+            self.proc = proc
+
+        def start(self, *args, **kwargs):
+            kwargs['stdout'].write(b'partial output')
+            return self.proc
+
+        def wait(self, timeout):
+            raise primary
+
+        def terminate(self, timeout):
+            if phase == 'process-tree':
+                raise PermissionError('controlled process-tree failure')
+            return 0
+
+        def close(self):
+            if phase == 'ownership-handle':
+                raise PermissionError('controlled ownership-handle failure')
+
+    native = ci_local.tempfile.TemporaryFile
+
+    class Capture:
+        def __init__(self):
+            self.handle = native()
+
+        def __getattr__(self, name):
+            return getattr(self.handle, name)
+
+        def read(self, *args):
+            if phase == 'output-drain':
+                raise PermissionError('controlled output-drain failure')
+            return self.handle.read(*args)
+
+    monkeypatch.setattr(ci_local, 'ProcessTree', Tree)
+    monkeypatch.setattr(ci_local.tempfile, 'TemporaryFile', Capture)
     with pytest.raises(type(primary)) as caught:
         ci_local.sh(['owned'], timeout=1, capture_output=True, text=True)
     assert caught.value is primary
     assert primary.cleanup_errors[0]['phase'] == phase
     assert not primary.cleanup_confirmed and primary.process_id == 123456
     assert primary.direct_process_returncode == (None if phase == 'direct-process' else -9)
+
+
+def test_normal_exit_stops_worker_without_waiting_for_inherited_output(tmp_path):
+    worker = 'import time; time.sleep(30); print("WORKER_SURVIVED",flush=True)'
+    parent = ('import subprocess,sys; '
+              f'subprocess.Popen([sys.executable,"-u","-c",{worker!r}]); '
+              'print("direct-exiting",flush=True)')
+    start = time.monotonic()
+    result = ci_local.sh([sys.executable, '-u', '-c', parent], timeout=2,
+                         capture_output=True, text=True)
+    (tmp_path / 'owned-exit.json').write_text(json.dumps({
+        'argv': result.args, 'direct_returncode': result.returncode, 'stdout': result.stdout,
+        'cleanup_confirmed': result.cleanup_confirmed, 'cleanup_errors': result.cleanup_errors,
+        'owned_processes_before_cleanup': result.owned_processes_before_cleanup,
+    }), encoding='utf-8')
+    assert result.returncode == 0 and result.stdout == 'direct-exiting\n'
+    assert time.monotonic() - start < 5
+    assert result.cleanup_confirmed and not result.cleanup_errors
+    assert result.owned_processes_before_cleanup >= 1
+
+
+@pytest.mark.parametrize('text', [False, True])
+def test_capture_does_not_block_large_stdout_and_stderr(text):
+    size = 1024 * 1024
+    result = ci_local.sh([sys.executable, '-c', f'import os; os.write(1,b"x"*{size}); os.write(2,b"y"*{size})'],
+                         timeout=5, capture_output=True, text=text)
+    assert result.stdout == ('x' if text else b'x') * size
+    assert result.stderr == ('y' if text else b'y') * size
+    assert result.cleanup_confirmed
+
+
+def test_empty_piped_stdin_still_delivers_eof():
+    result = ci_local.sh([sys.executable, '-c', 'import sys; print(repr(sys.stdin.read()))'],
+                         timeout=3, stdin=subprocess.PIPE, capture_output=True, text=True)
+    assert result.returncode == 0 and result.stdout == "''\n"
+
+
+@pytest.mark.parametrize('value', [-1, float('nan'), float('inf')])
+def test_invalid_budget_does_not_start_a_command(monkeypatch, value):
+    monkeypatch.setattr(ci_local.subprocess, 'Popen', lambda *a, **k: pytest.fail('invalid budget'))
+    with pytest.raises(subprocess.TimeoutExpired):
+        ci_local.sh(['unused'], timeout=value)
+
+
+@pytest.mark.parametrize('failure', ['persistence', 'diagnostic'])
+def test_cli_evidence_failure_preserves_original_timeout(tmp_path, monkeypatch, failure):
+    primary = subprocess.TimeoutExpired(['owned'], 1, output='partial output', stderr='original stderr')
+    monkeypatch.setattr(conftest, 'ROOT', tmp_path)
+
+    def timeout(*args, **kwargs):
+        raise primary
+
+    monkeypatch.setattr(conftest, 'sh', timeout)
+    if failure == 'persistence':
+        def denied(*args, **kwargs):
+            raise PermissionError('controlled evidence write failure')
+        monkeypatch.setattr(Path, 'write_text', denied)
+    else:
+        class ClosedStderr:
+            def write(self, value):
+                raise BrokenPipeError('controlled diagnostic failure')
+
+            def flush(self):
+                pass
+        monkeypatch.setattr(sys, 'stderr', ClosedStderr())
+    with pytest.raises(subprocess.TimeoutExpired) as caught:
+        conftest.cli(entry='owned', timeout=1)
+    assert caught.value is primary
+    if failure == 'persistence':
+        assert 'controlled evidence write failure' in primary.evidence_errors[0]
+    else:
+        assert 'BrokenPipeError' in primary.diagnostic_errors[0]

@@ -14,7 +14,8 @@ src/
 datasets/spec_bench/       SpecBench 源文件；Run prepare 拷进 shared/data
 studies/                   见 studies/README.md
 configs/hf/                论文格子的旧 YAML；不是入口
-tools/                     ci_local.py, windows_selfcheck.py, profile_cpu.py,
+tools/                     ci_local.py, _process_tree.py (private process ownership),
+                           windows_selfcheck.py, profile_cpu.py,
                            decode_fingerprint.py, package_selfcheck.py
 tests/spec_mtp/            跟着 src/spec_mtp
 docs/                      architecture, layout, testing, windows, brainstorm,

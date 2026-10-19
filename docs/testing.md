@@ -13,9 +13,9 @@ python -m pytest tests/spec_mtp
 
 工作流：`.github/workflows/cpu-checks.yml`。重放：`python tools/ci_local.py`。GPU Study 和真实权重不在 CI。CPU冒烟仍检查独立AR exact=1作为固定fixture回归；原生成功门是完整verifier argmax审计，AR差异仅诊断。
 
-本地 `cli()` 测试子进程默认单次300秒，可按用例传入更短的 `timeout`；超时终止本次命令及所属子进程，清理权限不足会报错，并在 `.tmp/cli-timeouts/` 保留命令、stdout和stderr。`ci_local.py` 从每个job的checkout开始消费workflow的 `timeout-minutes`（当前30分钟），各step使用剩余job时间与自身期限的较小值，setup也使用剩余时间；超时停止与输出回收各限10秒，Git工作树清理另限30秒。超时或非零退出保留工作树、step日志及 `summary.json`，成功默认清理。该期限对应命令执行范围，不等同GitHub runner镜像、缓存、排队及PR merge commit的完整重现。
+本地 `cli()` 测试子进程默认单次300秒，可按用例传入更短的 `timeout`；正常退出、超时与中断均收尾本次命令拥有的进程；Windows用挂起创建→归属私有Job→恢复避免后代逃出归属，POSIX收尾独立进程组（主动setsid的后代不在组内）。捕获输出使用临时文件，避免后代持有管道阻塞入口；清理权限不足或未确认时保留错误，并在 `.tmp/cli-timeouts/` 保留命令、stdout和stderr。`ci_local.py` 从每个job的checkout开始消费workflow的 `timeout-minutes`（当前30分钟），各step使用剩余job时间与自身期限的较小值，setup也使用剩余时间；整轮期限触发后，所属树停止与直属进程回收各另限10秒，Git工作树清理另限30秒。超时或非零退出保留工作树、step日志及 `summary.json`，成功默认清理。该期限对应命令执行范围，不等同GitHub runner镜像、缓存、排队及PR merge commit的完整重现。
 
-默认pytest入口将最终选中的nodeid清单、每次尝试的setup/call/teardown事件及逐阶段耗时写入 `.tmp/test-reports/<run>/`。失败或skip保留原因，teardown失败覆盖call通过；缺失阶段不能记为完整通过，所有尝试保留。`--test-report-dir <new-dir>`可指定独立目录；进程退出后用 `python -m pytest tests/spec_mtp --test-report-only <run-dir>`从manifest/events重建部分 `report.json`，其中missing/retry列出未完成与待复核项。CPU workflow在结束时尝试上传原件；本地CI重放把对应目录复制到自身run的artifacts后保留该run，成功工作树仍可清理。硬终止runner导致上传步骤未执行时，仍需取得原磁盘文件才能恢复。
+默认pytest入口将最终选中的nodeid清单、每次尝试的setup/call/teardown事件及逐阶段耗时写入 `.tmp/test-reports/<run>/`。manifest采用同目录临时文件及原子替换，更新中断保留上一份完整记录和未完成临时文件。重建仅容忍末尾未换行的损坏事件，保留原件并标记不完整；中间或已换行的损坏记录报错。失败或skip保留原因，teardown失败覆盖call通过；缺失阶段不能记为完整通过，所有尝试保留。`--test-report-dir <new-dir>`可指定独立目录；进程退出后用 `python -m pytest tests/spec_mtp --test-report-only <run-dir>`从manifest/events重建部分 `report.json`，其中missing/retry列出未完成与待复核项。CPU workflow在结束时尝试上传原件；本地CI重放把对应目录复制到自身run的artifacts后保留该run，成功工作树仍可清理。硬终止runner导致上传步骤未执行时，仍需取得原磁盘文件才能恢复。
 
 现有 GPU 环境不执行上面的 CPU torch 安装。测试使用独立 --basetemp=.tmp/<new-id>。Ruff 的 vendored facade 例外见 [兼容记录](bugs.md)。tiny 接受数是回归基线；完整链还检查原始 token、来源漂移、证据缺失和 Study 完整性。
 

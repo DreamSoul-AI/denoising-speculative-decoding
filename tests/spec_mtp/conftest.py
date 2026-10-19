@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,12 @@ ROOT = Path(__file__).resolve().parents[2]
 SMOKE = ROOT / 'studies' / 'smoke'
 
 
+def _write_manifest(path, manifest):
+    temporary = path.with_name(f'.manifest.json-{uuid.uuid4().hex}.tmp')
+    temporary.write_text(json.dumps(manifest) + '\n', encoding='utf-8')
+    os.replace(temporary, path)
+
+
 def rebuild_test_report(directory):
     """Rebuild categorical test outcomes from the final collection and phase events."""
     directory = Path(directory)
@@ -26,15 +33,17 @@ def rebuild_test_report(directory):
         raise ValueError('Duplicate required test IDs')
     attempts = {test_id: {} for test_id in required}
     incomplete_log = False
+    truncated = None
     exit_status = None
-    lines = (directory / 'events.jsonl').read_text(encoding='utf-8').splitlines()
+    lines = (directory / 'events.jsonl').read_bytes().splitlines(keepends=True)
     for index, line in enumerate(lines):
         try:
             event = json.loads(line)
-        except json.JSONDecodeError:
-            if index != len(lines) - 1:
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            if index != len(lines) - 1 or line.endswith((b'\n', b'\r')):
                 raise
             incomplete_log = True
+            truncated = repr(line)
             break
         if event.get('event') == 'session_finish':
             exit_status = event['exit_status']
@@ -60,7 +69,7 @@ def rebuild_test_report(directory):
                        and all(case['status'] == 'passed' for case in cases),
             'cases': cases, 'missing': [case['test_id'] for case in cases if case['status'] == 'missing'],
             'retry': [case['test_id'] for case in cases if case['status'] != 'passed'],
-            'incomplete_event_log': incomplete_log, 'exit_status': exit_status}
+            'incomplete_event_log': incomplete_log, 'truncated_final_event': truncated, 'exit_status': exit_status}
     (directory / 'report.json').write_text(json.dumps(body, indent=2) + '\n', encoding='utf-8')
     return body
 
@@ -71,9 +80,9 @@ class TestReport:
         self.attempts = {}
 
     def pytest_collection_finish(self, session):
-        (self.directory / 'manifest.json').write_text(
-            json.dumps({'tests': [item.nodeid for item in session.items],
-                        'collection_complete': not bool(session.testsfailed)}) + '\n', encoding='utf-8')
+        _write_manifest(self.directory / 'manifest.json',
+                        {'tests': [item.nodeid for item in session.items],
+                         'collection_complete': not bool(session.testsfailed)})
 
     def pytest_runtest_logreport(self, report):
         if report.when == 'setup':
@@ -104,7 +113,7 @@ def pytest_configure(config):
     directory = Path(config.getoption('--test-report-dir') or
                      ROOT / '.tmp/test-reports' / f'{time.time_ns()}-{os.getpid()}')
     directory.mkdir(parents=True, exist_ok=False)
-    (directory / 'manifest.json').write_text('{"tests": [], "collection_complete": false}\n', encoding='utf-8')
+    _write_manifest(directory / 'manifest.json', {'tests': [], 'collection_complete': False})
     (directory / 'events.jsonl').touch()
     config.pluginmanager.register(TestReport(directory), 'spec-mtp-test-report')
 
@@ -131,19 +140,29 @@ def cli(*args, entry='spec_mtp', check=False, timeout=300):
         proc = sh(cmd, check=False, capture_output=True, text=True, env=env, cwd=ROOT, timeout=timeout)
     except subprocess.SubprocessError as error:
         evidence = ROOT / '.tmp' / 'cli-timeouts' / f'{time.time_ns()}-{os.getpid()}'
-        evidence.mkdir(parents=True)
-        (evidence / 'command.json').write_text(json.dumps({
-            'argv': cmd, 'timeout': timeout, 'error': str(error),
-            'cleanup_errors': getattr(error, 'cleanup_errors', []),
-            'cleanup_confirmed': getattr(error, 'cleanup_confirmed', False),
-            'process_id': getattr(error, 'process_id', None),
-            'direct_process_returncode': getattr(error, 'direct_process_returncode', None),
-        }) + '\n', encoding='utf-8')
-        for name, value in [('stdout', error.stdout), ('stderr', error.stderr)]:
-            if isinstance(value, bytes):
-                value = value.decode('utf-8', errors='replace')
-            (evidence / f'{name}.log').write_text(value or '', encoding='utf-8')
-        print(f'CLI timeout evidence: {evidence}', file=sys.stderr)
+        try:
+            evidence.mkdir(parents=True)
+            (evidence / 'command.json').write_text(json.dumps({
+                'argv': cmd, 'timeout': timeout, 'error': str(error),
+                'cleanup_errors': getattr(error, 'cleanup_errors', []),
+                'cleanup_confirmed': getattr(error, 'cleanup_confirmed', False),
+                'process_id': getattr(error, 'process_id', None),
+                'direct_process_returncode': getattr(error, 'direct_process_returncode', None),
+                'owned_processes_before_cleanup': getattr(error, 'owned_processes_before_cleanup', None),
+            }) + '\n', encoding='utf-8')
+            for name, value in [('stdout', error.stdout), ('stderr', error.stderr)]:
+                if isinstance(value, bytes):
+                    value = value.decode('utf-8', errors='replace')
+                (evidence / f'{name}.log').write_text(value or '', encoding='utf-8')
+        except BaseException as persistence:
+            error.evidence_errors = [repr(persistence)]
+            if hasattr(error, 'add_note'):
+                error.add_note(f'CLI evidence write failed: {persistence!r}')
+        try:
+            status = 'unavailable' if getattr(error, 'evidence_errors', []) else 'saved'
+            print(f'CLI failure evidence {status}: {evidence}', file=sys.stderr)
+        except BaseException as diagnostic:
+            error.diagnostic_errors = [repr(diagnostic)]
         raise
     if check and proc.returncode != 0:
         raise AssertionError(proc.stdout[-4000:] + proc.stderr[-4000:])

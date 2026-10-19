@@ -18,13 +18,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import locale
+import math
 import os
 import shutil
-import signal
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
+
+if __package__:
+    from ._process_tree import ProcessTree
+else:
+    from _process_tree import ProcessTree
 
 try:
     import fcntl
@@ -37,51 +44,86 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def sh(cmd, *, timeout=300, check=True, capture_output=False, **kw):
-    """Bound a command and stop its owned process tree on timeout/interruption."""
+    """Bound a command, collect output and stop owned workers on every exit."""
     print('+', cmd if isinstance(cmd, str) else ' '.join(map(str, cmd)), flush=True)
-    if timeout <= 0:
+    if not math.isfinite(timeout) or timeout <= 0:
         raise subprocess.TimeoutExpired(cmd, timeout)
     if capture_output:
         kw.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    proc = subprocess.Popen(cmd, start_new_session=os.name != 'nt', **kw)
+    tree = ProcessTree()
+    captures = {}
+    failures = []
+    primary = None
+    stdout = stderr = None
+    before = None
+    deadline = time.monotonic() + timeout
     try:
-        stdout, stderr = proc.communicate(timeout=timeout)
+        # Files avoid pipe backpressure and inherited-pipe EOF waits after the
+        # direct child exits. The owned tree is stopped before reading them.
+        for stream in ('stdout', 'stderr'):
+            if kw.get(stream) == subprocess.PIPE:
+                captures[stream] = tempfile.TemporaryFile()
+                kw[stream] = captures[stream]
+        proc = tree.start(cmd, **kw)
+        if getattr(proc, 'stdin', None) is not None:
+            proc.stdin.close()  # Match communicate() with no input: deliver EOF.
+        code = tree.wait(max(0, deadline - time.monotonic()))
+        if check and code:
+            raise subprocess.CalledProcessError(code, cmd)
     except BaseException as error:
-        failures = []
+        primary = error
+    finally:
+        proc = tree.proc
+        if proc is not None:
+            try:
+                before = tree.terminate(timeout=10)
+            except BaseException as cleanup:
+                failures.append({'phase': 'process-tree', 'error': repr(cleanup)})
+            try:
+                if proc.poll() is None:
+                    proc.kill()
+                proc.wait(timeout=10)
+            except BaseException as cleanup:
+                failures.append({'phase': 'direct-process', 'error': repr(cleanup)})
+        if tree.job is not None:
+            failures.extend(tree.job.cleanup_errors)
         try:
-            if os.name == 'nt':
-                subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'],
-                               capture_output=True, text=True, timeout=10, check=True)
-            else:
+            tree.close()
+        except BaseException as cleanup:
+            failures.append({'phase': 'ownership-handle', 'error': repr(cleanup)})
+        output = {}
+        for stream, handle in captures.items():
+            try:
+                handle.seek(0)
+                value = handle.read(os.fstat(handle.fileno()).st_size)
+                if kw.get('text') or kw.get('universal_newlines') or kw.get('encoding') or kw.get('errors'):
+                    value = value.decode(kw.get('encoding') or locale.getpreferredencoding(False),
+                                         errors=kw.get('errors') or 'strict')
+                    value = value.replace('\r\n', '\n').replace('\r', '\n')
+                output[stream] = value
+            except BaseException as cleanup:
+                failures.append({'phase': 'output-drain', 'error': repr(cleanup)})
+            finally:
                 try:
-                    os.killpg(proc.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-        except BaseException as cleanup:
-            failures.append({'phase': 'process-tree', 'error': repr(cleanup),
-                             'stderr': getattr(cleanup, 'stderr', None)})
-        try:
-            if proc.poll() is None:
-                proc.kill()
-        except BaseException as cleanup:
-            failures.append({'phase': 'direct-process', 'error': repr(cleanup)})
-        stdout, stderr = getattr(error, 'output', None), getattr(error, 'stderr', None)
-        try:
-            stdout, stderr = proc.communicate(timeout=10)
-        except BaseException as cleanup:
-            failures.append({'phase': 'output-drain', 'error': repr(cleanup)})
-        error.cleanup_errors = failures
-        error.cleanup_confirmed = not failures and proc.returncode is not None
-        error.process_id = proc.pid
-        error.direct_process_returncode = proc.returncode
-        if failures and hasattr(error, 'add_note'):
-            error.add_note(f'Owned process cleanup unconfirmed: {failures}')
-        if isinstance(error, subprocess.TimeoutExpired):
-            error.output, error.stderr = stdout, stderr
-        raise
-    result = subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
-    if check:
-        result.check_returncode()
+                    handle.close()
+                except BaseException as cleanup:
+                    failures.append({'phase': 'capture-close', 'error': repr(cleanup)})
+        stdout, stderr = output.get('stdout'), output.get('stderr')
+    if primary is None and failures:
+        primary = (subprocess.CalledProcessError(proc.returncode, cmd) if proc is not None and proc.returncode
+                   else RuntimeError('Owned process cleanup or output collection unconfirmed'))
+    result = primary or subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
+    result.cleanup_errors = failures
+    result.cleanup_confirmed = not failures and (proc is None or proc.returncode is not None)
+    result.process_id = proc.pid if proc is not None else None
+    result.direct_process_returncode = proc.returncode if proc is not None else None
+    result.owned_processes_before_cleanup = before
+    if primary is not None:
+        if failures and hasattr(primary, 'add_note'):
+            primary.add_note(f'Owned process cleanup or output collection unconfirmed: {failures}')
+        if isinstance(primary, subprocess.SubprocessError):
+            primary.output, primary.stderr = stdout, stderr
+        raise primary
     return result
 
 

@@ -124,6 +124,48 @@ def test_truncated_last_event_cannot_be_reported_complete(tmp_path):
     assert body['missing'] == body['retry'] == ['one']
 
 
+@pytest.mark.parametrize('raw', [b'{broken}\n', b'{broken}\n{"event":"session_finish","exit_status":0}\n'])
+def test_rebuild_rejects_terminated_or_middle_corruption(tmp_path, raw):
+    (tmp_path / 'manifest.json').write_text(
+        json.dumps({'tests': ['one'], 'collection_complete': True}), encoding='utf-8')
+    path = tmp_path / 'events.jsonl'
+    path.write_bytes(raw)
+    with pytest.raises(json.JSONDecodeError):
+        conftest.rebuild_test_report(tmp_path)
+    assert path.read_bytes() == raw
+
+
+def test_unterminated_unicode_tail_is_kept_as_incomplete_raw_evidence(tmp_path):
+    (tmp_path / 'manifest.json').write_text(
+        json.dumps({'tests': ['one'], 'collection_complete': True}), encoding='utf-8')
+    raw = b'{"detail":"\xf0\x9f'
+    path = tmp_path / 'events.jsonl'
+    path.write_bytes(raw)
+    body = conftest.rebuild_test_report(tmp_path)
+    assert body['incomplete_event_log'] and not body['complete']
+    assert body['truncated_final_event'] == repr(raw) and path.read_bytes() == raw
+
+
+def test_manifest_hard_exit_during_update_preserves_previous_complete_bytes(tmp_path):
+    path = tmp_path / 'manifest.json'
+    original = b'{"tests":["original"],"collection_complete":true}\n'
+    path.write_bytes(original)
+    driver = (
+        'import sys,os\nfrom pathlib import Path\n'
+        f'sys.path.insert(0,{str(ROOT / "tests/spec_mtp")!r})\nimport conftest\n'
+        'native=Path.write_text\n'
+        'def interrupted(path,*args,**kwargs):\n'
+        '    native(path,"partial update",encoding="utf-8")\n    os._exit(33)\n'
+        'Path.write_text=interrupted\n'
+        f'conftest._write_manifest(Path({str(path)!r}),{{"tests":["new"],"collection_complete":True}})\n')
+    result = sh([sys.executable, '-c', driver], timeout=10, capture_output=True, check=False, text=True,
+                cwd=ROOT, env={**os.environ, 'CUDA_VISIBLE_DEVICES': '-1'})
+    assert result.returncode == 33, result.stdout + result.stderr
+    assert path.read_bytes() == original
+    partial, = tmp_path.glob('.manifest.json-*.tmp')
+    assert partial.read_text() == 'partial update'
+
+
 @pytest.mark.parametrize('exit_status', [None, 2])
 def test_completed_cases_do_not_replace_missing_or_failed_session_exit(tmp_path, exit_status):
     (tmp_path / 'manifest.json').write_text(
