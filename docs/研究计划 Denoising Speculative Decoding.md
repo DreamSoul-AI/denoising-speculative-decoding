@@ -1,16 +1,10 @@
 # SD研究计划：固定数据复现与mask方向对照
 
-中文正本，更新于2026-10-16。[English translation](<Research Plan Denoising Speculative Decoding.md> 20:55最终范围：复现阶段收尾，只让已在跑的BC60结束，不启动新实验；七格队列已停，现有数据/结果保留。
-> 8B非官方全480：BC10 τ1.399047031；BC30 τ1.563377504 vs论文1.63；BC60 τ1.647301264 vs论文1.74；三格共239,137个token自检全过。
-> 4B方向对照：e2−e1 1.507777653、同范数随机均值1.494473978、零1.422420206、content1.364829262；范数唯一主因未证实。
-> 完整618项CPU检查及另十项BF16/tied微型模型数学门通过；后续11格仅make，已暂停执行。
-> 本文下方为已验收的中文通俗收尾总结；仅一个里程碑PR合dev，不提下一阶段方案、不动main、不删数据。
+中文正本，交接状态更新于2026-10-18。[English translation](<Research Plan Denoising Speculative Decoding.md>)。正式收尾报告已随PR #50合入dev，以下保留原报告正文，不重做实验或重签证据。
 
-
-> 当前8B非官方复验：BC10/BC30单mask全480原生成功；BC60原队列受RAM准入阻塞（worker66500存活，需外部RAM恢复）。4B容量标定完成；范数八格已make，唯一父队列79868已接首格template0.5×（worker73008），完整480仍待验收。
-> BC30 pooled tau=1.5633775043382236，较论文1.63低0.06662249566177625；79762个token自检全过，AR175/480仅诊断。
-> BC10 tau=1.3990470307950233；两格与各自旧Run逐prompt accepted/calls/tau均480平，输出/AR摘要各480一致。
-> CPU验收入口已实际演练（两格有效、BC60 pending），读出与文档30项回归全过；[CPU检查点](../studies/esp_table1_nonofficial_revalidation/docs/cpu_acceptance_checkpoint_v1.json)。原数值见[BC10](../studies/esp_table1_nonofficial_revalidation/docs/bc10_checkpoint_v1.json) / [BC30](../studies/esp_table1_nonofficial_revalidation/docs/bc30_checkpoint_v1.json)；BC60待完整终验，尚非全矩阵。
+> 当前结论：数学自检239,137/239,137通过；BC30/60 τ=1.563377504/1.647301264，比论文低约0.067/0.093，未复现论文目标。
+> 8B三格已完成；其余七格范数扫描和11格独立配对未追加执行，所有旧排班保持暂停。
+> 后续如何开题及clone后的证据边界见[异机交接](handover.md#sd-wrap-up-20261018)；本轮仅补交接，不授权启动下一阶段。
 
 <!-- SD_CLOSEOUT_20261016_START -->
 <a id="sd-stage-closeout-20261016"></a>

@@ -1,16 +1,10 @@
 # SD research plan: fixed-data reproduction and mask-direction controls
 
-English translation of the [Chinese master](<研究计划 Denoising Speculative Decoding.md> Final20:55 scope: close the reproduction phase. Let only the running BC60 finish; no new experiments. The seven-cell queue is stopped and all results/data remain.
-> Nonofficial8B full480: BC10 tau1.399047031; BC30 tau1.563377504 versus paper1.63; BC60 tau1.647301264 versus1.74; all239,137 token checks pass.
-> 4B direction controls: e2−e1 1.507777653, norm-matched random mean1.494473978, zero1.422420206, content1.364829262; magnitude as the sole cause is unproven.
-> All618 CPU regression tests and ten additional explicitBF16/tied tiny-model gate checks pass; the prepared11-cell repeat is made but not executed and is paused.
-> The Chinese master contains the validated reader-oriented closure summary. One milestone PR to dev only; no next-phase proposal, no main changes or data deletion.
+English translation of the [Chinese master](<研究计划 Denoising Speculative Decoding.md>), handover status updated2026-10-18. The formal closure report is already merged into dev in PR #50; its body below is retained without rerunning experiments or re-signing evidence.
 
-
-> Nonofficial8B repeat: BC10/BC30 single-mask full480 succeeded natively; BC60 is blocked on RAM admission in the original live worker66500; external RAM availability must recover. The4B capacity probe completed; eight formal norm Runs are made, with one parent queue79868 executing the first template0.5× cell (worker73008); full480 acceptance is pending.
-> BC30 pooled tau=1.5633775043382236, below paper1.63 by0.06662249566177625; all79762 token checks passed; AR175/480 is diagnostic.
-> BC10 tau=1.3990470307950233; each completed cell ties its old Run on accepted/calls/tau for all480 prompts, with480 matching output/AR hashes.
-> CPU acceptance rehearsed: two valid cells, BC60 pending;30 readout/documentation tests passed. [CPU checkpoint](../studies/esp_table1_nonofficial_revalidation/docs/cpu_acceptance_checkpoint_v1.json). Original values: [BC10](../studies/esp_table1_nonofficial_revalidation/docs/bc10_checkpoint_v1.json) / [BC30](../studies/esp_table1_nonofficial_revalidation/docs/bc30_checkpoint_v1.json). BC60 is pending; this is not full-matrix completion.
+> Current conclusion: all239,137 mathematical self-checks pass. BC30/60 tau1.563377504/1.647301264 remain about0.067/0.093 below the paper; the target values are not reproduced.
+> All three8B cells finished. The remaining seven norm cells and11 independent paired cells were not executed; older queues remain paused.
+> See [handover](handover.md#sd-wrap-up-20261018) for clone-ready evidence boundaries and requirements for a future gap investigation. This update documents preparation only and does not authorize a new experiment.
 
 <!-- SD_CLOSEOUT_20261016_START -->
 <a id="sd-stage-closeout-20261016"></a>

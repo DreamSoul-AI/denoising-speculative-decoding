@@ -2,7 +2,7 @@
 
 ESP reproduction + EMA-velocity masks.
 
-当前研究计划：[中文](<docs/研究计划 Denoising Speculative Decoding.md>) / [English](<docs/Research Plan Denoising Speculative Decoding.md>)。原作者可运行入口未核验到，按Enmao 2026-10-16最新指示停止追找；现有实现标明**非作者官方复现**。旧[全480证据复核](docs/research/esp-table1-nonofficial-full480-recheck-2026-10-16.md)数学门全过，BC30/BC60单mask pooled τ=1.563378/1.647301，未达论文1.63/1.74。当前[8B独立复验](studies/esp_table1_nonofficial_revalidation/docs/STUDY_REPORT.md)按BC10→30→60单队列运行；完成后接固定480的4B偏置范数扫描。已有4B五方法加AR及六格方向对照完整结果继续复用，不改prompt、不测速。
+当前研究计划：[中文](<docs/研究计划 Denoising Speculative Decoding.md>) / [English](<docs/Research Plan Denoising Speculative Decoding.md>)。原作者可运行入口未核验到，按Enmao 2026-10-16最新指示停止追找；现有实现标明**非作者官方复现**。旧[全480证据复核](docs/research/esp-table1-nonofficial-full480-recheck-2026-10-16.md)数学门全过，BC30/BC60单mask pooled τ=1.563378/1.647301，未达论文1.63/1.74。[8B独立复验](studies/esp_table1_nonofficial_revalidation/docs/STUDY_REPORT.md)三格已全部完成，239,137个token数学自检通过；后续七格范数和11格独立配对暂停，未追加实验。[最终交接与后续开题要求](docs/handover.md#sd-wrap-up-20261018)。已有4B五方法加AR及六格方向对照完整结果继续复用，不改prompt、不测速。
 
 Training-free multi-token prediction:
 

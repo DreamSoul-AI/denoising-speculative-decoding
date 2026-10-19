@@ -1,5 +1,38 @@
 # 异机交接
 
+<a id="sd-wrap-up-20261018"></a>
+## 2026-10-18 最终交接：已收口，未启动下一阶段
+
+### 当前结论与证据入口
+
+正式中文总结已随[PR #50](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/50)合入dev，集成提交`a073845ae17870c918f550b9e3bfd81fe04594ab`；见[主研究计划收尾章节](<研究计划 Denoising Speculative Decoding.md#sd-stage-closeout-20261016>)，无需重做报告。8B为明确标注的非作者官方复现，固定SpecBench480、BF16/T0、BC10/30/60单mask；正确性门为提交token等于对应验证前向logits的argmax，239,137/239,137通过，独立AR一致率仅诊断。pooled τ为1.399047031、1.563377504、1.647301264，BC30/60比论文1.63/1.74低0.066622496/0.092698736（约0.067/0.093），**论文目标未复现**。τ不是实测加速倍数。
+
+可随clone取得的证据：
+
+- [8B完整三格结果](../studies/esp_table1_nonofficial_revalidation/docs/repeat_evidence_v1.json)：三种τ汇总、逐prompt计数/AR首分叉、输出摘要、原始文件SHA；[对应报告](../studies/esp_table1_nonofficial_revalidation/docs/STUDY_REPORT.md)。
+- [4B原五方法加AR](../studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json)：两预算、逐prompt接受/调用胜平负；[方向对照](../studies/qwen3_4b_bf16_directions/docs/direction_evidence_v1.json)：e2−e1 τ1.507777653、随机均值1.494473978、零1.422420206、content1.364829262。随机同范数偏置也有效，不证明范数是唯一原因。
+- [首个0.5×范数格恢复证据](../studies/qwen3_4b_bf16_bias_norm_continuation/docs/first_cell_recovery_v1.json)：τ1.471389646，80,940个token自检通过；不重跑execute，失败记录和来源SHA保留，不冒充完整范数扫描。
+- [CPU准备验收](../studies/qwen3_4b_bf16_paired_revalidation/docs/cpu_readiness_v1.json)、[PR #50 CI](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/50)：历史本机618+10分别检查，远端整套628通过；不把旧测试结果说成本次重新全跑。
+
+### 收口状态与新机器接手
+
+BC60、父队列和监视器已自然退出。七格等待器64880、入账器50944已停止，临时GPU启动器已停用；剩余七格与后续11格仅准备、未执行，不再按旧章节自动接卡。已合主题分支`experiment/sd-nonofficial-repeat-norm`与`analysis/sd-pending-results`的本地/远端引用均已删除；累计36本地/10远端，见[PR合后清单](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/50#issuecomment-6217073928)。实验数据/结果/模型缓存未删；旧执行工作树在原`4bb28c7` detached保留。主仓旧绝对路径只是本机定位信息，不应在新机器照路径重建重复目录。
+
+新机器应显式checkout `dev`或上述集成提交（仓库默认main不含全部研究交付），先读本节和主计划，再按[测试说明](testing.md)配置环境。仅复算公开4B表格可运行`python studies/qwen3_4b_bf16_five_methods/verify_published.py`；这是标准库计数核对，不下载/载模。现有`tools/analyze_esp_table1_gap.py`也仅复算已提交的旧480计数，不是重新执行或对作者结果做验证。
+
+Git不包含完整Run、原始token/logits、权重、共享缓存和本机.tmp证据。只clone可阅读正式聚合/逐条摘要、配置和源码，**不能据此再次独立核验原始前向argmax或恢复本机Run**。需要raw级对账时，应先取得原Run归档，按正式JSON逐文件SHA核验，再使用冻结执行commit和Study合同；缺文件就记录缺失，不补造raw、不重签旧成功Run、不make/remake覆盖历史。权重优先ModelScope，缺失时仅使用`HF_ENDPOINT=https://hf-mirror.com`（含datasets），两者均无则报告；不回退huggingface.co。基线硬编码海外模型/数据地址需改国内源并保留patch清单，不能把修改版叫原字节未改。
+
+### 下一步排查差距如何开题（仅交接要求，尚未执行）
+
+新阶段须等Enmao确认范围。开题写入唯一中英主计划的独立章节，不新建子PLAN、不沿用暂停队列自动执行。用单一问题约束范围：**固定480输入和BF16设置下，哪个可核验的协议差异能够解释BC30/60的τ缺口？**
+
+1. 先列证据缺口与可证伪判断。复用[输入/计数对账](research/esp-table1-cpu-contract-reconciliation-2026-10-16.md)及[协议缺口登记](research/esp-table1-protocol-gaps-2026-10-16.md)，把已核验本地事实与未知作者合同分开；不重复循环追入口，不把猜测写成原因。
+2. 明确唯一比较变量、基线commit/来源、固定prompt token IDs/数据与模型SHA、单mask预算、停止/EOS、τ分子分母/prefill和任务权重。先用已有文件在CPU闭合计数；三种聚合不能事后挑最接近论文的一种。作者合同缺失时，结论只能是非官方实现的敏感性分析，不能宣称已经归因作者差距。
+3. 如确认需要新执行，先登记最小配对范围、预计资源、停止/失败条件和验收指标，再用新version/新Run；保留全部正负结果。主指标仍pooled τ与论文差值，另列两聚合、逐prompt接受/调用/τ胜平负、输出长度、argmax完整覆盖、AR诊断。正确性失败停止验收，AR失配不阻塞数学门。固定输入不调prompt，不测速，不做算子数值链；bias/random/Kalman等其他问题不自动纳入。
+4. 运行准入只看实际CUDA计算、空闲显存和实测host峰值+2GiB；显示/远程桌面不阻塞，不杀其他任务。任何GPU执行都需在新范围确认后再排单队列；本次wrap-up没有make、launch、下载或实验forward。
+
+本次仅更新交接与修复主计划页首断链/旧状态；正式报告主体及所有结果文件保持不变。未解决的作者协议、树/剪枝差别、计数权重仍为候选解释，不作已证实因果。
+
 当前主模型Qwen3-4B；0.6B rare/单位置阶段已归档暂停。first26同链复验、4条新prompt负结果及历史输入EMA控制均已实际完成，见本文末尾“4B主模型配对接续”及[主报告](../studies/output_space_4b_recheck_v2/docs/STUDY_REPORT.md)。下列0.6B记录保留其历史范围。
 
 ## q178算子对照与下一Study草案（2026-10-14）
