@@ -13,6 +13,28 @@ import conftest
 from tools import ci_local
 
 
+@pytest.mark.parametrize('platform,proc_available,waitid_available', [
+    ('darwin', False, False), ('linux', False, True), ('linux', True, False)])
+def test_unsupported_ownership_platform_refuses_before_start(monkeypatch, platform, proc_available, waitid_available):
+    from types import SimpleNamespace
+    from tools import _process_tree as ownership
+
+    environment = SimpleNamespace(name='posix')
+    if waitid_available:
+        environment.waitid = lambda: None
+        environment.WNOWAIT = 0
+    monkeypatch.setattr(ownership, 'os', environment)
+    monkeypatch.setattr(ownership, 'sys', SimpleNamespace(platform=platform))
+    monkeypatch.setattr(ownership, 'Path', lambda path: SimpleNamespace(is_dir=lambda: proc_available))
+    def forbidden(*args, **kwargs):
+        raise AssertionError('unsupported ownership must not start a command')
+    monkeypatch.setattr(ownership.subprocess, 'Popen', forbidden)
+    tree = ownership.ProcessTree()
+    with pytest.raises(NotImplementedError, match='Bounded launch requires'):
+        tree.start(['not-executed'])
+    assert tree.proc is None
+
+
 def test_cli_timeout_preserves_partial_output(tmp_path, monkeypatch):
     (tmp_path / 'hung_cli.py').write_text(
         'import sys, time\nprint("started", flush=True)\n'

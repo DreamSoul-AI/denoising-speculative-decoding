@@ -5,6 +5,7 @@ import ctypes
 import os
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -128,6 +129,9 @@ class ProcessTree:
             self.proc = subprocess.Popen(command, creationflags=4, **kwargs)  # CREATE_SUSPENDED.
             self.job.assign_and_resume(self.proc)
         else:
+            if (sys.platform != 'linux' or not Path('/proc').is_dir()
+                    or not hasattr(os, 'waitid') or not hasattr(os, 'WNOWAIT')):
+                raise NotImplementedError('Bounded launch requires Windows Job or Linux /proc and waitid(WNOWAIT)')
             self.proc = subprocess.Popen(command, start_new_session=True, **kwargs)
         return self.proc
 
