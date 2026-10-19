@@ -64,6 +64,7 @@ jobs:
 
       - name: Check RPipe pin and entry points
         run: |
+          python tools/check_rpipe_pin.py
           python - <<'PY'
           import importlib.metadata as m
           from pathlib import Path

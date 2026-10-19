@@ -1,5 +1,22 @@
 # RPipe 职责迁移与验收
 
+<a id="r1-local-backport-20261020"></a>
+## 2026-10-20 固定副本 R1 本地迁移合同
+
+本次按用户明确要求迁入完整 Run 执行权保护。上游来源仍固定为 `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5`（v0.3.1），ORIGIN 首行、版本号和 MIT LICENSE 不变；只参考 RPipe `e33bcc8818f43e1f7ba875f6cd8a447d3378d864` 的 R1 合同，不迁入 R2 来源复用、shared 资源业务或其余版本升级。此项授权仅覆盖本次可审查补丁。
+
+`flow/runner.py` 在任何日志、阶段或失败结果写入前取得非重入 OS 锁，覆盖完整阶段链；持锁执行写入新的 `execution.json` attempt token。调度器的环境 token 只消费一次，直接 Runner 调用仍使用新身份。OS 在异常、中断或进程死亡后释放锁，残留锁文件无需删除。调度器所有结果失效写入也在锁内进行；子进程的零或非零退出均须核验它实际持有的 token，忙碌或失主执行不改他人的结果，也不默认重试。`run-one` 忙碌退出 75；`launch` 和生成的 Bash payload 遇拒绝退出非零，并在 Study process 写入前停止。不同 Run 各自持锁。
+
+有调度 token 时，锁内先完成初始冻结检查，不依赖是否启用 Study 阶段；通过后才写新 token、失效旧成功结果及进入业务。初始拒绝不会变成本次子进程的已准入身份，调度器据此保留旧结果而不重试；prepare 原有的后续复检保持。解锁或关闭本次锁句柄的 OSError 保留同一业务/中断异常并附诊断；没有主错时照常失败，未知程序异常不吞。
+
+旧布局没有上游新的 shared/scheduler 分拆；本地只新增 `structure/artifact/execution.py`，将所需 OS 锁与 token 集中在其中。旧 `structure/make/schedule.py` 保持公开位置，同时补齐锁建目录前的 Run ID、重复路径、jobs/batches 一致性验证；不复制第二套 Runner。既有 `tools/launch_once.py` 的显式关闭重试调用保持兼容。
+
+[manifest.json](rpipe-source/manifest.json) 记录完整固定副本每个文件的原 Git blob、原字节 SHA256 和规范换行 SHA256；仅原有 Windows `__init__.py`、本次 `flow/runner.py`、`flow/cli.py`、`structure/make/schedule.py` 列出本地差异及可离线恢复的四份原 blob，新增 execution.py 单列补丁身份。Git 原 blob 保留原换行字节；工作树核验只将 CRLF 归一为 LF，避免 Windows/Linux checkout 差异冒充代码变化。`python tools/check_rpipe_pin.py` 核对文件集合、固定来源、明确补丁及原 blob；CPU workflow 和 package 测试均调用此检查。原件属于开发迁移证据，无新增生产 package-data 配置。
+
+102 条原来源记录按排序、紧凑 JSON 序列化的固定指纹为 `69bb1b44fc73cdfa253e5e1c2d182f9db76a3c03717f85e5776bc604f4c9362c`（包含文件名、Git blob、原 SHA 与规范换行 SHA）；原 SHA 映射独立核对指纹为 `fe8fe06f22737235b5e2d09267ba82b03fbc6cc1eb213feabddb451614ed2550`。检查器固定前者及本次 patch ID/reference，只允许上述五个本地差异、四条原 blob 精确安全路径；不能靠给任意文件新增 local_sha256 或改原来源清单放行。三个既有框架文件保留 CRLF 工作来源，原件通过 `.gitattributes` 禁止换行转换。
+
+历史 Run、来源锁、raw、科学算法、配置、结果与队列不改签。本次验收使用新的离线 CPU Toy Study 和本仓两个公共入口，原件保留 `.tmp/debt-batch2/`；上游通过不替代下游验证，CPU 工程合同不代表科学训练或真实模型复验。
+
 ## 2026-10-14 接续范围
 
 原交接执行基线为 RPipe main v0.3.0 `804b3823ab6d2af46cbda1a65688ca8b76c60b22`，研究包为 spec_mtp。继续 refactor/spec-rpipe，原 PR #4/#5 已进入 dev，新增工作不复用历史实测身份。src/rpipe 与原始证据长期保留；不覆盖 D:/GitHub/diaoenmao/RPipe 中其他任务的修改。

@@ -111,7 +111,7 @@ def pytest_configure(config):
         rebuild_test_report(previous)
         pytest.exit(f'Rebuilt test report: {previous}', returncode=0)
     directory = Path(config.getoption('--test-report-dir') or
-                     ROOT / '.tmp/test-reports' / f'{time.time_ns()}-{os.getpid()}')
+                     ROOT / '.tmp/test-reports' / f'{time.time_ns()}-{os.getpid()}').resolve()
     directory.mkdir(parents=True, exist_ok=False)
     _write_manifest(directory / 'manifest.json', {'tests': [], 'collection_complete': False})
     (directory / 'events.jsonl').touch()

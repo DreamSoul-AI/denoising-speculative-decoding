@@ -294,13 +294,18 @@ def _execute_launch(args: argparse.Namespace) -> int:
         print(process_path(study_dir))
         _print_launch_counts(study_dir)
         return 0
+    refused: list[str] = []
     launch_jobs(
         study_dir,
         jobs,
         round_size=int(written.get('round') or 1),
         batches=written.get('batches'),
         console=str(getattr(args, 'console', 'auto')),
+        refused_runs=refused,
     )
+    if refused:
+        print('execution refused or unowned: ' + ' '.join(refused), flush=True)
+        return 1
     still = [
         job['run_id']
         for job in jobs
@@ -429,7 +434,12 @@ def _execute_status(args: argparse.Namespace) -> int:
 
 def _execute_run_one(args: argparse.Namespace) -> int:
     phases = _parse_phases(args.phases)
-    path = launch_one(Path(args.study_dir).resolve(), args.run_id, phases=phases)
+    from rpipe.structure.artifact.execution import RUN_BUSY_EXIT, RunLockedError
+    try:
+        path = launch_one(Path(args.study_dir).resolve(), args.run_id, phases=phases)
+    except RunLockedError as exc:
+        print(exc, file=sys.stderr)
+        return RUN_BUSY_EXIT
     print(path)
     return 0
 

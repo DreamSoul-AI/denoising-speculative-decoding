@@ -13,18 +13,30 @@ from tools.ci_local import sh
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def child_pytest(source, tmp_path):
+def child_pytest(source, tmp_path, *, relative_report=False):
     test = tmp_path / 'test_controlled.py'
     test.write_text(source, encoding='utf-8')
     reports = tmp_path / 'reports'
     env = {**os.environ, 'PYTHONPATH': str(ROOT / 'tests/spec_mtp'),
            'CUDA_VISIBLE_DEVICES': '-1', 'PYTHONUTF8': '1'}
     cmd = [sys.executable, '-m', 'pytest', '-p', 'conftest', str(test),
-           '--test-report-dir', str(reports), '--basetemp', str(tmp_path / 'pytest-temp')]
+           '--test-report-dir', os.path.relpath(reports, ROOT) if relative_report else str(reports),
+           '--basetemp', str(tmp_path / 'pytest-temp')]
     result = sh(cmd, timeout=20, check=False, capture_output=True, text=True, cwd=ROOT, env=env)
     (tmp_path / 'child.stdout.log').write_text(result.stdout, encoding='utf-8')
     (tmp_path / 'child.stderr.log').write_text(result.stderr, encoding='utf-8')
     return result, reports
+
+
+def test_relative_report_directory_survives_test_changing_cwd(tmp_path):
+    result, reports = child_pytest('''
+import os
+def test_changes_cwd(tmp_path):
+    os.chdir(tmp_path)
+''', tmp_path, relative_report=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads((reports / 'report.json').read_text())
+    assert report['complete'] and not report['missing'] and not report['retry']
 
 
 def test_real_pytest_phase_failures_and_skip_are_persisted(tmp_path):
