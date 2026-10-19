@@ -1,0 +1,225 @@
+"""CPU-only hang controls for the local CLI and workflow execution boundaries."""
+
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import pytest
+import yaml
+
+import conftest
+from tools import ci_local
+
+
+def test_cli_timeout_preserves_partial_output(tmp_path, monkeypatch):
+    (tmp_path / 'hung_cli.py').write_text(
+        'import sys, time\nprint("started", flush=True)\n'
+        'print("stderr-before-hang", file=sys.stderr, flush=True)\ntime.sleep(30)\n', encoding='utf-8')
+    monkeypatch.setattr(conftest, 'ROOT', tmp_path)
+    monkeypatch.setenv('PYTHONPATH', str(tmp_path))
+    start = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired) as caught:
+        conftest.cli(entry='hung_cli', timeout=1)
+    assert time.monotonic() - start < 10
+    assert 'started' in caught.value.stdout
+    evidence, = (tmp_path / '.tmp/cli-timeouts').iterdir()
+    assert json.loads((evidence / 'command.json').read_text())['timeout'] == 1
+    assert (evidence / 'stdout.log').read_text() == 'started\n'
+    assert (evidence / 'stderr.log').read_text() == 'stderr-before-hang\n'
+    assert json.loads((evidence / 'command.json').read_text())['cleanup_confirmed']
+
+
+def test_cli_keeps_normal_failure_contract(tmp_path, monkeypatch):
+    (tmp_path / 'failed_cli.py').write_text(
+        'import sys\nprint("expected failure")\nsys.exit(7)\n', encoding='utf-8')
+    monkeypatch.setattr(conftest, 'ROOT', tmp_path)
+    monkeypatch.setenv('PYTHONPATH', str(tmp_path))
+    assert conftest.cli(entry='failed_cli', timeout=5).returncode == 7
+    with pytest.raises(AssertionError, match='expected failure'):
+        conftest.cli(entry='failed_cli', timeout=5, check=True)
+
+
+def test_cli_cleanup_failure_is_retained_without_replacing_timeout(tmp_path, monkeypatch):
+    (tmp_path / 'hung_cli.py').write_text(
+        'import time\nprint("partial", flush=True)\ntime.sleep(30)\n', encoding='utf-8')
+    monkeypatch.setattr(conftest, 'ROOT', tmp_path)
+    monkeypatch.setenv('PYTHONPATH', str(tmp_path))
+
+    def denied(*args, **kwargs):
+        raise PermissionError('controlled cleanup access denied')
+
+    if os.name == 'nt':
+        monkeypatch.setattr(ci_local.subprocess, 'run', denied)
+    else:
+        monkeypatch.setattr(ci_local.os, 'killpg', denied)
+    with pytest.raises(subprocess.TimeoutExpired):
+        conftest.cli(entry='hung_cli', timeout=1)
+    evidence, = (tmp_path / '.tmp/cli-timeouts').iterdir()
+    body = json.loads((evidence / 'command.json').read_text())
+    assert not body['cleanup_confirmed'] and body['direct_process_returncode'] is not None
+    assert body['cleanup_errors'][0]['phase'] == 'process-tree'
+    assert 'controlled cleanup access denied' in body['cleanup_errors'][0]['error']
+    assert (evidence / 'stdout.log').read_text() == 'partial\n'
+
+
+def test_timeout_stops_owned_child(tmp_path):
+    marker = tmp_path / 'child-survived.txt'
+    child = f'import time; from pathlib import Path; time.sleep(2); Path({str(marker)!r}).write_text("alive")'
+    parent = ('import subprocess, sys, time; '
+              f'subprocess.Popen([sys.executable, "-c", {child!r}]); '
+              'print("child-started", flush=True); time.sleep(30)')
+    with pytest.raises(subprocess.TimeoutExpired) as caught:
+        ci_local.sh([sys.executable, '-u', '-c', parent], timeout=1, capture_output=True, text=True)
+    assert 'child-started' in caught.value.stdout
+    time.sleep(2.2)
+    assert not marker.exists(), 'the deadline left an owned child running'
+
+
+def test_expired_budget_does_not_start_a_command(monkeypatch):
+    monkeypatch.setattr(ci_local.subprocess, 'Popen', lambda *a, **k: pytest.fail('budget already exhausted'))
+    with pytest.raises(subprocess.TimeoutExpired):
+        ci_local.sh(['unused'], timeout=0)
+
+
+def run_workflow(tmp_path, monkeypatch, steps, minutes, *, fail_cleanup=False):
+    """Replace only git/setup/shell selection; the step process and deadline are real."""
+    workflow = tmp_path / 'workflow.yml'
+    workflow.write_text(yaml.safe_dump({'jobs': {'cpu-checks': {
+        'timeout-minutes': minutes, 'steps': steps}}}), encoding='utf-8')
+    monkeypatch.setattr(ci_local, 'ROOT', tmp_path)
+    monkeypatch.setattr(ci_local, 'fcntl', None)
+    monkeypatch.setattr(sys, 'argv', ['ci_local.py', '--workflow', str(workflow)])
+    original = ci_local.sh
+    commands = []
+
+    def invoke(cmd, **kwargs):
+        commands.append((cmd, kwargs['timeout']))
+        if cmd[:3] == ['git', 'worktree', 'add']:
+            Path(cmd[-2]).mkdir(parents=True)
+            return subprocess.CompletedProcess(cmd, 0)
+        if cmd[:3] == ['git', 'worktree', 'remove']:
+            if fail_cleanup:
+                raise subprocess.TimeoutExpired(cmd, kwargs['timeout'])
+            return subprocess.CompletedProcess(cmd, 0)
+        assert cmd[:3] == ['bash', '-e', '-c']
+        return original([sys.executable, '-u', '-c', cmd[-1]], **kwargs)
+
+    monkeypatch.setattr(ci_local, 'sh', invoke)
+    return commands
+
+
+def test_local_ci_shares_the_job_deadline_and_keeps_timeout_evidence(tmp_path, monkeypatch):
+    commands = run_workflow(tmp_path, monkeypatch, [
+        {'name': 'first', 'run': 'import time; time.sleep(0.3)'},
+        {'name': 'hung', 'run': 'import time; print("step-started", flush=True); time.sleep(30)'},
+        {'name': 'must-not-start', 'run': 'raise AssertionError("budget expired")'},
+    ], minutes=0.025)
+    start = time.monotonic()
+    assert ci_local.main() == 1
+    assert time.monotonic() - start < 10
+    shell = [timeout for cmd, timeout in commands if cmd[0] == 'bash']
+    assert len(shell) == 2 and 0 < shell[1] < shell[0] <= 1.5
+    run, = (tmp_path / '.tmp/ci_local').glob('*-*')
+    assert [r[2] for r in json.loads((run / 'summary.json').read_text())] == ['ok', 'TIMEOUT']
+    log = (run / 'cpu-checks/step-01.log').read_text().splitlines()
+    assert log[0] == 'step-started' and json.loads(log[-1])['cleanup_errors'] == []
+    assert (run / 'cpu-checks/repo').is_dir()
+
+
+def test_local_ci_step_deadline_caps_job_budget(tmp_path, monkeypatch):
+    run_workflow(tmp_path, monkeypatch, [
+        {'name': 'hung', 'timeout-minutes': 0.01,
+         'run': 'import time; print("step-started", flush=True); time.sleep(30)'},
+    ], minutes=1)
+    start = time.monotonic()
+    assert ci_local.main() == 1
+    assert time.monotonic() - start < 10
+    run, = (tmp_path / '.tmp/ci_local').glob('*-*')
+    assert json.loads((run / 'summary.json').read_text())[0][2] == 'TIMEOUT'
+
+
+def test_local_ci_failure_keeps_output_without_keep_flag(tmp_path, monkeypatch):
+    run_workflow(tmp_path, monkeypatch, [
+        {'name': 'failed', 'run': 'import sys; print("failed-step"); sys.exit(7)'},
+    ], minutes=1)
+    assert ci_local.main() == 1
+    run, = (tmp_path / '.tmp/ci_local').glob('*-*')
+    assert json.loads((run / 'summary.json').read_text())[0][2] == 'FAILED (7)'
+    assert (run / 'cpu-checks/step-00.log').read_text() == 'failed-step\n'
+
+
+def test_local_ci_success_still_cleans_its_worktree(tmp_path, monkeypatch):
+    commands = run_workflow(tmp_path, monkeypatch, [{'run': 'print("ok")'}], minutes=1)
+    assert ci_local.main() == 0
+    assert any(cmd[:3] == ['git', 'worktree', 'remove'] for cmd, _ in commands)
+    assert not list((tmp_path / '.tmp/ci_local').glob('*-*'))
+
+
+def test_local_ci_cleanup_failure_keeps_evidence(tmp_path, monkeypatch):
+    run_workflow(tmp_path, monkeypatch, [{'run': 'print("ok")'}], minutes=1, fail_cleanup=True)
+    with pytest.raises(subprocess.TimeoutExpired):
+        ci_local.main()
+    run, = (tmp_path / '.tmp/ci_local').glob('*-*')
+    assert 'TimeoutExpired' in json.loads((run / 'summary.json').read_text())[-1][2]
+
+
+def test_local_ci_artifact_step_keeps_reports_after_successful_cleanup(tmp_path, monkeypatch):
+    commands = run_workflow(tmp_path, monkeypatch, [
+        {'run': 'from pathlib import Path; p=Path(".tmp/test-reports/run"); '
+                'p.mkdir(parents=True); (p/"events.jsonl").write_text("phase evidence")'},
+        {'name': 'reports', 'uses': 'actions/upload-artifact@v4',
+         'with': {'name': 'test-reports', 'path': '.tmp/test-reports/'}},
+    ], minutes=1)
+    assert ci_local.main() == 0
+    assert any(cmd[:3] == ['git', 'worktree', 'remove'] for cmd, _ in commands)
+    run, = (tmp_path / '.tmp/ci_local').glob('*-*')
+    assert (run / 'cpu-checks/artifacts/test-reports/run/events.jsonl').read_text() == 'phase evidence'
+
+
+@pytest.mark.parametrize('phase', ['process-tree', 'direct-process', 'output-drain'])
+@pytest.mark.parametrize('interrupt', [False, True])
+def test_cleanup_failure_preserves_the_primary_error(monkeypatch, phase, interrupt):
+    primary = KeyboardInterrupt('controller interrupted') if interrupt else subprocess.TimeoutExpired(['owned'], 1)
+
+    class ControlledProcess:
+        pid = 123456
+        returncode = None
+        calls = 0
+
+        def communicate(self, timeout):
+            self.calls += 1
+            if self.calls == 1:
+                raise primary
+            if phase == 'output-drain':
+                raise PermissionError('controlled drain failure')
+            return 'partial output', ''
+
+        def poll(self):
+            return self.returncode
+
+        def kill(self):
+            if phase == 'direct-process':
+                raise PermissionError('controlled direct-process failure')
+            self.returncode = -9
+
+    proc = ControlledProcess()
+    monkeypatch.setattr(ci_local.subprocess, 'Popen', lambda *a, **k: proc)
+
+    def stop_tree(*args, **kwargs):
+        if phase == 'process-tree':
+            raise PermissionError('controlled process-tree failure')
+        return subprocess.CompletedProcess(args, 0)
+
+    if os.name == 'nt':
+        monkeypatch.setattr(ci_local.subprocess, 'run', stop_tree)
+    else:
+        monkeypatch.setattr(ci_local.os, 'killpg', stop_tree)
+    with pytest.raises(type(primary)) as caught:
+        ci_local.sh(['owned'], timeout=1, capture_output=True, text=True)
+    assert caught.value is primary
+    assert primary.cleanup_errors[0]['phase'] == phase
+    assert not primary.cleanup_confirmed and primary.process_id == 123456
+    assert primary.direct_process_returncode == (None if phase == 'direct-process' else -9)
