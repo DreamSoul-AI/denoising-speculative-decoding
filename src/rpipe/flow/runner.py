@@ -9,6 +9,7 @@ from pathlib import Path
 
 from rpipe.structure.artifact.result import STATUS_FAILED, STATUS_SUCCEEDED, load_result, write_result
 from rpipe.structure.artifact.execution import RUN_ATTEMPT_ENV, run_lock, start_execution
+from rpipe.structure.artifact.errors import CorruptArtifactError
 from rpipe.flow.context import FlowContext
 from rpipe.flow.study import run_study_phase
 from rpipe.structure.artifact.provenance import check_frozen
@@ -44,7 +45,7 @@ class FlowRunner:
             if token:
                 try:
                     existing = load_result(ctx.layout.result_path)
-                except (OSError, ValueError, RecursionError):
+                except (FileNotFoundError, ValueError, CorruptArtifactError, RecursionError):
                     existing = {}
                 if existing.get('status') == STATUS_SUCCEEDED:
                     existing.update(status=STATUS_FAILED,

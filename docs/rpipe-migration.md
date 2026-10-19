@@ -9,6 +9,8 @@
 
 有调度 token 时，锁内先完成初始冻结检查，不依赖是否启用 Study 阶段；通过后才写新 token、失效旧成功结果及进入业务。初始拒绝不会变成本次子进程的已准入身份，调度器据此保留旧结果而不重试；prepare 原有的后续复检保持。解锁或关闭本次锁句柄的 OSError 保留同一业务/中断异常并附诊断；没有主错时照常失败，未知程序异常不吞。
 
+准入时读旧结果仅把缺失、损坏 JSON、非对象 artifact 与递归损坏视为无可复用旧结果，继续持锁业务。PermissionError 等其他读取 I/O 首错原样传播，业务阶段不进入，旧结果保持；不以宽泛 OSError 捕获掩盖证据读取失败。
+
 旧布局没有上游新的 shared/scheduler 分拆；本地只新增 `structure/artifact/execution.py`，将所需 OS 锁与 token 集中在其中。旧 `structure/make/schedule.py` 保持公开位置，同时补齐锁建目录前的 Run ID、重复路径、jobs/batches 一致性验证；不复制第二套 Runner。既有 `tools/launch_once.py` 的显式关闭重试调用保持兼容。
 
 [manifest.json](rpipe-source/manifest.json) 记录完整固定副本每个文件的原 Git blob、原字节 SHA256 和规范换行 SHA256；仅原有 Windows `__init__.py`、本次 `flow/runner.py`、`flow/cli.py`、`structure/make/schedule.py` 列出本地差异及可离线恢复的四份原 blob，新增 execution.py 单列补丁身份。Git 原 blob 保留原换行字节；工作树核验只将 CRLF 归一为 LF，避免 Windows/Linux checkout 差异冒充代码变化。`python tools/check_rpipe_pin.py` 核对文件集合、固定来源、明确补丁及原 blob；CPU workflow 和 package 测试均调用此检查。原件属于开发迁移证据，无新增生产 package-data 配置。

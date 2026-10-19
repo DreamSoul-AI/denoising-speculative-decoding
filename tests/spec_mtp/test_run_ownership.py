@@ -357,3 +357,57 @@ def test_public_launch_freeze_race_is_unowned_and_never_retried(study, monkeypat
                 child.tree.proc.wait(timeout=5)
             finally:
                 child.tree.close()
+
+
+@pytest.mark.parametrize('entry', ['run-one', 'runner'])
+@pytest.mark.parametrize('previous', [b'[]\n', b'{broken JSON\n'])
+def test_token_admission_with_corrupt_previous_result_reaches_owned_phase(study, monkeypatch, entry, previous):
+    from rpipe.flow.cli import main
+    from rpipe.flow.context import FlowContext
+    from rpipe.flow.runner import FlowRunner
+    from rpipe.structure.artifact import artifact_layout
+    from rpipe.structure.artifact.execution import RUN_ATTEMPT_ENV
+    import rpipe.flow.collect as collect
+
+    root, runs = study
+    run = runs[0]
+    (run / 'result.json').write_bytes(previous)
+    entered = []
+    monkeypatch.setattr(collect, 'run', lambda ctx: entered.append(ctx.layout.root))
+    monkeypatch.setenv(RUN_ATTEMPT_ENV, 'new-attempt-after-corrupt-result')
+    if entry == 'run-one':
+        assert main(['run-one', str(root), run.name, '--phases', 'collect']) == 0
+    else:
+        FlowRunner(phases=['collect']).run(FlowContext(root, artifact_layout(root, run.name), {}))
+    assert entered == [run]
+    assert (run / 'result.json').read_bytes() == previous
+
+
+@pytest.mark.parametrize('entry', ['run-one', 'runner'])
+def test_token_admission_preserves_result_read_permission_error(study, monkeypatch, entry):
+    from rpipe.flow.cli import main
+    from rpipe.flow.context import FlowContext
+    from rpipe.structure.artifact import artifact_layout
+    from rpipe.structure.artifact.execution import RUN_ATTEMPT_ENV
+    import rpipe.flow.runner as runner
+    import rpipe.flow.collect as collect
+
+    root, runs = study
+    run = runs[0]
+    result = run / 'result.json'
+    before = b'{"status":"succeeded","control":{},"metrics":{},"paths":{}}'
+    result.write_bytes(before)
+    primary = PermissionError('controlled previous-result read refusal')
+    entered = []
+    def refused(path):
+        raise primary
+    monkeypatch.setattr(runner, 'load_result', refused)
+    monkeypatch.setattr(collect, 'run', lambda ctx: entered.append(ctx))
+    monkeypatch.setenv(RUN_ATTEMPT_ENV, 'attempt-with-refused-result-read')
+    with pytest.raises(PermissionError) as caught:
+        if entry == 'run-one':
+            main(['run-one', str(root), run.name, '--phases', 'collect'])
+        else:
+            runner.FlowRunner(phases=['collect']).run(FlowContext(root, artifact_layout(root, run.name), {}))
+    assert caught.value is primary
+    assert not entered and result.read_bytes() == before
