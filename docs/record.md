@@ -8,6 +8,8 @@
 
 固定v0.3.1原102与许可证不变，当前103／十一差异／十原blob保持，manifest只更新既有scheduler的local_sha与理由；checker不放宽。命令、JUnit、真实hook/计划观测、输入SHA、来源逆差与原pin在 `.tmp/debt-batch9/source-verification.json`。本机Windows/Python3.13.9，严错Ruff与3.10语法检查单列；不称本机Linux或远端CI通过。没有研究模型、Torch研究计算、GPU、下载、计费、历史队列或数据删除。
 
+独立复核发现首版f696d0c按键存在判断，比上游非空广告字段合同多拒绝了null／空字符串。以原计划reader取得四个兼容反例 **4F，外层12.5965秒**，再仅将两条件收窄为job.get。最终兼容选集 **7P，外层20.1609秒**，含原3个省略字段控制，不与原3P重复累计；非空广告的原12例语义不变。新增后续普通提交保留首版与原失败证据，不amend；最终来源／兼容时点在 `.tmp/debt-batch9/final-source-verification.json`，全量CI须核新HEAD，不借用f696结果。
+
 ## 2026-10-20 S2 预期结果持久化
 
 独立 pytest 报告器未保存 wasxfail，非严格 XPASS 的三阶段均 passed、原生 exit0，会被重建为普通 passed／complete=true；call/setup/teardown 的 xfail 则变成普通 skipped。按测试规范的预期结果单列合同，以真实 pytest 子进程取得 **8F/4P，8.893秒，外层9.5468秒**，包含空 reason，不用构造事件冒充执行。普通 skip、普通失败优先、strict XPASS 和正常 passed 四控制保持原生语义。

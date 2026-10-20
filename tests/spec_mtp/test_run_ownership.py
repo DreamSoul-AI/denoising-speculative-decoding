@@ -154,6 +154,31 @@ def test_cached_legacy_fields_remain_optional(study, omitted):
     assert path.read_bytes() == original
 
 
+@pytest.mark.parametrize('field,value', [('mode', None), ('mode', ''), ('device', None), ('device', '')])
+def test_cached_legacy_empty_fields_remain_unspecified(study, field, value):
+    from rpipe.structure.make.schedule import load_launch_plan
+
+    root, runs = study
+    path = root / 'scripts/jobs.json'
+    payload = json.loads(path.read_text(encoding='utf-8'))
+    for job in payload['jobs']:
+        job.pop('config', None)
+        job[field] = value
+        if field == 'mode':
+            config_path = root / 'runs' / job['run_id'] / 'config.yaml'
+            config = yaml.safe_load(config_path.read_text(encoding='utf-8'))
+            config['algorithm']['mode'] = 'eval'
+            config_path.write_text(yaml.safe_dump(config), encoding='utf-8')
+    path.write_text(json.dumps(payload), encoding='utf-8')
+    original = path.read_bytes()
+    plan = load_launch_plan(root, init_gpu=0, num_gpus=0, round_size=1, include_done=True)
+    (root / 'empty-field-observation.json').write_text(json.dumps(dict(
+        field=field,value=value,plan_reused=plan is not None,jobs_unchanged=path.read_bytes()==original),
+        indent=2)+'\n',encoding='utf-8')
+    assert plan is not None and len(plan['job_list']) == len(runs)
+    assert path.read_bytes() == original
+
+
 @pytest.mark.parametrize('module', ['rpipe', 'spec_mtp'])
 @pytest.mark.parametrize('command', ['status', 'process', 'launch'])
 @pytest.mark.parametrize('previous', ['[]', '{"metrics":' + '[' * 10000 + '0' + ']' * 10000 + '}'], ids=['array', 'deep'])

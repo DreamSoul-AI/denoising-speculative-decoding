@@ -2,6 +2,8 @@
 
 第九批 S1 缓存元数据：真实原生／专项两入口 make 后，缓存显式 mode/device 与实际Run配置不符必须放弃缓存并沿原make重建，不能以 `--mode eval` 派发实际train。保留原指针校验及legacy省略字段。新增12例先9F/3P后12P，legacy省略mode/device/both另3P；前后输入SHA、所属收尾、配置字节与只读jobs原件均核。设备检查不运行GPU；原固定来源pin仍核103文件，详见 [记录](record.md)。
 
+独审确认显式字段须按非空值判断；null／空字符串仍未声明。首版按键存在的四个新增兼容反例4F，收窄为job.get后兼容最终7P（包含先前三个省略字段控制），不与旧3P重复累计；各时点与完整当前HEAD的CI分开记录。
+
 第八批 S2 预期结果报告：原始 phase outcome 保持 pytest 值，另保存 wasxfail 属性及原因（包括空字符串）。重建分别列 xfail／非严格 xpass，普通失败仍优先，阶段不全仍不完整，完整报告继续要求所有用例为普通 passed。pytest 原生退出政策保持；strict XPASS 原生 failed 无该属性，仍按 failed，不解析消息另造政策。旧事件缺标记时不补造历史预期结果。
 
 真实 pytest 子进程的 call/setup/teardown、空原因、普通 skip/fail、strict XPASS 与正常控制首红 8F/4P，修复后含既有持久化检查共23P；report-only CLI 与 API 重建不改 manifest/events 原字节。数字和证据见 [记录](record.md#2026-10-20-s2-预期结果持久化)。不涉及固定副本或研究模型。
