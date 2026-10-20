@@ -1,5 +1,13 @@
 # 开发记录
 
+## 2026-10-20 S1 深 JSON 读取残留
+
+两个公共模块入口在合法但过深的 JSON 上，结果读取、缓存计划和 Tracker 历史路径出现 **14 failed / 1 passed**，58.825 秒；activity 另 **2 failed**，8.233 秒。严格 decoder 对照确实抛 RecursionError。仅在原来已有容错处理的八处 catch 中补这一异常，不改变严格 decoder、异常继承或 I/O 范围。只读结果/state/JSONL/activity 原字节保全，坏 JSONL 邻接有效观测的坐标与数值保持；坏 jobs 缓存沿原 make 路径重建。
+
+同一组及正常非对象/非法 JSON 对照 **27 passed**，147.649 秒（所属树守卫 148.8815 秒）；固定来源及文档门另 **10 passed**，3.684 秒。所有轮次输入 SHA 前后相同、所属进程清理确认。首次 2000 层夹具在本机 Python 3.13 仍可解析，首轮阈值断言无效，原件留在 `.tmp/debt-batch4/depth-red/`，不计偿还。有效反例改为 10000 层，没有通过降低递归上限制造产品故障。
+
+原 v0.3.1 的 102 条来源记录、固定指纹和许可证保持，当前 103 文件；仅新增 activity 精确差异及原 Git blob，现为十一项差异、十份原 blob。独立调用链复核、Python 3.10 语法、Ruff 与 offline pin 通过；实际 Windows/Python 3.13.9。逐轮命令、JUnit、原始日志及哈希在 `.tmp/debt-batch5/depth-source-verification.json`；未运行 CUDA、下载、训练或收费资源。
+
 ## 2026-10-20 S1 make 发布持锁接续
 
 三条真实入口（配置 API、高层展开、原生 CLI make）在后目标已持锁时仍写配置，独立有效红例 **3 failed / 3 passed**。按旧布局在 make/__init__.py 与 write.py 复用既有 Run 锁；配置候选和内部 writer 由原代码拆出，高层持锁覆盖 recipe/config/index/provenance，不再次调用会重入取锁的公共入口。原 ensure→recipe 顺序保持，不迁 R2，不引入多 Run 事务。

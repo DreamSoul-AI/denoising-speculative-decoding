@@ -28,7 +28,7 @@ def _state_history(study_dir: Path | str, run_dir: str) -> dict[str, dict[str, l
         return {}
     try:
         body = json.loads(path.read_text(encoding='utf-8'))
-    except (OSError, json.JSONDecodeError, TypeError):
+    except (OSError, json.JSONDecodeError, TypeError, RecursionError):
         return {}
     splits = body.get('splits') if isinstance(body, dict) else None
     if not isinstance(splits, dict):
@@ -74,7 +74,7 @@ def load_curve_series(study_dir: Path | str, run_dir: str) -> dict[str, dict[str
                 end = handle.tell()
                 try:
                     row = json.loads(line)
-                except (ValueError, UnicodeDecodeError):
+                except (ValueError, UnicodeDecodeError, RecursionError):
                     continue
                 if isinstance(row, dict):
                     records.append((end - len(line), end, row))
@@ -237,7 +237,7 @@ def _load_result(study_dir: Path, run_dir: str) -> dict[str, Any] | None:
         return None
     try:
         return load_result(path)
-    except (OSError, TypeError, ValueError, CorruptArtifactError):
+    except (OSError, TypeError, ValueError, CorruptArtifactError, RecursionError):
         return None
 
 

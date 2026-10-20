@@ -15,7 +15,7 @@ def run(ctx: FlowContext) -> None:
     if not isinstance(result, dict) and ctx.layout.result_path.is_file():
         try:
             result = load_result(ctx.layout.result_path)
-        except (OSError, TypeError, ValueError, CorruptArtifactError):
+        except (OSError, TypeError, ValueError, CorruptArtifactError, RecursionError):
             result = None
 
     run_id = None

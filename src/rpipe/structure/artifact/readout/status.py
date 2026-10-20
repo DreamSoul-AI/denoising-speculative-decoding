@@ -22,7 +22,7 @@ def _load_result(study_dir: Path, run_dir: str) -> dict[str, Any] | None:
         return None
     try:
         return load_result(path)
-    except (OSError, TypeError, ValueError, CorruptArtifactError):
+    except (OSError, TypeError, ValueError, CorruptArtifactError, RecursionError):
         return None
 
 

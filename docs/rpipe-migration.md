@@ -1,5 +1,13 @@
 # RPipe 职责迁移与验收
 
+## 2026-10-20 第四、五批读取与拒绝残留合同
+
+继续 S1/R1 固定副本迁移：仅补原有容错读取边界漏接的 `RecursionError`，包括四个结果读取器、持久化 jobs 计划、Tracker state/JSONL 及只读 activity；严格 decoder、report、异常继承和原有 I/O 范围不变。先用实际超过本机 JSON 深度边界的公开 CLI 反例确认，再局部加入同上游已有的异常处理。Python 3.13 的 2000 层夹具仍能解析，首轮保留为无效控制，不计源码反例；新夹具采用 10000 层并保留严格拒绝对照。结果、state、JSONL 和 activity 的只读原字节保全；JSONL 邻接有效观测继续保留坐标和数值。坏缓存计划沿原 make 信号重建。
+
+另参考上游 `d8fe6d0dcf3701c3d4cdd35cdfc986501d42963d` 的一行拒绝传播：未选入本次 jobs 的旧 eval 需要纠错但 Run 已被占用时，也登记到既有 `refused_runs`，由 CLI/Bash 原拒绝门阻止 Study 汇总发布。不得改写被占用 eval、旧 token 或先前 Study process，不重试该拒绝；空闲纠错与本轮已成功任务保持。下游须有独立公开入口红绿，不以上游通过替代。
+
+固定 v0.3.1、102 条原来源记录、许可证、科学源码与历史 Study 保持。新增 activity 一处精确本地差异及对应原 Git blob，原白名单不放宽为任意路径；其余原 blob 和指纹不改。原件分别保存在 `.tmp/debt-batch4/` 与 `.tmp/debt-batch5/`；只做离线 CPU 工程控制，不下载、训练或启动 GPU/计费资源。
+
 <a id="r1-local-backport-20261020"></a>
 ## 2026-10-20 固定副本 R1 本地迁移合同
 

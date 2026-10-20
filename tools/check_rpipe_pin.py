@@ -11,7 +11,7 @@ NEW_FILE = 'structure/artifact/execution.py'
 PATCH_FILES = {'__init__.py', 'flow/cli.py', 'flow/runner.py', 'structure/make/schedule.py',
                'structure/artifact/readout/status.py', 'flow/process/aggregate.py',
                'flow/process/individual.py', 'structure/make/write.py',
-               'structure/make/__init__.py', NEW_FILE}
+               'structure/make/__init__.py', 'structure/artifact/activity.py', NEW_FILE}
 
 
 def check(root=ROOT):

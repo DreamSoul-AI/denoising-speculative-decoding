@@ -76,10 +76,11 @@ def snapshot(run):
 
 @pytest.mark.parametrize('module', ['rpipe', 'spec_mtp'])
 @pytest.mark.parametrize('command', ['status', 'process', 'launch'])
-def test_public_entries_tolerate_nonobject_result(study, module, command):
+@pytest.mark.parametrize('previous', ['[]', '{"metrics":' + '[' * 10000 + '0' + ']' * 10000 + '}'], ids=['array', 'deep'])
+def test_public_entries_tolerate_nonobject_result(study, module, command, previous):
     root, runs = study
     for run in runs:
-        (run / 'result.json').write_text('[]', encoding='utf-8')
+        (run / 'result.json').write_text(previous, encoding='utf-8')
         (run / 'release').touch()
     args = ['--num-gpus', '0', '--round', '1', '--console', 'shared'] if command == 'launch' else []
     completed = cli(command, root, *args, entry=module, timeout=30)
@@ -87,7 +88,7 @@ def test_public_entries_tolerate_nonobject_result(study, module, command):
     if command == 'launch':
         assert all(json.loads((run / 'result.json').read_text())['status'] == 'succeeded' for run in runs)
     else:
-        assert all((run / 'result.json').read_text() == '[]' for run in runs)
+        assert all((run / 'result.json').read_text() == previous for run in runs)
         if command == 'status':
             assert 'pending' in completed.stdout
         else:
@@ -107,7 +108,7 @@ def test_scheduler_corrupt_result_is_not_reusable(tmp_path, raw):
 
 
 @pytest.mark.parametrize('module', ['rpipe', 'spec_mtp'])
-@pytest.mark.parametrize('previous', ['[]', '{broken'])
+@pytest.mark.parametrize('previous', ['[]', '{broken', '{"metrics":' + '[' * 10000 + '0' + ']' * 10000 + '}'], ids=['array', 'broken', 'deep'])
 def test_public_run_process_tolerates_corrupt_result_without_rewriting_it(study, module, previous):
     root, runs = study
     run = runs[0]
@@ -118,6 +119,61 @@ def test_public_run_process_tolerates_corrupt_result_without_rewriting_it(study,
     assert result.read_text() == previous
     body = json.loads((run / 'process.json').read_text())
     assert body['scope'] == 'run' and body['metrics'] == {}
+
+
+def test_deep_result_strict_decoder_keeps_its_error():
+    from rpipe.structure.artifact.result.format import decode_result
+
+    with pytest.raises(RecursionError):
+        decode_result('{"metrics":' + '[' * 10000 + '0' + ']' * 10000 + '}')
+
+
+@pytest.mark.parametrize('module', ['rpipe', 'spec_mtp'])
+def test_public_status_tolerates_deep_activity_without_rewriting(study, module):
+    root, _ = study
+    activity = root / 'activity.json'
+    previous = ('[' * 10000 + '0' + ']' * 10000).encode()
+    activity.write_bytes(previous)
+    completed = cli('status', root, entry=module, timeout=20)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert 'pending' in completed.stdout
+    assert activity.read_bytes() == previous
+
+
+@pytest.mark.parametrize('module', ['rpipe', 'spec_mtp'])
+def test_public_launch_rebuilds_deep_saved_plan(study, module):
+    root, runs = study
+    (root / 'scripts/jobs.json').write_text('[' * 10000 + '0' + ']' * 10000, encoding='utf-8')
+    for run in runs:
+        (run / 'release').touch()
+    completed = cli('launch', root, '--num-gpus', '0', '--round', '1', '--console', 'shared',
+                    entry=module, timeout=30)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert json.loads((root / 'scripts/jobs.json').read_text())['jobs']
+    assert all(json.loads((run / 'result.json').read_text())['status'] == 'succeeded' for run in runs)
+
+
+@pytest.mark.parametrize('module', ['rpipe', 'spec_mtp'])
+@pytest.mark.parametrize('damaged', ['state', 'jsonl'])
+def test_public_run_process_skips_deep_history_and_keeps_valid_rows(study, module, damaged):
+    root, runs = study
+    run = runs[0]
+    assets = run / 'assets/tracker'
+    assets.mkdir(parents=True)
+    deep = '[' * 10000 + '0' + ']' * 10000
+    state = assets / 'tracker_state.json'
+    log = assets / 'scalars.jsonl'
+    row = {'split': 'train', 'name': 'loss', 'mean': 3.0, 'optimizer_step': 1}
+    state.write_text(deep if damaged == 'state' else '{}', encoding='utf-8')
+    log.write_text(json.dumps(row) + '\n' + (deep + '\n' if damaged == 'jsonl' else '') +
+                   json.dumps(dict(row, mean=2.0, optimizer_step=2)) + '\n', encoding='utf-8')
+    before = {path: path.read_bytes() for path in (state, log)}
+    completed = cli('run-one', root, run.name, '--phases', 'process', entry=module, timeout=20)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    body = json.loads((run / 'process.json').read_text())
+    assert body['history'] == {'train': {'loss': [3.0, 2.0]}}
+    assert body['history_coordinates']['train']['loss'] == {'unit': 'step', 'x': [1, 2]}
+    assert all(path.read_bytes() == raw for path, raw in before.items())
 
 
 @pytest.mark.parametrize('case', ['nonobject_job', 'duplicate_done', 'foreign_batch', 'missing_batch',
