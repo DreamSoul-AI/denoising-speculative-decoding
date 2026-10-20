@@ -1,0 +1,15 @@
+experiment: postcommit_cpu_v1
+description: fixed-model postcommit latent residual calibration
+seed: 123
+data:
+  name: cached_documents
+  source: k_affine_residual
+model:
+  name: tiny_llama
+  source: spec_mtp
+algorithm:
+  mode: eval
+  source: k_affine_residual
+system:
+  config:
+    device: cpu

@@ -1,6 +1,6 @@
 # layout
 
-`src/rpipe/` 是上游 RPipe `main` 的文件拷贝，提交 `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5`（`src/rpipe/ORIGIN`，v0.3.1）。`src/spec_mtp/` 只放 SpecMTP，经 Study recipe 注册。不要把 SpecMTP 写进 `rpipe` 的默认 source。
+`src/rpipe/` 保留上游 RPipe `main` 固定来源，提交 `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5`（`src/rpipe/ORIGIN`，v0.3.1）；Windows 例外和 [R1 本地补丁](rpipe-migration.md#r1-local-backport-20261020) 逐文件登记，原 blob 存在 `docs/rpipe-source/blobs/`。`src/spec_mtp/` 只放 SpecMTP，经 Study recipe 注册。不要把 SpecMTP 写进 `rpipe` 的默认 source。
 
 ```text
 src/
@@ -14,7 +14,8 @@ src/
 datasets/spec_bench/       SpecBench 源文件；Run prepare 拷进 shared/data
 studies/                   见 studies/README.md
 configs/hf/                论文格子的旧 YAML；不是入口
-tools/                     ci_local.py, windows_selfcheck.py, profile_cpu.py,
+tools/                     ci_local.py, _process_tree.py (private process ownership), check_rpipe_pin.py,
+                           windows_selfcheck.py, profile_cpu.py,
                            decode_fingerprint.py, package_selfcheck.py
 tests/spec_mtp/            跟着 src/spec_mtp
 docs/                      architecture, layout, testing, windows, brainstorm,
@@ -50,11 +51,11 @@ Study `recipe.py` 在 import 时调用 `register_sources()`。
 
 `tools/diagnose_proxy_transfer.py` scopes one predeclared provider-return vector replacement to a diagnostic replay. It infers seed ownership from actual root progress and verifies the returned trace, keeping post-intervention paths rather than forcing baseline acceptance. Its PLAN/results and offline `analyze_transfers.py` live in output_space_small_matrix; no scientific source/default/Run changes.
 
-`tools/diagnose_cross_prompt.py` runs the predeclared q171/q172/q174 selection with the unchanged observation/transfer helpers. It binds both original Studies and compares same-position committed anchor/velocity rather than assuming they are equal. Selection and failure/termination controls live in output_space_small_matrix/docs/CROSS_PROMPT_PLAN.md; full local tensors remain ignored.
+`tools/diagnose_cross_prompt.py` runs the predeclared q171/q172/q174 selection with the unchanged observation/transfer helpers. It binds both original Studies and compares same-position committed anchor/velocity rather than assuming they are equal. Selection and failure/termination controls live in the [central cross-prompt plan](<研究计划 Denoising Speculative Decoding.md#legacy-studies-output-space-small-matrix-docs-cross-prompt-plan>); full local tensors remain ignored.
 
 `tools/diagnose_extension.py` consumes output_space_extension's predeclared native matrix and frozen semantic-only window_selection_v1.json. It reuses existing observe/transfer/compare helpers; samples follow actual paths and noncommon roots remain explicit. First/second-slot offline inspection lives in that Study's analyze_results.py, with second-slot scalar expansion marked post hoc. Scientific src/defaults and earlier measurement tools remain unchanged.
 
-`tools/diagnose_q178_numerics.py` uses process-only deterministic FP32 flags and an explicitly scoped provider-state synchronization to canonical AR-prefix hiddens. Actual root is read from the unchanged mutable KV cache and checked at forward; proxies/decoder/cache code remain intact. Its controls/teacher/repeat budget is frozen in output_space_extension/docs/NUMERICAL_PLAN.md.
+`tools/diagnose_q178_numerics.py` uses process-only deterministic FP32 flags and an explicitly scoped provider-state synchronization to canonical AR-prefix hiddens. Actual root is read from the unchanged mutable KV cache and checked at forward; proxies/decoder/cache code remain intact. Its controls/teacher/repeat budget is frozen in the [central numerical plan](<研究计划 Denoising Speculative Decoding.md#legacy-studies-output-space-extension-docs-numerical-plan>).
 
 `tools/diagnose_study_windows.py` is the manifest-bound four-prompt coordinator for output_space_followup. Existing choose_window/observe/transfer/compare/slots implementations are imported unchanged and individually hash-bound. It records both slot rankings and validity with actual/noncommon paths. New-study native phases stay thin imports; raw tensors/weights remain local.
 

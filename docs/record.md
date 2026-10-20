@@ -1,5 +1,63 @@
 # 开发记录
 
+## 2026-10-20 S1 缓存元数据对应实际 Run
+
+既有load_launch_plan只检查job.config指针，指向外来eval、缺文件或缺指针时，显式缓存mode=eval仍能派发实际mode=train的Run。两公共入口从原生make和合法冻结配置进入真实CPU hook，首红 **9F/3P**：六个mode错选及三个设备元数据错配，设备仅作读取不启动CUDA。正确实际train控制不发执行者。保持原config校验，再对实际 `runs/<run_id>/config.yaml` 的显式mode/device作局部比对，不符沿原None→make重建，不改filter、调度、来源、锁或异常范围。
+
+同12例修复后 **12P**，另3个legacy省略mode/device/both控制均通过；前两组控制器分别64.1870／52.1221秒，legacy10.5303秒，JUnit与逐例计时另存原件，不作为性能或总工时。各组源／测试前后SHA一致、所属0残留与清理确认；mode控制的完整config原字节、设备读取的jobs原字节均保持。legacy追加在独立选集，不冒充前一轮12P的同一测试文件时点。
+
+固定v0.3.1原102与许可证不变，当前103／十一差异／十原blob保持，manifest只更新既有scheduler的local_sha与理由；checker不放宽。命令、JUnit、真实hook/计划观测、输入SHA、来源逆差与原pin在 `.tmp/debt-batch9/source-verification.json`。本机Windows/Python3.13.9，严错Ruff与3.10语法检查单列；不称本机Linux或远端CI通过。没有研究模型、Torch研究计算、GPU、下载、计费、历史队列或数据删除。
+
+独立复核发现首版f696d0c按键存在判断，比上游非空广告字段合同多拒绝了null／空字符串。以原计划reader取得四个兼容反例 **4F，外层12.5965秒**，再仅将两条件收窄为job.get。最终兼容选集 **7P，外层20.1609秒**，含原3个省略字段控制，不与原3P重复累计；非空广告的原12例语义不变。新增后续普通提交保留首版与原失败证据，不amend；最终来源／兼容时点在 `.tmp/debt-batch9/final-source-verification.json`，全量CI须核新HEAD，不借用f696结果。
+
+## 2026-10-20 S2 预期结果持久化
+
+独立 pytest 报告器未保存 wasxfail，非严格 XPASS 的三阶段均 passed、原生 exit0，会被重建为普通 passed／complete=true；call/setup/teardown 的 xfail 则变成普通 skipped。按测试规范的预期结果单列合同，以真实 pytest 子进程取得 **8F/4P，8.893秒，外层9.5468秒**，包含空 reason，不用构造事件冒充执行。普通 skip、普通失败优先、strict XPASS 和正常 passed 四控制保持原生语义。
+
+仅在原 phase 事件保存该属性及原值，重建区分标记所属的 skipped／passed；保留原 outcome、普通失败优先和阶段不全检查，完整性不静默接纳 xpass。pytest 退出码与严格标记政策不改；缺少标记的历史事件不补签或猜测。修复后完整原持久化报告选集 **23P，10.357秒，外层10.9573秒**，含12个新公共子进程用例和11个既有检查。空原因 xpass 另走真实 report-only CLI，其余原进程退出后的 API 重建与 manifest/events 字节保全均过。
+
+命令、JUnit、逐例原生退出/分类/完整性观测、输入前后SHA、所属0残留及收尾在 `.tmp/debt-batch8/source-verification.json`。Python3.10语法、Ruff、固定103文件 pin 检查通过；实际本机Windows/Python3.13.9，不称本机Linux实跑。全部src、tools与固定来源不改，无研究模型、Torch计算、GPU、下载、训练、付费、历史队列或数据删除。
+
+## 2026-10-20 S3 本地 CI 最终 I/O 首错保全
+
+公开 `ci_local.main` 的总收尾依次解锁、关协调锁、写 summary；任一步 I/O 失败会覆盖已发生的真实 setup TimeoutExpired，解锁/关闭失败还会跳过后续 summary。用现有 workflow 夹具只替换 git/setup 选择，实际运行受控 CPU 子进程并超时，API 故障注入首红 **5F/3P，1.337秒**。保留路径诊断输出另 **1F/1P，0.387秒**。未执行环境安装、真实 Git worktree 变更或研究代码，生成证据均显式 --keep。
+
+仅修改 main：捕获本次调用自己的首错，分别尝试解锁/关闭/summary/诊断；次错另列 finalization_errors 和 note，不覆盖 sh 的进程清理属性。没有本次首错时仍抛第一个收尾错误，发生收尾错即保留证据。初版用 sys.exc_info 取首错会继承调用者 except 中的旧异常，独审后新 **4F/1P** 实际证明了错误 return0；改为 outer except 显式记录本次异常。原20P是中间时点，不当最终验收。
+
+最终 **25P，3.676秒，整轮4.2281秒**：15个正常/超时/最终I/O/ambient控制及10个相关首错/期限回归；所属清理确认，源码/测试前后SHA相同。无错误分支维持原工作树处理；锁获取、sh、进程树实现和全部 src 不变。POSIX解锁是Windows上的API故障注入，不称Linux实跑。Python3.10语法、Ruff及独立只读复核通过；原始轮次、逐例观测及hash在 `.tmp/debt-batch7/source-verification.json`。无模型、训练、GPU、下载、计费或历史数据清理。
+
+## 2026-10-20 S1 未选 eval 忙碌拒绝传播
+
+原生与专项两入口只选择 inference 时，index 中旧 eval 因父 train 失败或更新而应失效；eval 已持锁时，调度器仅打印 busy，仍返回 0 并改写 Study process，父更新场景甚至报告完整成功。合法来源绑定、真实 OS 锁及实际 inference 单次执行反例 **4 failed / 4 passed**，55.538 秒。空闲四控制正常纠错。
+
+按 RPipe `d8fe6d0dcf3701c3d4cdd35cdfc986501d42963d` 只在原纠错拒绝分支新增 `refuse(run_id)`，复用既有 CLI/Bash 拒绝门。八个公开入口回归和原 Bash 拒绝门共 **9 passed**，51.142 秒；守卫 52.2159 秒、所属清理与源码/测试前后 SHA 一致。busy eval/result/token/先前 Study process 原字节保持，本轮 inference 恰好执行一次；idle 纠错保留原 metrics，冻结声明/index/provenance/config 字节均保持。
+
+十一项本地差异、十份原 blob、102 条固定原身份保持。完整反例、控制与八个深 JSON catch 的精确生产差异审计见 `.tmp/debt-batch5/final-source-verification.json`。无新异常类别、版本升级、研究模型或历史队列执行；本机 CLI 与生成 Python body 检查不代表实跑 Bash shell。
+
+## 2026-10-20 S1 深 JSON 读取残留
+
+两个公共模块入口在合法但过深的 JSON 上，结果读取、缓存计划和 Tracker 历史路径出现 **14 failed / 1 passed**，58.825 秒；activity 另 **2 failed**，8.233 秒。严格 decoder 对照确实抛 RecursionError。仅在原来已有容错处理的八处 catch 中补这一异常，不改变严格 decoder、异常继承或 I/O 范围。只读结果/state/JSONL/activity 原字节保全，坏 JSONL 邻接有效观测的坐标与数值保持；坏 jobs 缓存沿原 make 路径重建。
+
+同一组及正常非对象/非法 JSON 对照 **27 passed**，147.649 秒（所属树守卫 148.8815 秒）；固定来源及文档门另 **10 passed**，3.684 秒。所有轮次输入 SHA 前后相同、所属进程清理确认。首次 2000 层夹具在本机 Python 3.13 仍可解析，首轮阈值断言无效，原件留在 `.tmp/debt-batch4/depth-red/`，不计偿还。有效反例改为 10000 层，没有通过降低递归上限制造产品故障。
+
+原 v0.3.1 的 102 条来源记录、固定指纹和许可证保持，当前 103 文件；仅新增 activity 精确差异及原 Git blob，现为十一项差异、十份原 blob。独立调用链复核、Python 3.10 语法、Ruff 与 offline pin 通过；实际 Windows/Python 3.13.9。逐轮命令、JUnit、原始日志及哈希在 `.tmp/debt-batch5/depth-source-verification.json`；未运行 CUDA、下载、训练或收费资源。
+
+## 2026-10-20 S1 make 发布持锁接续
+
+三条真实入口（配置 API、高层展开、原生 CLI make）在后目标已持锁时仍写配置，独立有效红例 **3 failed / 3 passed**。按旧布局在 make/__init__.py 与 write.py 复用既有 Run 锁；配置候选和内部 writer 由原代码拆出，高层持锁覆盖 recipe/config/index/provenance，不再次调用会重入取锁的公共入口。原 ensure→recipe 顺序保持，不迁 R2，不引入多 Run 事务。
+
+相关 make/package/recipe/docs 首轮 **73 passed / 1 failed**，唯一失败是测试把原有 activity.json 进度输出也误纳入业务字节保全；未改生产处理，收窄到原合同并保留原件，最终新 make 全部 **10 passed**，整轮守卫 **4.7289 秒**、所属清理确认。最初 base description 被 Study run_description 覆盖的无效控制也单列保留，不计源码反例。精确轮次、JUnit 与源码/来源 SHA 见 `.tmp/debt-batch3/make-source-verification.json`。
+
+固定原 102 记录、当前 103 文件、许可证不变；白名单增加 make 两处，当前十项差异、九份原 blob。锁准入允许 Run 目录/锁文件与原进度输出，不承诺未展开历史 Run 或原子回滚。专项来源锁沿既有独立合同；无研究模型、训练、GPU、下载或计费。
+
+## 2026-10-20 S1 第三批迁移残留
+
+固定副本的 scheduler、status、Study aggregate 漏接非对象结果异常，两个真实模块入口的 status/process/launch 以及 scheduler 首红为 **10 failed / 1 passed，26.448 秒**。持久化计划过滤前不验完整 jobs/batches、损坏数字裸抛及负 round 另为 **7 failed / 1 passed，1.243 秒**。只补四个已有容错 reader 的 CorruptArtifactError 和原始计划前置验证；decoder、异常继承、既有 OSError 边界及科学源码不改。
+
+首组修复后相关入口/pin/docs **65 passed，128.457 秒**，整轮守卫 **129.4786 秒**。独立复核再找到公开 `run-one --phases process` 的同因遗漏，两个入口先 **2 failed / 2 passed，16.290 秒**，补齐 individual reader 后其公共入口及 pin/docs **21 passed，20.234 秒**，守卫 **21.3929 秒**。这两组有重叠，65 项发生在 individual 补丁之前，不充作最终全量验收；全部所属进程清理确认。最初 custom pytest 参数发现失败发生在收集前，原件单列，不计源码反例。
+
+固定 v0.3.1 身份、102 条原来源与许可证保持；当前精确八项本地补丁、七份原 blob 均由 offline checker 验证，伪造原清单或任意新增本地路径仍拒绝。Python 3.10 语法及 Ruff 通过，实际本机为 Windows/Python 3.13.9。完整命令、日志、JUnit、阶段 report 与逐文件来源核验保留 `.tmp/debt-batch3/`；不随 clone 提供。未启动 GPU、下载、真实模型研究、旧队列、付费资源或数据清理；远端新 HEAD 检查另行核对，不借用旧 CI。
+
 ## 2026-10-14
 
 - 继续 refactor/spec-rpipe，保留用户及上游工作区修改。前次 PR #5 已进入 dev（1b6d59c），当前分支快进到同树集成提交后继续；不推送 dev/main，不发布版本。

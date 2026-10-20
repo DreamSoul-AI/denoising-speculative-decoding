@@ -1,5 +1,29 @@
 # testing
 
+第九批 S1 缓存元数据：真实原生／专项两入口 make 后，缓存显式 mode/device 与实际Run配置不符必须放弃缓存并沿原make重建，不能以 `--mode eval` 派发实际train。保留原指针校验及legacy省略字段。新增12例先9F/3P后12P，legacy省略mode/device/both另3P；前后输入SHA、所属收尾、配置字节与只读jobs原件均核。设备检查不运行GPU；原固定来源pin仍核103文件，详见 [记录](record.md)。
+
+独审确认显式字段须按非空值判断；null／空字符串仍未声明。首版按键存在的四个新增兼容反例4F，收窄为job.get后兼容最终7P（包含先前三个省略字段控制），不与旧3P重复累计；各时点与完整当前HEAD的CI分开记录。
+
+第八批 S2 预期结果报告：原始 phase outcome 保持 pytest 值，另保存 wasxfail 属性及原因（包括空字符串）。重建分别列 xfail／非严格 xpass，普通失败仍优先，阶段不全仍不完整，完整报告继续要求所有用例为普通 passed。pytest 原生退出政策保持；strict XPASS 原生 failed 无该属性，仍按 failed，不解析消息另造政策。旧事件缺标记时不补造历史预期结果。
+
+真实 pytest 子进程的 call/setup/teardown、空原因、普通 skip/fail、strict XPASS 与正常控制首红 8F/4P，修复后含既有持久化检查共23P；report-only CLI 与 API 重建不改 manifest/events 原字节。数字和证据见 [记录](record.md#2026-10-20-s2-预期结果持久化)。不涉及固定副本或研究模型。
+
+第七批 S3 总收尾合同：`ci_local.main` 在解锁、关闭协调锁、写 summary 或输出保留路径时发生 I/O 次错，仍须尝试其余收尾。已存在的 setup/execution 首错保持同一对象和所属树诊断，最终 I/O 诊断独立附加；没有首错时，首个收尾错误继续失败。发生任何收尾错误即保留本轮证据。范围不扩到初始锁获取或新的平台支持；Windows 上 POSIX flock 故障用 API 注入验证，不冒称 Linux 实跑。
+
+首错仅指本次 main 调用，不能继承调用者正在处理的异常。真实 CPU setup 超时和最终 I/O/diagnostic、ambient 调用、无首错控制及相关故障共25项通过；分阶段反例、中间20P与最终验收见 [记录](record.md#2026-10-20-s3-本地-ci-最终-io-首错保全)，不重复累计。
+
+未选 eval 拒绝回归从合法三 mode make 进入 `launch --mode inference`，覆盖两模块入口、父失败/更新、busy/idle。真实 inference 必须单次成功；busy eval 和原 Study process 完整保全，idle 允许原纠错。4F/4P 后仅补共享 scheduler 一行拒绝传播，8 个新入口和既有 Bash 拒绝门共 9P；证据与边界见 [record](record.md#2026-10-20-s1-未选-eval-忙碌拒绝传播)。
+
+第四、五批的深 JSON 合同使用 10000 层实际输入，不修改解释器递归限制。两公共入口覆盖四个结果读取路径、坏 jobs 缓存重建、activity、Tracker state/JSONL；严格 decoder 必须继续拒绝，坏行前后有效曲线及原字节必须保留。有效首红 14F/1P 加 activity 2F，相关正常控制与修复回归 27P，pin/docs 10P；逐轮时点见 [record](record.md#2026-10-20-s1-深-json-读取残留)，不合并重叠数字。当前十一项精确本地差异、十份原 blob、102 条固定原记录，由原 checker 核验。
+
+`test_make_ownership.py` 验证配置 API、高层展开、原生 make 的后目标 busy/idle，以及实际 FlowRunner 在配置/index/provenance发布期间被拒绝、writer 异常后所有锁释放。仅新建 CPU Toy 声明，不构造模型或执行训练。原 activity.json 进度与锁目录不属于业务字节回滚合同；原件、无效控制及实际相关范围见 [make 接续记录](record.md#2026-10-20-s1-make-发布持锁接续)。
+
+## 2026-10-20 第三批固定副本残留
+
+`tests/spec_mtp/test_run_ownership.py` 新增两个真实模块入口的 status/Study process/launch 和 `run-one --phases process` 非对象结果回归，以及直接 scheduler 的 list/null/scalar/非法 JSON 对照。只读入口保留原 result 字节；launch 仍经持锁 Runner。持久化计划测试覆盖过滤前的非对象、重复完成 Run、错批次、缺批次、坏数字和负 round，合法顺序/完成项过滤保留。
+
+65 项相关入口/pin/docs 先通过；独立复核增加 individual 补丁后，21 项 process-only/pin/docs 通过，两组有重叠。逐轮数字和源码时点见 [record](record.md#2026-10-20-s1-第三批迁移残留)。可复现命令为 `python -m pytest tests/spec_mtp/test_run_ownership.py tests/spec_mtp/test_package.py tests/spec_mtp/test_docs.py`；本机各调用另有 20/30 秒 CLI 截止、180 秒整轮 Windows Job 守卫，只清理所属进程。`python tools/check_rpipe_pin.py` 同时核八项精确补丁、七份原 blob 和不变的 102 条原来源。完整原件在 `.tmp/debt-batch3/`，不随 clone 提供；本机 CPU 工程检查不替代真实模型、CUDA 或全部支持版本验收。
+
 `tests/spec_mtp/` 测 SpecMTP 以及它和这份 `src/rpipe/` 的合同。RPipe 自己的行为在上游测。
 
 ```text
@@ -12,6 +36,16 @@ python -m pytest tests/spec_mtp
 ```
 
 工作流：`.github/workflows/cpu-checks.yml`。重放：`python tools/ci_local.py`。GPU Study 和真实权重不在 CI。CPU冒烟仍检查独立AR exact=1作为固定fixture回归；原生成功门是完整verifier argmax审计，AR差异仅诊断。
+
+固定副本按 [R1 迁移合同](rpipe-migration.md#r1-local-backport-20261020) 验证：`python tools/check_rpipe_pin.py` 核对固定来源加显式本地补丁，`tests/spec_mtp/test_run_ownership.py` 从本仓 `spec_mtp run-one/launch` 竞争新的离线 CPU Toy Run，检查旧成功/失败结果、日志、checkpoint、token 的逐文件字节保全、拒绝不默认重试、不同 Run 并行、异常/中断/死亡恢复；另检验一次性 token、零/非零失主退出、有效失败重试、非法计划在建锁目录前拒绝，以及生成 Bash 的拒绝 payload。所有测试子进程有单次期限和所属收尾，Toy hook 等待最多20秒；Bash payload 在 Python 中执行，本机未执行 Bash 外壳。Windows 本机结果不能代替新版 Ubuntu CI。
+
+同一选集还覆盖初始冻结检查先于新 token 和结果失效、真实 launch 父门通过后源发生变化的子进程拒绝、锁获取/标记/解锁/关闭 I/O 次错保全，以及未登记 local SHA 和伪改原来源清单的拒绝。S2 显式相对报告目录在 pytest 配置时转绝对路径，避免用例切换 cwd 使事件写入丢失；真实 pytest 子进程回归核验完整报告。
+
+准入旧结果的读取边界另通过实际 `run-one` 与 Runner 的 token 路径回归：合法 JSON `[]` 和损坏 JSON 均能进入 owned 阶段；注入 PermissionError 时保留同一异常对象、不进入阶段且旧结果字节不变。
+
+本地 `cli()` 测试子进程默认单次300秒，可按用例传入更短的 `timeout`；正常退出、超时与中断均收尾本次命令拥有的进程；Windows用挂起创建→归属私有Job→恢复避免后代逃出归属，Linux收尾原独立进程组，要求/proc及waitid(WNOWAIT)，其他平台在启动前明确拒绝（主动setsid的后代不在组内，Linux本机未实测）。捕获输出使用临时文件，避免后代持有管道阻塞入口；清理权限不足或未确认时保留错误，并在 `.tmp/cli-timeouts/` 保留命令、stdout和stderr。`ci_local.py` 从每个job的checkout开始消费workflow的 `timeout-minutes`（当前30分钟），各step使用剩余job时间与自身期限的较小值，setup也使用剩余时间；整轮期限触发后，所属树停止与直属进程回收各另限10秒，Git工作树清理另限30秒。超时或非零退出保留工作树、step日志及 `summary.json`，成功默认清理。该期限对应命令执行范围，不等同GitHub runner镜像、缓存、排队及PR merge commit的完整重现。
+
+默认pytest入口将最终选中的nodeid清单、每次尝试的setup/call/teardown事件及逐阶段耗时写入 `.tmp/test-reports/<run>/`。manifest采用同目录临时文件及原子替换，更新中断保留上一份完整记录和未完成临时文件。重建仅容忍末尾未换行的损坏事件，保留原件并标记不完整；中间或已换行的损坏记录报错。失败或skip保留原因，teardown失败覆盖call通过；缺失阶段不能记为完整通过，所有尝试保留。`--test-report-dir <new-dir>`可指定独立目录；进程退出后用 `python -m pytest tests/spec_mtp --test-report-only <run-dir>`从manifest/events重建部分 `report.json`，其中missing/retry列出未完成与待复核项。CPU workflow在结束时尝试上传原件；本地CI重放把对应目录复制到自身run的artifacts后保留该run，成功工作树仍可清理。硬终止runner导致上传步骤未执行时，仍需取得原磁盘文件才能恢复。
 
 现有 GPU 环境不执行上面的 CPU torch 安装。测试使用独立 --basetemp=.tmp/<new-id>。Ruff 的 vendored facade 例外见 [兼容记录](bugs.md)。tiny 接受数是回归基线；完整链还检查原始 token、来源漂移、证据缺失和 Study 完整性。
 

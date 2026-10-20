@@ -1,5 +1,19 @@
 # 异机交接
 
+## 2026-10-20 CPU 工程债第二批：固定副本 R1 候选
+
+本批在 `codex/debt-sd-cpu` 隔离树接续 [Draft PR #52](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/52)，未合 dev/main。固定 RPipe 来源仍为 v0.3.1 `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5`；仅按 [R1 迁移合同](rpipe-migration.md#r1-local-backport-20261020) 补执行锁、一次性 token、锁内结果失效与初始冻结准入、拒绝不重试。三处旧框架文件及一处新增模块有明确差异，原 Windows 补丁保留；未迁 R2、shared 资源业务或其余上游版本。原 blob/固定原记录指纹和五项白名单由 pin 检查验证。
+
+本仓新 CPU Toy Run `569a20b3a634ffb1` 的红例确实允许双 `run-one/launch` 进入同一执行 hook（2 failed，49.48 秒）；补丁后验证旧成功/失败结果、checkpoint、日志及 token 的字节保全、不同 Run 并行及死亡/中断恢复。独立锁关闭 I/O 反例为 5 failed/2 passed，解锁诊断反例为 2 failed/1 passed；均已用真实句柄故障回归验证。冻结时序红例为 3 failed/1 passed，真实 launch 曾将拒绝启动当失败重试；锁内初始准入修复后 4 passed，21.69 秒。任意 local SHA 或伪改原 map 曾被 pin 放行（2 failed），硬化后对应拒绝及原件校验通过。
+
+本机为 Windows、Python 3.13.9，`CUDA_VISIBLE_DEVICES=-1`、HF/Transformers 离线、线程 1。最初完整检查在 443 passed 后因 S2 相对报告目录随 cwd 漂移而以 INTERNALERROR/退出 3 结束，不能算通过；一行路径归一及真实 pytest 回归修复后，修前 full2 完整 702 passed/1 条既有第三方 SyntaxWarning，290.53 秒、退出 0。该全套早于最后冻结准入修复，单独保留，不冒称最终全套绿灯。
+
+`8c113e2` 候选相关选集（公共入口、锁、调度、结果/来源、S2/S3/S5 与 readout report）为 **102 passed，112.40 秒**，控制器 113.56 秒、退出 0、所属收尾确认；pin 最后硬化后，package/pin、锁 I/O 与文档入口另 **27 passed，2.17 秒**。Ruff、mypy、固定来源 pin、diff 和 Python 3.10 语法检查通过。原件保留在本树 `.tmp/debt-batch2/` 的 red2、close-red、unlock-red、full、full2、freeze-red/green、final-contracts、pin-red/green 与静态记录；失败原件不删除，忽略目录不随 clone 交付。
+
+后续读取边界复核发现新准入捕获漏掉非对象结果的 CorruptArtifactError，同时宽泛 OSError 会吞 PermissionError；实际 run-one/Runner 的 6 项红例为 4 failed/2 passed，16.60 秒。小修仅明确缺失/损坏异常集合，其他读取 I/O 首错原样传播；旧 `[]`/损坏 JSON 可进入 owned 阶段，权限拒绝则同一异常对象传播、阶段未入且旧结果不变。更新 runner 本地 SHA 后，ownership 全部、锁 I/O、package/pin 和文档入口共 **56 passed，93.82 秒**，控制器 94.94 秒、退出 0、所属收尾确认；Ruff、mypy、pin、diff 与 3.10 语法均过。红绿及新来源哈希保存在 read-guard-red/green、static-read-guard 和 source-evidence-read-guard.json，之前原件保留。
+
+最终 head 的远端完整 CI 由主对话推 Draft 后核验，本机不重复同一整套。未运行 GPU、真实模型科学训练/PPL/校准、模型/数据下载、依赖升级、暂停队列、Bash 外壳、Linux 或 Python 3.10 运行时；3.10 仅语法检查。旧研究 Run、来源签名、raw、报告及负结果保持。下列研究收口与暂停约束继续有效。
+
 <a id="sd-wrap-up-20261018"></a>
 ## 2026-10-18 最终交接：已收口，未启动下一阶段
 
