@@ -191,3 +191,52 @@ def test_completed_cases_do_not_replace_missing_or_failed_session_exit(tmp_path,
     body = conftest.rebuild_test_report(tmp_path)
     assert body['cases'][0]['status'] == 'passed' and not body['complete']
     assert body['exit_status'] == exit_status
+
+
+@pytest.mark.parametrize('case,source,status,exit_code', [
+    ('call-xfail', 'def test_case(): pytest.xfail("known call")', 'xfail', 0),
+    ('call-xfail-empty', 'def test_case(): pytest.xfail("")', 'xfail', 0),
+    ('setup-xfail', '@pytest.fixture\ndef fixture(): pytest.xfail("known setup")\n'
+                    'def test_case(fixture): pass', 'xfail', 0),
+    ('setup-xfail-empty', '@pytest.fixture\ndef fixture(): pytest.xfail("")\n'
+                          'def test_case(fixture): pass', 'xfail', 0),
+    ('teardown-xfail', '@pytest.fixture\ndef fixture():\n yield\n pytest.xfail("known teardown")\n'
+                       'def test_case(fixture): pass', 'xfail', 0),
+    ('teardown-xfail-empty', '@pytest.fixture\ndef fixture():\n yield\n pytest.xfail("")\n'
+                             'def test_case(fixture): pass', 'xfail', 0),
+    ('xpass', '@pytest.mark.xfail(reason="known", strict=False)\ndef test_case(): pass', 'xpass', 0),
+    ('xpass-empty', '@pytest.mark.xfail(reason="", strict=False)\ndef test_case(): pass', 'xpass', 0),
+    ('skip', '@pytest.mark.skip(reason="ordinary skip")\ndef test_case(): pass', 'skipped', 0),
+    ('failure-before-xfail', '@pytest.fixture\ndef fixture():\n yield\n pytest.xfail("teardown")\n'
+                             'def test_case(fixture): assert False, "ordinary failure"', 'failed', 1),
+    ('strict-xpass', '@pytest.mark.xfail(reason="known", strict=True)\ndef test_case(): pass', 'failed', 1),
+    ('passed', 'def test_case(): pass', 'passed', 0),
+])
+def test_real_expected_outcomes_survive_report_replay(tmp_path, case, source, status, exit_code):
+    result, directory = child_pytest('import pytest\n' + source + '\n', tmp_path)
+    body = json.loads((directory / 'report.json').read_text())
+    original = {name: (directory / name).read_bytes() for name in ('manifest.json', 'events.jsonl')}
+    rebuilt = conftest.rebuild_test_report(directory)
+    replay_exit = None
+    if case == 'xpass-empty':
+        replay = sh([sys.executable, '-m', 'pytest', 'tests/spec_mtp', '--test-report-only', str(directory)],
+                    timeout=20, check=False, capture_output=True, text=True, cwd=ROOT,
+                    env={**os.environ, 'CUDA_VISIBLE_DEVICES': '-1', 'PYTHONUTF8': '1'})
+        replay_exit = replay.returncode
+        (tmp_path / 'replay.stdout.log').write_text(replay.stdout, encoding='utf-8')
+        (tmp_path / 'replay.stderr.log').write_text(replay.stderr, encoding='utf-8')
+    unchanged = all((directory / name).read_bytes() == raw for name, raw in original.items())
+    observation = dict(case=case, native_exit=result.returncode, expected_exit=exit_code,
+                       actual_status=body['cases'][0]['status'], expected_status=status,
+                       complete=body['complete'], report_equal_after_replay=body == rebuilt,
+                       replay_cli_exit=replay_exit, raw_evidence_unchanged=unchanged,
+                       phases=body['cases'][0]['attempts'][0]['phases'])
+    (tmp_path / 'expected-outcome-observation.json').write_text(
+        json.dumps(observation, indent=2) + '\n', encoding='utf-8')
+    assert result.returncode == exit_code, result.stdout + result.stderr
+    assert body['cases'][0]['status'] == status
+    assert body['complete'] == (status == 'passed')
+    assert body == rebuilt and unchanged and replay_exit in (None, 0)
+    if status in {'xfail', 'xpass'}:
+        marked = [event for event in observation['phases'].values() if 'wasxfail' in event]
+        assert marked and (not case.endswith('empty') or any(event['wasxfail'] == '' for event in marked))

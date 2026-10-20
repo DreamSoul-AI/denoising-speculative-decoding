@@ -1,5 +1,13 @@
 # 开发记录
 
+## 2026-10-20 S2 预期结果持久化
+
+独立 pytest 报告器未保存 wasxfail，非严格 XPASS 的三阶段均 passed、原生 exit0，会被重建为普通 passed／complete=true；call/setup/teardown 的 xfail 则变成普通 skipped。按测试规范的预期结果单列合同，以真实 pytest 子进程取得 **8F/4P，8.893秒，外层9.5468秒**，包含空 reason，不用构造事件冒充执行。普通 skip、普通失败优先、strict XPASS 和正常 passed 四控制保持原生语义。
+
+仅在原 phase 事件保存该属性及原值，重建区分标记所属的 skipped／passed；保留原 outcome、普通失败优先和阶段不全检查，完整性不静默接纳 xpass。pytest 退出码与严格标记政策不改；缺少标记的历史事件不补签或猜测。修复后完整原持久化报告选集 **23P，10.357秒，外层10.9573秒**，含12个新公共子进程用例和11个既有检查。空原因 xpass 另走真实 report-only CLI，其余原进程退出后的 API 重建与 manifest/events 字节保全均过。
+
+命令、JUnit、逐例原生退出/分类/完整性观测、输入前后SHA、所属0残留及收尾在 `.tmp/debt-batch8/source-verification.json`。Python3.10语法、Ruff、固定103文件 pin 检查通过；实际本机Windows/Python3.13.9，不称本机Linux实跑。全部src、tools与固定来源不改，无研究模型、Torch计算、GPU、下载、训练、付费、历史队列或数据删除。
+
 ## 2026-10-20 S3 本地 CI 最终 I/O 首错保全
 
 公开 `ci_local.main` 的总收尾依次解锁、关协调锁、写 summary；任一步 I/O 失败会覆盖已发生的真实 setup TimeoutExpired，解锁/关闭失败还会跳过后续 summary。用现有 workflow 夹具只替换 git/setup 选择，实际运行受控 CPU 子进程并超时，API 故障注入首红 **5F/3P，1.337秒**。保留路径诊断输出另 **1F/1P，0.387秒**。未执行环境安装、真实 Git worktree 变更或研究代码，生成证据均显式 --keep。

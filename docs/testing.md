@@ -1,5 +1,9 @@
 # testing
 
+第八批 S2 预期结果报告：原始 phase outcome 保持 pytest 值，另保存 wasxfail 属性及原因（包括空字符串）。重建分别列 xfail／非严格 xpass，普通失败仍优先，阶段不全仍不完整，完整报告继续要求所有用例为普通 passed。pytest 原生退出政策保持；strict XPASS 原生 failed 无该属性，仍按 failed，不解析消息另造政策。旧事件缺标记时不补造历史预期结果。
+
+真实 pytest 子进程的 call/setup/teardown、空原因、普通 skip/fail、strict XPASS 与正常控制首红 8F/4P，修复后含既有持久化检查共23P；report-only CLI 与 API 重建不改 manifest/events 原字节。数字和证据见 [记录](record.md#2026-10-20-s2-预期结果持久化)。不涉及固定副本或研究模型。
+
 第七批 S3 总收尾合同：`ci_local.main` 在解锁、关闭协调锁、写 summary 或输出保留路径时发生 I/O 次错，仍须尝试其余收尾。已存在的 setup/execution 首错保持同一对象和所属树诊断，最终 I/O 诊断独立附加；没有首错时，首个收尾错误继续失败。发生任何收尾错误即保留本轮证据。范围不扩到初始锁获取或新的平台支持；Windows 上 POSIX flock 故障用 API 注入验证，不冒称 Linux 实跑。
 
 首错仅指本次 main 调用，不能继承调用者正在处理的异常。真实 CPU setup 超时和最终 I/O/diagnostic、ambient 调用、无首错控制及相关故障共25项通过；分阶段反例、中间20P与最终验收见 [记录](record.md#2026-10-20-s3-本地-ci-最终-io-首错保全)，不重复累计。

@@ -61,8 +61,11 @@ def rebuild_test_report(directory):
         rows = []
         for attempt, phases in sorted(records.items()):
             outcomes = {event['outcome'] for event in phases.values()}
-            status = ('failed' if 'failed' in outcomes else 'skipped' if 'skipped' in outcomes
-                      else 'passed' if set(phases) == {'setup', 'call', 'teardown'} else 'incomplete')
+            expected = {event['outcome'] for event in phases.values() if 'wasxfail' in event}
+            status = ('failed' if 'failed' in outcomes else 'xfail' if 'skipped' in expected
+                      else 'skipped' if 'skipped' in outcomes
+                      else 'incomplete' if set(phases) != {'setup', 'call', 'teardown'}
+                      else 'xpass' if 'passed' in expected else 'passed')
             rows.append({'attempt': attempt, 'status': status, 'phases': phases})
         cases.append({'test_id': test_id, 'attempts': rows, 'status': rows[-1]['status'] if rows else 'missing'})
     body = {'complete': exit_status == 0 and manifest['collection_complete'] and bool(required) and not incomplete_log
@@ -89,6 +92,8 @@ class TestReport:
             self.attempts[report.nodeid] = self.attempts.get(report.nodeid, 0) + 1
         event = {'test_id': report.nodeid, 'attempt': self.attempts[report.nodeid],
                  'phase': report.when, 'outcome': report.outcome, 'duration_seconds': report.duration}
+        if hasattr(report, 'wasxfail'):
+            event['wasxfail'] = report.wasxfail
         if report.failed or report.skipped:
             event['detail'] = str(report.longrepr)
         with (self.directory / 'events.jsonl').open('a', encoding='utf-8') as output:
