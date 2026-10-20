@@ -1,0 +1,34 @@
+{
+  "schema": "k-affine-registration-v1",
+  "status": "pre_output_registered",
+  "date": "2026-10-20",
+  "chat_id": "01a1561f-6351-7d70-aef6-f1fab17f2259",
+  "chat_title": "自动化研究 AutoResearch",
+  "project_display_name": "denoising speculative decoding",
+  "execution_repo": "D:\\360安全浏览器下载\\Agent\\DreamSoul\\tmp\\技术债偿还 20261020\\sd",
+  "project_plans": {
+    "docs/研究计划 Denoising Speculative Decoding.md": "96d25d4c885b9ac48790d664217ba53b3ebf7d9a6ae3c6351b575e197e445007",
+    "docs/Research Plan Denoising Speculative Decoding.md": "efb85fbc0a6263cf273f55e756f9d2d6f1403f9e729ebb678fbd5fd4fd646c1a"
+  },
+  "plan_section": "k-affine-residual-20261020",
+  "immutable_plan_binding": "native prepare verifies HEAD:path blob and SHA; root commits this registration before execution",
+  "data_manifest_sha256": "24a5e323a2a5173462f8bde25bccd9cca3c769a86fe0fa056c930271bc02fa4d",
+  "declaration_sha256": "a1a8e382c04eb1b7450b3b796b59375ef18de1a36bc7de29a7224e589531f654",
+  "base_config_sha256": "d61213b63e34d55ef8bc9db78cbe444ba5812153f957ccacb27d2510f1cbdfd7",
+  "estimations": {
+    "single_run_seconds": 120,
+    "outer_deadline_seconds": 180,
+    "total_cpu_execution_seconds": 600,
+    "estimated_rss_bytes": 2147483648,
+    "rss_enforcement": "not yet enforced; record actual guard"
+  },
+  "restrictions": [
+    "no heldout tuning",
+    "no weights update",
+    "no future labels",
+    "no GPU",
+    "no download",
+    "no model quality claim"
+  ],
+  "separately_fitted_bias": true
+}

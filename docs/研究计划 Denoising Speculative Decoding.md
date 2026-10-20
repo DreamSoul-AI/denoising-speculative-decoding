@@ -3628,3 +3628,59 @@ CUDA 仅另行授权的随机 tiny 串行门；实际 dtype、TF32、attention �
 续跑准备实况：七格原生make通过，新首格d288934359a7ede1。单一等待队列60480在BC60自然退出前不载模，只读入账器78720已确认原首格成功；失败旧watcher输出另存保留。四阶段native dispatcher和来源映射正/负回归通过，Ruff/mypy通过，完整套件仅两项工具文档门失败，补齐后89项定向检查通过。首格三种τ与配对详情见[续跑报告](../studies/qwen3_4b_bf16_bias_norm_continuation/docs/STUDY_REPORT.md)。本地/远端仅main、dev和仍载BC60的已合活动分支；本工作分支未合，均保留，无新增删除。
 
 V4 operational update: documentation-only helper SHA change; superseded unexecuted seven IDs retained with metadata backup. Current first Run `6719b3ae2c089133`, serial waiting queue `64880`, read-only ledger `50944`. Earlier60480/78720 CPU processes exited before replacement; BC60 was never interrupted. Native make/source bindings renewed only for the new version, not old completed evidence.
+
+
+<a id="k-affine-residual-20261020"></a>
+## K 仿射残差校正：已提交位置的 CPU 小阶段（2026-10-20）
+
+### 一、灵感与初步问题
+
+独立方法 Study `studies/k_affine_residual`，用户已授权实施，不再作为待决路线。合作者提出 `z'=z+A(e(y)-e(m))+b`，`y` 为最后已 commit 的 token，`K=[A,b]` 由拟合取得。“模型相关而非数据相关”是待验主张。当前先核验可复现机制和跨数据冻结 K；新研究工作不计旧技术债偿还，不修改共享解码算法或旧 Study。
+
+### 二、文献与已有依据
+
+采用已有 [latent/output-space 计划](#legacy-docs-research-esp-table1-bf16-reproduction-plan) 的 final-normalized hidden 定位，及 `src/spec_mtp/structure/algorithm/output_masks.py`、`mask_providers.py` 的现有定义。合作者来源与一手阅读边界保留在本机任务 `batch9-collaborator-note.json`：Kalman 的仿射 innovation 仅作结构类比，未证明等价；本轮不预设某篇 spectrum 论文，也不复现 flow matching。当前不增加网络检索或下载。
+
+### 三、问题、假设与六方面衔接
+
+问题：同一随机模型中，fit 文档拟合的 K，在同数据集独立文档及另一数据集冻结使用时，能否降低已提交位置的 latent MSE？文献提供 hidden/残差定位，真实缓存文本提供输入，小随机 tied 模型给真实 latent 对，固定岭回归为方法，无校正/独立 bias-only 为基线，文档级配对 MSE 与跨数据隔离回答有限问题。可反驳预测是冻结 full K 在 holdout/cross 上低于无校正且优于独立 bias；没有改善如实记负结果，不调参或换样本。单模型单 seed 不足以检验模型相关性或普遍数据无关性。
+
+### 四、数据
+
+只读本机已缓存 WikiText2 test Arrow（`D:/GitHub/DreamSoul/dayan/.tmp/language-inputs-20261015-23/data/WikiText2/test/`）与仓库 SpecBench `datasets/spec_bench/question.jsonl`。按顶层文章分割 WikiText（不是相邻行随机拆分）：预先选前 12 个唯一且至少 32 token 的文章，前 8 fit、后 4 holdout；SpecBench 前 8 首轮问题为 cross_dataset。全部不加 special token/chat template，固定前缀长度 4/6/8/10/12/14/16/20，即 64/32/64 latent 对。数据标签“test”是原缓存名称，本轮 fit 不伪称独立评测集。原 WikiText metadata 未声明许可，保留原件，不重新分发语料；SpecBench 沿仓库既有本地输入。文章全文 SHA、选择序号、token IDs、tokenizer 与输入资产 SHA 预先登记于新 Study 的 `docs/data_manifest.json`；跨 split 全文和精确前缀交集必须为零。不得按输出选择样本或重调 K。
+
+### 五、模型
+
+复用当前官方 Transformers tiny LLaMA 构造器：随机初始化 seed=123、vocab=151936、hidden=32、intermediate=64、2 层、4 heads/2 KV heads、positions=128、tied embeddings、CPU/float32/eager。tokenizer 只读本机 Qwen3-0.6B 缓存、`local_files_only=True`；不读取或加载其权重。实际 unique/stored 参数、tied 指针、权重/状态 SHA 和依赖由 Run 实测。此模型不是 0.6B 预训练模型，未训练模型权重，不作模型质量或性能结论。
+
+### 六、算法与无泄漏定义
+
+本阶段是 postcommit replacement：长度 t 的 teacher-forced 已提交前缀 `P,y`，`P` 是前 t−1 token，`y` 已在过去输入中可得；`m=mean(E[P])`、`e(m)=m`。同一位置 t−1、同一因果前缀下分别执行 `P+soft(m)` 得 z(m)，`P+E[y]` 得目标 z(y)，都取官方 base model 最后归一化 hidden；不读取 t 之后 token 或下一词标签。它不等价于实际未来 speculative slot，不叫真实命中率复现。
+
+固定 `x=E[y]−m`、`r=z(y)−z(m)`，只用 fit 行进行中心化 float64 岭回归，lambda=0.001：`A=solve(Xc.T Xc+lambda I, Xc.T Rc).T`，`b=mean(r)−A mean(x)`，截距不惩罚。bias-only 独立拟合 `b0=mean(r_fit)`，不能取 full K 的 b 代替。none 为零增量。先落盘 full K 与 bias-only、fit IDs/SHA 并冻结文件 SHA，再提取/评估 holdout 和跨集；记录 freeze 前后 SHA，不再拟合。模型参数不更新，求解 K 是小线性校准，不是模型训练。只新增 Study 专属 source/Algorithm/阶段，不添加 fallback/adapter 或改 ESP/EMA。
+
+### 七、指标与判据
+
+| **角色** | **定义与聚合** | **判据** |
+| --- | --- | --- |
+| 主指标 | 三臂逐行 hidden MSE（32 维均值），先对每文档 8 位置平均，再在 split 等权平均 | holdout/cross 的 full−none、full−bias 文档配对差；不要求改善才签收执行 |
+| 辅助 | hidden cosine，LM-head 对目标 z(y) 的 argmax 一致率、全 vocab KL(target||arm) | 只作机制诊断，不是标签准确率、τ、接受数或质量 |
+| 有效性门 | 160 对完整、split 不交叉、位置正确、finite、同一冻结 K、输入/源码/权重前后 SHA 不变 | 缺失、泄漏、漂移、非 finite 即该轮失败，保留原件 |
+
+保存完整 x/z(m)/z(y)/三臂预测数组、token/文档映射、K/bias 和逐行诊断。LM-head 全 vocab 的实际计算保留逐行标量诊断，未保存所有 vocab logits；不宣称可由独立 clone 逐位恢复未入库大制品。单 seed、少量文章只报告文档配对分布，不作总体显著性或质量外推。
+
+### 八、执行顺序、预算与归属
+
+先提交本章和配置/输入登记的不可变 Git blob，再实现单元/合同测试，再以原生 `python -m spec_mtp make studies/k_affine_residual --round 1` → `launch` → `process/status/report` 运行一个 Experiment/seed Run。三个冻结臂共用该 Run，不分别重拟合。prepare 核对计划 blob/资产，execute 生成真实对并先冻结 K，collect 从 raw 重新计算，summarize 验有效性，write 复验，process 只终验当前 index。新入口测试不能代替实际 Run。
+
+项目显示名为 `denoising speculative decoding`；实际协调对话是 DreamSoul 的“自动化研究 AutoResearch”，ID `01a1561f-6351-7d70-aef6-f1fab17f2259`。本轮由跨仓协调对话与 SD 隔离树 `D:/360安全浏览器下载/Agent/DreamSoul/tmp/技术债偿还 20261020/sd` 执行，原 repo `D:/GitHub/DreamSoul/denoising-speculative-decoding` 只读；不伪称属于同名 SD 主对话或技术权限硬隔离。Agent `/root/rpipe_debt_batch3` 执行新 Study/必要计划索引测试，root 控 Git 与独审；其他源码/旧 Study/五份正式评审不写。采用自动化研究规范草稿的接续、比较、预登记、有界、核验、判断六步及停止处理，不宣称草稿已发布。
+
+单 Run 估计 120 秒、外层总截止 180 秒；整轮含测试/排错 600 秒 CPU 执行预算，超限即停并交付 partial，不自动放大/复启。OMP/MKL=1、CUDA_VISIBLE_DEVICES=-1、HF/TF offline。复用既有 Windows Job/ProcessTree 清理，只清理本轮所属树；每轮 fresh 输出、前后选中输入 SHA、真实 owned=0。2GiB RSS 是估计，若未接入采样门就仅报告实测，不虚称已强制。可根据首轮实际预算决定是否另提后续研究；本轮不下载、GPU、云费用、大训练或旧队列。
+
+### 九、执行记录与结论
+
+当前为注册前计划，实际 Run、成本和研究判断待本轮原生执行后写入 [Study 报告](../studies/k_affine_residual/docs/STUDY_REPORT.md)。成功完成定义为一个新 Run 的完整有效性/冻结/原始观测与阶段终验，不要求 full K 优于基线。旧债偿还计 0。未来 slot、预训练模型、不同模型、更多 seed 与大规模质量/性能均未验；当前不得据此宣称 K 与数据无关。
+
+### 十、变更与来源
+
+2026-10-20 用户授权把 K 从讨论推进为独立 Study；当前仅选择定义明确的 postcommit CPU 小阶段，不改历史计划/失败门。实现与输入冻结见 Study 声明、registration/data_manifest；实际 Git commit/blob 由 recipe 在原生 prepare 核对并入 Run，不填未存在的 Git 身份。后续协议变化必须新 version/Run，不重签旧结果。规范来源为 DreamSoul 研究计划模板（2026-10-20）、研究计划规范与自动化研究规范草稿；本章是按建议模板采用的局部研究计划。

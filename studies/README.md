@@ -116,3 +116,8 @@ RPipe 要求报告附图：解码使用真实接受数或轨迹图及来源图�
 唯一入口为[中文](<../docs/研究计划 Denoising Speculative Decoding.md>)/[English](<../docs/Research Plan Denoising Speculative Decoding.md>)。全部60份旧子计划已归入各自章节，来源清单保存旧Git commit/blob/工作树换行SHA。旧Run不重签、不remake；复放旧合同使用固定历史Git版本。当前Study声明的provenance.project_plan记录项目路径、章节及历史来源；这份元数据随study.yaml冻结，RPipe不自动读取仓库外路径或实时中央文档。新执行需显式验证不可变Git计划blob，不能误称额外字段本身会读取/冻结中央文档。
 
 当前单GPU串行，准入=已测进程树峰值主机RAM+2GiB余量及实际GPU空闲/工作集可容纳；不逐个核查CPU脚本，不杀外部作业。旧并发/显存阈值章节仅历史通用说明。BF16/T0、不测速、固定480 prompt，当前独立8B复验后接已预注册4B范数扫描。
+
+
+## K affine residual CPU stage
+
+[k_affine_residual](k_affine_residual/README.md) is a separately authorised postcommit latent calibration Study. Its fixed random model and fit/holdout/cross-data comparisons do not reproduce future-slot hit rate or establish data independence. Plan and registration precede native execution; no old queue resumes.
