@@ -27,6 +27,14 @@
 
 先在新的离线 CPU Toy 工程目录留下失败与对照，再做最小局部移植和回归。新增三个 reader 文件列入精确本地差异白名单，保存对应原 Git blob；当前共八项本地差异、七份原 blob，103 个活动文件。102 条原来源记录及固定指纹保持。独立调用链复核还检查了传入 loader 的间接读取；严格 loader 与 report 的既有严格拒绝不改。原件与无效控制器调用分别保留 `.tmp/debt-batch3/`，无 GPU、真实模型下载或历史 Study 重跑。
 
+## 2026-10-20 第三批 make 写入权迁移合同
+
+同批跨仓复核继续确认上游 R1 `2dc46fa35c64bc1905caf31b8e45449f1b6bdb44` 的 make 持锁边界也需在固定副本分别验收。真实反例使用两个展开 Run，持有后一个 Run 时，配置入口、高层展开与原生 make 均仍覆盖配置；正常入口作为对照。不改研究 version、历史 Run 或整体模板版本。
+
+旧布局的高层 `expand_study` 位于 `structure/make/__init__.py`，因此最小适配必须同时登记该文件和 `structure/make/write.py`。从原函数抽出纯候选解析和内部配置 writer，两个公共入口先取得全部目标的既有非重入 Run 锁，再写配置；高层锁持续覆盖 recipe、index 与 provenance，避免调用再次取锁的公共配置函数。候选解析不写业务文件。锁准入可以创建 Run 目录和 `.rpipe.lock`，不承诺多 Run 发布事务，不涉及 R2 或新的来源业务。
+
+新增两份原 blob 与精确本地差异后，固定原 102 条记录、103 个活动文件及许可证保持；本副本总计十项本地补丁、九份原 blob。验证后目标忙不先改前目标、正常发布、真实 Runner 在各 writer 阶段被拒绝，以及 writer 异常后全部锁释放。专项薄入口的 Study 来源锁仍按原有独立合同写入，本次模板锁覆盖 Run config/index/provenance，不改专项来源协议。
+
 ## 2026-10-14 接续范围
 
 原交接执行基线为 RPipe main v0.3.0 `804b3823ab6d2af46cbda1a65688ca8b76c60b22`，研究包为 spec_mtp。继续 refactor/spec-rpipe，原 PR #4/#5 已进入 dev，新增工作不复用历史实测身份。src/rpipe 与原始证据长期保留；不覆盖 D:/GitHub/diaoenmao/RPipe 中其他任务的修改。

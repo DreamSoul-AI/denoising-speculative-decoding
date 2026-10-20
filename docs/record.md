@@ -1,5 +1,13 @@
 # 开发记录
 
+## 2026-10-20 S1 make 发布持锁接续
+
+三条真实入口（配置 API、高层展开、原生 CLI make）在后目标已持锁时仍写配置，独立有效红例 **3 failed / 3 passed**。按旧布局在 make/__init__.py 与 write.py 复用既有 Run 锁；配置候选和内部 writer 由原代码拆出，高层持锁覆盖 recipe/config/index/provenance，不再次调用会重入取锁的公共入口。原 ensure→recipe 顺序保持，不迁 R2，不引入多 Run 事务。
+
+相关 make/package/recipe/docs 首轮 **73 passed / 1 failed**，唯一失败是测试把原有 activity.json 进度输出也误纳入业务字节保全；未改生产处理，收窄到原合同并保留原件，最终新 make 全部 **10 passed**，整轮守卫 **4.7289 秒**、所属清理确认。最初 base description 被 Study run_description 覆盖的无效控制也单列保留，不计源码反例。精确轮次、JUnit 与源码/来源 SHA 见 `.tmp/debt-batch3/make-source-verification.json`。
+
+固定原 102 记录、当前 103 文件、许可证不变；白名单增加 make 两处，当前十项差异、九份原 blob。锁准入允许 Run 目录/锁文件与原进度输出，不承诺未展开历史 Run 或原子回滚。专项来源锁沿既有独立合同；无研究模型、训练、GPU、下载或计费。
+
 ## 2026-10-20 S1 第三批迁移残留
 
 固定副本的 scheduler、status、Study aggregate 漏接非对象结果异常，两个真实模块入口的 status/process/launch 以及 scheduler 首红为 **10 failed / 1 passed，26.448 秒**。持久化计划过滤前不验完整 jobs/batches、损坏数字裸抛及负 round 另为 **7 failed / 1 passed，1.243 秒**。只补四个已有容错 reader 的 CorruptArtifactError 和原始计划前置验证；decoder、异常继承、既有 OSError 边界及科学源码不改。

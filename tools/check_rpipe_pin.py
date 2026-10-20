@@ -10,7 +10,8 @@ BASE_RECORD_SHA256 = '69bb1b44fc73cdfa253e5e1c2d182f9db76a3c03717f85e5776bc604f4
 NEW_FILE = 'structure/artifact/execution.py'
 PATCH_FILES = {'__init__.py', 'flow/cli.py', 'flow/runner.py', 'structure/make/schedule.py',
                'structure/artifact/readout/status.py', 'flow/process/aggregate.py',
-               'flow/process/individual.py', NEW_FILE}
+               'flow/process/individual.py', 'structure/make/write.py',
+               'structure/make/__init__.py', NEW_FILE}
 
 
 def check(root=ROOT):

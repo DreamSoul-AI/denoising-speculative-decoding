@@ -1,5 +1,7 @@
 # testing
 
+`test_make_ownership.py` 验证配置 API、高层展开、原生 make 的后目标 busy/idle，以及实际 FlowRunner 在配置/index/provenance发布期间被拒绝、writer 异常后所有锁释放。仅新建 CPU Toy 声明，不构造模型或执行训练。原 activity.json 进度与锁目录不属于业务字节回滚合同；原件、无效控制及实际相关范围见 [make 接续记录](record.md#2026-10-20-s1-make-发布持锁接续)。
+
 ## 2026-10-20 第三批固定副本残留
 
 `tests/spec_mtp/test_run_ownership.py` 新增两个真实模块入口的 status/Study process/launch 和 `run-one --phases process` 非对象结果回归，以及直接 scheduler 的 list/null/scalar/非法 JSON 对照。只读入口保留原 result 字节；launch 仍经持锁 Runner。持久化计划测试覆盖过滤前的非对象、重复完成 Run、错批次、缺批次、坏数字和负 round，合法顺序/完成项过滤保留。

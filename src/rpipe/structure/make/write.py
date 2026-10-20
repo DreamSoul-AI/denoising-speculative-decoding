@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -13,11 +14,13 @@ from rpipe.structure.artifact import (
     write_config,
     write_index,
 )
+from rpipe.structure.artifact.execution import run_lock
+from rpipe.structure.artifact.paths import RUNS_DIRNAME
 from rpipe.structure.control import experiment_config_from_mapping, run_config_from_merge
 from rpipe.structure.make.expand import axis_keys_from_study
 
 
-def write_run_configs(study_dir: Path, patches: list[dict[str, Any]]) -> list[Path]:
+def _run_configs(study_dir: Path, patches: list[dict[str, Any]]):
     base_path = study_dir / 'experiment_config.yaml'
     if not base_path.is_file():
         raise FileNotFoundError(f'missing experiment_config.yaml: {base_path}')
@@ -26,12 +29,24 @@ def write_run_configs(study_dir: Path, patches: list[dict[str, Any]]) -> list[Pa
     ids = [run.id for run in runs]
     if len(ids) != len(set(ids)):
         raise ValueError('duplicate Run in Study expansion; use a new version for repeated computation')
+    return runs
+
+
+def _write_configs(study_dir: Path, runs) -> list[Path]:
     written: list[Path] = []
     for run in runs:
         cfg = run.to_mapping()
         layout = artifact_layout(study_dir, run.id)
         written.append(write_config(layout.config_path, cfg))
     return written
+
+
+def write_run_configs(study_dir: Path, patches: list[dict[str, Any]]) -> list[Path]:
+    runs = _run_configs(study_dir, patches)
+    with ExitStack() as stack:
+        for run in runs:
+            stack.enter_context(run_lock(study_dir / RUNS_DIRNAME / run.id))
+        return _write_configs(study_dir, runs)
 
 
 def write_study_index(

@@ -435,7 +435,10 @@
     "structure/make/__init__.py": {
       "git_blob": "b7270fcedd3780b3302bda7f457310171e13d42b",
       "sha256": "12c4b18d537de2d43ac8355fe5152a2f8dfc9aa2173e32c74d6fa4cbb80598d9",
-      "canonical_sha256": "300dc2b2803f01421ed1293d44ee72e77a67d57e0891ccb6ec05da4adf1943e3"
+      "canonical_sha256": "300dc2b2803f01421ed1293d44ee72e77a67d57e0891ccb6ec05da4adf1943e3",
+      "original_blob": "blobs/b7270fcedd3780b3302bda7f457310171e13d42b.txt",
+      "local_sha256": "b63069f8ef295bb895f7f315c700cb612f675b4a326c589a31733545d6e83bec",
+      "reason": "R1 make ownership: adapt 2dc46fa35c64bc1905caf31b8e45449f1b6bdb44 to original two-file layout; no R2 source migration."
     },
     "structure/make/capacity.py": {
       "git_blob": "15fe1c21d74497ded76f8b169452e70028ab6ffa",
@@ -463,7 +466,10 @@
     "structure/make/write.py": {
       "git_blob": "fe47bdbc45e7cfdefc15f10c847b0d7fa5aed7ce",
       "sha256": "0ddbf248373d053e79a10d6b9f57aaad228033d4db8c16daf3c5348ab820e0b5",
-      "canonical_sha256": "876fd0fd6fb045689e0267ba9cdd85eb48792bed616b9a4f157bb0355685a549"
+      "canonical_sha256": "876fd0fd6fb045689e0267ba9cdd85eb48792bed616b9a4f157bb0355685a549",
+      "original_blob": "blobs/fe47bdbc45e7cfdefc15f10c847b0d7fa5aed7ce.txt",
+      "local_sha256": "2f3b35b7d6d4d55caee838d6226033c70a47306173c60144774366d5c7ee6451",
+      "reason": "R1 make ownership: adapt 2dc46fa35c64bc1905caf31b8e45449f1b6bdb44 to original two-file layout; no R2 source migration."
     },
     "structure/model/__init__.py": {
       "git_blob": "8057367f7971504c07b5fe372a53322a0fd9a6e2",
