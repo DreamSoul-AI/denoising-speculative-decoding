@@ -13,6 +13,7 @@ from typing import Any
 from rpipe.structure.api.algorithm_api import sibling_train_dependency
 from rpipe.structure.artifact import load_config
 from rpipe.structure.artifact.index import load_index
+from rpipe.structure.artifact.errors import CorruptArtifactError
 from rpipe.structure.artifact.layout import validate_run_directory
 from rpipe.structure.artifact.result import write_result
 from rpipe.structure.artifact.execution import (
@@ -52,7 +53,7 @@ def _run_result(study_dir: Path, run_id: str) -> dict[str, Any]:
     result_path = Path(study_dir) / 'runs' / run_id / 'result.json'
     try:
         return decode_result(result_path.read_text(encoding='utf-8'))
-    except (OSError, json.JSONDecodeError, ValueError):
+    except (OSError, json.JSONDecodeError, ValueError, CorruptArtifactError):
         return {}
 
 
@@ -204,16 +205,25 @@ def load_launch_plan(
         return None
     try:
         payload = json.loads(path.read_text(encoding='utf-8'))
-    except (OSError, json.JSONDecodeError, TypeError):
+        if not isinstance(payload, dict) or not isinstance(payload.get('jobs'), list):
+            return None
+        stored_init_gpu = int(payload.get('init_gpu', 0))
+        stored_num_gpus = int(payload.get('num_gpus', 1))
+        stored_round = int(payload.get('round') or 1)
+    except (OSError, TypeError, ValueError, OverflowError):
         return None
-    if not isinstance(payload, dict) or not isinstance(payload.get('jobs'), list):
+    if stored_round < 1:
         return None
-    if int(payload.get('init_gpu', 0)) != int(init_gpu):
+    if stored_init_gpu != int(init_gpu):
         return None
-    if int(payload.get('num_gpus', 1)) != int(num_gpus):
+    if stored_num_gpus != int(num_gpus):
         return None
-    stored_round = int(payload.get('round') or 1)
     if int(round_size) > 0 and stored_round != int(round_size):
+        return None
+    raw_batches = payload.get('batches')
+    try:
+        wait_groups(payload['jobs'], stored_round, raw_batches)
+    except (KeyError, TypeError, ValueError):
         return None
     for job in payload['jobs']:
         if isinstance(job, dict) and not include_done and run_succeeded(study_dir, str(job.get('run_id') or '')):
@@ -232,7 +242,6 @@ def load_launch_plan(
         return [job for job in kept if not run_succeeded(study_dir, str(job.get('run_id') or ''))]
 
     jobs = _keep(list(payload.get('jobs') or []))
-    raw_batches = payload.get('batches')
     batches = None
     if isinstance(raw_batches, list) and raw_batches and isinstance(raw_batches[0], list):
         batches = [kept for kept in (_keep(list(group)) for group in raw_batches) if kept]

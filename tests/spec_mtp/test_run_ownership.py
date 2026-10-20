@@ -74,6 +74,98 @@ def snapshot(run):
             and not p.name.startswith('owner-') and p.name != '.rpipe.lock'}
 
 
+@pytest.mark.parametrize('module', ['rpipe', 'spec_mtp'])
+@pytest.mark.parametrize('command', ['status', 'process', 'launch'])
+def test_public_entries_tolerate_nonobject_result(study, module, command):
+    root, runs = study
+    for run in runs:
+        (run / 'result.json').write_text('[]', encoding='utf-8')
+        (run / 'release').touch()
+    args = ['--num-gpus', '0', '--round', '1', '--console', 'shared'] if command == 'launch' else []
+    completed = cli(command, root, *args, entry=module, timeout=30)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    if command == 'launch':
+        assert all(json.loads((run / 'result.json').read_text())['status'] == 'succeeded' for run in runs)
+    else:
+        assert all((run / 'result.json').read_text() == '[]' for run in runs)
+        if command == 'status':
+            assert 'pending' in completed.stdout
+        else:
+            assert json.loads((root / 'process.json').read_text())['complete'] is False
+
+
+@pytest.mark.parametrize('raw', ['[]', 'null', 'true', '1', '{broken'])
+def test_scheduler_corrupt_result_is_not_reusable(tmp_path, raw):
+    from rpipe.structure.make.schedule import run_succeeded
+
+    run = tmp_path / 'runs/one'
+    run.mkdir(parents=True)
+    result = run / 'result.json'
+    result.write_text(raw, encoding='utf-8')
+    assert run_succeeded(tmp_path, 'one') is False
+    assert result.read_text() == raw
+
+
+@pytest.mark.parametrize('module', ['rpipe', 'spec_mtp'])
+@pytest.mark.parametrize('previous', ['[]', '{broken'])
+def test_public_run_process_tolerates_corrupt_result_without_rewriting_it(study, module, previous):
+    root, runs = study
+    run = runs[0]
+    result = run / 'result.json'
+    result.write_text(previous, encoding='utf-8')
+    completed = cli('run-one', root, run.name, '--phases', 'process', entry=module, timeout=20)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert result.read_text() == previous
+    body = json.loads((run / 'process.json').read_text())
+    assert body['scope'] == 'run' and body['metrics'] == {}
+
+
+@pytest.mark.parametrize('case', ['nonobject_job', 'duplicate_done', 'foreign_batch', 'missing_batch',
+                                  'invalid_round', 'negative_round', 'infinite_gpu'])
+def test_saved_plan_validates_before_filtering_completed_jobs(tmp_path, monkeypatch, case):
+    from rpipe.structure.make import schedule
+
+    jobs = [{'run_id': 'one', 'device': 'cpu'}, {'run_id': 'two', 'device': 'cpu'}]
+    payload = {'jobs': jobs, 'round': 1, 'num_gpus': 0}
+    if case == 'nonobject_job':
+        jobs[1] = None
+    elif case == 'duplicate_done':
+        jobs[1] = dict(jobs[0])
+    elif case == 'foreign_batch':
+        payload['batches'] = [[jobs[0], {'run_id': 'foreign'}]]
+    elif case == 'missing_batch':
+        payload['batches'] = [[jobs[0]]]
+    elif case == 'invalid_round':
+        payload['round'] = 'broken'
+    elif case == 'negative_round':
+        payload['round'] = -1
+    else:
+        payload['num_gpus'] = float('inf')
+    cache = tmp_path / 'scripts/jobs.json'
+    cache.parent.mkdir()
+    cache.write_text(json.dumps(payload), encoding='utf-8')
+    before = cache.read_bytes()
+    monkeypatch.setattr(schedule, 'run_succeeded', lambda *args: True)
+    assert schedule.load_launch_plan(tmp_path, init_gpu=0, num_gpus=0, round_size=0) is None
+    assert cache.read_bytes() == before
+    assert not (tmp_path / 'runs').exists()
+
+
+def test_saved_plan_keeps_valid_order_and_filters_both_job_lists(tmp_path, monkeypatch):
+    from rpipe.structure.make import schedule
+
+    jobs = [{'run_id': name, 'device': 'cpu'} for name in ['pending', 'done', 'last']]
+    cache = schedule.write_jobs_json(tmp_path, jobs, round_size=2, init_gpu=0, num_gpus=0,
+                                     batches=[[jobs[2], jobs[1]], [jobs[0]]])
+    before = cache.read_bytes()
+    monkeypatch.setattr(schedule, 'run_succeeded', lambda study, run: run == 'done')
+    plan = schedule.load_launch_plan(tmp_path, init_gpu=0, num_gpus=0, round_size=0)
+    assert plan['job_list'] == [jobs[0], jobs[2]]
+    assert plan['batches'] == [[jobs[2]], [jobs[0]]]
+    assert plan['round'] == 2
+    assert cache.read_bytes() == before
+
+
 @pytest.mark.parametrize('entry', ['run-one', 'launch'])
 @pytest.mark.parametrize('old_status', ['succeeded', 'failed'])
 def test_busy_public_entry_preserves_owner_and_does_not_retry(study, start_owned, entry, old_status):

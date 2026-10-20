@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from rpipe.structure.artifact.asset import kinds
+from rpipe.structure.artifact.errors import CorruptArtifactError
 from rpipe.structure.artifact.paths import PROCESS_NAME, RESULT_NAME, RUNS_DIRNAME
 from rpipe.structure.artifact.result import STATUS_SUCCEEDED, load_result
 
@@ -236,7 +237,7 @@ def _load_result(study_dir: Path, run_dir: str) -> dict[str, Any] | None:
         return None
     try:
         return load_result(path)
-    except (OSError, TypeError, ValueError):
+    except (OSError, TypeError, ValueError, CorruptArtifactError):
         return None
 
 

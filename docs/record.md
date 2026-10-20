@@ -1,5 +1,13 @@
 # 开发记录
 
+## 2026-10-20 S1 第三批迁移残留
+
+固定副本的 scheduler、status、Study aggregate 漏接非对象结果异常，两个真实模块入口的 status/process/launch 以及 scheduler 首红为 **10 failed / 1 passed，26.448 秒**。持久化计划过滤前不验完整 jobs/batches、损坏数字裸抛及负 round 另为 **7 failed / 1 passed，1.243 秒**。只补四个已有容错 reader 的 CorruptArtifactError 和原始计划前置验证；decoder、异常继承、既有 OSError 边界及科学源码不改。
+
+首组修复后相关入口/pin/docs **65 passed，128.457 秒**，整轮守卫 **129.4786 秒**。独立复核再找到公开 `run-one --phases process` 的同因遗漏，两个入口先 **2 failed / 2 passed，16.290 秒**，补齐 individual reader 后其公共入口及 pin/docs **21 passed，20.234 秒**，守卫 **21.3929 秒**。这两组有重叠，65 项发生在 individual 补丁之前，不充作最终全量验收；全部所属进程清理确认。最初 custom pytest 参数发现失败发生在收集前，原件单列，不计源码反例。
+
+固定 v0.3.1 身份、102 条原来源与许可证保持；当前精确八项本地补丁、七份原 blob 均由 offline checker 验证，伪造原清单或任意新增本地路径仍拒绝。Python 3.10 语法及 Ruff 通过，实际本机为 Windows/Python 3.13.9。完整命令、日志、JUnit、阶段 report 与逐文件来源核验保留 `.tmp/debt-batch3/`；不随 clone 提供。未启动 GPU、下载、真实模型研究、旧队列、付费资源或数据清理；远端新 HEAD 检查另行核对，不借用旧 CI。
+
 ## 2026-10-14
 
 - 继续 refactor/spec-rpipe，保留用户及上游工作区修改。前次 PR #5 已进入 dev（1b6d59c），当前分支快进到同树集成提交后继续；不推送 dev/main，不发布版本。

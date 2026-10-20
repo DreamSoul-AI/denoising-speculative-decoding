@@ -8,7 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE_COMMIT = '7a15c46b75c5eb951cccd60ed7b9fc3463db90f5'
 BASE_RECORD_SHA256 = '69bb1b44fc73cdfa253e5e1c2d182f9db76a3c03717f85e5776bc604f4c9362c'
 NEW_FILE = 'structure/artifact/execution.py'
-PATCH_FILES = {'__init__.py', 'flow/cli.py', 'flow/runner.py', 'structure/make/schedule.py', NEW_FILE}
+PATCH_FILES = {'__init__.py', 'flow/cli.py', 'flow/runner.py', 'structure/make/schedule.py',
+               'structure/artifact/readout/status.py', 'flow/process/aggregate.py',
+               'flow/process/individual.py', NEW_FILE}
 
 
 def check(root=ROOT):

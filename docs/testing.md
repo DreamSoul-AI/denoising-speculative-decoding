@@ -1,5 +1,11 @@
 # testing
 
+## 2026-10-20 第三批固定副本残留
+
+`tests/spec_mtp/test_run_ownership.py` 新增两个真实模块入口的 status/Study process/launch 和 `run-one --phases process` 非对象结果回归，以及直接 scheduler 的 list/null/scalar/非法 JSON 对照。只读入口保留原 result 字节；launch 仍经持锁 Runner。持久化计划测试覆盖过滤前的非对象、重复完成 Run、错批次、缺批次、坏数字和负 round，合法顺序/完成项过滤保留。
+
+65 项相关入口/pin/docs 先通过；独立复核增加 individual 补丁后，21 项 process-only/pin/docs 通过，两组有重叠。逐轮数字和源码时点见 [record](record.md#2026-10-20-s1-第三批迁移残留)。可复现命令为 `python -m pytest tests/spec_mtp/test_run_ownership.py tests/spec_mtp/test_package.py tests/spec_mtp/test_docs.py`；本机各调用另有 20/30 秒 CLI 截止、180 秒整轮 Windows Job 守卫，只清理所属进程。`python tools/check_rpipe_pin.py` 同时核八项精确补丁、七份原 blob 和不变的 102 条原来源。完整原件在 `.tmp/debt-batch3/`，不随 clone 提供；本机 CPU 工程检查不替代真实模型、CUDA 或全部支持版本验收。
+
 `tests/spec_mtp/` 测 SpecMTP 以及它和这份 `src/rpipe/` 的合同。RPipe 自己的行为在上游测。
 
 ```text

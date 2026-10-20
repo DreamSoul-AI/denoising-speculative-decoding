@@ -19,6 +19,14 @@
 
 历史 Run、来源锁、raw、科学算法、配置、结果与队列不改签。本次验收使用新的离线 CPU Toy Study 和本仓两个公共入口，原件保留 `.tmp/debt-batch2/`；上游通过不替代下游验证，CPU 工程合同不代表科学训练或真实模型复验。
 
+## 2026-10-20 第三批固定副本读取与计划准入残留
+
+本批按用户最新要求继续处理 S1/R1 迁移残留。固定来源仍为 v0.3.1 的完整 102 条原记录；只补已有损坏 JSON 容错读取器漏接非对象 artifact 的边界，以及持久化 jobs/batches 在过滤已完成 Run 前的原始计划验证。参考上游 RPipe `e33bcc8818f43e1f7ba875f6cd8a447d3378d864`，不整体升级副本，不改变 decoder 校验、异常继承、既有 I/O 容错范围或 R2。
+
+调用范围为 scheduler 的结果复用判断、readout status、Run/Study 两级 process 和从 jobs.json 恢复计划；两个公共模块入口均需验证。已有非法 JSON 被视为不可复用结果，合法 JSON 的 list/null/scalar 也须走同一分支，status/process 不改原 result；launch 仍由持锁 Runner 写本次新结果。计划先验证完整原始 jobs/batches，不能先丢弃错误项或已完成重复项后宣称空计划成功；坏持久化数字应拒绝复用，再由已有 make 路径重建，不允许裸解析异常绕过入口处理。
+
+先在新的离线 CPU Toy 工程目录留下失败与对照，再做最小局部移植和回归。新增三个 reader 文件列入精确本地差异白名单，保存对应原 Git blob；当前共八项本地差异、七份原 blob，103 个活动文件。102 条原来源记录及固定指纹保持。独立调用链复核还检查了传入 loader 的间接读取；严格 loader 与 report 的既有严格拒绝不改。原件与无效控制器调用分别保留 `.tmp/debt-batch3/`，无 GPU、真实模型下载或历史 Study 重跑。
+
 ## 2026-10-14 接续范围
 
 原交接执行基线为 RPipe main v0.3.0 `804b3823ab6d2af46cbda1a65688ca8b76c60b22`，研究包为 spec_mtp。继续 refactor/spec-rpipe，原 PR #4/#5 已进入 dev，新增工作不复用历史实测身份。src/rpipe 与原始证据长期保留；不覆盖 D:/GitHub/diaoenmao/RPipe 中其他任务的修改。

@@ -73,7 +73,10 @@
     "flow/process/aggregate.py": {
       "git_blob": "fe3450f33c3ef676fdbf7a86e23d05b693bdc614",
       "sha256": "c2cf3183038bf0c944aff8a1208d65ee440f3886d420f90ffb3fc226c329de60",
-      "canonical_sha256": "9e334c103456d10638c2b0f190589fdeeb90e550dee5b86ec6a0c2422a7ed472"
+      "canonical_sha256": "9e334c103456d10638c2b0f190589fdeeb90e550dee5b86ec6a0c2422a7ed472",
+      "original_blob": "blobs/fe3450f33c3ef676fdbf7a86e23d05b693bdc614.txt",
+      "reason": "R1 fixed-copy residual: non-object result follows existing malformed-JSON read tolerance; upstream e33bcc8 reader contract.",
+      "local_sha256": "2d778b079add887d61f7b1af642894d355bc9f485b4028f34ebc0f29e59ac7b9"
     },
     "flow/process/curves.py": {
       "git_blob": "7ee45478046c9650cd734987b15795e861e3f8f5",
@@ -83,7 +86,10 @@
     "flow/process/individual.py": {
       "git_blob": "e2bf808a85d5b072f43438d3564241b5b53a6f47",
       "sha256": "896ed7bc5faa4af431e1a8c9d2b409f55b6222f13b3732921b24020409f80759",
-      "canonical_sha256": "c66b875fc39cc6493362b4547e483c7fdc53f25da6723767ec3721facefeec4b"
+      "canonical_sha256": "c66b875fc39cc6493362b4547e483c7fdc53f25da6723767ec3721facefeec4b",
+      "original_blob": "blobs/e2bf808a85d5b072f43438d3564241b5b53a6f47.txt",
+      "local_sha256": "12936dc5778002c3b480714a12f62c885137c09149257637a73424eafa2c1b4e",
+      "reason": "R1 fixed-copy residual: process-only Run public entry retains existing corrupt-JSON tolerance; e33bcc8 individual reader contract."
     },
     "flow/process/study.py": {
       "git_blob": "3a5423d85f60b7ededc40894221b1628e83132dd",
@@ -336,7 +342,10 @@
     "structure/artifact/readout/status.py": {
       "git_blob": "e119d32b166d7c1c1f9724da058d08562f3b1d7d",
       "sha256": "a2e29ef966991f2fd1e4ec0a277f0d486f2a59df870ab8dbe80d7492a73cf50e",
-      "canonical_sha256": "ed1a44557ac832ae7e9680f4dbb3c14d4c086194bbcdf37aefa1be8f275428b4"
+      "canonical_sha256": "ed1a44557ac832ae7e9680f4dbb3c14d4c086194bbcdf37aefa1be8f275428b4",
+      "original_blob": "blobs/e119d32b166d7c1c1f9724da058d08562f3b1d7d.txt",
+      "reason": "R1 fixed-copy residual: non-object result follows existing malformed-JSON read tolerance; upstream e33bcc8 reader contract.",
+      "local_sha256": "82f332bc7439084190ef756e8b6447396f2efb8923d6fe0180bf3eac99ee7942"
     },
     "structure/artifact/result/__init__.py": {
       "git_blob": "3f68adca0a7844d5c68e55c666abf2eeca9163f5",
@@ -447,9 +456,9 @@
       "git_blob": "7d72cd4c920a624fd17bd848b3d605a2f5e51f49",
       "sha256": "175f6a7dba01f82c19480ce6fad9526b844d8bd8012e3b938425894714118877",
       "canonical_sha256": "99e9dfb1a5f6d29d4618b95a9b305ca57ac9caea1812efe75ff3fed3221a68b7",
-      "local_sha256": "8302d43c957a1e216dc5c82bef111f5e781a466b05fc4253c38abc896ddc6c04",
+      "local_sha256": "6f828c6808278ecd6d9e6bbe9ebf1c280fa637ac41bb082d981f006ac6668278",
       "original_blob": "blobs/7d72cd4c920a624fd17bd848b3d605a2f5e51f49.txt",
-      "reason": "R1 Run ownership backport"
+      "reason": "R1 Run ownership backport Third batch: tolerate non-object results and validate complete stored jobs/batches plus stored numeric fields before filtering."
     },
     "structure/make/write.py": {
       "git_blob": "fe47bdbc45e7cfdefc15f10c847b0d7fa5aed7ce",

@@ -7,3 +7,4 @@ local_patch: sd-r1-run-ownership-20261020; explicit file hashes and original blo
 patch_reference: DreamSoul-AI/RPipe e33bcc8818f43e1f7ba875f6cd8a447d3378d864 R1 only; not a version upgrade.
 license: MIT, LICENSE.md copied from the selected commit.
 source_policy: complete vendored src/rpipe retained; no pip/Git URL runtime dependency.
+residual_patch: third-batch R1 tolerant readers and stored-plan admission; same e33bcc8 reference, exact local hashes/original blobs in manifest.json.
