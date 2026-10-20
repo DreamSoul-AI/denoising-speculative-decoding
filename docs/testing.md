@@ -1,5 +1,7 @@
 # testing
 
+未选 eval 拒绝回归从合法三 mode make 进入 `launch --mode inference`，覆盖两模块入口、父失败/更新、busy/idle。真实 inference 必须单次成功；busy eval 和原 Study process 完整保全，idle 允许原纠错。4F/4P 后仅补共享 scheduler 一行拒绝传播，8 个新入口和既有 Bash 拒绝门共 9P；证据与边界见 [record](record.md#2026-10-20-s1-未选-eval-忙碌拒绝传播)。
+
 第四、五批的深 JSON 合同使用 10000 层实际输入，不修改解释器递归限制。两公共入口覆盖四个结果读取路径、坏 jobs 缓存重建、activity、Tracker state/JSONL；严格 decoder 必须继续拒绝，坏行前后有效曲线及原字节必须保留。有效首红 14F/1P 加 activity 2F，相关正常控制与修复回归 27P，pin/docs 10P；逐轮时点见 [record](record.md#2026-10-20-s1-深-json-读取残留)，不合并重叠数字。当前十一项精确本地差异、十份原 blob、102 条固定原记录，由原 checker 核验。
 
 `test_make_ownership.py` 验证配置 API、高层展开、原生 make 的后目标 busy/idle，以及实际 FlowRunner 在配置/index/provenance发布期间被拒绝、writer 异常后所有锁释放。仅新建 CPU Toy 声明，不构造模型或执行训练。原 activity.json 进度与锁目录不属于业务字节回滚合同；原件、无效控制及实际相关范围见 [make 接续记录](record.md#2026-10-20-s1-make-发布持锁接续)。

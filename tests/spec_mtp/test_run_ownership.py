@@ -559,3 +559,84 @@ def test_token_admission_preserves_result_read_permission_error(study, monkeypat
             runner.FlowRunner(phases=['collect']).run(FlowContext(root, artifact_layout(root, run.name), {}))
     assert caught.value is primary
     assert not entered and result.read_bytes() == before
+
+
+@pytest.mark.parametrize('module', ['rpipe', 'spec_mtp'])
+@pytest.mark.parametrize('busy', [True, False], ids=['busy-eval', 'idle-eval'])
+@pytest.mark.parametrize('parent_state', ['failed', 'newer'])
+def test_launch_refuses_busy_unselected_stale_eval(tmp_path, monkeypatch, module, busy, parent_state):
+    from contextlib import nullcontext
+    from rpipe.structure.artifact import load_result, write_result
+    from rpipe.structure.artifact.execution import run_lock, start_execution
+    from rpipe.structure.make.schedule import sibling_train_dependency
+
+    for key, value in {'PYTHONPATH': str(ROOT / 'src'), 'CUDA_VISIBLE_DEVICES': '-1',
+                       'HF_HUB_OFFLINE': '1', 'TRANSFORMERS_OFFLINE': '1',
+                       'OMP_NUM_THREADS': '1', 'MKL_NUM_THREADS': '1',
+                       'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'safe.directory',
+                       'GIT_CONFIG_VALUE_0': str(ROOT)}.items():
+        monkeypatch.setenv(key, value)
+    (tmp_path / 'recipe.py').write_text(
+        'from rpipe.structure.algorithm.base import Algorithm\n'
+        'from rpipe.structure.algorithm.factory import AlgorithmRegistry\n'
+        'from rpipe.structure.model.factory import Model, ModelRegistry\n'
+        'class Once(Algorithm):\n'
+        '    def run(self, data, model, system, tracker):\n'
+        '        with (system.assets_dir / "attempts.txt").open("a") as out: out.write("attempt\\n")\n'
+        '        (system.assets_dir / "exclusive").mkdir()\n'
+        '        return {}\n'
+        'def register(ctx):\n'
+        '    AlgorithmRegistry.register("inference", "ownership_fixture", Once)\n'
+        '    ModelRegistry.register("none", "ownership_fixture", lambda config, root, **kwargs:\n'
+        '        Model(name="none", source="ownership_fixture", module=None, meta={}))\n', encoding='utf-8')
+    (tmp_path / 'study.yaml').write_text(yaml.safe_dump({
+        'study': 'stale-selection-cpu', 'seeds': [0], 'freeze': True, 'recipe': 'recipe.py',
+        'flow': {'prepare_shared': False},
+        'axes': {'algorithm.mode': ['train', 'eval', 'inference']}}), encoding='utf-8')
+    (tmp_path / 'experiment_config.yaml').write_text(yaml.safe_dump({
+        'version': 'stale-selection-cpu-v1', 'data': {'name': 'Toy', 'source': 'stub'},
+        'model': {'name': 'none', 'source': 'ownership_fixture'},
+        'algorithm': {'mode': 'inference', 'source': 'ownership_fixture'},
+        'system': {'device': 'cpu'}}), encoding='utf-8')
+    cli('make', tmp_path, '--num-gpus', '0', '--round', '1', entry=module, check=True, timeout=30)
+    index = json.loads((tmp_path / 'index.json').read_text())
+    configs = [tmp_path / run['config'] for exp in index['experiments'] for run in exp['runs']]
+    by_mode = {yaml.safe_load(path.read_text())['algorithm']['mode']: path.parent for path in configs}
+    train, evaluation, selected = (by_mode[mode] for mode in ('train', 'eval', 'inference'))
+    assert len(configs) == 3 and sibling_train_dependency(tmp_path, evaluation.name) == train.name
+    provenance = json.loads((tmp_path / 'provenance.json').read_text())['digest']
+    for run in (train, evaluation):
+        with run_lock(run):
+            start_execution(run, 'prior-' + run.name)
+            write_result(run / 'result.json', {'status': 'succeeded', 'control': {}, 'paths': {},
+                         'metrics': {'accuracy': 42}, 'provenance': provenance})
+    if parent_state == 'failed':
+        with run_lock(train):
+            write_result(train / 'result.json', {'status': 'failed', 'error': 'prior train failed'})
+    os.utime(evaluation / 'result.json', ns=(1_000_000_000, 1_000_000_000))
+    os.utime(train / 'result.json', ns=(2_000_000_000, 2_000_000_000))
+    protected = snapshot(evaluation)
+    process = tmp_path / 'process.json'
+    prior = b'{"retained": "prior Study process"}\n'
+    process.write_bytes(prior)
+    inputs = {path: path.read_bytes() for path in [tmp_path / name for name in
+              ('study.yaml', 'experiment_config.yaml', 'recipe.py', 'index.json', 'provenance.json')] + configs}
+    with run_lock(evaluation) if busy else nullcontext():
+        completed = cli('launch', tmp_path, '--mode', 'inference', '--num-gpus', '0', '--round', '1',
+                        '--console', 'shared', entry=module, timeout=30)
+    (tmp_path / 'launch.stdout').write_text(completed.stdout, encoding='utf-8')
+    (tmp_path / 'launch.stderr').write_text(completed.stderr, encoding='utf-8')
+    assert load_result(selected / 'result.json')['status'] == 'succeeded', completed.stdout + completed.stderr
+    assert (selected / 'assets/attempts.txt').read_text().splitlines() == ['attempt']
+    assert {path: path.read_bytes() for path in inputs} == inputs
+    assert (evaluation / 'execution.json').read_bytes() == protected['execution.json']
+    assert not (evaluation / 'assets/attempts.txt').exists()
+    if busy:
+        assert completed.returncode == 1, completed.stdout + completed.stderr
+        assert process.read_bytes() == prior
+        assert snapshot(evaluation) == protected
+    else:
+        assert completed.returncode == 0, completed.stdout + completed.stderr
+        assert process.read_bytes() != prior
+        assert load_result(evaluation / 'result.json')['status'] == 'failed'
+        assert load_result(evaluation / 'result.json')['metrics'] == {'accuracy': 42}

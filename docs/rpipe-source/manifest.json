@@ -462,9 +462,9 @@
       "git_blob": "7d72cd4c920a624fd17bd848b3d605a2f5e51f49",
       "sha256": "175f6a7dba01f82c19480ce6fad9526b844d8bd8012e3b938425894714118877",
       "canonical_sha256": "99e9dfb1a5f6d29d4618b95a9b305ca57ac9caea1812efe75ff3fed3221a68b7",
-      "local_sha256": "45ae32012f150c955bbf22b4c0b042497bd391de49e94b899d7772a48d2d718a",
+      "local_sha256": "9d29c8b1ef851e7286809f658b74d0c5a6d35caa7ac0547c58ec5b2257c00587",
       "original_blob": "blobs/7d72cd4c920a624fd17bd848b3d605a2f5e51f49.txt",
-      "reason": "R1 Run ownership backport Third batch: tolerate non-object results and validate complete stored jobs/batches plus stored numeric fields before filtering.; deep JSON tolerance, same upstream R1 reader contract"
+      "reason": "R1 Run ownership backport Third batch: tolerate non-object results and validate complete stored jobs/batches plus stored numeric fields before filtering.; deep JSON tolerance, same upstream R1 reader contract; d8fe6d0dcf3701c3d4cdd35cdfc986501d42963d unselected stale-eval refusal propagation"
     },
     "structure/make/write.py": {
       "git_blob": "fe47bdbc45e7cfdefc15f10c847b0d7fa5aed7ce",

@@ -1,5 +1,13 @@
 # 开发记录
 
+## 2026-10-20 S1 未选 eval 忙碌拒绝传播
+
+原生与专项两入口只选择 inference 时，index 中旧 eval 因父 train 失败或更新而应失效；eval 已持锁时，调度器仅打印 busy，仍返回 0 并改写 Study process，父更新场景甚至报告完整成功。合法来源绑定、真实 OS 锁及实际 inference 单次执行反例 **4 failed / 4 passed**，55.538 秒。空闲四控制正常纠错。
+
+按 RPipe `d8fe6d0dcf3701c3d4cdd35cdfc986501d42963d` 只在原纠错拒绝分支新增 `refuse(run_id)`，复用既有 CLI/Bash 拒绝门。八个公开入口回归和原 Bash 拒绝门共 **9 passed**，51.142 秒；守卫 52.2159 秒、所属清理与源码/测试前后 SHA 一致。busy eval/result/token/先前 Study process 原字节保持，本轮 inference 恰好执行一次；idle 纠错保留原 metrics，冻结声明/index/provenance/config 字节均保持。
+
+十一项本地差异、十份原 blob、102 条固定原身份保持。完整反例、控制与八个深 JSON catch 的精确生产差异审计见 `.tmp/debt-batch5/final-source-verification.json`。无新异常类别、版本升级、研究模型或历史队列执行；本机 CLI 与生成 Python body 检查不代表实跑 Bash shell。
+
 ## 2026-10-20 S1 深 JSON 读取残留
 
 两个公共模块入口在合法但过深的 JSON 上，结果读取、缓存计划和 Tracker 历史路径出现 **14 failed / 1 passed**，58.825 秒；activity 另 **2 failed**，8.233 秒。严格 decoder 对照确实抛 RecursionError。仅在原来已有容错处理的八处 catch 中补这一异常，不改变严格 decoder、异常继承或 I/O 范围。只读结果/state/JSONL/activity 原字节保全，坏 JSONL 邻接有效观测的坐标与数值保持；坏 jobs 缓存沿原 make 路径重建。

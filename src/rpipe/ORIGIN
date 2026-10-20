@@ -10,3 +10,4 @@ source_policy: complete vendored src/rpipe retained; no pip/Git URL runtime depe
 residual_patch: third-batch R1 tolerant readers and stored-plan admission; same e33bcc8 reference, exact local hashes/original blobs in manifest.json.
 make_patch: 2dc46fa35c64bc1905caf31b8e45449f1b6bdb44, adapted within original make/__init__.py and write.py; exact hashes and original blobs in manifest.json.
 depth_patch: existing tolerant result/plan/history/activity readers also handle RecursionError; upstream R1 contract retained, strict readers unchanged.
+stale_eval_patch: d8fe6d0dcf3701c3d4cdd35cdfc986501d42963d, propagate existing busy correction refusal before Study processing.
