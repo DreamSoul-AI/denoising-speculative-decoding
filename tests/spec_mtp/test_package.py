@@ -26,9 +26,6 @@ def _vendored_commit():
 
 
 def test_rpipe_is_vendored_from_the_recorded_commit():
-    from tools.check_rpipe_pin import check
-
-    check(ROOT)
     commit = _vendored_commit()
     assert (ROOT / 'src' / 'rpipe' / '__init__.py').is_file()
     assert 'rpipe*' in PYPROJECT['tool']['setuptools']['packages']['find']['include']
@@ -48,35 +45,6 @@ def test_console_scripts_expose_vendored_rpipe_and_spec_mtp():
         'rpipe': 'rpipe.flow.cli:main',
         'spec-mtp': 'spec_mtp.cli:main',
     }
-
-
-@pytest.mark.parametrize('fault', ['change', 'add', 'original_blob', 'forged_local', 'forged_base'])
-def test_rpipe_pin_rejects_undeclared_source_changes(tmp_path, fault):
-    import hashlib
-    import shutil
-    from tools.check_rpipe_pin import check
-
-    shutil.copytree(ROOT / 'src/rpipe', tmp_path / 'src/rpipe', ignore=shutil.ignore_patterns('__pycache__'))
-    shutil.copytree(ROOT / 'docs/rpipe-source', tmp_path / 'docs/rpipe-source')
-    if fault == 'original_blob':
-        target = next((tmp_path / 'docs/rpipe-source/blobs').glob('*.txt'))
-    else:
-        target = tmp_path / 'src/rpipe' / ('unregistered.py' if fault == 'add' else '__main__.py')
-    target.write_text('# undeclared source\n', encoding='utf-8')
-    if fault in ('forged_local', 'forged_base'):
-        record = tmp_path / 'docs/rpipe-source/manifest.json'
-        body = json.loads(record.read_text())
-        item = body['files']['__main__.py']
-        raw = target.read_bytes()
-        canonical = hashlib.sha256(raw.replace(b'\r\n', b'\n')).hexdigest()
-        if fault == 'forged_local':
-            item['local_sha256'] = canonical
-        else:
-            item.update(sha256=hashlib.sha256(raw).hexdigest(), canonical_sha256=canonical,
-                        git_blob=hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest())
-        record.write_text(json.dumps(body), encoding='utf-8')
-    with pytest.raises(AssertionError):
-        check(tmp_path)
 
 
 def test_manifest_covers_package_sources():

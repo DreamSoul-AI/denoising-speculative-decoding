@@ -13,7 +13,7 @@ Agent notes: [AGENTS.md](AGENTS.md). Layout and the SpecMTP `origin` / shared ru
 
 主仓执行副本的正式证据与本机归档对账：[ESP 工作副本对账](docs/research/esp-working-copy-reconciliation-2026-10-15.md)。
 
-`src/rpipe/` retains the fixed `diaoenmao/RPipe` `main` source at `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5` (v0.3.1), with the existing Windows import patch and an explicit [local R1 Run-ownership backport](docs/rpipe-migration.md#r1-local-backport-20261020). SpecMTP registers onto that copy through a Study recipe.
+`src/rpipe/` is a file copy of `diaoenmao/RPipe` `main` at `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5` (v0.3.1). SpecMTP registers onto that copy through a Study recipe.
 
 ## Quick start
 

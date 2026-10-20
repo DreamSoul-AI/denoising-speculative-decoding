@@ -6,7 +6,6 @@ from rpipe.flow.context import FlowContext
 from rpipe.flow.process.aggregate import load_curve_series, run_process_path
 from rpipe.structure.artifact._atomic import atomic_write_text
 from rpipe.structure.artifact.result import load_result
-from rpipe.structure.artifact.errors import CorruptArtifactError
 from rpipe.structure.artifact.result.format import encode_result
 
 
@@ -15,7 +14,7 @@ def run(ctx: FlowContext) -> None:
     if not isinstance(result, dict) and ctx.layout.result_path.is_file():
         try:
             result = load_result(ctx.layout.result_path)
-        except (OSError, TypeError, ValueError, CorruptArtifactError, RecursionError):
+        except (OSError, TypeError, ValueError):
             result = None
 
     run_id = None

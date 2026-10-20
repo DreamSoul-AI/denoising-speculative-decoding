@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 from rpipe.structure.artifact.asset import kinds
-from rpipe.structure.artifact.errors import CorruptArtifactError
 from rpipe.structure.artifact.paths import PROCESS_NAME, RESULT_NAME, RUNS_DIRNAME
 from rpipe.structure.artifact.result import STATUS_SUCCEEDED, load_result
 
@@ -28,7 +27,7 @@ def _state_history(study_dir: Path | str, run_dir: str) -> dict[str, dict[str, l
         return {}
     try:
         body = json.loads(path.read_text(encoding='utf-8'))
-    except (OSError, json.JSONDecodeError, TypeError, RecursionError):
+    except (OSError, json.JSONDecodeError, TypeError):
         return {}
     splits = body.get('splits') if isinstance(body, dict) else None
     if not isinstance(splits, dict):
@@ -74,7 +73,7 @@ def load_curve_series(study_dir: Path | str, run_dir: str) -> dict[str, dict[str
                 end = handle.tell()
                 try:
                     row = json.loads(line)
-                except (ValueError, UnicodeDecodeError, RecursionError):
+                except (ValueError, UnicodeDecodeError):
                     continue
                 if isinstance(row, dict):
                     records.append((end - len(line), end, row))
@@ -237,7 +236,7 @@ def _load_result(study_dir: Path, run_dir: str) -> dict[str, Any] | None:
         return None
     try:
         return load_result(path)
-    except (OSError, TypeError, ValueError, CorruptArtifactError, RecursionError):
+    except (OSError, TypeError, ValueError):
         return None
 
 
