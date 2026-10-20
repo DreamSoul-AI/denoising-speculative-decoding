@@ -335,3 +335,122 @@ def test_cli_evidence_failure_preserves_original_timeout(tmp_path, monkeypatch, 
         assert 'controlled evidence write failure' in primary.evidence_errors[0]
     else:
         assert 'BrokenPipeError' in primary.diagnostic_errors[0]
+
+
+@pytest.mark.parametrize('primary_failure', [False, True], ids=['normal', 'setup-timeout'])
+@pytest.mark.parametrize('failure', ['none', 'unlock', 'close', 'summary', 'diagnostic'])
+def test_local_ci_final_io_preserves_primary_and_attempts_evidence(tmp_path, monkeypatch, primary_failure, failure):
+    _final_io_case(tmp_path, monkeypatch, primary_failure, failure)
+
+
+def _final_io_case(tmp_path, monkeypatch, primary_failure, failure):
+    from types import SimpleNamespace
+
+    native_sh = ci_local.sh
+    native_open = Path.open
+    native_write = Path.write_text
+    native_print = print
+    run_workflow(tmp_path, monkeypatch, [{'run': 'print("controlled step")'}], minutes=1)
+    sys.argv.append('--keep')
+    selected = ci_local.sh
+    primary = []
+    operations = []
+    handles = []
+    cleanup_error = PermissionError('controlled final ' + failure + ' failure')
+
+    def invoke(command, **kwargs):
+        if primary_failure and command[:3] == ['git', 'worktree', 'add']:
+            try:
+                return native_sh([sys.executable, '-u', '-c',
+                                  'import time; print("setup started", flush=True); time.sleep(30)'],
+                                 timeout=0.2, capture_output=True, text=True)
+            except subprocess.TimeoutExpired as error:
+                primary.append(error)
+                raise
+        return selected(command, **kwargs)
+
+    def flock(fd, operation):
+        if operation == 2:
+            operations.append('unlock')
+            if failure == 'unlock':
+                raise cleanup_error
+
+    class LockFile:
+        def __init__(self, handle):
+            self.handle = handle
+
+        def __getattr__(self, name):
+            return getattr(self.handle, name)
+
+        def close(self):
+            operations.append('close')
+            self.handle.close()
+            if failure == 'close':
+                raise cleanup_error
+
+    def open_path(path, *args, **kwargs):
+        handle = native_open(path, *args, **kwargs)
+        if path.name == 'ci_local.lock':
+            handle = LockFile(handle)
+            handles.append(handle)
+        return handle
+
+    def write_path(path, *args, **kwargs):
+        if path.name == 'summary.json':
+            operations.append('summary')
+            if failure == 'summary':
+                raise cleanup_error
+        return native_write(path, *args, **kwargs)
+
+    def diagnostic(*args, **kwargs):
+        if args and str(args[0]).startswith('kept local CI evidence:'):
+            operations.append('diagnostic')
+            if failure == 'diagnostic':
+                raise cleanup_error
+        return native_print(*args, **kwargs)
+
+    monkeypatch.setattr(ci_local, 'sh', invoke)
+    monkeypatch.setattr(ci_local, 'fcntl', SimpleNamespace(LOCK_EX=1, LOCK_UN=2, flock=flock))
+    monkeypatch.setattr(Path, 'open', open_path)
+    monkeypatch.setattr(Path, 'write_text', write_path)
+    monkeypatch.setattr(ci_local, 'print', diagnostic, raising=False)
+    caught = None
+    returned = None
+    try:
+        returned = ci_local.main()
+    except BaseException as error:
+        caught = error
+    run, = (tmp_path / '.tmp/ci_local').glob('*-*')
+    summary = run / 'summary.json'
+    native_write(tmp_path / 'final-io-observation.json', json.dumps({
+        'primary_failure': primary_failure, 'failure': failure, 'returned': returned,
+        'raised': repr(caught), 'same_primary': bool(primary and caught is primary[0]),
+        'operations': operations, 'lock_closed': bool(handles and handles[0].handle.closed),
+        'summary_exists': summary.is_file(), 'summary': summary.read_text() if summary.is_file() else None,
+        'notes': getattr(caught, '__notes__', []),
+    }, indent=2), encoding='utf-8')
+    if primary_failure:
+        assert len(primary) == 1 and primary[0].cleanup_confirmed
+        assert caught is primary[0], 'final I/O replaced the real owned setup timeout'
+    elif failure == 'none':
+        assert caught is None and returned == 0
+    else:
+        assert caught is cleanup_error
+    assert operations == ['unlock', 'close', 'summary', 'diagnostic']
+    assert handles[0].handle.closed
+    assert summary.is_file() == (failure != 'summary')
+    if summary.is_file():
+        rows = json.loads(summary.read_text())
+        assert rows and ('TimeoutExpired' in rows[-1][2] if primary_failure else rows[-1][2] == 'ok')
+    if primary_failure and failure != 'none':
+        assert any('controlled final ' + failure in note for note in primary[0].__notes__)
+
+
+@pytest.mark.parametrize('failure', ['none', 'unlock', 'close', 'summary', 'diagnostic'])
+def test_local_ci_final_io_does_not_treat_callers_exception_as_its_primary(tmp_path, monkeypatch, failure):
+    ambient = RuntimeError('caller is handling this exception')
+    try:
+        raise ambient
+    except RuntimeError:
+        _final_io_case(tmp_path, monkeypatch, False, failure)
+    assert not getattr(ambient, '__notes__', [])

@@ -1,5 +1,13 @@
 # 开发记录
 
+## 2026-10-20 S3 本地 CI 最终 I/O 首错保全
+
+公开 `ci_local.main` 的总收尾依次解锁、关协调锁、写 summary；任一步 I/O 失败会覆盖已发生的真实 setup TimeoutExpired，解锁/关闭失败还会跳过后续 summary。用现有 workflow 夹具只替换 git/setup 选择，实际运行受控 CPU 子进程并超时，API 故障注入首红 **5F/3P，1.337秒**。保留路径诊断输出另 **1F/1P，0.387秒**。未执行环境安装、真实 Git worktree 变更或研究代码，生成证据均显式 --keep。
+
+仅修改 main：捕获本次调用自己的首错，分别尝试解锁/关闭/summary/诊断；次错另列 finalization_errors 和 note，不覆盖 sh 的进程清理属性。没有本次首错时仍抛第一个收尾错误，发生收尾错即保留证据。初版用 sys.exc_info 取首错会继承调用者 except 中的旧异常，独审后新 **4F/1P** 实际证明了错误 return0；改为 outer except 显式记录本次异常。原20P是中间时点，不当最终验收。
+
+最终 **25P，3.676秒，整轮4.2281秒**：15个正常/超时/最终I/O/ambient控制及10个相关首错/期限回归；所属清理确认，源码/测试前后SHA相同。无错误分支维持原工作树处理；锁获取、sh、进程树实现和全部 src 不变。POSIX解锁是Windows上的API故障注入，不称Linux实跑。Python3.10语法、Ruff及独立只读复核通过；原始轮次、逐例观测及hash在 `.tmp/debt-batch7/source-verification.json`。无模型、训练、GPU、下载、计费或历史数据清理。
+
 ## 2026-10-20 S1 未选 eval 忙碌拒绝传播
 
 原生与专项两入口只选择 inference 时，index 中旧 eval 因父 train 失败或更新而应失效；eval 已持锁时，调度器仅打印 busy，仍返回 0 并改写 Study process，父更新场景甚至报告完整成功。合法来源绑定、真实 OS 锁及实际 inference 单次执行反例 **4 failed / 4 passed**，55.538 秒。空闲四控制正常纠错。

@@ -1,5 +1,9 @@
 # testing
 
+第七批 S3 总收尾合同：`ci_local.main` 在解锁、关闭协调锁、写 summary 或输出保留路径时发生 I/O 次错，仍须尝试其余收尾。已存在的 setup/execution 首错保持同一对象和所属树诊断，最终 I/O 诊断独立附加；没有首错时，首个收尾错误继续失败。发生任何收尾错误即保留本轮证据。范围不扩到初始锁获取或新的平台支持；Windows 上 POSIX flock 故障用 API 注入验证，不冒称 Linux 实跑。
+
+首错仅指本次 main 调用，不能继承调用者正在处理的异常。真实 CPU setup 超时和最终 I/O/diagnostic、ambient 调用、无首错控制及相关故障共25项通过；分阶段反例、中间20P与最终验收见 [记录](record.md#2026-10-20-s3-本地-ci-最终-io-首错保全)，不重复累计。
+
 未选 eval 拒绝回归从合法三 mode make 进入 `launch --mode inference`，覆盖两模块入口、父失败/更新、busy/idle。真实 inference 必须单次成功；busy eval 和原 Study process 完整保全，idle 允许原纠错。4F/4P 后仅补共享 scheduler 一行拒绝传播，8 个新入口和既有 Bash 拒绝门共 9P；证据与边界见 [record](record.md#2026-10-20-s1-未选-eval-忙碌拒绝传播)。
 
 第四、五批的深 JSON 合同使用 10000 层实际输入，不修改解释器递归限制。两公共入口覆盖四个结果读取路径、坏 jobs 缓存重建、activity、Tracker state/JSONL；严格 decoder 必须继续拒绝，坏行前后有效曲线及原字节必须保留。有效首红 14F/1P 加 activity 2F，相关正常控制与修复回归 27P，pin/docs 10P；逐轮时点见 [record](record.md#2026-10-20-s1-深-json-读取残留)，不合并重叠数字。当前十一项精确本地差异、十份原 blob、102 条固定原记录，由原 checker 核验。

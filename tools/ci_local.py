@@ -146,6 +146,7 @@ def main() -> int:
     results = []
     keep = args.keep
     artifacts = False
+    primary = None
     try:
         for job_name, job in workflow['jobs'].items():
             job_start = time.monotonic()
@@ -217,15 +218,38 @@ def main() -> int:
                         results.append((job_name, 'cleanup', f'{type(error).__name__}: {error}',
                                         time.monotonic() - job_start))
                         raise
+    except BaseException as error:
+        primary = error
+        keep = True
+        raise
     finally:
-        if fcntl is not None:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-        lock_file.close()
-        (run / 'summary.json').write_text(json.dumps(results, indent=2) + '\n', encoding='utf-8')
+        final_errors = []
+        finalizers = [
+            ('unlock', lambda: fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN) if fcntl is not None else None),
+            ('lock-close', lock_file.close),
+            ('summary', lambda: (run / 'summary.json').write_text(
+                json.dumps(results, indent=2) + '\n', encoding='utf-8')),
+        ]
+        for phase, finalize in finalizers:
+            try:
+                finalize()
+            except BaseException as error:
+                keep = True
+                final_errors.append((phase, error))
         if not keep and not artifacts:
             shutil.rmtree(run, ignore_errors=True)
         else:
-            print(f'kept local CI evidence: {run}', flush=True)
+            try:
+                print(f'kept local CI evidence: {run}', flush=True)
+            except BaseException as error:
+                final_errors.append(('diagnostic', error))
+        if final_errors:
+            failure = primary if primary is not None else final_errors[0][1]
+            failure.finalization_errors = [{'phase': phase, 'error': repr(error)} for phase, error in final_errors]
+            if hasattr(failure, 'add_note'):
+                failure.add_note(f'Local CI finalization failed: {failure.finalization_errors}')
+            if primary is None:
+                raise failure
 
     print('\nsummary:')
     for job_name, name, status, seconds in results:
