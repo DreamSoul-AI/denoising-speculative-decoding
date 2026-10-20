@@ -24,7 +24,7 @@ fixed:
         tie_word_embeddings: true
   algorithm:
     config:
-      version: k-affine-postcommit-cpu-v1-20261020
+      version: k-affine-postcommit-cpu-v2-20261020
       ridge_lambda: 0.001
       prefix_lengths: [4, 6, 8, 10, 12, 14, 16, 20]
       expected_pairs: {fit: 64, holdout: 32, cross_dataset: 64}

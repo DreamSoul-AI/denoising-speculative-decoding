@@ -1,5 +1,6 @@
 """Small independent checks for the separately registered K calibration Study."""
 import importlib.util
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -67,6 +68,19 @@ def test_eval_predictions_cannot_mutate_frozen_fit(affine, tmp_path):
     with np.load(path, allow_pickle=False) as frozen:
         affine.predictions(rng.normal(size=(50, 2)), rng.normal(size=(50, 2)), frozen)
     assert affine.sha(path) == before
+
+
+@pytest.mark.parametrize('drift', [None, 'blob', 'working'])
+def test_immutable_git_and_worktree_bytes_have_separate_exact_identity(affine, drift):
+    blob, working = b'# plan\nfixed conditions\n', b'# plan\r\nfixed conditions\r\n'
+    assert blob != working and blob.decode().splitlines() == working.decode().splitlines()
+    hashes = hashlib.sha256(blob).hexdigest(), hashlib.sha256(working).hexdigest()
+    if drift is None:
+        affine.check_plan_bytes(blob, working, *hashes)
+    else:
+        with pytest.raises(ValueError, match='plan or working bytes changed'):
+            affine.check_plan_bytes(blob + (b'x' if drift=='blob' else b''),
+                                    working + (b'x' if drift=='working' else b''), *hashes)
 
 
 def test_actual_hidden_target_is_same_committed_position_without_future(affine):

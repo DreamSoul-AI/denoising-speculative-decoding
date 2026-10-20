@@ -106,6 +106,12 @@ def extract_pair(module, tokens, length):
         return tuple(t.squeeze(0).cpu().numpy().copy() for t in (embedded[:, -1] - mean, zmask, ztrue))
 
 
+def check_plan_bytes(blob_bytes, working_bytes, blob_sha256, working_sha256):
+    if (hashlib.sha256(blob_bytes).hexdigest() != blob_sha256
+            or hashlib.sha256(working_bytes).hexdigest() != working_sha256):
+        raise ValueError('registered immutable plan or working bytes changed')
+
+
 def prepare_binding(ctx):
     registration = read(STUDY / 'docs/registration.json')
     manifest = read(STUDY / 'docs/data_manifest.json')
@@ -121,10 +127,15 @@ def prepare_binding(ctx):
     head = git_read('rev-parse', 'HEAD').decode().strip()
     blobs = {}
     for name, digest in registration['project_plans'].items():
+        expected_blob = registration['project_plan_blobs'][name]
         blob = git_read('show', f'HEAD:{name}')
-        if hashlib.sha256(blob).hexdigest() != digest or sha(REPO / name) != digest:
-            raise ValueError('native execution requires the registered plan committed without drift')
-        blobs[name] = dict(blob=git_read('rev-parse', f'HEAD:{name}').decode().strip(), sha256=digest)
+        blob_id = git_read('rev-parse', f'HEAD:{name}').decode().strip()
+        original = git_read('rev-parse', f"{expected_blob['commit']}:{name}").decode().strip()
+        if blob_id != expected_blob['blob'] or original != blob_id:
+            raise ValueError('immutable registered plan blob identity changed')
+        check_plan_bytes(blob, (REPO / name).read_bytes(), expected_blob['sha256'], digest)
+        blobs[name] = dict(blob=blob_id, blob_sha256=expected_blob['sha256'], working_sha256=digest,
+                           registered_plan_commit=expected_blob['commit'])
     if ctx.config['system']['config']['device'] != 'cpu':
         raise ValueError('this registration permits CPU only')
     check_assets(manifest)
