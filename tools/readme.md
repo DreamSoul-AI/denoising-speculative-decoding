@@ -6,7 +6,6 @@ Local utilities. Model-window diagnostics use explicitly prepared local weights;
 | --- | --- |
 | `diagnose_q178_operators.py` | Fixed post-entry provider slot precision and norm backend controls with canonical states; CUDA profiler names are localization evidence, full AR/path gates remain required. |
 | `ci_local.py` | Replay `.github/workflows/cpu-checks.yml` in a fresh worktree and Python 3.12 venv. |
-| `check_rpipe_pin.py` | Verify the fixed RPipe source and explicit local R1 patches against recorded hashes and preserved original blobs. |
 | `decode_fingerprint.py` | Capture tokens and decode stats for every shipped preset; `--compare` proves a change is output-identical. |
 | `profile_cpu.py` | cProfile of `esp_mtp.evaluate` on a tiny model. tau / speed are not paper numbers. |
 | `diagnose_output_windows.py` | Read-only q173 matched-window replay around the unchanged decoder; requires identical tokens/traces, records previous seed masks/logits and exact hidden consistency. |

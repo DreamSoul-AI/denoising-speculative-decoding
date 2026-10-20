@@ -21,7 +21,7 @@ def read_activity(study_dir: Path | str) -> dict[str, Any] | None:
         return None
     try:
         body = json.loads(path.read_text(encoding='utf-8'))
-    except (OSError, json.JSONDecodeError, TypeError, RecursionError):
+    except (OSError, json.JSONDecodeError, TypeError):
         return None
     if not isinstance(body, dict) or not body.get('phase'):
         return None

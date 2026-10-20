@@ -1,11 +1,8 @@
 """Multi-run configs, index, and launch scripts."""
 
-from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
-from rpipe.structure.artifact.execution import run_lock
-from rpipe.structure.artifact.paths import RUNS_DIRNAME
 from rpipe.structure.artifact.layout import ensure_study_layout
 from rpipe.structure.artifact.provenance import write_provenance
 from rpipe.structure.make.expand import expand_patches, load_study_yaml
@@ -34,7 +31,7 @@ from rpipe.structure.make.schedule import (
     run_succeeded,
     write_launch_scripts,
 )
-from rpipe.structure.make.write import _run_configs, _write_configs, write_run_configs, write_study_index
+from rpipe.structure.make.write import write_run_configs, write_study_index
 
 __all__ = [
     'GpuInfo',
@@ -72,15 +69,11 @@ def expand_study(study_dir: Path | str) -> dict[str, Any]:
     """Write Run configs and index from ``study.yaml``."""
     study_dir = ensure_study_layout(Path(study_dir).resolve())
     study = load_study_yaml(study_dir)
+    load_recipe(study_dir, study)
     patches = expand_patches(study)
-    runs = _run_configs(study_dir, patches)
-    with ExitStack() as stack:
-        for run in runs:
-            stack.enter_context(run_lock(study_dir / RUNS_DIRNAME / run.id))
-        load_recipe(study_dir, study)
-        configs = _write_configs(study_dir, runs)
-        index_file = write_study_index(study_dir, study, configs)
-        provenance_file = write_provenance(study_dir, study)
+    configs = write_run_configs(study_dir, patches)
+    index_file = write_study_index(study_dir, study, configs)
+    provenance_file = write_provenance(study_dir, study)
     return {
         'study_dir': study_dir,
         'index': index_file,

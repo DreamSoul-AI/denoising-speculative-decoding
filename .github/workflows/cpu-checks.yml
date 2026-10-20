@@ -64,7 +64,6 @@ jobs:
 
       - name: Check RPipe pin and entry points
         run: |
-          python tools/check_rpipe_pin.py
           python - <<'PY'
           import importlib.metadata as m
           from pathlib import Path
@@ -81,10 +80,3 @@ jobs:
           PYTHONUTF8: "1"
           MPLBACKEND: Agg
         run: python -m pytest tests/spec_mtp
-
-      - name: Save test phase reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: spec-mtp-test-reports
-          path: .tmp/test-reports/

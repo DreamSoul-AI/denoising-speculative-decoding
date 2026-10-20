@@ -6,19 +6,14 @@ import json
 import os
 import subprocess
 import sys
-import uuid
 from pathlib import Path
 from typing import Any
 
 from rpipe.structure.api.algorithm_api import sibling_train_dependency
-from rpipe.structure.artifact import load_config
+from rpipe.structure.artifact import artifact_layout, load_config
 from rpipe.structure.artifact.index import load_index
-from rpipe.structure.artifact.errors import CorruptArtifactError
 from rpipe.structure.artifact.layout import validate_run_directory
 from rpipe.structure.artifact.result import write_result
-from rpipe.structure.artifact.execution import (
-    RUN_ATTEMPT_ENV, RUN_BUSY_EXIT, RunLockedError, owns_execution, run_lock,
-)
 from rpipe.structure.artifact.result.format import STATUS_SUCCEEDED, decode_result
 from rpipe.structure.control.mapping import get_setting
 
@@ -53,7 +48,7 @@ def _run_result(study_dir: Path, run_id: str) -> dict[str, Any]:
     result_path = Path(study_dir) / 'runs' / run_id / 'result.json'
     try:
         return decode_result(result_path.read_text(encoding='utf-8'))
-    except (OSError, json.JSONDecodeError, ValueError, CorruptArtifactError, RecursionError):
+    except (OSError, json.JSONDecodeError, ValueError):
         return {}
 
 
@@ -73,21 +68,10 @@ def run_succeeded(study_dir: Path, run_id: str) -> bool:
         return False
 
 
-def _fail_result(study_dir: Path, run_id: str, error: str, *,
-                 attempt_token: str | None = None, only_success: bool = False) -> bool:
-    validate_run_directory(run_id)
-    root = Path(study_dir) / 'runs' / run_id
-    try:
-        with run_lock(root):
-            if attempt_token is not None and not owns_execution(root, attempt_token):
-                return False
-            body = _run_result(study_dir, run_id)
-            if not only_success or body.get('status') == STATUS_SUCCEEDED:
-                body.update(status='failed', error=error)
-                write_result(root / 'result.json', body)
-            return True
-    except RunLockedError:
-        return False
+def _fail_result(study_dir: Path, run_id: str, error: str) -> None:
+    body = _run_result(study_dir, run_id)
+    body.update(status='failed', error=error)
+    write_result(artifact_layout(study_dir, run_id).result_path, body)
 
 
 def _job_fields(config_path: Path) -> tuple[str, str]:
@@ -205,25 +189,16 @@ def load_launch_plan(
         return None
     try:
         payload = json.loads(path.read_text(encoding='utf-8'))
-        if not isinstance(payload, dict) or not isinstance(payload.get('jobs'), list):
-            return None
-        stored_init_gpu = int(payload.get('init_gpu', 0))
-        stored_num_gpus = int(payload.get('num_gpus', 1))
-        stored_round = int(payload.get('round') or 1)
-    except (OSError, TypeError, ValueError, OverflowError, RecursionError):
+    except (OSError, json.JSONDecodeError, TypeError):
         return None
-    if stored_round < 1:
+    if not isinstance(payload, dict) or not isinstance(payload.get('jobs'), list):
         return None
-    if stored_init_gpu != int(init_gpu):
+    if int(payload.get('init_gpu', 0)) != int(init_gpu):
         return None
-    if stored_num_gpus != int(num_gpus):
+    if int(payload.get('num_gpus', 1)) != int(num_gpus):
         return None
+    stored_round = int(payload.get('round') or 1)
     if int(round_size) > 0 and stored_round != int(round_size):
-        return None
-    raw_batches = payload.get('batches')
-    try:
-        wait_groups(payload['jobs'], stored_round, raw_batches)
-    except (KeyError, TypeError, ValueError):
         return None
     for job in payload['jobs']:
         if isinstance(job, dict) and not include_done and run_succeeded(study_dir, str(job.get('run_id') or '')):
@@ -234,12 +209,6 @@ def load_launch_plan(
             mode, device = _job_fields(Path(str(job['config'])))
             if mode != job_mode(job) or device != str(job.get('device') or 'cuda').lower():
                 return None
-        config_path = study_dir / 'runs' / str(job.get('run_id') or '') / 'config.yaml'
-        if config_path.is_file():
-            mode, device = _job_fields(config_path)
-            if ((job.get('mode') and mode != job_mode(job))
-                    or (job.get('device') and device != str(job.get('device') or 'cuda').lower())):
-                return None
 
     def _keep(rows: list) -> list[dict[str, Any]]:
         kept = [job for job in rows if isinstance(job, dict)]
@@ -248,6 +217,7 @@ def load_launch_plan(
         return [job for job in kept if not run_succeeded(study_dir, str(job.get('run_id') or ''))]
 
     jobs = _keep(list(payload.get('jobs') or []))
+    raw_batches = payload.get('batches')
     batches = None
     if isinstance(raw_batches, list) and raw_batches and isinstance(raw_batches[0], list):
         batches = [kept for kept in (_keep(list(group)) for group in raw_batches) if kept]
@@ -292,20 +262,7 @@ def wait_groups(
     round_size: int,
     batches: list[list[dict[str, Any]]] | None = None,
 ) -> list[list[dict[str, Any]]]:
-    run_ids = []
-    for job in jobs:
-        if not isinstance(job, dict):
-            raise ValueError('launch job must be an object')
-        run_id = job.get('run_id')
-        validate_run_directory(run_id)
-        run_ids.append(Path(run_id))
-    if len(run_ids) != len(set(run_ids)):
-        raise ValueError('duplicate Run in launch plan; use a new version for repeated computation')
     if batches:
-        grouped = [job for group in batches for job in group]
-        key = lambda job: str(job['run_id'])
-        if sorted(grouped, key=key) != sorted(jobs, key=key):
-            raise ValueError('batches must match declared jobs without missing, extra, or duplicate Run entries')
         return [group for group in batches if group]
     groups: list[list[dict[str, Any]]] = []
     for wave in job_waves(jobs):
@@ -345,9 +302,7 @@ def render_bash(
             f'study = Path({str(study_dir.resolve())!r})',
             f'groups = {part!r}',
             'jobs = [job for group in groups for job in group]',
-            'refused = []',
-            f"launch_jobs(study, jobs, round_size={round_size}, batches=groups, console='shared', refused_runs=refused)",
-            'if refused: raise SystemExit(1)',
+            f"launch_jobs(study, jobs, round_size={round_size}, batches=groups, console='shared')",
             "failed = any(not run_succeeded(study, str(job['run_id'])) for job in jobs)",
         ]
         if index == len(partitions) - 1:
@@ -464,20 +419,18 @@ def launch_jobs(
     batches: list[list[dict[str, Any]]] | None = None,
     retry_failed: bool = True,
     console: str = 'auto',
-    refused_runs: list[str] | None = None,
 ) -> list[int]:
     if round_size < 1:
         raise ValueError('round must be >= 1')
-    groups = wait_groups(jobs, round_size, batches)
     py = python_exe or sys.executable
     root = cwd or repo_root_from(study_dir)
+    groups = wait_groups(jobs, round_size, batches)
+    run_ids = [str(job['run_id']) for group in groups for job in group]
+    for run_id in run_ids:
+        validate_run_directory(run_id)
+    if len(run_ids) != len(set(run_ids)):
+        raise ValueError('duplicate Run in launch plan; use a new version for repeated computation')
     codes: list[int] = []
-    refused: set[Path] = set()
-    def refuse(run_id: str) -> None:
-        if Path(run_id) not in refused:
-            refused.add(Path(run_id))
-            if refused_runs is not None:
-                refused_runs.append(run_id)
     console_mode = resolve_console(console)
     popen_extra = job_popen_kwargs(console_mode)
     try:
@@ -485,18 +438,15 @@ def launch_jobs(
     except (OSError, TypeError, ValueError):
         index = {}
     dependencies = {
-        Path(run_id): parent
+        run_id: parent
         for exp in index.get('experiments') or []
         for run in exp.get('runs') or []
         if (run_id := str(run.get('run_dir') or run.get('id') or ''))
         if (parent := sibling_train_dependency(study_dir, run_id)) is not None
     }
     for run_id, parent in dependencies.items():
-        run_id = str(run_id)
         if _run_result(study_dir, run_id).get('status') == STATUS_SUCCEEDED and not run_succeeded(study_dir, run_id):
-            if not _fail_result(study_dir, run_id, f'sibling train {parent} is unfinished or newer; re-evaluation required', only_success=True):
-                refuse(run_id)
-                print(f'error {run_id} Run busy; result preserved', flush=True)
+            _fail_result(study_dir, run_id, f'sibling train {parent} is unfinished or newer; re-evaluation required')
     # A supplied batch must not bypass the train/eval barrier either.
     waves = [
         [kept for group in groups if (kept := [job for job in group if (job_mode(job) == 'eval') == is_eval])]
@@ -526,93 +476,43 @@ def launch_jobs(
                 wait_index += 1
             position = f'{wait_index}/{total_waits}' if kind == 'wait' else f'{index}/{total}'
             print(f'launch: {kind} {position} mode={_group_mode(group)}', flush=True)
-            procs: list[tuple[dict[str, Any], subprocess.Popen[str], str]] = []
-            primary_error = None
-            try:
-                for job in group:
-                    run_id = str(job['run_id'])
-                    validate_run_directory(run_id)
-                    try:
-                        with run_lock(Path(study_dir) / 'runs' / run_id):
-                            pass
-                    except RunLockedError:
-                        refuse(run_id)
-                        pairs.append((job, RUN_BUSY_EXIT))
-                        print(f'error {run_id} Run already executing; not launched', flush=True)
-                        continue
-                    parent = dependencies.get(Path(run_id))
-                    if parent is not None and not run_succeeded(study_dir, parent):
-                        message = f'blocked: sibling train {parent} did not succeed'
-                        changed = _fail_result(study_dir, run_id, message)
-                        print(f'error {run_id} {message}', flush=True)
-                        if not changed:
-                            refuse(run_id)
-                        pairs.append((job, 1 if changed else RUN_BUSY_EXIT))
-                        continue
-                    blocked = False
-                    for eval_id, train_id in dependencies.items():
-                        if Path(train_id) == Path(run_id) and _run_result(study_dir, str(eval_id)).get('status') == STATUS_SUCCEEDED:
-                            if not _fail_result(study_dir, str(eval_id), f'sibling train {run_id} is being rerun; re-evaluation required', only_success=True):
-                                blocked = True
-                    if blocked:
-                        refuse(run_id)
-                        pairs.append((job, RUN_BUSY_EXIT))
-                        print(f'error {run_id} dependent eval Run busy; not launched', flush=True)
-                        continue
-                    cmd = [py, '-m', 'rpipe', 'run-one', str(study_dir), run_id]
-                    where = 'window' if console_mode == 'new' and os.name == 'nt' else 'here'
-                    resource = f'gpu={job["gpu"]}' if job.get('gpu') is not None and str(job.get('device') or 'cuda').lower() != 'cpu' else 'cpu'
-                    print(f'+ {resource} {job["run_id"]} ({where})', flush=True)
-                    token = uuid.uuid4().hex
-                    env = launch_job_env(job)
-                    env[RUN_ATTEMPT_ENV] = token
-                    procs.append(
-                        (
-                            job,
-                            subprocess.Popen(
-                                cmd,
-                                cwd=str(root),
-                                env=env,
-                                **popen_extra,
-                            ),
-                            token,
-                        )
+            procs: list[tuple[dict[str, Any], subprocess.Popen[str]]] = []
+            for job in group:
+                run_id = str(job['run_id'])
+                parent = dependencies.get(run_id)
+                if parent is not None and not run_succeeded(study_dir, parent):
+                    message = f'blocked: sibling train {parent} did not succeed'
+                    _fail_result(study_dir, run_id, message)
+                    print(f'error {run_id} {message}', flush=True)
+                    pairs.append((job, 1))
+                    continue
+                for eval_id, train_id in dependencies.items():
+                    if train_id == run_id and _run_result(study_dir, eval_id).get('status') == STATUS_SUCCEEDED:
+                        _fail_result(study_dir, eval_id, f'sibling train {run_id} is being rerun; re-evaluation required')
+                if _run_result(study_dir, run_id).get('status') == STATUS_SUCCEEDED:
+                    _fail_result(study_dir, run_id, 'rerun started; no successful result from this execution yet')
+                cmd = [py, '-m', 'rpipe', 'run-one', str(study_dir), run_id]
+                where = 'window' if console_mode == 'new' and os.name == 'nt' else 'here'
+                resource = f'gpu={job["gpu"]}' if job.get('gpu') is not None and str(job.get('device') or 'cuda').lower() != 'cpu' else 'cpu'
+                print(f'+ {resource} {job["run_id"]} ({where})', flush=True)
+                procs.append(
+                    (
+                        job,
+                        subprocess.Popen(
+                            cmd,
+                            cwd=str(root),
+                            env=launch_job_env(job),
+                            **popen_extra,
+                        ),
                     )
-            except BaseException as error:
-                primary_error = error
-            for job, proc, token in procs:
-                try:
-                    code = int(proc.wait())
-                except BaseException as error:
-                    if primary_error is None:
-                        primary_error = error
-                    try:
-                        code = int(proc.wait())
-                    except BaseException:
-                        # shortcut: repeated wait failure leaves completion unknown; revisit for forced cancellation.
-                        continue
-                try:
-                    pairs.append((job, code))
-                    if code != 0:
-                        if code == RUN_BUSY_EXIT or not _fail_result(study_dir, str(job['run_id']),
-                                f'run-one exited with code {code}', attempt_token=token, only_success=True):
-                            refuse(str(job['run_id']))
-                            print(f'error {job["run_id"]} execution unowned or busy; result preserved; no retry', flush=True)
-                        print(f'error {job["run_id"]} exit={code}', flush=True)
-                    else:
-                        try:
-                            with run_lock(Path(study_dir) / 'runs' / str(job['run_id'])):
-                                owned = owns_execution(Path(study_dir) / 'runs' / str(job['run_id']), token)
-                        except RunLockedError:
-                            owned = False
-                        if not owned:
-                            refuse(str(job['run_id']))
-                            print(f'error {job["run_id"]} execution unowned or busy; no retry', flush=True)
-                except BaseException as error:
-                    if primary_error is None:
-                        primary_error = error
-            if primary_error is not None:
-                raise primary_error
+                )
+            for job, proc in procs:
+                code = int(proc.wait())
+                pairs.append((job, code))
+                if code != 0:
+                    print(f'error {job["run_id"]} exit={code}', flush=True)
+                    if _run_result(study_dir, str(job['run_id'])).get('status') == STATUS_SUCCEEDED:
+                        _fail_result(study_dir, str(job['run_id']), f'run-one exited with code {code}')
         return pairs
 
     for wave in waves:
@@ -620,10 +520,9 @@ def launch_jobs(
         codes.extend(code for _, code in pairs)
         failed = [
             job for job, code in pairs
-            if Path(job['run_id']) not in refused
-            and (code != 0 or not run_succeeded(study_dir, str(job['run_id'])))
-            and (dependencies.get(Path(job['run_id'])) is None
-                 or run_succeeded(study_dir, dependencies[Path(job['run_id'])]))
+            if (code != 0 or not run_succeeded(study_dir, str(job['run_id'])))
+            and (dependencies.get(str(job['run_id'])) is None
+                 or run_succeeded(study_dir, dependencies[str(job['run_id'])]))
         ]
         if retry_failed and failed:
             print(f'retry {len(failed)} failed jobs (resume latest)', flush=True)

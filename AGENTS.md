@@ -6,7 +6,7 @@
 
 1. 先读 [README.md](README.md) 和相关入口。不必每次通读整个 `docs/`。
 2. 文档和实现不一致时，先核对原因。已记下的接受数在 [history-extrapolation.md](docs/history-extrapolation.md)。
-3. 改目录或分层看 [layout.md](docs/layout.md)。`src/rpipe/` 是上游拷贝（`src/rpipe/ORIGIN`，RPipe `main` v0.3.1）。`src/spec_mtp/` 只放 SpecMTP。不改拷过来的框架文件，Windows 先 import torch 除外；2026-10-20 用户明确授权的固定副本 R1 迁移范围、原件及差异按 [迁移合同](docs/rpipe-migration.md#r1-local-backport-20261020) 核对，不构成后续任意改动许可。不要把 SpecMTP 注册进 `rpipe`。
+3. 改目录或分层看 [layout.md](docs/layout.md)。`src/rpipe/` 是上游拷贝（`src/rpipe/ORIGIN`，RPipe `main` v0.3.1）。`src/spec_mtp/` 只放 SpecMTP。不改拷过来的框架文件，Windows 先 import torch 除外。不要把 SpecMTP 注册进 `rpipe`。
 4. 按改动范围验证，并改被这次改动碰到的文档。
 
 ## 2. 文档入口
