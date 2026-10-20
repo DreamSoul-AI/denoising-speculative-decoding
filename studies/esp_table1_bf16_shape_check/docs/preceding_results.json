@@ -1,8 +1,0 @@
-{
-  "study": "esp_table1_bf16_reduction_check",
-  "BC": 10,
-  "q81_first_new_index": 74,
-  "raw_sha256": "411170eac97699ba776545e03c27379fa4e6c4f8b42776e24eea389b59dd9437",
-  "exact_count": 4,
-  "n": 13
-}

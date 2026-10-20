@@ -1,8 +1,0 @@
-{
-  "study": "esp_table1_bf16_numerics",
-  "q81_reduction_off_run": "862835b3fc8b0bbb",
-  "raw_sha256": "fe812a0a14052928909c142f2f81c1c4004dba24366fe69686734ba0f1c7fc32",
-  "exact": true,
-  "AR_unchanged_vs_original32": true,
-  "boundary": "one prompt/32 tokens, not yet sufficient for full480"
-}

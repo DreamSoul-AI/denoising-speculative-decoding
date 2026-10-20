@@ -1,54 +1,27 @@
-# Denoising Speculative Decoding
+# 去噪推测解码
+研究免训练多 token 起草与验证：以 ESP 为参照，比较输入嵌入 EMA、速度外推和输出隐藏状态掩码。中文名称“去噪推测解码”为建议名，待 Enmao 汇总确认。仓库地址：[DreamSoul-AI/denoising-speculative-decoding](https://github.com/DreamSoul-AI/denoising-speculative-decoding)。
 
-ESP reproduction + EMA-velocity masks.
+截至2026年10月21日，8B 非官方 Table 1 独立复验已完成，BC30/60 的 pooled τ 为1.563377504/1.647301264，低于论文1.63/1.74。提交 token 的验证前向 argmax 自检通过，与独立 AR 的逐 token 一致率单列诊断。τ 是提交数与解码调用数之比，本项目没有据此证明实际速度收益。
 
-当前研究计划：[中文](<docs/研究计划 Denoising Speculative Decoding.md>) / [English](<docs/Research Plan Denoising Speculative Decoding.md>)。原作者可运行入口未核验到，按Enmao 2026-10-16最新指示停止追找；现有实现标明**非作者官方复现**。旧[全480证据复核](docs/research/esp-table1-nonofficial-full480-recheck-2026-10-16.md)数学门全过，BC30/BC60单mask pooled τ=1.563378/1.647301，未达论文1.63/1.74。[8B独立复验](studies/esp_table1_nonofficial_revalidation/docs/STUDY_REPORT.md)三格已全部完成，239,137个token数学自检通过；后续七格范数和11格独立配对暂停，未追加实验。[最终交接与后续开题要求](docs/handover.md#sd-wrap-up-20261018)。已有4B五方法加AR及六格方向对照完整结果继续复用，不改prompt、不测速。
+# 一、文档入口
+| **文档** | **维护内容** |
+| --- | --- |
+| [协作约定](AGENTS.md) | 资料定位、适用规范及执行边界 |
+| [去噪推测解码 通用调研](<docs/去噪推测解码 通用调研.md>) | 技术机制、来源比较、历史结果与证据边界 |
+| [去噪推测解码 架构设计](<docs/去噪推测解码 架构设计.md>) | 目标质量场景、职责、接口、状态、部署和验证 |
+| [去噪推测解码 代码结构设计](<docs/去噪推测解码 代码结构设计.md>) | 目标 Python 包、文件责任、依赖及测试镜像 |
+| [去噪推测解码 研究计划](<docs/去噪推测解码 研究计划.md>) | 唯一中文计划、Study 问题与暂停/恢复条件 |
 
-Training-free multi-token prediction:
+# 二、当前实现与使用边界
+当前安装包为 `denoise-spec-mtp`，Python 包为 `spec_mtp`。入口仍是 `python -m spec_mtp` 和 `spec-mtp`。它通过固定的 RPipe 副本执行 Study，当前源码仍采用 `flow/structure` 组织，目标标准 Python 包设计尚未实施。
 
-1. **ESP** (Embedding-Space Probing), [arXiv:2603.17942](https://arxiv.org/abs/2603.17942). PDF is local-only: [docs/papers/index.md](docs/papers/index.md).
-2. **EMA-velocity**: the same pipeline, mask from EMA of input-embedding differences.
+`src/rpipe/` 固定于 `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5`（v0.3.1），既存 Windows torch-first 差异按当前字节保留。第三方 ESP 来源树及 `ORIGIN.json` 保留，不能把它称为作者官方实现。原始 SpecBench 数据保留于 `datasets/spec_bench/question.jsonl`。
 
-Agent notes: [AGENTS.md](AGENTS.md). Layout and the SpecMTP `origin` / shared rule: [docs/layout.md](docs/layout.md). Decode / paper mismatches: [docs/architecture.md](docs/architecture.md). Structure mapping: [docs/rpipe-migration.md](docs/rpipe-migration.md). How to run a Study: [studies/README.md](studies/README.md). Recorded accepts: [docs/history-extrapolation.md](docs/history-extrapolation.md).
+本轮收敛了第一方文档并移除旧报告、图和运行证据快照。旧 Study 声明、分析工具和文档测试仍引用部分旧路径，尚未随设计迁移。新 clone 能阅读本页和四份文档，不能直接重放旧 Study、复算已删除的公开逐条摘要或核验本机原始前向。恢复历史材料须使用通用调研列出的固定 Git 提交和原路径，不能用当前文档替代冻结字节。
 
-主仓执行副本的正式证据与本机归档对账：[ESP 工作副本对账](docs/research/esp-working-copy-reconciliation-2026-10-15.md)。
+# 三、开发与验证
+工作分支经 Draft PR 面向 `dev`。本轮仅交付文档设计，等待评审，不重构代码、不合并、不启用自动合并或发布。
 
-`src/rpipe/` is a file copy of `diaoenmao/RPipe` `main` at `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5` (v0.3.1). SpecMTP registers onto that copy through a Study recipe.
+现有 `.github/workflows/cpu-checks.yml` 使用 Ubuntu 24.04/Python 3.12，执行 Ruff、mypy、RPipe 来源/入口检查和 `pytest tests/spec_mtp`。该配置存在不代表本轮通过。旧文档索引与双语计划测试不适用于新文档结构，当前是已知未完成项，不能以历史628项通过记录放行本次改动。
 
-## Quick start
-
-Existing GPU environments: preserve CUDA torch; install the project with `pip install -e ".[dev]" --no-deps` and supply missing non-torch dependencies separately. The following CPU setup is for a new CPU environment.
-
-### New CPU environment
-
-```text
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-pip install -e ".[dev]"
-set PYTHONUTF8=1
-python -m pytest tests/spec_mtp
-```
-
-For a fresh [smoke](studies/smoke/README.md), copy `studies/smoke` to an isolated directory and set a new Study name and `algorithm.config.version` before `python -m spec_mtp make <copy>` and `launch <copy>`. New T0 speculative Runs require a complete verifier-argmax audit: every committed token must equal its verification forward's argmax. Independent AR exactness is diagnostic; all Runs still require complete raw and source evidence. Source/input changes require explicit make/remake; do not rerun historical Run IDs. See the [acceptance report](studies/smoke/docs/STUDY_REPORT.md).
-
-GPU cells are new Studies under `studies/`. Copy `_template/`. SpecBench lives in `datasets/spec_bench/` and is copied into that Study's `shared/data` on the first Run. ModelScope / HF weights land in `shared/model`. Do not start from `src/main.py`.
-
-## Development
-
-Repository: [DreamSoul-AI/denoising-speculative-decoding](https://github.com/DreamSoul-AI/denoising-speculative-decoding). Default branch: `main`. Changes enter `dev` through a work-branch PR, then reach `main` through a PR from this repository's `dev`. Both paths require `cpu-checks` and `Branch flow`; existing approvals remain required.
-
-Research-to-Study extraction: [protocol](docs/research/rpipe-study-extraction.md), with the real-model [input-mask baseline](studies/input_mask_baseline/README.md). This prerequisite does not implement or validate the output-space / Kalman hypotheses.
-
-Current checkpoint, validation and remaining real-model prerequisite: [handover](docs/handover.md). The execution copy is fixed at v0.3.1; current-device acceptance is tracked in the handover and Study reports.
-
-Current-device v0.3.1 checks: [smoke acceptance](studies/smoke/docs/STUDY_REPORT.md) and [validation](studies/smoke/docs/v031_validation.json). The four real-model input-mask prerequisite Runs completed with ModelScope Qwen3-0.6B, FP32/eager and strict source/evidence gates; see the [report](studies/input_mask_baseline/docs/STUDY_REPORT.md).
-
-Next stage: [output-space chain prerequisite](studies/output_space_prerequisite/README.md), tied final-hidden order0/order1 with a matched frozen-input chain. Implementation and four-case real-model correctness gates passed. On the fixed development prompt the output masks accepted10 drafts each versus17 for the matched input chain; no superiority or Kalman claim.
-
-Follow-up: [three-prompt small matrix](studies/output_space_small_matrix/README.md) and matched-prefix analysis. All outputs remain AR-identical; q172–q174 acceptance counts for input/order0/order1 are1/1/1,5/1/3,0/1/1. These mixed development observations do not establish stable superiority.
-
-历史Qwen3-4B **FP32**：[同prompt first26复验](studies/output_space_4b_recheck_v2/docs/STUDY_REPORT.md)两阶总接受均高于输入，[固定4条新输入](studies/output_space_4b_holdout/docs/STUDY_REPORT.md)未保持收益，[历史输入EMA同链控制](studies/output_space_4b_input_control/docs/STUDY_REPORT.md)已执行。三批全AR一致，计时关闭；这些结果及此前0.6B机理/罕见事件记录保留归档，不代替当前BF16证据。
-
-
-历史原作者代码核查（2026-10-15）：[官方来源核查与复现报告](docs/research/esp-official-code-reproduction-2026-10-15.md)。尚未核验到作者 ESP 可运行实现，OpenReview 附件访问不完整；当次未迁入源码或启动GPU。该记录保留原作者代码要求下的历史结论；当前非官方独立复验按上文最新授权执行。
-
-2026-10-15 历史自实现结果：历史4B FP32归档经PR #7合dev；[ESP Table1全480 BF16复现](studies/esp_table1_bf16_full_argmax/docs/STUDY_REPORT.md)四格和原生process完成，BC30 pooled τ=1.563378、BC60单mask=1.647301，未达到1.63/1.74，负结果保留，PR #10经CI合dev。[4B BF16五方法加AR配对](studies/qwen3_4b_bf16_five_methods/docs/STUDY_REPORT.md)已完成11/11及原生Study process，同480条、BC30/60、双mask动态剪枝树，809,118个Spec提交token自检全过。输入一阶本次总accepted最高、主calls最少；两输出方法对mean基线有小幅总量改善，输出一阶相对输出零阶未显示稳定联合收益。全部逐prompt负例与AR差异保留，AR一致率不作失败门；[集成与CI记录](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/12)。其他研究暂停；8B仅限该Table1复现，未新增FP32模型实验、测速、强推、合main或删除分支和数据。
+后续实施前先核对 [研究计划](<docs/去噪推测解码 研究计划.md>) 和影响范围，再决定离线检查。已有 CUDA 环境保留 torch，不以 CPU 安装命令覆盖。权重优先 ModelScope，历史 GPU、测速和下载命令均不是新的执行授权。
