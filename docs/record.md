@@ -1,5 +1,13 @@
 # 开发记录
 
+## 2026-10-20 S1 缓存元数据对应实际 Run
+
+既有load_launch_plan只检查job.config指针，指向外来eval、缺文件或缺指针时，显式缓存mode=eval仍能派发实际mode=train的Run。两公共入口从原生make和合法冻结配置进入真实CPU hook，首红 **9F/3P**：六个mode错选及三个设备元数据错配，设备仅作读取不启动CUDA。正确实际train控制不发执行者。保持原config校验，再对实际 `runs/<run_id>/config.yaml` 的显式mode/device作局部比对，不符沿原None→make重建，不改filter、调度、来源、锁或异常范围。
+
+同12例修复后 **12P**，另3个legacy省略mode/device/both控制均通过；前两组控制器分别64.1870／52.1221秒，legacy10.5303秒，JUnit与逐例计时另存原件，不作为性能或总工时。各组源／测试前后SHA一致、所属0残留与清理确认；mode控制的完整config原字节、设备读取的jobs原字节均保持。legacy追加在独立选集，不冒充前一轮12P的同一测试文件时点。
+
+固定v0.3.1原102与许可证不变，当前103／十一差异／十原blob保持，manifest只更新既有scheduler的local_sha与理由；checker不放宽。命令、JUnit、真实hook/计划观测、输入SHA、来源逆差与原pin在 `.tmp/debt-batch9/source-verification.json`。本机Windows/Python3.13.9，严错Ruff与3.10语法检查单列；不称本机Linux或远端CI通过。没有研究模型、Torch研究计算、GPU、下载、计费、历史队列或数据删除。
+
 ## 2026-10-20 S2 预期结果持久化
 
 独立 pytest 报告器未保存 wasxfail，非严格 XPASS 的三阶段均 passed、原生 exit0，会被重建为普通 passed／complete=true；call/setup/teardown 的 xfail 则变成普通 skipped。按测试规范的预期结果单列合同，以真实 pytest 子进程取得 **8F/4P，8.893秒，外层9.5468秒**，包含空 reason，不用构造事件冒充执行。普通 skip、普通失败优先、strict XPASS 和正常 passed 四控制保持原生语义。

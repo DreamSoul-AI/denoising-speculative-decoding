@@ -75,6 +75,86 @@ def snapshot(run):
 
 
 @pytest.mark.parametrize('module', ['rpipe', 'spec_mtp'])
+@pytest.mark.parametrize('cached_config', ['foreign', 'missing', 'omitted', 'actual'])
+def test_launch_cached_mode_matches_actual_run(study, module, cached_config):
+    root, runs = study
+    jobs_path = root / 'scripts/jobs.json'
+    payload = json.loads(jobs_path.read_text(encoding='utf-8'))
+    job = payload['jobs'][0]
+    actual_config = root / 'runs' / job['run_id'] / 'config.yaml'
+    assert yaml.safe_load(actual_config.read_text(encoding='utf-8'))['algorithm']['mode'] == 'train'
+    foreign = root.parent / (root.name + '-foreign.yaml')
+    foreign.write_text('algorithm:\n  mode: eval\nsystem:\n  device: cpu\n', encoding='utf-8')
+    job['mode'] = 'train' if cached_config == 'actual' else 'eval'
+    if cached_config == 'foreign':
+        job['config'] = str(foreign)
+    elif cached_config == 'missing':
+        job['config'] = str(root / 'missing.yaml')
+    elif cached_config == 'omitted':
+        del job['config']
+    jobs_path.write_text(json.dumps(payload), encoding='utf-8')
+    before = {str(run): (run / 'config.yaml').read_bytes() for run in runs}
+    for run in runs:
+        (run / 'release').touch()
+    completed = cli('launch', root, '--mode', 'eval', '--include-done', '--num-gpus', '0',
+                    '--round', '1', '--console', 'shared', entry=module, timeout=20)
+    entered = [run.name for run in runs if (run / 'entered').exists()]
+    observation = dict(module=module, cached_config=cached_config, actual_mode='train',
+        cached_mode=job['mode'], exit_code=completed.returncode, entered=entered,
+        config_bytes_unchanged=all((run / 'config.yaml').read_bytes() == before[str(run)] for run in runs),
+        stdout=completed.stdout, stderr=completed.stderr)
+    (root / 'cached-mode-observation.json').write_text(json.dumps(observation, indent=2)+'\n', encoding='utf-8')
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert not entered, 'eval selection dispatched an actual train Run'
+    assert observation['config_bytes_unchanged']
+
+
+@pytest.mark.parametrize('cached_config', ['foreign', 'missing', 'omitted', 'actual'])
+def test_launch_plan_cached_device_matches_actual_run(study, cached_config):
+    from rpipe.structure.make.schedule import load_launch_plan
+
+    root, runs = study
+    jobs_path = root / 'scripts/jobs.json'
+    payload = json.loads(jobs_path.read_text(encoding='utf-8'))
+    job = payload['jobs'][0]
+    foreign = root.parent / (root.name + '-foreign-device.yaml')
+    foreign.write_text('algorithm:\n  mode: train\nsystem:\n  device: cuda\n', encoding='utf-8')
+    job['device'] = 'cpu' if cached_config == 'actual' else 'cuda'
+    if cached_config == 'foreign':
+        job['config'] = str(foreign)
+    elif cached_config == 'missing':
+        job['config'] = str(root / 'missing.yaml')
+    elif cached_config == 'omitted':
+        del job['config']
+    jobs_path.write_text(json.dumps(payload), encoding='utf-8')
+    original = jobs_path.read_bytes()
+    plan = load_launch_plan(root, init_gpu=0, num_gpus=0, round_size=1, include_done=True)
+    observation = dict(cached_config=cached_config, plan_reused=plan is not None, actual_device='cpu',
+                       cached_device=job['device'], jobs_unchanged=jobs_path.read_bytes() == original)
+    (root / 'cached-device-observation.json').write_text(json.dumps(observation, indent=2)+'\n', encoding='utf-8')
+    assert (plan is not None) == (cached_config == 'actual')
+    assert observation['jobs_unchanged']
+
+
+@pytest.mark.parametrize('omitted', ['mode', 'device', 'both'])
+def test_cached_legacy_fields_remain_optional(study, omitted):
+    from rpipe.structure.make.schedule import load_launch_plan
+
+    root, runs = study
+    path = root / 'scripts/jobs.json'
+    payload = json.loads(path.read_text(encoding='utf-8'))
+    for job in payload['jobs']:
+        job.pop('config', None)
+        for field in ('mode', 'device') if omitted == 'both' else (omitted,):
+            job.pop(field, None)
+    path.write_text(json.dumps(payload), encoding='utf-8')
+    original = path.read_bytes()
+    plan = load_launch_plan(root, init_gpu=0, num_gpus=0, round_size=1, include_done=True)
+    assert plan is not None and {job['run_id'] for job in plan['job_list']} == {run.name for run in runs}
+    assert path.read_bytes() == original
+
+
+@pytest.mark.parametrize('module', ['rpipe', 'spec_mtp'])
 @pytest.mark.parametrize('command', ['status', 'process', 'launch'])
 @pytest.mark.parametrize('previous', ['[]', '{"metrics":' + '[' * 10000 + '0' + ']' * 10000 + '}'], ids=['array', 'deep'])
 def test_public_entries_tolerate_nonobject_result(study, module, command, previous):

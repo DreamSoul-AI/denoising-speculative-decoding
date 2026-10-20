@@ -234,6 +234,12 @@ def load_launch_plan(
             mode, device = _job_fields(Path(str(job['config'])))
             if mode != job_mode(job) or device != str(job.get('device') or 'cuda').lower():
                 return None
+        config_path = study_dir / 'runs' / str(job.get('run_id') or '') / 'config.yaml'
+        if config_path.is_file():
+            mode, device = _job_fields(config_path)
+            if (('mode' in job and mode != job_mode(job))
+                    or ('device' in job and device != str(job.get('device') or 'cuda').lower())):
+                return None
 
     def _keep(rows: list) -> list[dict[str, Any]]:
         kept = [job for job in rows if isinstance(job, dict)]
