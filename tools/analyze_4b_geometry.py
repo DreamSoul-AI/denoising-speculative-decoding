@@ -150,7 +150,7 @@ def audit_saved(study, paired):
     """Recheck saved tokens and first blocks; do not re-sign native Runs."""
     import importlib.util
     import sys
-    from spec_mtp.structure.artifact import validation
+    from studies._shared.structure import validation
     root = Path(__file__).resolve().parents[1]
     norm = root / 'studies/qwen3_4b_bf16_bias_norm_scan'
     sys.path.insert(0, str(norm))

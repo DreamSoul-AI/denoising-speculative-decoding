@@ -27,7 +27,7 @@ def check_index(entries):
 
 def readout(output_dir):
     from rpipe.structure.artifact.provenance import check_frozen as pcheck
-    from spec_mtp.structure.artifact.sources import check_frozen, manifest
+    from studies._shared.structure.sources import check_frozen, manifest
     configs = check_refs()
     cells = {name: {'native_status': 'pending'} for name in original.CASES}
     index = STUDY / 'index.json'

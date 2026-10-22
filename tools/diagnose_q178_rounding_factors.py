@@ -62,8 +62,8 @@ def main():
     args.out.mkdir(parents=True)
     import torch
     from safetensors import safe_open
-    from spec_mtp.structure.artifact.sources import manifest
-    from spec_mtp.structure.artifact.evidence import runtime
+    from studies._shared.structure.sources import manifest
+    from studies._shared.structure.evidence import runtime
     root = Path(__file__).resolve().parents[1]
     study = root / 'studies/output_space_extension'
     paths = {'tool': Path(__file__), 'plan': (Path(__file__).resolve().parents[1] / 'docs/研究计划 Denoising Speculative Decoding.md'),

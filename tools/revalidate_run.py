@@ -24,7 +24,7 @@ def revalidate_run(study, run_id, validator_path):
     from rpipe.structure.artifact.provenance import check_frozen
     from rpipe.structure.make.expand import load_study_yaml
     from rpipe.flow.write.run import run as write
-    summarize = import_module('spec_mtp.flow.summarize.run')
+    summarize = import_module('studies._shared.flow.summarize.run')
 
     study = Path(study).resolve()
     validator_path = Path(validator_path).resolve()
@@ -77,7 +77,7 @@ def revalidate_run(study, run_id, validator_path):
 
 def process_study(study, validator_path):
     from rpipe.flow.process import run_study
-    process = import_module('spec_mtp.flow.process.run')
+    process = import_module('studies._shared.flow.process.run')
     validator = load_validator(Path(validator_path).resolve())
     with patch.object(process,'verify_evidence',validator.verify_evidence):
         return run_study(Path(study).resolve())

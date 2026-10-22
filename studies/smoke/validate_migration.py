@@ -7,6 +7,8 @@ Compare old/current JSON cells (not environment metadata). No weights downloaded
 
 from __future__ import annotations
 
+from spec_mtp.masks import build_mask_provider
+
 import argparse
 import hashlib
 import importlib
@@ -19,13 +21,13 @@ def probe():
     import torch
 
     try:
-        decode = importlib.import_module('spec_mtp.structure.algorithm.decoding')
-        variants = importlib.import_module('spec_mtp.structure.algorithm.smoke_variants')
-        named = importlib.import_module('spec_mtp.structure.control.named')
-        models = importlib.import_module('spec_mtp.structure.model.hf_causal')
+        decode = importlib.import_module('spec_mtp.decode')
+        variants = importlib.import_module('studies._shared.structure.smoke_variants')
+        named = importlib.import_module('spec_mtp.contracts')
+        models = importlib.import_module('spec_mtp.model')
     except ModuleNotFoundError:
-        decode = importlib.import_module('spec_mtp.structure.algorithm.eval.spec_mtp.decoding')
-        variants = importlib.import_module('spec_mtp.structure.algorithm.eval.spec_mtp.smoke_variants')
+        decode = importlib.import_module('studies._shared.structure.algorithm.spec_mtp.decoding')
+        variants = importlib.import_module('studies._shared.structure.algorithm.spec_mtp.smoke_variants')
         named = importlib.import_module('spec_mtp.structure.control.spec_mtp.named')
         models = importlib.import_module('spec_mtp.structure.model.spec_mtp.hf_causal')
     torch.set_num_threads(1)
@@ -60,7 +62,7 @@ def probe():
                     return observe
 
                 decoder = decode.SpecDecoder(model, named._convert(spec), cfg,
-                                             generator=torch.Generator().manual_seed(123 + i))
+                                             generator=torch.Generator().manual_seed(123 + i), mask_policy=build_mask_provider(named._convert(spec), model.embedding_table))
                 previous = sys.gettrace()
                 try:
                     sys.settrace(observe)

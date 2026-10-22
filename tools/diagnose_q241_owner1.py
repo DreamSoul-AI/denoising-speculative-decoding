@@ -56,10 +56,10 @@ def main():
     import yaml
     from rpipe.structure.system.config import SystemConfig
     from rpipe.structure.system.runtime import apply_runtime
-    from spec_mtp.structure.artifact.sources import manifest
-    from spec_mtp.structure.artifact.evidence import model_digest, runtime
-    from spec_mtp.structure.control.named import _convert
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    from studies._shared.structure.sources import manifest
+    from studies._shared.structure.evidence import model_digest, runtime
+    from studies._shared.structure.config import _convert
+    from spec_mtp.model import HFCausalLM
     root = Path(__file__).resolve().parents[1]
     study = root / 'studies/output_space_cross_task'
     read = lambda p: json.loads(p.read_text(encoding='utf-8'))
@@ -127,7 +127,7 @@ def main():
             report['cases'].append({'label': label, 'replay': replay, 'canonical_replacements': records})
             if not graft:
                 frames = captured
-        from spec_mtp.structure.algorithm.output_masks import OutputHiddenMaskProvider
+        from spec_mtp.masks import OutputHiddenMaskProvider
         provider = OutputHiddenMaskProvider(2, model.embedding_table, order=1)
         report['blocks'], report['steps'] = [], []
         for position in (716, 717, 719, 720):

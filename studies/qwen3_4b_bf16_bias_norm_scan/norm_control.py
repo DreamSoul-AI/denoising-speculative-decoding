@@ -17,7 +17,7 @@ for folder in ('qwen3_4b_bf16_five_methods', 'qwen3_4b_bf16_directions', 'esp_ta
 from untimed_pairing import PairedUntimedEval, build_cuda  # noqa: E402
 from direction_control import control  # noqa: E402
 from norm_admission import wait_for_admission  # noqa: E402
-from spec_mtp.structure.algorithm import decoding  # noqa: E402
+import spec_mtp.decode as decoding  # noqa: E402
 from rpipe.structure.algorithm.factory import AlgorithmRegistry  # noqa: E402
 from rpipe.structure.model.factory import ModelRegistry  # noqa: E402
 

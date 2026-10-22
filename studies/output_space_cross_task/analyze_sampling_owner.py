@@ -41,7 +41,7 @@ def main():
     parser.add_argument('--owner', required=True, type=Path)
     args = parser.parse_args()
     import torch
-    from spec_mtp.structure.artifact.sources import manifest
+    from studies._shared.structure.sources import manifest
     study = Path(__file__).resolve().parent
     read = lambda p: json.loads(p.read_text(encoding='utf-8'))
     sampling, owner = (read(p / 'diagnosis.json') for p in (args.sampling, args.owner))

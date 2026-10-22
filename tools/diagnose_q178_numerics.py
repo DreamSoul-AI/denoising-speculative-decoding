@@ -14,7 +14,7 @@ from diagnose_proxy_transfer import transfer
 
 
 def canonical_states(hidden, embedding_table, order):
-    from spec_mtp.structure.algorithm.output_masks import OutputHiddenMaskProvider
+    from spec_mtp.masks import OutputHiddenMaskProvider
     provider = OutputHiddenMaskProvider(2, embedding_table, order=order, beta=.9, beta_prime=.99)
     states = {}
     for position, value in enumerate(hidden):
@@ -25,8 +25,8 @@ def canonical_states(hidden, embedding_table, order):
 
 def synchronized_transfer(model, states, *args, **kwargs):
     import torch
-    from spec_mtp.structure.algorithm import kv_cache
-    from spec_mtp.structure.algorithm.output_masks import OutputHiddenMaskProvider
+    from spec_mtp import model as kv_cache
+    from spec_mtp.masks import OutputHiddenMaskProvider
     original = OutputHiddenMaskProvider.masks_per_owner
     latest, records = {}, []
 
@@ -90,10 +90,10 @@ def main():
     import yaml
     from rpipe.structure.system.config import SystemConfig
     from rpipe.structure.system.runtime import apply_runtime
-    from spec_mtp.structure.artifact.evidence import model_digest, runtime
-    from spec_mtp.structure.artifact.sources import manifest
-    from spec_mtp.structure.control.named import _convert
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    from studies._shared.structure.evidence import model_digest, runtime
+    from studies._shared.structure.sources import manifest
+    from studies._shared.structure.config import _convert
+    from spec_mtp.model import HFCausalLM
 
     root = Path(__file__).resolve().parents[1]
     study = root / 'studies/output_space_extension'

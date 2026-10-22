@@ -34,9 +34,9 @@ def main():
     import torch
     from rpipe.structure.system.config import SystemConfig
     from rpipe.structure.system.runtime import apply_runtime
-    from spec_mtp.structure.artifact.evidence import model_digest, runtime
-    from spec_mtp.structure.artifact.sources import manifest
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    from studies._shared.structure.evidence import model_digest, runtime
+    from studies._shared.structure.sources import manifest
+    from spec_mtp.model import HFCausalLM
 
     read = lambda path: json.loads(path.read_text(encoding='utf-8'))
     study = args.study.resolve()

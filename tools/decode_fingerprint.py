@@ -15,6 +15,8 @@ output-identical.
 
 from __future__ import annotations
 
+from spec_mtp.masks import build_mask_provider
+
 import argparse
 import hashlib
 import json
@@ -27,12 +29,12 @@ STAT_KEYS = ('new_tokens', 'accepted', 'committed', 'decode_calls', 'hit_context
 def fingerprint() -> dict:
     import torch
 
-    from spec_mtp.structure.algorithm.config_bridge import apply_variant
-    from spec_mtp.structure.algorithm.decoding import SpecDecoder, ar_generate
-    from spec_mtp.structure.algorithm.paper_variants import PAPER_VARIANTS
-    from spec_mtp.structure.algorithm.smoke_variants import VARIANTS
-    from spec_mtp.structure.control.named import _convert
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    from studies._shared.structure.config import apply_variant
+    from spec_mtp.decode import SpecDecoder, ar_generate
+    from studies._shared.structure.paper_variants import PAPER_VARIANTS
+    from studies._shared.structure.smoke_variants import VARIANTS
+    from studies._shared.structure.config import _convert
+    from spec_mtp.model import HFCausalLM
 
     presets = sorted(k for k in {**VARIANTS, **PAPER_VARIANTS} if not k.endswith('/alignment_probe'))
     models = {}
@@ -53,7 +55,7 @@ def fingerprint() -> dict:
                 eval_cfg = _convert({'max_new_tokens': max_new, 'temperature': temperature, 'stop_on_eos': False})
                 for i, prompt in enumerate(prompts):
                     seed = 100 + i
-                    dec = SpecDecoder(models[max_pos], spec, eval_cfg, generator=torch.Generator().manual_seed(seed))
+                    dec = SpecDecoder(models[max_pos], spec, eval_cfg, generator=torch.Generator().manual_seed(seed), mask_policy=build_mask_provider(spec, models[max_pos].embedding_table))
                     out, stats = dec.generate(prompt)
                     ar, _ = ar_generate(models[max_pos], prompt, eval_cfg, generator=torch.Generator().manual_seed(seed))
                     row = {k: int(stats[k]) for k in STAT_KEYS}

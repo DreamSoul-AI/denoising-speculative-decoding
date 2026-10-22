@@ -19,8 +19,8 @@ def rank_interval(logits, target, banned):
 
 
 def coverage(logits, root, truth, budget=9, tree=None):
-    from spec_mtp.structure.algorithm.decoding import tree_probs
-    from spec_mtp.structure.algorithm.tree import build_dynamic_tree
+    from spec_mtp.decode import tree_probs
+    from spec_mtp.tree import build_dynamic_tree
     if tree is None:
         tree = build_dynamic_tree(tree_probs(logits, 0.), budget, root, pruning=True)
     first = tree.children_of(0)
@@ -69,7 +69,7 @@ def plot_results(report, path):
 
 def main():
     from analyze_4b_geometry import sha
-    from spec_mtp.structure.algorithm.tree import DraftTree
+    from spec_mtp.tree import DraftTree
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--study', required=True, type=Path)
     parser.add_argument('--windows', required=True, type=Path)

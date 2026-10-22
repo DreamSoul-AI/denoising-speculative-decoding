@@ -1,5 +1,5 @@
 """Register existing sources and the new read-only resource/input guards."""
-from spec_mtp.recipe import register as native_register, register_sources
+from studies._shared.structure.recipe import register as native_register, register_sources
 from revalidation_contract import RevalidationEval, admitted_build
 from rpipe.structure.algorithm.factory import AlgorithmRegistry
 from rpipe.structure.model.factory import ModelRegistry

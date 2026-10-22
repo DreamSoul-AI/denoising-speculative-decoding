@@ -35,8 +35,8 @@ def main():
         parser.error('output must be new')
     args.out.mkdir(parents=True)
     import torch
-    from spec_mtp.structure.artifact.sources import manifest
-    from spec_mtp.structure.artifact.evidence import runtime
+    from studies._shared.structure.sources import manifest
+    from studies._shared.structure.evidence import runtime
     root = Path(__file__).resolve().parents[1]
     paths = {'tool': Path(__file__), 'plan': (Path(__file__).resolve().parents[1] / 'docs/研究计划 Denoising Speculative Decoding.md'),
         'helper': root / 'tools/diagnose_sampling_paths.py',

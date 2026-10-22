@@ -2,6 +2,8 @@
 
     python tools/capture_4b_geometry.py --study studies/qwen3_4b_bf16_five_methods --out .tmp/4b-geometry-capture-v1
 """
+
+from spec_mtp.masks import build_mask_provider
 import argparse
 import hashlib
 import json
@@ -76,9 +78,9 @@ def raw_output_slots(anchor, velocity, proxies, order, beta_prime):
 
 def observe(model, prompt, spec, eval_cfg, eos, seed):
     import torch
-    from spec_mtp.structure.algorithm import decoding
-    from spec_mtp.structure.algorithm.output_masks import OutputHiddenMaskProvider
-    from spec_mtp.structure.control.named import _convert
+    import spec_mtp.decode as decoding
+    from spec_mtp.masks import OutputHiddenMaskProvider
+    from studies._shared.structure.config import _convert
     original_provider, original_tree = decoding.build_mask_provider, decoding.build_tree
     original_masks = OutputHiddenMaskProvider.masks_per_owner
     active, frames = {}, []
@@ -151,7 +153,7 @@ def observe(model, prompt, spec, eval_cfg, eos, seed):
                 patch.object(OutputHiddenMaskProvider, 'masks_per_owner', masks_spy), \
                 patch.object(decoding, 'time', SimpleNamespace(perf_counter=lambda: 0.)):
             output, stats = decoding.SpecDecoder(model, _convert(spec), _convert(eval_cfg), eos_ids=eos,
-                generator=torch.Generator(device=model.device).manual_seed(seed)).generate(prompt)
+                generator=torch.Generator(device=model.device).manual_seed(seed), mask_policy=build_mask_provider(_convert(spec), model.embedding_table)).generate(prompt)
     finally:
         for handle in handles:
             handle.remove()
@@ -226,9 +228,9 @@ def main():
             time.sleep(5)
         import torch
         from transformers import AutoModelForCausalLM
-        from spec_mtp.structure.artifact.sources import manifest
-        from spec_mtp.structure.artifact.evidence import model_digest, runtime
-        from spec_mtp.structure.model.hf_causal import HFCausalLM
+        from studies._shared.structure.sources import manifest
+        from studies._shared.structure.evidence import model_digest, runtime
+        from spec_mtp.model import HFCausalLM
         from rpipe.structure.system.runtime import apply_runtime
         from rpipe.structure.system.config import SystemConfig
         torch.set_num_threads(1)

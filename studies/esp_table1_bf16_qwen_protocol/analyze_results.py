@@ -2,7 +2,7 @@
 import hashlib
 import json
 from pathlib import Path
-from spec_mtp.structure.artifact.evidence import digest
+from studies._shared.structure.evidence import digest
 
 CELLS = ((10,1,'auxiliary',None),(30,1,'primary',1.63),(60,1,'primary',1.74),(60,2,'control',1.74))
 

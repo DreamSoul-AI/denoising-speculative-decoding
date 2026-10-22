@@ -3,6 +3,8 @@
     python tools/diagnose_sampling_continuation.py --out .tmp/sampling-continuation-<new-id>
 """
 
+from spec_mtp.masks import build_mask_provider
+
 import argparse
 import json
 from pathlib import Path
@@ -24,11 +26,11 @@ def main():
     args.out.mkdir(parents=True)
     import torch
     import yaml
-    from spec_mtp.structure.algorithm.decoding import SpecDecoder, ar_generate
-    from spec_mtp.structure.artifact.sources import manifest
-    from spec_mtp.structure.artifact.evidence import model_digest, runtime
-    from spec_mtp.structure.control.named import _convert
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    from spec_mtp.decode import SpecDecoder, ar_generate
+    from studies._shared.structure.sources import manifest
+    from studies._shared.structure.evidence import model_digest, runtime
+    from studies._shared.structure.config import _convert
+    from spec_mtp.model import HFCausalLM
     from rpipe.structure.system.runtime import apply_runtime
     from rpipe.structure.system.config import SystemConfig
     root = Path(__file__).resolve().parents[1]
@@ -95,7 +97,7 @@ def main():
             refs = {}
             for case in ('output_order0', 'output_order1'):
                 output, stats = SpecDecoder(model, _convert(rows[case]['spec']), configs[case],
-                    eos_ids=inputs[case]['eos_ids'], generator=gen()).generate(prompt)
+                    eos_ids=inputs[case]['eos_ids'], generator=gen(), mask_policy=build_mask_provider(_convert(rows[case]['spec']), model.embedding_table)).generate(prompt)
                 record = {'case': case, 'input_ids': input_ids, 'output_ids': output[0].tolist(),
                     'stats': stats, 'output_equal_independent_sampled_AR': torch.equal(output, ar)}
                 unit['native'].append(record)

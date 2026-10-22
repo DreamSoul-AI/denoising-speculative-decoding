@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from studies.output_space_extension.kernel_common import load, verify, compare_control, profile
 from diagnose_output_windows import file_hash
 from diagnose_q178_numerics import synchronized_transfer
-from spec_mtp.structure.algorithm.output_masks import OutputHiddenMaskProvider
+from spec_mtp.masks import OutputHiddenMaskProvider
 
 NATIVE = OutputHiddenMaskProvider.masks_per_owner
 

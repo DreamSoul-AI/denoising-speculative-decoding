@@ -3,6 +3,8 @@
     python tools/diagnose_proxy_transfer.py --study studies/output_space_small_matrix --diagnostic .tmp/output-windows-20261014-v1 --out .tmp/output-transfer-<new-id>
 """
 
+from spec_mtp.masks import build_mask_provider
+
 import argparse
 import json
 from pathlib import Path
@@ -14,8 +16,8 @@ from diagnose_output_windows import SEMANTIC_KEYS, TRACE_KEYS, cosine, file_hash
 def transfer(model, prompt, spec, eval_cfg, eos, reference, donor, original_masks,
              root, targets, placebo=False, seed=124):
     import torch
-    from spec_mtp.structure.algorithm.decoding import SpecDecoder
-    from spec_mtp.structure.algorithm.output_masks import OutputHiddenMaskProvider
+    from spec_mtp.decode import SpecDecoder
+    from spec_mtp.masks import OutputHiddenMaskProvider
 
     assert spec['num_masks'] == 2 and spec['tree']['branches'] == [1, 1] and not spec['tree']['pruning']
     expected = reference['stats']['trace']
@@ -99,7 +101,7 @@ def transfer(model, prompt, spec, eval_cfg, eos, reference, donor, original_mask
                    model.register_forward_hook(after, with_kwargs=True)]
         with patch.object(OutputHiddenMaskProvider, 'masks_per_owner', provider_patch):
             output, stats = SpecDecoder(model, spec, eval_cfg, eos_ids=eos,
-                                       generator=torch.Generator(device=model.device).manual_seed(seed)).generate(prompt)
+                                       generator=torch.Generator(device=model.device).manual_seed(seed), mask_policy=build_mask_provider(spec, model.embedding_table)).generate(prompt)
     finally:
         for handle in handles:
             handle.remove()
@@ -141,10 +143,10 @@ def main():
     import yaml
     from rpipe.structure.system.config import SystemConfig
     from rpipe.structure.system.runtime import apply_runtime
-    from spec_mtp.structure.artifact.evidence import model_digest, runtime
-    from spec_mtp.structure.artifact.sources import manifest
-    from spec_mtp.structure.control.named import _convert
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    from studies._shared.structure.evidence import model_digest, runtime
+    from studies._shared.structure.sources import manifest
+    from studies._shared.structure.config import _convert
+    from spec_mtp.model import HFCausalLM
 
     read = lambda p: json.loads(p.read_text(encoding='utf-8'))
     study = args.study.resolve()

@@ -30,15 +30,17 @@ spec-mtp = "spec_mtp.cli:main"
 dev = ["pytest>=7.0", "hypothesis>=6.100", "mypy==2.4.0", "types-PyYAML==6.0.12.20260906", "ruff==0.17.0"]
 
 [tool.setuptools.packages.find]
-where = ["src"]
-include = ["rpipe*", "spec_mtp*"]
+where = ["src", "."]
+include = ["rpipe*", "spec_mtp*", "studies*"]
 
 [tool.setuptools.package-data]
-rpipe = ["ORIGIN", "LICENSE.md"]
+rpipe = ["ORIGIN", "LICENSE.md", "**/*.md"]
+spec_mtp = ["structure/algorithm/reference/esp_reproduction_artifacts/**/*"]
+studies = ["**/study.yaml", "**/experiment_config.yaml"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests/spec_mtp"]
-pythonpath = ["src"]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
 addopts = "-q --tb=short"
 cache_dir = ".tmp/pytest-cache"
 filterwarnings = ["ignore::DeprecationWarning"]

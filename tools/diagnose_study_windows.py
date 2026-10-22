@@ -29,10 +29,10 @@ def main():
     import yaml
     from rpipe.structure.system.config import SystemConfig
     from rpipe.structure.system.runtime import apply_runtime
-    from spec_mtp.structure.artifact.evidence import model_digest, runtime
-    from spec_mtp.structure.artifact.sources import manifest
-    from spec_mtp.structure.control.named import _convert
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    from studies._shared.structure.evidence import model_digest, runtime
+    from studies._shared.structure.sources import manifest
+    from studies._shared.structure.config import _convert
+    from spec_mtp.model import HFCausalLM
 
     study = args.study.resolve()
     read = lambda p: json.loads(p.read_text(encoding='utf-8'))

@@ -60,11 +60,11 @@ def component(filename: str, name: str = '') -> str:
 def profile_variant(variant: str, args: argparse.Namespace) -> dict:
     import torch
 
-    from spec_mtp.structure.algorithm import esp_mtp
-    from spec_mtp.structure.algorithm.config_bridge import apply_variant
-    from spec_mtp.structure.control.named import _convert
-    from spec_mtp.structure.data.local_prompts import load_records
-    from spec_mtp.structure.model.hf_causal import build_model
+    import studies._shared.structure.evaluate as esp_mtp
+    from studies._shared.structure.config import apply_variant
+    from studies._shared.structure.config import _convert
+    from spec_mtp.data import load_records
+    from spec_mtp.model import build_model
 
     torch.manual_seed(0)
     model = build_model(_convert({'model': {'type': 'tiny_llama', 'attn_implementation': 'eager', 'tiny': {
