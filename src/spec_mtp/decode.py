@@ -46,19 +46,27 @@ def _fork_generator(generator: torch.Generator | None) -> torch.Generator | None
     return fork
 
 
+def _validate_logits(logits):
+    if (torch.isnan(logits) | torch.isposinf(logits)).any() or not torch.isfinite(logits).any(dim=-1).all():
+        raise ValueError('logits require a finite candidate per row and no NaN/+inf')
+
+
 def select_token(logits_row, temperature, generator):
     """Greedy at temperature 0, else one multinomial draw ("sample matching")."""
+    _validate_logits(logits_row)
     if temperature <= 0.0:
         return int(logits_row.argmax(dim=-1).item())
-    probs = torch.softmax(logits_row.float() / temperature, dim=-1)
+    probs = tree_probs(logits_row, temperature)
     return int(torch.multinomial(probs, num_samples=1, generator=generator).item())
 
 
 def tree_probs(mask_logits, temperature):
     """Candidate-ranking distribution per mask; matches the verifier at T>0."""
-    if temperature <= 0.0:
-        return torch.softmax(mask_logits.float(), dim=-1)
-    return torch.softmax(mask_logits.float() / temperature, dim=-1)
+    scaled = mask_logits.float() if temperature <= 0.0 else mask_logits.float() / temperature
+    if (torch.isfinite(mask_logits) & ~torch.isfinite(scaled)).any():
+        raise ValueError('logits overflow during temperature scaling or float32 conversion')
+    _validate_logits(scaled)
+    return torch.softmax(scaled, dim=-1)
 
 
 class SpecDecoder:
@@ -375,6 +383,8 @@ def ar_generate(model, prompt_ids, eval_cfg, eos_ids=(), generator=None):
     device = model.device
     prompt_ids = prompt_ids.to(device)
     t = prompt_ids.size(1)
+    if t > model.max_positions:
+        raise ValueError('prompt exceeds context capacity')
     start = time.perf_counter()
 
     cache = model.new_cache()

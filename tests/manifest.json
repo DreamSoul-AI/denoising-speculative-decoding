@@ -2875,6 +2875,48 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_invalid_logits_rejected_in_token_and_tree_selection",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_negative_infinity_bans_tokens_without_invalidating_distribution",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_temperature_scaling_overflow_rejected_before_sampling_or_tree",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_invalid_model_logits_stop_without_losing_prior_commits",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {
