@@ -134,4 +134,3 @@ def _check_argmax(item: dict[str, Any]) -> int:
                 or (record.get('forward'), record.get('row')) != owner):
             raise SpecMtpGateError('committed token differs from verifier argmax/owner')
     return len(tokens)
-

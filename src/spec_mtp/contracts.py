@@ -102,4 +102,3 @@ class ObservationSink(Protocol):
 
 
 Cancel = Callable[[], bool]
-

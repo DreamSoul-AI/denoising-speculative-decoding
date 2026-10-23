@@ -302,6 +302,3 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
 
         return OutputHiddenMaskProvider(num_masks, embedding_table, **dict(spec_cfg.get('output', {})))
     raise ValueError(f'Unsupported spec.method: {method}')
-
-
-

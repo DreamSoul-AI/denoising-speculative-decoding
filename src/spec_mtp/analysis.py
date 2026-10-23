@@ -101,4 +101,3 @@ def totals(rows):
     """Pooled counts over all prompts; `accepted` is what the reports compare."""
     keys = ('accepted', 'committed', 'decode_calls', 'new_tokens')
     return {key: int(sum(int(r[key]) for r in rows)) for key in keys}
-
