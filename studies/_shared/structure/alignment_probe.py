@@ -15,7 +15,7 @@ accepted steps reach ~0.45 cosine in later layers vs ~0.35 for rejected.
 import torch
 
 from studies._shared.structure import csv_logger
-from studies._shared.structure.inputs import legacy_inputs
+from studies._shared.structure.inputs import legacy_inputs, select_prompts
 from spec_mtp.decode import ar_generate
 from spec_mtp.masks import build_mask_provider
 
@@ -32,9 +32,8 @@ def _hidden_states_of_last(model, embeds, device):
 
 
 def evaluate(model, prompts, eos_ids, spec_cfg, eval_cfg, save_dir=None, *, aggregate=True):
+    prompts, eos_ids = select_prompts(prompts, eos_ids, eval_cfg)
     device = model.device
-    num_eval = int(eval_cfg.get('num_eval_prompts', len(prompts)))
-    prompts = prompts[:num_eval]
     max_steps = int(eval_cfg.get('probe_steps_per_prompt', 16))
 
     num_layers = model.config.num_hidden_layers

@@ -16,7 +16,9 @@ def make_generator(device: Any, seed: int) -> torch.Generator:
 
 
 def select_prompts(prompts: list, data_eos: Any, eval_cfg: Any) -> tuple[list, Any]:
-    num_eval = int(eval_cfg.get('num_eval_prompts', len(prompts)))
+    num_eval = eval_cfg.get('num_eval_prompts', len(prompts))
+    if type(num_eval) is not int or num_eval < 0:
+        raise ValueError('num_eval_prompts must be a nonnegative integer')
     eos_ids = eval_cfg.get('eos_token_ids', None) or data_eos
     return prompts[:num_eval], eos_ids
 

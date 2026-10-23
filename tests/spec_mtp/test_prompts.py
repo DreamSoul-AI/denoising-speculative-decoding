@@ -2,6 +2,8 @@
 
 from types import SimpleNamespace
 
+import pytest
+
 from spec_mtp.data import read_local_prompts as load_records
 from studies._shared.structure.data import _build
 from spec_mtp.data import window_by_category
@@ -58,3 +60,51 @@ def test_local_prompts_text_mode_and_bad_mode():
         assert False, 'expected ValueError'
     except ValueError as error:
         assert 'Unsupported local_prompts mode' in str(error)
+
+
+@pytest.mark.parametrize('limit', [-1, True, 1.5, '2'])
+@pytest.mark.parametrize('entry', ['selector', 'alignment'])
+def test_eval_prompt_limit_rejects_negative_or_coerced_values(limit, entry):
+    import torch
+    from studies._shared.structure.inputs import select_prompts
+    from studies._shared.structure import alignment_probe
+    from test_decode import FakeSession
+    model = FakeSession()
+    model.config = SimpleNamespace(num_hidden_layers=1)
+    prompts = [{'input_ids':torch.tensor([[1, 2, 3]])} for _ in range(3)]
+    cfg = {'num_eval_prompts':limit, 'max_new_tokens':0}
+    with pytest.raises(ValueError, match='num_eval_prompts'):
+        if entry == 'selector':
+            select_prompts(prompts, [], cfg)
+        else:
+            alignment_probe.evaluate(model, prompts, [], {'num_masks':1}, cfg, aggregate=False)
+    assert len(prompts) == 3 and model.calls == 0
+    if entry == 'alignment':
+        with pytest.raises(ValueError, match='num_eval_prompts'):
+            alignment_probe.evaluate(None, prompts, [], {}, cfg, aggregate=False)
+
+
+@pytest.mark.parametrize('limit', [None, 0, 2, 99])
+def test_alignment_prompt_cap_is_idempotent_and_keeps_eos(limit, monkeypatch):
+    import torch
+    from studies._shared.structure.inputs import select_prompts
+    from studies._shared.structure import alignment_probe
+    from test_decode import FakeSession
+    model = FakeSession()
+    model.config = SimpleNamespace(num_hidden_layers=1)
+    prompts = [{'input_ids':torch.tensor([[i, 2, 3]])} for i in (1, 2, 3)]
+    cfg = {'max_new_tokens':0}
+    if limit is not None:
+        cfg['num_eval_prompts'] = limit
+    selected, eos = select_prompts(prompts, [7], cfg)
+    reached = []
+    original = alignment_probe.ar_generate
+    def observe(model, ids, *args, **kwargs):
+        reached.append((ids.tolist(), kwargs['eos_ids']))
+        return original(model, ids, *args, **kwargs)
+    monkeypatch.setattr(alignment_probe, 'ar_generate', observe)
+    alignment_probe.evaluate(model, selected, eos, {'num_masks':1}, cfg, aggregate=False)
+    expected = 3 if limit is None else min(limit, 3)
+    assert [ids for ids, _ in reached] == [p['input_ids'].tolist() for p in prompts[:expected]]
+    assert all(ids == [7] for _, ids in reached) and eos == [7]
+    assert model.calls == 0 and len(prompts) == 3

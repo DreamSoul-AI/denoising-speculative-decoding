@@ -2987,6 +2987,20 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_prompts.py::test_eval_prompt_limit_rejects_negative_or_coerced_values",
+      "target": "studies._shared.structure.inputs",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_prompts.py::test_alignment_prompt_cap_is_idempotent_and_keeps_eos",
+      "target": "studies._shared.structure.alignment_probe",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {
