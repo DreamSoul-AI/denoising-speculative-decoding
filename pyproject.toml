@@ -38,6 +38,9 @@ rpipe = ["ORIGIN", "LICENSE.md", "**/*.md"]
 spec_mtp = ["structure/algorithm/reference/esp_reproduction_artifacts/**/*"]
 studies = ["**/study.yaml", "**/experiment_config.yaml"]
 
+[tool.setuptools.exclude-package-data]
+"*" = ["*.pyc", "*.pyo"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
