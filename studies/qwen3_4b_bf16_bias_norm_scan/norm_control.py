@@ -17,6 +17,7 @@ for folder in ('qwen3_4b_bf16_five_methods', 'qwen3_4b_bf16_directions', 'esp_ta
 from untimed_pairing import PairedUntimedEval, build_cuda  # noqa: E402
 from direction_control import control  # noqa: E402
 from norm_admission import wait_for_admission  # noqa: E402
+from studies._shared.structure import evaluate as assembly
 import spec_mtp.decode as decoding  # noqa: E402
 from rpipe.structure.algorithm.factory import AlgorithmRegistry  # noqa: E402
 from rpipe.structure.model.factory import ModelRegistry  # noqa: E402
@@ -35,8 +36,8 @@ def observe_initial_bias(provider, mode, info):
     control(provider, mode, None, info)
     initialize = provider.init_from_prompt
 
-    def init(embeds):
-        initialize(embeds)
+    def init(embeds, generator=None):
+        initialize(embeds, generator=generator)
         step = provider._step_vector(provider._velocity, provider._ref_norm)
         masks = provider.masks()
         info.update(step_scale=provider.step_scale, initial_mean_norm=float(provider._level.float().norm()),
@@ -65,7 +66,7 @@ class NormEval(PairedUntimedEval):
         scale = self.config.setting('spec')['ema']['step_scale']
         assert mode in ('template', 'random0', 'random1', 'random2') and scale in (.5, 2.)
         assert len(expected) == 480
-        builder, generate = decoding.build_mask_provider, decoding.SpecDecoder.generate
+        builder, generate = assembly.build_mask_provider, decoding.SpecDecoder.generate
         current, progress = {'index': 0, 'bias': {}}, []
         assets = Path(system.assets_dir)
         (assets / 'norm_admission_initial.json').write_text(json.dumps(model.meta['norm_scan_admission']) + '\n')
@@ -100,7 +101,7 @@ class NormEval(PairedUntimedEval):
             current['index'] += 1
             return output, stats
 
-        with patch.object(decoding, 'build_mask_provider', side_effect=controlled_builder), \
+        with patch.object(assembly, 'build_mask_provider', side_effect=controlled_builder), \
                 patch.object(decoding.SpecDecoder, 'generate', observed_generate):
             result = super().run(data, model, system, tracker)
         assert current['index'] == 480

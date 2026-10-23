@@ -27,6 +27,18 @@ def _invalid_constant(value):
     raise ValueError(f'nonfinite JSON constant: {value}')
 
 
+def verify_files(root, declared):
+    """Recheck frozen members without modifying or recreating missing evidence."""
+    root = Path(root).resolve()
+    for relative, expected in declared.items():
+        path = (root / relative).resolve()
+        if not path.is_relative_to(root):
+            raise ValueError('evidence member escapes the explicit root')
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        if actual != expected:
+            raise ValueError(f'evidence member changed: {relative}')
+
+
 def audit_run(raw, expected_sources):
     """Check existing observations only; never regenerate missing logits."""
     reasons = []

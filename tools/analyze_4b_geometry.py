@@ -167,8 +167,8 @@ def audit_saved(study, paired):
         cell = paired['cells'][name]
         folder = study / 'runs' / cell['run_id']
         assert cell['native_status'] == 'succeeded'
-        for path, expected in cell['files_sha256'].items():
-            assert sha(folder / path) == expected, name + ':' + path
+        from spec_mtp.audit import verify_files
+        verify_files(folder, cell['files_sha256'])
         raw = helpers.read(folder / 'assets/decode_observations.json')['out']['evidence']
         rows = cell['rows']
         assert len(raw) == len(rows) == len(prompts) == 480

@@ -38,8 +38,8 @@ COMPONENTS = [
     ('tree attention', ('tree_attention.py',)),
     ('tree build / prune', ('tree.py',)),
     ('kv cache', ('kv_cache.py',)),
-    ('mask providers', ('mask_providers.py', 'mask_settings.py')),
-    ('decoder loop', ('decoding.py',)),
+    ('mask providers', ('masks.py',)),
+    ('decoder loop', ('decode.py',)),
     ('model forward (torch nn / transformers)', ('torch/nn/', 'transformers/')),
     ('other torch', ('torch/',)),
 ]
@@ -63,7 +63,7 @@ def profile_variant(variant: str, args: argparse.Namespace) -> dict:
     import studies._shared.structure.evaluate as esp_mtp
     from studies._shared.structure.config import apply_variant
     from studies._shared.structure.config import _convert
-    from spec_mtp.data import load_records
+    from spec_mtp.data import read_local_prompts as load_records
     from spec_mtp.model import build_model
 
     torch.manual_seed(0)

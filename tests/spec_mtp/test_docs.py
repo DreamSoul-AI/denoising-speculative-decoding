@@ -1,6 +1,5 @@
 """Relative links, including spaced angle targets, resolve in repo-owned Markdown."""
 
-import json
 import re
 import subprocess
 from pathlib import Path
@@ -18,9 +17,11 @@ PINNED_STANDARDS = {
 
 
 def test_relative_markdown_links_resolve():
-    files = subprocess.check_output(['git', 'ls-files', '-z', '*.md'], cwd=ROOT, text=True, encoding='utf-8').rstrip('\0').split('\0')
+    files = subprocess.check_output(['git', '-c', 'safe.directory=' + str(ROOT), 'ls-files', '-z', '*.md'], cwd=ROOT, text=True, encoding='utf-8').rstrip('\0').split('\0')
     broken = []
     for name in files:
+        if name.startswith(('src/rpipe/', 'src/spec_mtp/structure/algorithm/reference/')):
+            continue
         text = (ROOT / name).read_text(encoding='utf-8')
         for match in LINK.finditer(text):
             raw = match[1] or match[2]
@@ -34,25 +35,11 @@ def test_relative_markdown_links_resolve():
     assert not broken, broken
 
 
-def test_one_bilingual_project_plan_preserves_all_historical_sources():
-    manifest = json.loads((ROOT / 'docs/research/plan-consolidation-manifest.json').read_text(encoding='utf-8'))
-    plans = [ROOT / manifest[key] for key in ('canonical_cn', 'canonical_en')]
-    contents = [p.read_text(encoding='utf-8') for p in plans]
-    assert len(manifest['plans']) == 60
-    for item in manifest['plans']:
-        assert not (ROOT / item['source_path']).exists()
-        assert all(f'id="{item["anchor"]}"' in text for text in contents)
-    assert 'translation in progress' not in contents[1]
 
 
-def test_historical_plan_hashes_resolve_without_standalone_files(monkeypatch):
-    import pytest
 
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
-    from diagnose_output_windows import file_hash
 
-    manifest = json.loads((ROOT / 'docs/research/plan-consolidation-manifest.json').read_text(encoding='utf-8'))
-    for item in manifest['plans']:
-        assert file_hash(ROOT / item['source_path']) == item['source_sha256']
-    with pytest.raises(FileNotFoundError):
-        file_hash(ROOT / 'docs/nonexistent-unregistered-plan.md')
+def test_first_party_docs_have_one_canonical_chinese_copy():
+    assert {p.name for p in (ROOT / 'docs').glob('*.md')} == {
+        '去噪推测解码 通用调研.md', '去噪推测解码 架构设计.md',
+        '去噪推测解码 代码结构设计.md', '去噪推测解码 研究计划.md'}

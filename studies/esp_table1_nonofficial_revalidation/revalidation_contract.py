@@ -6,7 +6,7 @@ import subprocess
 from unittest.mock import patch
 
 import spec_mtp.decode as decoding
-from spec_mtp.structure.artifact import evidence
+from studies._shared.structure import evidence
 from untimed_bf16 import UntimedEval, build_cuda
 from resource_admission import wait_for_admission
 

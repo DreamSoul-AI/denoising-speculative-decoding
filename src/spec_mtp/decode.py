@@ -22,13 +22,13 @@ can differ numerically. At T0, every committed token records its own forward
 argmax. tau = committed tokens (accepted + bonus) per decode call.
 """
 
-from typing import Any
+from typing import Any, cast
 import time
 import hashlib
 import json
 import math
 
-from spec_mtp.contracts import DecodeRequest, DecodeResult, MaskPolicy, ModelSession, ObservationSink, Cancel
+from spec_mtp.contracts import DecodeRequest, DecodeResult, MaskPolicy, HiddenMaskPolicy, ModelSession, ObservationSink, Cancel
 
 import torch
 
@@ -70,8 +70,8 @@ class SpecDecoder:
         self.sink = sink
         self.cancel = cancel or (lambda: False)
         self.was_cancelled = False
-        self.committed = []
-        self.stats = {}
+        self.committed: list[int] = []
+        self.stats: dict[str, Any] = {}
         self.spec_cfg = spec_cfg
         self.eval_cfg = eval_cfg
         self.eos_ids = set(int(e) for e in eos_ids)
@@ -185,9 +185,9 @@ class SpecDecoder:
             return chosen
         root_token = select_verified(t - 1, 0)
         if self.output_hidden:
-            provider.init_hidden(out.last_hidden_state[0, :t])
+            cast(HiddenMaskPolicy, provider).init_hidden(out.last_hidden_state[0, :t])
             proxy_hiddens = out.last_hidden_state[0, t:t + k].clone()
-            stats['output_hidden_prefill'] = {'observed_positions': t, 'scale': float(provider.scale),
+            stats['output_hidden_prefill'] = {'observed_positions': t, 'scale': float(cast(HiddenMaskPolicy, provider).scale),
                                               'state_dtype': 'float32', 'final_normalized': True}
         mask_logits = logits[t:t + k].clone()                         # [k, V]
         model.crop_cache(cache, t)                                       # evict masks
@@ -223,7 +223,7 @@ class SpecDecoder:
             node_embeds = model.embed(node_ids)[0] if num_nodes else \
                 torch.empty(0, prompt_embeds.size(-1), device=device, dtype=dtype)
             if self.output_hidden:
-                depth_masks = provider.masks_per_owner(proxy_hiddens).to(dtype)
+                depth_masks = cast(HiddenMaskPolicy, provider).masks_per_owner(proxy_hiddens).to(dtype)
                 owner_masks = depth_masks[[0] + tree.depths]
             else:
                 masks = provider.masks().to(dtype)
@@ -309,7 +309,7 @@ class SpecDecoder:
             if self.output_hidden:
                 observed = [] if stop else [0] + accepted_nodes
                 for block_row in observed:
-                    provider.observe_committed(out.last_hidden_state[0, block_row])
+                    cast(HiddenMaskPolicy, provider).observe_committed(out.last_hidden_state[0, block_row])
                 stats['trace'][-1]['output_hidden'] = {
                     'observed_block_rows': observed,
                     'owner_count': int(owner_masks.shape[0]),

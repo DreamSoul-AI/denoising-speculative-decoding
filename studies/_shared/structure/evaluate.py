@@ -14,7 +14,7 @@ Reports the paper's metrics per SpecBench category and overall:
 from spec_mtp.masks import build_mask_provider
 
 import torch
-from spec_mtp.analysis import _aggregate, totals
+from spec_mtp.analysis import _aggregate, totals as totals
 
 from studies._shared.structure import csv_logger
 from studies._shared.structure.inputs import legacy_inputs, make_generator

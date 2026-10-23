@@ -81,7 +81,7 @@ def observe(model, prompt, spec, eval_cfg, eos, seed):
     import spec_mtp.decode as decoding
     from spec_mtp.masks import OutputHiddenMaskProvider
     from studies._shared.structure.config import _convert
-    original_provider, original_tree = decoding.build_mask_provider, decoding.build_tree
+    original_provider, original_tree = build_mask_provider, decoding.build_tree
     original_masks = OutputHiddenMaskProvider.masks_per_owner
     active, frames = {}, []
     calls = 0
@@ -148,12 +148,11 @@ def observe(model, prompt, spec, eval_cfg, eos, seed):
                model.hf.model.norm.register_forward_hook(norm_hook),
                model.register_forward_hook(after, with_kwargs=True)]
     try:
-        with patch.object(decoding, 'build_mask_provider', provider_builder), \
-                patch.object(decoding, 'build_tree', tree_builder), \
+        with patch.object(decoding, 'build_tree', tree_builder), \
                 patch.object(OutputHiddenMaskProvider, 'masks_per_owner', masks_spy), \
                 patch.object(decoding, 'time', SimpleNamespace(perf_counter=lambda: 0.)):
             output, stats = decoding.SpecDecoder(model, _convert(spec), _convert(eval_cfg), eos_ids=eos,
-                generator=torch.Generator(device=model.device).manual_seed(seed), mask_policy=build_mask_provider(_convert(spec), model.embedding_table)).generate(prompt)
+                generator=torch.Generator(device=model.device).manual_seed(seed), mask_policy=provider_builder(_convert(spec), model.embedding_table)).generate(prompt)
     finally:
         for handle in handles:
             handle.remove()

@@ -36,13 +36,25 @@ def load_questions(path, categories=None):
         raise FileNotFoundError(
             f'SpecBench question file not found: {path}\n'
             'Place it at datasets/spec_bench/question.jsonl')
-    questions = []
+    questions: list[dict] = []
+    qids: set[str] = set()
     with open(path, 'r', encoding='utf-8') as f:
         for line in f:
+            if len(line) > 1024 * 1024 or len(questions) >= 100000:
+                raise ValueError('prompt input exceeds bounded size')
             line = line.strip()
             if not line:
                 continue
             item = json.loads(line)
+            if (not isinstance(item, dict) or not isinstance(item.get('category'), str)
+                    or not isinstance(item.get('turns'), list) or not item['turns']
+                    or not all(isinstance(text, str) and text for text in item['turns'])
+                    or type(item.get('question_id')) not in (str, int)):
+                raise ValueError('invalid prompt record')
+            qid = str(item['question_id'])
+            if not qid or qid in qids:
+                raise ValueError('duplicate or empty prompt identity')
+            qids.add(qid)
             if categories and item['category'] not in categories:
                 continue
             questions.append(item)
@@ -56,7 +68,8 @@ def window_by_category(questions, skip=0, take=None):
     ``take`` None keeps the tail after ``skip``. first 2, next 4, and last 4
     are skip/take ``0/2``, ``2/4``, and ``6/4``.
     """
-    skip = int(skip or 0)
+    if type(skip) is not int or skip < 0 or (take is not None and (type(take) is not int or take < 0)):
+        raise ValueError('prompt windows require nonnegative integers')
     by_category: dict = {}
     for item in questions:
         by_category.setdefault(item['category'], []).append(item)
@@ -129,11 +142,16 @@ def is_synthetic(data_cfg):
 
 def read_local_prompts(data_cfg):
     mode = str(data_cfg.get('mode', 'synthetic')).lower()
-    num_prompts = int(data_cfg.get('num_prompts', 8))
+    num_prompts = data_cfg.get('num_prompts', 8)
+    if type(num_prompts) is not int or not 0 <= num_prompts <= 100000:
+        raise ValueError('num_prompts outside bounded integer range')
 
     if mode == 'synthetic':
-        vocab_size = int(data_cfg.get('vocab_size', 256))
-        prompt_len = int(data_cfg.get('prompt_len', 32))
+        vocab_size = data_cfg.get('vocab_size', 256)
+        prompt_len = data_cfg.get('prompt_len', 32)
+        if (type(vocab_size) is not int or vocab_size < 1 or type(prompt_len) is not int
+                or prompt_len < 1 or prompt_len * num_prompts > 10000000):
+            raise ValueError('invalid synthetic prompt shape/vocabulary')
         generator = torch.Generator().manual_seed(int(data_cfg.get('seed', 0)))
         return [{
             'question_id': i,
@@ -231,7 +249,23 @@ def load_records(data_cfg):
     return _module(data_cfg)[0](data_cfg)
 
 def encode_prompts(records, tokenizer, data_cfg):
-    return _module(data_cfg)[1](records, tokenizer, data_cfg)
+    prompts = _module(data_cfg)[1](records, tokenizer, data_cfg)
+    seen = set()
+    for prompt in prompts:
+        qid = prompt.get('question_id')
+        ids = prompt.get('input_ids')
+        if type(qid) not in (str, int) or str(qid) in seen:
+            raise ValueError('invalid or duplicate encoded prompt identity')
+        seen.add(str(qid))
+        if (ids.ndim != 2 or ids.shape[0] != 1 or ids.shape[1] < 1
+                or ids.dtype not in (torch.int32, torch.int64) or (ids < 0).any()):
+            raise ValueError('invalid encoded prompt tokens')
+    return prompts
+
+
+def read_prompts(path, *, categories=None, skip=0, take=None):
+    """Read bounded local SpecBench records; loading never downloads or creates a model."""
+    return window_by_category(load_questions(path, categories), skip, take)
 
 def load_tokenizer(name, local_files_only=False):
     from transformers import AutoTokenizer

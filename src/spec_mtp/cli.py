@@ -5,13 +5,14 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 import sys
+from typing import Any
 
 
-def _json(path):
+def _json(path: str) -> Any:
     return json.loads(Path(path).read_text(encoding='utf-8'))
 
 
-def _decode(args):
+def _decode(args: argparse.Namespace) -> dict[str, Any]:
     from spec_mtp.audit import JsonlSink
     from spec_mtp.contracts import DecodeRequest, Prompt
     from spec_mtp.decode import generate
@@ -20,7 +21,7 @@ def _decode(args):
 
     body = _json(args.request)
     prompt = body.pop('prompt')
-    prompt = Prompt(str(prompt['qid']), tuple(prompt['input_ids']), prompt.get('category', 'unknown'))
+    prompt = Prompt(prompt['qid'], tuple(prompt['input_ids']), prompt.get('category', 'unknown'))
     request = DecodeRequest(prompt=prompt, **body)
     # No implicit Hub or device fallback; decode only the explicitly supplied local model.
     if not Path(args.model).is_dir():
@@ -46,10 +47,10 @@ def _decode(args):
         if failures:
             if primary is None:
                 raise failures[0]
-            primary.cleanup_failures = failures
+            setattr(primary, 'cleanup_failures', failures)
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog='spec-mtp', description=__doc__)
     commands = parser.add_subparsers(dest='command')
     decode = commands.add_parser('decode', help='decode one request with an explicit local model')

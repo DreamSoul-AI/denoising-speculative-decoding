@@ -46,13 +46,15 @@ def _tracker_metrics(task, out):
     totals = esp_mtp.totals(rows)
     summaries = out.get('summaries') or {}
     overall = summaries.get('overall', {})
-    return {
+    metrics = {
         'Accepted': float(totals['accepted']),
         'Committed': float(totals['committed']),
         'DecodeCalls': float(totals['decode_calls']),
-        'Tau': float(overall.get('tau', 0.0)),
-        'ExactMatchRate': float(overall.get('exact_match_rate', 0.0)),
     }
+    for label, key in (('Tau', 'tau'), ('ExactMatchRate', 'exact_match_rate')):
+        if overall.get(key) is not None:
+            metrics[label] = float(overall[key])
+    return metrics
 
 
 def _write_assets(assets_dir: Path, task: str, out: dict) -> None:

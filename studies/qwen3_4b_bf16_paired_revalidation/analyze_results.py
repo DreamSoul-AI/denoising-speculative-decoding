@@ -15,8 +15,8 @@ original = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(original)
 
 
-def check_index(entries):
-    expected = check_refs()
+def check_index(entries, expected=None):
+    expected = check_refs() if expected is None else expected
     assert [e['factors']['algorithm.config'] for e in entries] == expected
     assert all(len(e['runs']) == 1 for e in entries)
     assert [original.case_name(s) for s in expected] == list(original.CASES)

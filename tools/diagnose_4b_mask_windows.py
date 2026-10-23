@@ -150,7 +150,7 @@ def capture_window(model, prompt, spec, eval_cfg, eos, seed, minimum=8):
     import spec_mtp.decode as decoding
     from spec_mtp.masks import OutputHiddenMaskProvider
     from studies._shared.structure.config import _convert
-    original_build, original_tree = decoding.build_mask_provider, decoding.build_tree
+    original_build, original_tree = build_mask_provider, decoding.build_tree
     original_observe, original_masks = OutputHiddenMaskProvider.observe_committed, OutputHiddenMaskProvider.masks_per_owner
     active, packet, generated = {}, {}, []
 
@@ -197,13 +197,13 @@ def capture_window(model, prompt, spec, eval_cfg, eos, seed, minimum=8):
 
     handles = [model.register_forward_pre_hook(before, with_kwargs=True), model.register_forward_hook(after, with_kwargs=True)]
     try:
-        with patch.object(decoding, 'build_mask_provider', build), patch.object(decoding, 'build_tree', tree_builder), \
+        with patch.object(decoding, 'build_tree', tree_builder), \
                 patch.object(OutputHiddenMaskProvider, 'observe_committed', observe), \
                 patch.object(OutputHiddenMaskProvider, 'masks_per_owner', masks), \
                 patch.object(decoding, 'time', SimpleNamespace(perf_counter=lambda: 0.)):
             try:
                 decoding.SpecDecoder(model, _convert(spec), _convert(dict(eval_cfg, max_new_tokens=32)), eos,
-                    torch.Generator(device=model.device).manual_seed(seed), mask_policy=build_mask_provider(_convert(spec), model.embedding_table)).generate(prompt)
+                    torch.Generator(device=model.device).manual_seed(seed), mask_policy=build(_convert(spec), model.embedding_table)).generate(prompt)
             except WindowCaptured:
                 pass
     finally:

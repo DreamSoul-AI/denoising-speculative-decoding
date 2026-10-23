@@ -1,8 +1,5 @@
 """Pure count protocols and paired comparisons; no execution or file IO."""
 
-import math
-
-
 def _counts(row):
     for key in ('accepted', 'committed', 'decode_calls', 'new_tokens'):
         value = row[key]
@@ -51,6 +48,8 @@ def compare(left, right, pairing):
         if a is None or b is None:
             reasons.append('missing prompt')
         else:
+            if a.get('evidence_complete') is not True or b.get('evidence_complete') is not True:
+                reasons.append('incomplete evidence')
             for key in tuple(pairing.get('keys', ('input_sha256', 'protocol'))) + ('new_tokens',):
                 if key not in a or key not in b or a[key] != b[key]:
                     reasons.append(f'{key} mismatch')
@@ -70,28 +69,31 @@ def _aggregate(rows):
     out = {}
     for key, group in sorted(groups.items()):
         committed = sum(r['committed'] for r in group)
-        decode_calls = max(sum(r['decode_calls'] for r in group), 1)
+        decode_calls = sum(r['decode_calls'] for r in group)
         new_tokens = sum(r['new_tokens'] for r in group)
         spec_time = sum(r['spec_time'] for r in group)
-        tau = committed / decode_calls
+        tau = committed / decode_calls if decode_calls else None
         summary = {
             'prompts': len(group),
             'tau': tau,
-            'call_reduction': 1.0 - 1.0 / tau if tau > 0 else 0.0,
+            'call_reduction': 1.0 - 1.0 / tau if tau is not None and tau > 0 else None,
             'new_tokens_per_prompt': new_tokens / len(group),
             'tokens_per_s': new_tokens / spec_time if spec_time > 0 else 0.0,
         }
         if any('ar_time' in r for r in group):
-            ar_time = sum(r.get('ar_time', 0.0) for r in group)
-            summary['speedup'] = ar_time / spec_time if spec_time > 0 else 0.0
-            summary['exact_match_rate'] = (
-                sum(r.get('exact_match', 0) for r in group) / len(group))
+            complete_ar = all('ar_time' in r and 'exact_match' in r for r in group)
+            summary['AR_observed_prompts'] = sum('ar_time' in r and 'exact_match' in r for r in group)
+            summary['AR_complete'] = complete_ar
+            ar_time = sum(r['ar_time'] for r in group) if complete_ar else None
+            summary['speedup'] = ar_time / spec_time if complete_ar and spec_time > 0 else None
+            summary['exact_match_rate'] = sum(r['exact_match'] for r in group) / len(group) if complete_ar else None
         for depth in (1, 2, 3):
-            attempts = sum(int(r.get(f'attempt_d{depth}', 0)) for r in group)
-            accepts = sum(int(r.get(f'accept_d{depth}', 0)) for r in group)
+            observed = all(f'attempt_d{depth}' in r and f'accept_d{depth}' in r for r in group)
+            attempts = sum(int(r[f'attempt_d{depth}']) for r in group) if observed else None
+            accepts = sum(int(r[f'accept_d{depth}']) for r in group) if observed else None
             summary[f'attempt_d{depth}'] = attempts
             summary[f'accept_d{depth}'] = accepts
-            summary[f'accept_rate_d{depth}'] = accepts / attempts if attempts else 0.0
+            summary[f'accept_rate_d{depth}'] = accepts / attempts if attempts and accepts is not None else None
         out[key] = summary
     return out
 

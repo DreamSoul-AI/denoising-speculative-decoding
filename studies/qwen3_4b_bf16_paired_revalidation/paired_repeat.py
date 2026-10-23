@@ -19,7 +19,8 @@ from paired_admission import wait_for_admission  # noqa: E402
 from rpipe.structure.algorithm.factory import AlgorithmRegistry  # noqa: E402
 from rpipe.structure.model.factory import ModelRegistry  # noqa: E402
 from rpipe.structure.control.merge import deep_merge  # noqa: E402
-from spec_mtp.structure.algorithm import ar_baseline, decoding  # noqa: E402
+from studies._shared.structure import ar_baseline
+from spec_mtp import decode as decoding  # noqa: E402
 
 
 def check_refs():
@@ -28,6 +29,11 @@ def check_refs():
         assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == expected, name
     plan = refs['project_plan']
     assert hashlib.sha256(subprocess.check_output(['git', 'show', plan['commit'] + ':' + plan['path']], cwd=ROOT)).hexdigest() == plan['sha256']
+    return matrix_settings()
+
+
+def matrix_settings():
+    """Static matrix contract, independently inspectable without private Run evidence."""
     original = yaml.safe_load((BASE / 'experiment_config.yaml').read_text(encoding='utf-8'))
     original['experiment'] = STUDY.name
     original['algorithm']['config']['version'] = 'qwen3-4b-bf16-paired-independent-20261016-v1'

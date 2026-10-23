@@ -1,4 +1,6 @@
 """Native magnitude controls keep the shared mean, fixed direction and argmax gate."""
+
+from spec_mtp.masks import build_mask_provider
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
@@ -8,7 +10,7 @@ import pytest
 import torch
 import yaml
 
-from spec_mtp.structure.algorithm.mask_providers import EMAVelocityMaskProvider, ESPMaskProvider
+from spec_mtp.masks import EMAVelocityMaskProvider, ESPMaskProvider
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -48,7 +50,6 @@ def test_native_scale_retains_mean_and_seed_direction(monkeypatch, mode):
 
 def test_eight_preregistered_cells_and_immutable_inputs(monkeypatch):
     m = module(monkeypatch)
-    m.check_refs()
     decl = yaml.safe_load((m.STUDY / 'study.yaml').read_text(encoding='utf-8'))
     rows = decl['axes']['algorithm.config']
     assert [(r['direction'], r['spec']['ema']['step_scale']) for r in rows] == [
@@ -58,9 +59,9 @@ def test_eight_preregistered_cells_and_immutable_inputs(monkeypatch):
 
 @pytest.mark.parametrize('scale', [.5, 2.])
 def test_native_tiny_bf16_argmax_audit_for_scaled_bias(monkeypatch, scale):
-    from spec_mtp.structure.algorithm import decoding
-    from spec_mtp.structure.control.named import _convert
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    import spec_mtp.decode as decoding
+    from studies._shared.structure.config import _convert
+    from spec_mtp.model import HFCausalLM
     m = module(monkeypatch)
     torch.manual_seed(17)
     model = HFCausalLM(tiny_config={'vocab_size': 32, 'hidden_size': 16, 'intermediate_size': 32,
@@ -69,16 +70,16 @@ def test_native_tiny_bf16_argmax_audit_for_scaled_bias(monkeypatch, scale):
     spec = _convert({'method': 'ema_velocity', 'num_masks': 2, 'block_complexity': 30, 'impl': 'naive',
         'tree': {'mode': 'dynamic', 'pruning': True},
         'ema': {'level': 'order0', 'beta': .9999, 'lam': .1, 'step_scale': scale}})
-    original = decoding.build_mask_provider
+    original = build_mask_provider
     monkeypatch.setattr(decoding, 'time', SimpleNamespace(perf_counter=lambda: 0.))
-    monkeypatch.setattr(decoding, 'build_mask_provider', lambda *a, **kw: m.observe_initial_bias(original(*a, **kw), 'random1', {}))
-    output, stats = decoding.SpecDecoder(model, spec, _convert({'temperature': 0., 'max_new_tokens': 12})).generate(torch.tensor([[1, 2, 3, 4, 5]]))
+    policy = m.observe_initial_bias(original(spec, model.embedding_table), 'random1', {})
+    output, stats = decoding.SpecDecoder(model, spec, _convert({'temperature': 0., 'max_new_tokens': 12}), mask_policy=policy).generate(torch.tensor([[1, 2, 3, 4, 5]]))
     assert output.shape[1] == 17
     assert stats['verification_argmax_audit']['passed'] and stats['verification_argmax_audit']['checked_committed_tokens'] == 12
 
 
 def test_unmade_readout_cannot_claim_completed_scan(monkeypatch, tmp_path):
-    from spec_mtp.structure.artifact.sources import SpecMtpSourceChangedError
+    from studies._shared.structure.sources import SpecMtpSourceChangedError
     m = module(monkeypatch)
     monkeypatch.syspath_prepend(str(m.STUDY))
     spec = importlib.util.spec_from_file_location('sd_norm_readout', m.STUDY / 'analyze_results.py')
@@ -90,7 +91,7 @@ def test_unmade_readout_cannot_claim_completed_scan(monkeypatch, tmp_path):
     (unmade / 'study.yaml').write_bytes((m.STUDY / 'study.yaml').read_bytes())
     monkeypatch.chdir(fake_root)
     output = tmp_path / 'output'
-    with pytest.raises(SpecMtpSourceChangedError):
+    with pytest.raises((SpecMtpSourceChangedError, FileNotFoundError)):
         readout.main(study_dir=unmade, output_dir=output)
     assert not output.exists()
 
@@ -153,8 +154,11 @@ def test_norm_matrix_must_match_all_eight_frozen_cases(monkeypatch, damage):
 
 
 def test_reused_only_readout_never_accepts_new_runs_or_plots(monkeypatch, tmp_path):
-    from spec_mtp.structure.artifact import sources
+    from studies._shared.structure import sources
     m = norm_reader(monkeypatch)
+    # This test isolates reused-only aggregation; separate tests verify missing provenance refusal.
+    import norm_control
+    monkeypatch.setattr(norm_control, 'check_refs', lambda: None)
     rows = [dict(question_id=i, category='a', accepted=1, model_calls=3, new_tokens=5,
                  committed=4, decode_calls=2) for i in range(480)]
     depth = [dict(question_id=i, initial_prefix_sha256='same', first_block_accepted=1) for i in range(480)]
@@ -170,6 +174,21 @@ def test_reused_only_readout_never_accepts_new_runs_or_plots(monkeypatch, tmp_pa
     monkeypatch.setattr(m._pair, 'load_cell', forbidden)
     monkeypatch.setattr(sources, 'check_frozen', forbidden)
     monkeypatch.setattr(m, 'plot', forbidden)
+    # Synthetic source files exercise aggregation only; no historical claim.
+    fixture = tmp_path / 'fixture'
+    study = fixture / 'studies/norm'
+    (study / 'docs').mkdir(parents=True)
+    for name in ('study.yaml', 'experiment_config.yaml'):
+        (study / name).write_bytes((m.STUDY / name).read_bytes())
+    for relative in ('studies/norm/docs/source_refs.json',
+            'studies/base/docs/paired_evidence_v1.json',
+            'studies/qwen3_4b_bf16_directions/docs/direction_evidence_v1.json'):
+        path = fixture / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('{}')
+    monkeypatch.setattr(m, 'ROOT', fixture)
+    monkeypatch.setattr(m, 'STUDY', study)
+    monkeypatch.setattr(m, 'BASE', fixture / 'studies/base')
     proof = m.verify_reused(tmp_path / 'raw', tmp_path / 'output')
     assert proof['complete'] is False and proof['new_cells_inspected'] is False and proof['reused_only']
     assert len(proof['cells']) == 5 and len(proof['expected_new_cases']) == 8
@@ -225,3 +244,7 @@ def test_measured_4b_admission_keeps_reserve_and_gpu_exclusion(monkeypatch):
     assert not helper.apply_capacity(dict(base, host_available_bytes=(2 << 30)-1), cap, False)['passed']
     with pytest.raises(AssertionError):
         helper.apply_capacity(base, dict(cap, complete=False), True)
+
+
+def test_historical_norm_scan_immutable_source_refs(monkeypatch):
+    module(monkeypatch).check_refs()

@@ -212,7 +212,14 @@ def verify_evidence(config: dict[str, Any], assets: Path) -> None:
         from studies._shared.structure.evaluate import _aggregate
         expected_summary = _aggregate(rows)['overall']
         actual = _overall(assets)
-        if actual is None or any(float(actual[k]) != float(v) for k, v in expected_summary.items() if k != 'exact_match_rate'):
+        def same_value(key, value):
+            raw_value = actual.get(key) if actual is not None else None
+            if value is None:
+                return raw_value in ('', None)
+            if type(value) is bool:
+                return raw_value == str(value)
+            return raw_value not in ('', None) and float(raw_value) == float(value)
+        if actual is None or any(not same_value(k, v) for k, v in expected_summary.items() if k != 'exact_match_rate'):
             raise SpecMtpGateError('summary does not match raw decode evidence')
     elif task == 'ar_baseline':
         evidence, rows = raw['out']['evidence'], raw['out']['rows']

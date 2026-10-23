@@ -30,7 +30,7 @@ assert model.embedding_table.data_ptr()==model.hf.get_output_embeddings().weight
 decl=yaml.safe_load((ROOT/'studies/qwen3_4b_bf16_bias_norm_scan/study.yaml').read_text())
 setting=decl['axes']['algorithm.config'][1]
 assert setting['direction']=='template' and setting['spec']['ema']['step_scale']==2
-builder=decoding.build_mask_provider
+builder=build_mask_provider
 info={}
 def controlled(*a,**kw):return norm_control.observe_initial_bias(builder(*a,**kw),'template',info)
 ids=torch.tensor([prompt['input_ids']],device='cuda')
