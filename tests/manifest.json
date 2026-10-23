@@ -2917,6 +2917,41 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_custom_pairing_cannot_remove_required_identity_checks",
+      "target": "spec_mtp.analysis",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_custom_pairing_adds_factor_once_without_changing_valid_pairs",
+      "target": "spec_mtp.analysis",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_compare_keeps_required_and_additional_pairing_checks",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_later_token_failure_preserves_successful_commits_within_block",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

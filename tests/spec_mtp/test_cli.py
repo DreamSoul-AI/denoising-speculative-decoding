@@ -47,3 +47,19 @@ def test_cli_audit_rejects_corrupt_trace_without_model_calls(tmp_path, capsys):
     assert main(['audit', str(raw), '--sources', str(sources)]) == 1
     assert json.loads(capsys.readouterr().out)['argmax_coverage'] is False
     assert model.calls == calls
+
+
+@pytest.mark.parametrize('keys', [[], ['factor']])
+@pytest.mark.parametrize('change', ['none', 'input_sha256', 'factor'])
+def test_cli_compare_keeps_required_and_additional_pairing_checks(tmp_path, capsys, keys, change):
+    from test_analysis import row
+    left, right = row(factor='f'), row(factor='f')
+    if change != 'none':
+        right[change] = 'changed'
+    paths = [tmp_path/name for name in ('left.json', 'right.json', 'pairing.json')]
+    for path, body in zip(paths, ([left], [right], {'keys':keys})):
+        path.write_text(json.dumps(body), encoding='utf-8')
+    assert main(['compare', str(paths[0]), str(paths[1]), '--pairing', str(paths[2])]) == 0
+    result = json.loads(capsys.readouterr().out)
+    mismatch = change == 'input_sha256' or (change == 'factor' and bool(keys))
+    assert result['incomparable'] == int(mismatch) and result['ties'] == int(not mismatch)

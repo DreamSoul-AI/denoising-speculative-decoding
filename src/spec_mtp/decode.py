@@ -295,17 +295,16 @@ class SpecDecoder:
                 committed_now = committed_now[:remaining]
                 stop = True
 
-            for token in committed_now:
+            for index, token in enumerate(committed_now):
                 new_embed = model.embed(torch.tensor([[token]], device=device))[0, 0]
                 if not self.output_hidden:
                     provider.on_token_committed(new_embed, prev_token_embed)
                 prev_token_embed = new_embed
-            committed.extend(committed_now)
-            stats['committed'] += len(committed_now)
-            for index, token in enumerate(committed_now):
+                committed.append(token)
+                stats['committed'] += 1
                 record = choices[choice_offset + index] if self.temperature <= 0 else {
                     'forward': stats['decode_calls'], 'row': ([0] + accepted_nodes)[index], 'argmax': None}
-                self._emit({'event': 'commit', 'index': len(committed) - len(committed_now) + index,
+                self._emit({'event': 'commit', 'index': len(committed) - 1,
                             'token': token, 'forward': record['forward'],
                             'row': record['row'], 'argmax': record['argmax']})
 

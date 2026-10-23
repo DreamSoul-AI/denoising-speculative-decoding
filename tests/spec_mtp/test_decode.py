@@ -55,6 +55,14 @@ class MemorySink:
         self.rows.append(dict(row))
 
 
+class ConstantSession(FakeSession):
+    def __call__(self, *args, **kwargs):
+        out = super().__call__(*args, **kwargs)
+        out.logits.zero_()
+        out.logits[..., 4] = 20
+        return out
+
+
 def request(**kwargs):
     return DecodeRequest(Prompt('p0', (1, 2, 3)),
                          {'num_masks': 1, 'method': 'esp', 'impl': 'efficient',
@@ -203,3 +211,62 @@ def test_ar_full_context_can_emit_prefill_token_without_next_forward():
     model.max_positions = 3
     output, stats = ar_generate(model, torch.tensor([[1, 2, 3]]), {'max_new_tokens':2})
     assert output.tolist() == [[1, 2, 3, 4]] and stats['ar_calls'] == model.calls == 1
+
+
+@pytest.mark.parametrize('fault', ['embed', 'mask', 'sink', 'sink_first'])
+def test_later_token_failure_preserves_successful_commits_within_block(fault):
+    class FailingSession(ConstantSession):
+        after_forward_embeds = 0
+        def embed(self, ids):
+            if self.calls == 2:
+                self.after_forward_embeds += 1
+                if fault == 'embed' and self.after_forward_embeds == 2:
+                    raise ValueError('second decode embedding failed')
+            return super().embed(ids)
+    class RecordingMask(ESPMaskProvider):
+        committed = 0
+        def on_token_committed(self, new_embed, prev_embed):
+            if fault == 'mask' and self.committed == 2:
+                raise ValueError('second decode mask update failed')
+            super().on_token_committed(new_embed, prev_embed)
+            self.committed += 1
+    class FailingSink(MemorySink):
+        def write(self, row):
+            failed_index = 1 if fault == 'sink_first' else 2
+            if fault in ('sink', 'sink_first') and row['event'] == 'commit' and row['index'] == failed_index:
+                raise OSError('second decode commit write failed')
+            super().write(row)
+    model, sink = FailingSession(), FailingSink()
+    mask = RecordingMask(1, model.embedding_table)
+    req = replace(request(), spec={'num_masks':1, 'impl':'efficient',
+        'tree':{'mode':'static', 'branches':[1], 'pruning':False}})
+    with pytest.raises(DecodeFailure) as failure:
+        generate(req, model, mask, sink)
+    result = failure.value.result
+    count = 3 if fault == 'sink' else 2
+    assert result.committed == (4,) * count
+    assert result.stats['committed'] == count - 1
+    assert mask.committed == count and model.calls == 2
+    assert model.after_forward_embeds == (1 if fault == 'sink_first' else 2)
+    assert [r['token'] for r in sink.rows if r['event'] == 'commit'] == ([4] if fault == 'sink_first' else [4, 4])
+    assert not result.evidence_complete
+
+
+@pytest.mark.parametrize('stop', ['budget', 'eos'])
+def test_normal_accepted_bonus_block_preserves_budget_and_eos(stop):
+    class Session(ConstantSession):
+        def __call__(self, *args, **kwargs):
+            out = super().__call__(*args, **kwargs)
+            if stop == 'eos':
+                rows = out.logits[:, -1:] if self.calls == 1 else out.logits
+                rows.zero_()
+                rows[..., 5] = 20
+            return out
+    model, sink = Session(), MemorySink()
+    req = replace(request(), max_new_tokens=3 if stop == 'budget' else 7,
+        eos_ids=() if stop == 'budget' else (5,), spec={'num_masks':1, 'impl':'efficient',
+            'tree':{'mode':'static', 'branches':[1], 'pruning':False}})
+    result = generate(req, model, ESPMaskProvider(1, model.embedding_table), sink)
+    assert result.committed == ((4, 4, 4) if stop == 'budget' else (4, 5))
+    assert result.termination_reason == stop and model.calls == 2
+    assert audit_run(sink.rows, req.sources).argmax_coverage

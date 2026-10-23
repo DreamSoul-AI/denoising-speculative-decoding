@@ -39,3 +39,21 @@ def test_untrusted_counts_are_rejected(bad):
     item['accepted'] = bad
     with pytest.raises(ValueError):
         summarize([item], {'tau': 'decode_committed/decode_calls'})
+
+
+@pytest.mark.parametrize('keys', [[], ['factor', 'input_sha256']])
+@pytest.mark.parametrize('field', ['input_sha256', 'protocol', 'new_tokens'])
+def test_custom_pairing_cannot_remove_required_identity_checks(keys, field):
+    left, right = row(factor='f'), row(factor='f')
+    right[field] = 5 if field == 'new_tokens' else 'changed'
+    result = compare([left], [right], {'keys': keys})
+    assert result['incomparable'] == 1 and result['wins'] == result['losses'] == 0
+    assert result['pairs'][0]['reasons'] == [f'{field} mismatch']
+
+
+@pytest.mark.parametrize('same', [True, False])
+def test_custom_pairing_adds_factor_once_without_changing_valid_pairs(same):
+    result = compare([row(factor='f')], [row(factor='f' if same else 'other')],
+                     {'keys':['factor', 'factor', 'protocol']})
+    assert result['pairs'][0]['reasons'] == ([] if same else ['factor mismatch'])
+    assert result['ties'] == int(same) and result['incomparable'] == int(not same)

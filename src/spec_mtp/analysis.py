@@ -50,7 +50,7 @@ def compare(left, right, pairing):
         else:
             if a.get('evidence_complete') is not True or b.get('evidence_complete') is not True:
                 reasons.append('incomplete evidence')
-            for key in tuple(pairing.get('keys', ('input_sha256', 'protocol'))) + ('new_tokens',):
+            for key in dict.fromkeys(('input_sha256', 'protocol', 'new_tokens', *pairing.get('keys', ()))):
                 if key not in a or key not in b or a[key] != b[key]:
                     reasons.append(f'{key} mismatch')
         delta = None if reasons else a['accepted'] - b['accepted']
