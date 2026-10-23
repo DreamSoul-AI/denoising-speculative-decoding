@@ -2854,6 +2854,27 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_frozen_model_identity_rejects_actual_backend_change",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_collect_rejects_wrong_or_boolean_seed_before_state_write",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_summarize_and_process_reject_report_seed_mismatch",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

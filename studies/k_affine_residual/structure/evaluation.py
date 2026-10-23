@@ -124,6 +124,8 @@ def check_matrix(records, seeds):
         report = record.get('k_affine_residual') or {}
         if type(seed) is not int or seed not in seeds or seed in by_seed:
             raise ValueError('missing, duplicate or undeclared seed')
+        if type(report.get('seed')) is not int or report['seed'] != seed:
+            raise ValueError('report seed does not match Run seed')
         if record.get('status') != 'succeeded' or report.get('complete') is not True:
             raise ValueError('incomplete or failed Run')
         if report.get('arms') != list(ARMS) or set(report.get('splits', {})) != {'holdout', 'cross_dataset'}:

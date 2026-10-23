@@ -23,6 +23,8 @@ def model_identity(session):
         state.update(json.dumps([name, str(value.dtype), list(value.shape)]).encode())
         state.update(value.view(torch.uint8).numpy().tobytes())
     return digest({'weights': state.hexdigest(), 'config': session.hf.config.to_dict(),
+                   'attention_backend': session.hf.config._attn_implementation,
+                   'device': str(session.device), 'dtype': str(session.dtype),
                    'protocol': PROTOCOL, 'representation': 'final normalized hidden at committed position',
                    'torch': torch.__version__, 'model_class': type(session.hf).__name__})
 

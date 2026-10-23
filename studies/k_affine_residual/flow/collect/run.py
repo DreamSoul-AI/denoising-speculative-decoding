@@ -10,6 +10,8 @@ from studies.k_affine_residual.structure.evaluation import aligned_arrays, evalu
 def read_report(assets):
     assets = Path(assets)
     raw = json.loads((assets / 'latent_pairs.json').read_text(encoding='utf-8'))
+    if type(raw.get('seed')) is not int:
+        raise ValueError('raw seed must be an integer')
     frozen_path = assets / 'frozen_correction.json'
     frozen = FrozenCorrection(**json.loads(frozen_path.read_text(encoding='utf-8')))
     file_sha = hashlib.sha256(frozen_path.read_bytes()).hexdigest()
@@ -28,11 +30,14 @@ def read_report(assets):
                             raw['positions'], frozen)
     report['scope'] = raw['scope']
     report['model'] = raw['model']
+    report['seed'] = raw['seed']
     return raw, report
 
 
 def run(ctx):
     raw, report = read_report(ctx.layout.assets_dir)
+    if type(ctx.control.seed) is not int or raw['seed'] != ctx.control.seed:
+        raise ValueError('raw seed does not match current Run seed')
     if ctx.state['execute'].get('raw_sha') != digest(raw):
         raise ValueError('execute/collect raw mismatch')
     ctx.state['k_affine_residual'] = report
