@@ -33,7 +33,7 @@ def _assets(tmp_path, rate='1.0', with_sources=True, overall=True, name='a'):
         (assets / 'spec_mtp_sources.json').write_text(json.dumps(saved), encoding='utf-8')
     inputs = {'settings': {'run': {'seed': 0}, 'eval': {'run_ar_baseline': True, 'device': 'cpu'}, 'spec': {}},
               'files': {}, 'device': 'cpu', 'prompts': [{'input_ids': [1, 2], 'category': 'synthetic'}]}
-    stats = {'new_tokens': 6, 'committed': 5, 'accepted': 5, 'decode_calls': 1,
+    stats = {'new_tokens': 6, 'committed': 5, 'accepted': 5, 'prefill_calls': 1, 'decode_calls': 1,
              'trace': [{'root_position': 2, 'cache_before': 2, 'accepted_nodes': [1, 2, 3, 4, 5],
                         'stopped': True, 'cache_after': None, 'committed_tokens': [4, 5, 6, 7, 8]}]}
     row = {'category': 'synthetic', **{k: stats[k] for k in ('new_tokens', 'committed', 'accepted', 'decode_calls')},
