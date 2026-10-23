@@ -238,6 +238,11 @@ def verify_evidence(config: dict[str, Any], assets: Path) -> None:
             raise SpecMtpGateError('AR summary does not match raw evidence')
     elif task == 'alignment_probe':
         out = raw['out']
+        for key, field in (('accept', 'n_accepted'), ('reject', 'n_rejected')):
+            count = out['counts'].get(key)
+            if (type(count) is not int or count < 0 or type(out.get(field)) is not int
+                    or out[field] != count):
+                raise SpecMtpGateError('alignment observation count mismatch')
         if out['n_accepted'] + out['n_rejected'] <= 0:
             raise SpecMtpGateError('alignment probe has no observations')
         with (assets / 'alignment_metrics.csv').open(newline='', encoding='utf-8') as handle:
@@ -247,6 +252,8 @@ def verify_evidence(config: dict[str, Any], assets: Path) -> None:
         if len(rows) != len(out['sums']['accept']):
             raise SpecMtpGateError('alignment layer evidence missing')
         for i, row in enumerate(rows):
+            if any(row.get(field) != str(out[field]) for field in ('n_accepted', 'n_rejected')):
+                raise SpecMtpGateError('alignment CSV count mismatch')
             for key, column in (('accept', 'cos_accepted'), ('reject', 'cos_rejected')):
                 expected_value = (torch.tensor(out['sums'][key][i]) / max(out['counts'][key], 1)).item()
                 if float(row[column]) != expected_value:

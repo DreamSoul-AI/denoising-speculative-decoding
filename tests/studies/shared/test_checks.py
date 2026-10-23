@@ -439,3 +439,54 @@ def test_cached_ar_summary_does_not_block_argmax_gate(tmp_path):
     report=checks.run_gate(ctx)
     assert report['passed'] and report['exact_match_rate']==1 and report['reported_exact_match_rate']==0.2
     assert ctx.state['result_draft']['metrics']['test_exactmatchrate']==1
+
+
+@pytest.mark.parametrize('damage', ['raw_accept', 'raw_reject', 'raw_boolean', 'csv_accept', 'csv_reject',
+                                    'zero_accept', 'zero_reject'])
+def test_alignment_gate_rejects_inconsistent_persisted_counts(tmp_path, damage):
+    from studies._shared.flow.collect.run import run as collect
+    assets = _assets(tmp_path)
+    cfg = _config('alignment_probe')
+    sources_path = assets/'spec_mtp_sources.json'
+    saved = json.loads(sources_path.read_text())
+    saved['config_digest'] = digest(cfg)
+    sources_path.write_text(json.dumps(saved))
+    raw_path = assets/'decode_observations.json'
+    raw = json.loads(raw_path.read_text())
+    raw.update(task='alignment_probe', out={'n_accepted':2, 'n_rejected':1,
+        'counts':{'accept':2, 'reject':1}, 'sums':{'accept':[1., .5], 'reject':[-.25, .25]}})
+    if damage in ('zero_accept', 'zero_reject'):
+        key, field = ('accept', 'n_accepted') if damage == 'zero_accept' else ('reject', 'n_rejected')
+        raw['out']['counts'][key] = raw['out'][field] = 0
+        raw['out']['sums'][key] = [0., 0.]
+    raw_path.write_text(json.dumps(raw))
+    tracker = SimpleNamespace(append=lambda *a, **k: None, save=lambda *a: None, flush_state=lambda: None)
+    ctx = SimpleNamespace(config=cfg, layout=SimpleNamespace(assets_dir=assets),
+        state={'tracker':tracker, 'collected':{'metrics':{}}, 'result_draft':{}})
+    collect(ctx)
+    assert checks.run_gate(ctx)['passed']
+    if damage in ('zero_accept', 'zero_reject'):
+        metric = 'test_accepted' if damage == 'zero_accept' else 'test_rejected'
+        assert ctx.state['collected']['metrics'][metric] == 0
+        return
+    csv_path = assets/'alignment_metrics.csv'
+    if damage.startswith('raw'):
+        field = 'n_accepted' if damage == 'raw_accept' else 'n_rejected'
+        raw['out'][field] = True if damage == 'raw_boolean' else raw['out'][field] + 1
+        if damage == 'raw_boolean':
+            raw['out']['counts']['reject'] = True
+        raw_path.write_text(json.dumps(raw))
+    else:
+        with csv_path.open(newline='') as handle:
+            rows = list(csv.DictReader(handle))
+        field = 'n_accepted' if damage == 'csv_accept' else 'n_rejected'
+        rows[0][field] = '999'
+        with csv_path.open('w', newline='') as handle:
+            writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+    previous = raw_path.read_bytes(), csv_path.read_bytes()
+    with pytest.raises(checks.SpecMtpGateError, match='alignment.*count'):
+        checks.run_gate(ctx)
+    assert ctx.state['result_draft']['spec_mtp']['passed'] is False
+    assert (raw_path.read_bytes(), csv_path.read_bytes()) == previous

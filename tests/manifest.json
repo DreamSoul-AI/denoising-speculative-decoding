@@ -3001,6 +3001,13 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_alignment_gate_rejects_inconsistent_persisted_counts",
+      "target": "studies._shared.structure.validation",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {
