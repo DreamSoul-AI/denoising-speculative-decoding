@@ -3008,6 +3008,20 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_data.py::test_dolly_prompt_limit_preserves_zero_and_filtered_order",
+      "target": "spec_mtp.data",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_data.py::test_dolly_prompt_limit_rejects_invalid_counts_before_tokenizing",
+      "target": "spec_mtp.data",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

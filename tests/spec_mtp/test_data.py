@@ -47,3 +47,36 @@ def test_exact_record_limit_keeps_filter_and_trailing_blanks(tmp_path, categorie
     assert len(records) == (100000 if categories == ['keep'] else 0)
     if records:
         assert records[0]['question_id'] == 0 and records[-1]['question_id'] == 99999
+
+
+@pytest.mark.parametrize('limit', [0, 1, 2, 100000])
+def test_dolly_prompt_limit_preserves_zero_and_filtered_order(limit):
+    from types import SimpleNamespace
+    import torch
+    from spec_mtp.data import encode_prompts
+
+    seen = []
+    def tokenize(messages, **kwargs):
+        text = messages[0]['content']
+        seen.append(text)
+        return torch.tensor([[1] * len(text)])
+    records = [{'category': 'creative_writing', 'text': text} for text in ('long', 'a', 'bb', 'c')]
+    prompts = encode_prompts(records, SimpleNamespace(apply_chat_template=tokenize),
+        {'name': 'dolly', 'num_prompts': limit, 'max_prompt_len': 2})
+    assert [p['input_ids'].shape[1] for p in prompts] == [1, 2, 1][:limit]
+    assert [p['question_id'] for p in prompts] == list(range(min(limit, 3)))
+    if limit == 0:
+        assert seen == []
+
+
+@pytest.mark.parametrize('limit', [-1, True, False, 1.5, '2', 100001])
+def test_dolly_prompt_limit_rejects_invalid_counts_before_tokenizing(limit):
+    from types import SimpleNamespace
+    from spec_mtp.data import encode_prompts
+
+    def tokenize(*args, **kwargs):
+        pytest.fail('invalid prompt count reached tokenizer')
+    with pytest.raises(ValueError, match='num_prompts'):
+        encode_prompts([{'category': 'creative_writing', 'text': 'a'}],
+                      SimpleNamespace(apply_chat_template=tokenize),
+                      {'name': 'dolly', 'num_prompts': limit})

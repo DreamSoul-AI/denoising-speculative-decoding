@@ -206,7 +206,11 @@ def read_dolly(data_cfg):
 
 
 def encode_dolly(records, tokenizer, data_cfg):
-    num_prompts = int(data_cfg.get('num_prompts', 100))
+    num_prompts = data_cfg.get('num_prompts', 100)
+    if type(num_prompts) is not int or not 0 <= num_prompts <= 100000:
+        raise ValueError('num_prompts outside bounded integer range')
+    if num_prompts == 0:
+        return []
     max_prompt_len = int(data_cfg.get('max_prompt_len', 2048))
     prompts: list = []
     for item in records:
