@@ -65,6 +65,7 @@ def test_dolly_prompt_limit_preserves_zero_and_filtered_order(limit):
         {'name': 'dolly', 'num_prompts': limit, 'max_prompt_len': 2})
     assert [p['input_ids'].shape[1] for p in prompts] == [1, 2, 1][:limit]
     assert [p['question_id'] for p in prompts] == list(range(min(limit, 3)))
+    assert records == [{'category': 'creative_writing', 'text': text} for text in ('long', 'a', 'bb', 'c')]
     if limit == 0:
         assert seen == []
 
