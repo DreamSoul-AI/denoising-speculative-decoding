@@ -64,7 +64,7 @@ def _aggregate(rows):
     """Aggregate per-prompt rows into per-category + overall summaries."""
     groups: dict = {}
     for row in rows:
-        for key in (row['category'], 'overall'):
+        for key in dict.fromkeys((row['category'], 'overall')):
             groups.setdefault(key, []).append(row)
     out = {}
     for key, group in sorted(groups.items()):

@@ -2980,6 +2980,13 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_overall_category_counts_each_prompt_once",
+      "target": "spec_mtp.analysis",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {
