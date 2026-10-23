@@ -136,7 +136,9 @@ def check_matrix(records, seeds):
                 raise ValueError('missing documents')
             if set(split.get('mse', {})) != set(ARMS):
                 raise ValueError('missing arm measurement')
-            matrix([list(split['mse'].values())], 'split MSE')
+            values = matrix([list(split['mse'].values())], 'split MSE')
+            if (values < 0).any():
+                raise ValueError('split MSE must be nonnegative')
         by_seed[seed] = report
     if set(by_seed) != set(seeds):
         raise ValueError('incomplete seed matrix; successful subset is not complete')

@@ -145,3 +145,42 @@ def test_process_rejects_incomplete_or_corrupt_matrix(change):
     elif change=='arm': report['arms'].pop()
     else: report['splits']['holdout']['mse']['full']=float('nan')
     with pytest.raises(ValueError): evaluation.check_matrix(rows,[123])
+
+
+@pytest.mark.parametrize('split', ['holdout', 'cross_dataset'])
+@pytest.mark.parametrize('arm', ['uncorrected', 'bias', 'full'])
+def test_negative_mse_cannot_finalize_or_pass_persisted_matrix(split, arm, tmp_path, monkeypatch):
+    from importlib import import_module
+    process = import_module('studies.k_affine_residual.flow.process.run')
+    report = {'seed':123, 'complete':True, 'arms':['uncorrected','bias','full'],
+        'frozen_sha':'a'*64, 'splits':{s:{'documents':1,
+            'mse':{'uncorrected':1., 'bias':.8, 'full':.5}} for s in ('holdout','cross_dataset')}}
+    report['splits'][split]['mse'][arm] = -0.01
+    ctx = SimpleNamespace(control=SimpleNamespace(seed=123),
+        state={'k_affine_residual':report, 'result_draft':{}})
+    with pytest.raises(ValueError, match='nonnegative'):
+        summarize(ctx)
+    assert ctx.state['result_draft'] == {}
+    result_path = tmp_path/'runs'/'run'
+    result_path.mkdir(parents=True)
+    raw = json.dumps({'status':'succeeded', 'k_affine_residual':report})
+    (result_path/'result.json').write_text(raw)
+    monkeypatch.setattr(process, 'load_study_yaml', lambda study: {})
+    monkeypatch.setattr(process, 'expand_patches', lambda declaration: [{'seed':123}])
+    monkeypatch.setattr(process, 'load_index', lambda study:
+        {'experiments':[{'runs':[{'id':'run','seed':123}]}]})
+    with pytest.raises(ValueError, match='nonnegative'):
+        process.run(SimpleNamespace(scope='study', study_dir=tmp_path))
+    assert (result_path/'result.json').read_text() == raw
+
+
+@pytest.mark.parametrize('mse', [0., .5])
+def test_matrix_keeps_zero_mse_and_negative_arm_differences(mse):
+    report = {'seed':123, 'complete':True, 'arms':['uncorrected','bias','full'],
+        'frozen_sha':'a'*64, 'splits':{s:{'documents':1,
+            'mse':{'uncorrected':1., 'bias':.8, 'full':mse},
+            'full_minus_uncorrected':mse-1., 'full_minus_bias':mse-.8}
+            for s in ('holdout','cross_dataset')}}
+    result = evaluation.check_matrix([{'seed':123, 'status':'succeeded',
+        'k_affine_residual':report}], [123])
+    assert result['complete'] and result['seeds'] == [123]

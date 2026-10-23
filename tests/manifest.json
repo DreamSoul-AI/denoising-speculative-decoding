@@ -2952,6 +2952,20 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_negative_mse_cannot_finalize_or_pass_persisted_matrix",
+      "target": "studies.k_affine_residual.structure.evaluation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_matrix_keeps_zero_mse_and_negative_arm_differences",
+      "target": "studies.k_affine_residual.structure.evaluation",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {
