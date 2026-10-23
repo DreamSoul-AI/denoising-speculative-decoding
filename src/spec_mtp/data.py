@@ -40,11 +40,13 @@ def load_questions(path, categories=None):
     qids: set[str] = set()
     with open(path, 'r', encoding='utf-8') as f:
         for line in f:
-            if len(line) > 1024 * 1024 or len(questions) >= 100000:
+            if len(line) > 1024 * 1024:
                 raise ValueError('prompt input exceeds bounded size')
             line = line.strip()
             if not line:
                 continue
+            if len(qids) >= 100000:
+                raise ValueError('prompt input exceeds bounded size')
             item = json.loads(line)
             if (not isinstance(item, dict) or not isinstance(item.get('category'), str)
                     or not isinstance(item.get('turns'), list) or not item['turns']

@@ -2966,6 +2966,20 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_data.py::test_record_limit_applies_before_category_filter",
+      "target": "spec_mtp.data",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_data.py::test_exact_record_limit_keeps_filter_and_trailing_blanks",
+      "target": "spec_mtp.data",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

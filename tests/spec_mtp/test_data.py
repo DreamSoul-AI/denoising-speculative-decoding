@@ -24,3 +24,26 @@ def test_malformed_prompt_records_fail(tmp_path, damage):
 def test_synthetic_shape_rejects_coercion_and_unbounded_values(key, value):
     with pytest.raises(ValueError):
         read_local_prompts({key: value})
+
+
+@pytest.mark.parametrize('categories', [['keep'], ['other']])
+def test_record_limit_applies_before_category_filter(tmp_path, categories):
+    path = tmp_path / 'filtered.jsonl'
+    with path.open('w', encoding='utf-8') as handle:
+        for qid in range(100001):
+            handle.write(json.dumps({'question_id':qid, 'category':'keep', 'turns':['text']}) + '\n')
+    with pytest.raises(ValueError, match='bounded size'):
+        read_prompts(path, categories=categories)
+
+
+@pytest.mark.parametrize('categories', [['keep'], ['other']])
+def test_exact_record_limit_keeps_filter_and_trailing_blanks(tmp_path, categories):
+    path = tmp_path / 'at-limit.jsonl'
+    with path.open('w', encoding='utf-8') as handle:
+        for qid in range(100000):
+            handle.write(json.dumps({'question_id':qid, 'category':'keep', 'turns':['text']}) + '\n')
+        handle.write('\n   \n')
+    records = read_prompts(path, categories=categories)
+    assert len(records) == (100000 if categories == ['keep'] else 0)
+    if records:
+        assert records[0]['question_id'] == 0 and records[-1]['question_id'] == 99999
