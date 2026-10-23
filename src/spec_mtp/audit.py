@@ -102,8 +102,8 @@ def audit_run(raw, expected_sources):
                    (ref['forward'], ref['row'], ref['argmax'], ref['chosen'])
                    for row, ref in zip(commits, expected)):
                 raise ValueError('streamed commit differs from forward/row audit')
-        elif stats.get('new_tokens') != 0 or stats.get('prefill_calls') != 0 or stats.get('decode_calls') != 0:
-            raise ValueError('empty result has inconsistent forward counts')
+        else:
+            _check_decode_stats(stats, tokens)
         return AuditResult(source_integrity, True, True, tuple(reasons))
     except (ValueError, TypeError, KeyError, OSError, SpecMtpGateError) as error:
         return AuditResult(False, False, False, tuple(reasons + [str(error)]))
@@ -111,11 +111,41 @@ def audit_run(raw, expected_sources):
 class SpecMtpGateError(RuntimeError):
     pass
 
+def _check_decode_stats(stats, tokens):
+    for key in ('new_tokens', 'accepted', 'committed', 'prefill_calls', 'decode_calls'):
+        if type(stats.get(key)) is not int or stats[key] < 0:
+            raise SpecMtpGateError(f'{key} must be a nonnegative integer')
+    for key in ('prefill_time', 'decode_time'):
+        if key in stats and (type(stats[key]) not in (int, float)
+                             or not math.isfinite(stats[key]) or stats[key] < 0):
+            raise SpecMtpGateError(f'{key} must be finite and nonnegative')
+    traces = stats.get('trace')
+    if not isinstance(traces, list):
+        raise SpecMtpGateError('missing decode trace')
+    for trace in traces:
+        if not isinstance(trace, dict):
+            raise SpecMtpGateError('decode trace must be an object')
+        accepted, committed = trace.get('accepted_nodes'), trace.get('committed_tokens')
+        if (not isinstance(accepted, list) or not isinstance(committed, list) or not committed
+                or any(type(node) is not int or node < 1 for node in accepted)
+                or len(set(accepted)) != len(accepted)
+                or any(type(token) is not int or token < 0 for token in committed)
+                or len(committed) > len(accepted) + 1):
+            raise SpecMtpGateError('invalid accepted/committed decode trace')
+    if (stats['new_tokens'] != len(tokens) or stats['prefill_calls'] != int(bool(tokens))
+            or stats['decode_calls'] != len(traces)
+            or stats['accepted'] != sum(len(trace['accepted_nodes']) for trace in traces)
+            or stats['committed'] != sum(len(trace['committed_tokens']) for trace in traces)
+            or tokens[1:] != [token for trace in traces for token in trace['committed_tokens']]):
+        raise SpecMtpGateError('decode counts/trace differ from committed stream')
+
+
 def _check_argmax(item: dict[str, Any]) -> int:
     stats = item['stats']
     audit = stats.get('verification_argmax_audit') or {}
     prompt, output = item['input_ids'], item['output_ids']
     tokens = output[len(prompt):]
+    _check_decode_stats(stats, tokens)
     records = audit.get('committed') or []
     token_hash = lambda ids: hashlib.sha256(json.dumps(ids).encode()).hexdigest()
     if (audit.get('passed') is not True or not tokens

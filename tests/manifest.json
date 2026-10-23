@@ -409,6 +409,26 @@
       ]
     },
     {
+      "test_id": "tests/spec_mtp/test_audit.py::test_invalid_decode_counts_are_rejected",
+      "target": "spec_mtp.audit",
+      "tags": ["offline_cpu"]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_decode_trace_and_counts_must_match_stream",
+      "target": "spec_mtp.audit",
+      "tags": ["offline_cpu"]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_budget_trimmed_acceptance_may_exceed_committed_count",
+      "target": "spec_mtp.audit",
+      "tags": ["offline_cpu"]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_empty_decode_still_checks_all_counts",
+      "target": "spec_mtp.audit",
+      "tags": ["offline_cpu"]
+    },
+    {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
       "target": "spec_mtp",
       "tags": [
@@ -512,6 +532,11 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
+      "target": "spec_mtp.cli",
+      "tags": ["offline_cpu"]
     },
     {
       "test_id": "tests/spec_mtp/test_context_limit.py::test_spec_output_is_prefix_of_unbounded_ar",

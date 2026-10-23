@@ -34,3 +34,16 @@ def test_cli_request_identity_is_validated_before_model_import(tmp_path):
     path.write_text(json.dumps(body))
     with pytest.raises(ValueError, match='qid'):
         _decode(SimpleNamespace(request=path, model='missing', output='unused'))
+
+
+def test_cli_audit_rejects_corrupt_trace_without_model_calls(tmp_path, capsys):
+    req = request()
+    _, model, sink = run(req)
+    calls = model.calls
+    sink.rows[-1]['stats']['trace'][0]['committed_tokens'][0] = 999
+    raw, sources = tmp_path / 'bad.jsonl', tmp_path / 'sources.json'
+    raw.write_text(''.join(json.dumps(row) + '\n' for row in sink.rows), encoding='utf-8')
+    sources.write_text(json.dumps(dict(req.sources)), encoding='utf-8')
+    assert main(['audit', str(raw), '--sources', str(sources)]) == 1
+    assert json.loads(capsys.readouterr().out)['argmax_coverage'] is False
+    assert model.calls == calls
