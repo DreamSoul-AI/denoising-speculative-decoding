@@ -80,7 +80,6 @@ def test_cli_compare_keeps_required_and_additional_pairing_checks(tmp_path, caps
 
 @pytest.mark.parametrize('output_state', ['existing', 'missing_parent'])
 def test_cli_output_admission_precedes_model_construction(tmp_path, monkeypatch, output_state):
-    from types import SimpleNamespace
     from spec_mtp.cli import _decode
     import spec_mtp.model
 
@@ -102,7 +101,6 @@ def test_cli_output_admission_precedes_model_construction(tmp_path, monkeypatch,
 
 @pytest.mark.parametrize('close_fails', [False, True])
 def test_cli_failed_model_construction_closes_reserved_incomplete_output(tmp_path, monkeypatch, close_fails):
-    from types import SimpleNamespace
     from spec_mtp.cli import _decode
     from spec_mtp.audit import JsonlSink, audit_run
     import spec_mtp.audit
@@ -140,7 +138,6 @@ def test_cli_failed_model_construction_closes_reserved_incomplete_output(tmp_pat
 
 
 def test_cli_success_closes_its_model_and_keeps_auditable_output(tmp_path, monkeypatch):
-    from types import SimpleNamespace
     from spec_mtp.cli import _decode
     from spec_mtp.audit import audit_run
     from test_decode import FakeSession
