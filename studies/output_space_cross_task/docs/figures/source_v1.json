@@ -1,7 +1,0 @@
-{
-  "native_sha256": "708bf37bc5160ab6cc2c0787dd89e773b0fd60e518fdd9b272a6b114756dc254",
-  "canonical_analysis_sha256": "260b01b3bedb0b91197da15e8d87d9ab7af84901ff8f8e539566c2baedd38653",
-  "plot_tool_sha256": "9b22edc8160fbfb9d3c6e73ecfff108cde701bbd61171e3077bace70202000f8",
-  "figure_sha256": "a364294437014ad6d0f3e223ebf567d874323bc78e47508c5a0ba03eea3465d6",
-  "no_new_model_forwards": true
-}

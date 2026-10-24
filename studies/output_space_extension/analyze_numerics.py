@@ -21,7 +21,7 @@ def main():
     parser.add_argument('--original', type=Path, required=True)
     args = parser.parse_args()
     import torch
-    from spec_mtp.structure.artifact.sources import manifest
+    from studies._shared.structure.sources import manifest
     read = lambda p: json.loads(p.read_text(encoding='utf-8'))
     report = read(args.raw / 'diagnosis.json')
     assert report['quality_passed'] and manifest()['digest'] == report['source_digest'] == '670c744e0535dcad'

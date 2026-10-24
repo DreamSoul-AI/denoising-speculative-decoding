@@ -1,0 +1,3082 @@
+{
+  "schema": 1,
+  "defaults": {
+    "level": "integration",
+    "type": "correctness",
+    "cost_class": "C2",
+    "result_type": "quality",
+    "priority": "P1",
+    "result_detail": "pytest setup/call/teardown and original assertion"
+  },
+  "tests": [
+    {
+      "test_id": "tests/spec_mtp/test_4b_bf16_plot.py::test_row_vs_column_preserves_all_wins_ties_losses_without_double_inverting_calls",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_bf16_plot.py::test_partial_or_inconsistent_results_cannot_be_plotted",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_bf16_plot.py::test_synthetic_fixture_renders_png",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_pairs_retain_losses_ties_and_inverse_call_direction",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_ar_divergence_is_diagnostic_including_length_only",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_pending_has_all_11_cells_without_invented_numbers_or_evidence_link",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_readout_retains_ar_mismatch_and_audit_counts_after_native_validation",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_published_counts_reaggregate_without_rewriting_original",
+      "target": "spec_mtp",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_published_counts_reject_inconsistent_or_incomplete_pairs",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_full_direction_preserves_native_mean_and_declared_velocity",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_native_tiny_bf16_direction_controls_remain_argmax_safe",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_tau_pairs_use_ratios_and_category_pooling",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_recovery_waits_without_restarting_or_changing_controls",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_geometry.py::test_trace_root_is_generated_index_and_bad_totals_are_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_geometry.py::test_output_velocity_does_not_directly_change_first_slot_at_depth_zero_or_one",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_geometry.py::test_target_embedding_alignment_and_tail_are_not_shifted",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_geometry.py::test_admission_defers_on_capacity_or_unknown_work",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_geometry.py::test_read_only_observer_preserves_tiny_bf16_output_and_forward_budget",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_geometry.py::test_cpu_downloader_requires_verified_content",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_geometry.py::test_verified_cpu_ci_descendants_not_unrelated_jobs",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_geometry.py::test_geometry_summary_pairs_only_identical_shared_targets",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_geometry.py::test_saved_audit_rejects_missing_or_changed_native_files",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_geometry.py::test_published_saved_audit_preserves_full_coverage_and_old_accounting",
+      "target": "spec_mtp",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_input_control.py::test_4b_control_uses_historical_recipe_on_same_unpruned_chain",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_input_control.py::test_4b_control_reuses_fixed_original_manifests",
+      "target": "spec_mtp",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_mask_windows.py::test_radial_and_tangent_velocity_are_distinguished",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_mask_windows.py::test_transitions_use_previous_owner_depth_and_never_cross_prompts",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_mask_windows.py::test_local_factorial_keeps_native_first_and_shifts_only_declared_formula",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_mask_windows.py::test_fixed_window_uses_native_control_and_predicts_after_bonus",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_mask_windows.py::test_template_and_zero_controls_keep_same_updated_mean",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_mask_windows.py::test_reverse_swap_replays_actual_input_path_and_preserves_native_control",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_mask_windows.py::test_window_admission_uses_only_gpu_residency_and_capacity",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_mask_windows.py::test_coverage_separates_budget_and_correct_parent_from_real_acceptance",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_mask_windows.py::test_active_selection_uses_first_predecessor_and_rejects_no_opportunity",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_mask_windows.py::test_constant_template_check_is_only_algebraic_not_an_acceptance_claim",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_pairing_contract.py::test_predeclared_11_cells_share_bf16_data_and_two_mask_trees",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_pairing_contract.py::test_historical_11_cell_original_inputs",
+      "target": "spec_mtp",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_pairing_contract.py::test_pairing_adapter_checks_before_decode_and_restores_globals",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_pairing_contract.py::test_direct_cuda_loader_preserves_bf16_and_restores",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_pairs.py::test_4b_pairing_retains_gains_losses_ties_and_main_calls",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_pairs.py::test_missing_pair_is_rejected_not_imputed_zero",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_phases.py::test_4b_native_phase_entry_is_function_not_module",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_untimed.py::test_untimed_decoder_preserves_tokens_semantics_and_calls",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_untimed.py::test_study_wrapper_restores_clock_on_success_and_failure",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_untimed.py::test_direct_cuda_materialization_preserves_dtype_kwargs_and_restores_loader",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_pooled_tau_and_missing_prompts_are_explicit",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_pairing_preserves_losses_and_missing_rows",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_output_length_mismatch_is_not_a_speed_or_acceptance_comparison",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_incomplete_evidence_is_preserved_as_incomparable",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_untrusted_counts_are_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_non_object_or_missing_envelope_is_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_invalid_temperature_is_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_boolean_never_impersonates_integer_audit_fields",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_missing_or_mutated_committed_row_is_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_source_mismatch_is_independent_of_correct_argmax",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_truncated_jsonl_never_becomes_complete",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_duplicate_envelope_is_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_invalid_decode_counts_are_rejected",
+      "target": "spec_mtp.audit",
+      "tags": ["offline_cpu"]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_decode_trace_and_counts_must_match_stream",
+      "target": "spec_mtp.audit",
+      "tags": ["offline_cpu"]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_budget_trimmed_acceptance_may_exceed_committed_count",
+      "target": "spec_mtp.audit",
+      "tags": ["offline_cpu"]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_empty_decode_still_checks_all_counts",
+      "target": "spec_mtp.audit",
+      "tags": ["offline_cpu"]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_eight_preregistered_cells_and_immutable_inputs",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_native_tiny_bf16_argmax_audit_for_scaled_bias",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_unmade_readout_cannot_claim_completed_scan",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_first_block_pairing_excludes_changed_prefill_and_missing_blocks",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_norm_matrix_must_match_all_eight_frozen_cases",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_reused_only_readout_never_accepts_new_runs_or_plots",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_reused_only_missing_private_evidence_fails_without_new_outputs",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_published_reuse_checkpoint_matches_existing_endpoints",
+      "target": "spec_mtp",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_measured_4b_admission_keeps_reserve_and_gpu_exclusion",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_historical_norm_scan_immutable_source_refs",
+      "target": "spec_mtp",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_branch_flow.py::test_branch_gate",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_audit_consumes_existing_rows_only",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_legacy_study_commands_explain_the_moved_entry",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_request_identity_is_validated_before_model_import",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
+      "target": "spec_mtp.cli",
+      "tags": ["offline_cpu"]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_context_limit.py::test_spec_output_is_prefix_of_unbounded_ar",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_context_limit.py::test_context_limit_cells_audit_on_the_reached_budget",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_context_limit.py::test_no_change_without_context_limit",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_contracts.py::test_prompt_identity_is_not_coerced",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_contracts.py::test_eos_flag_is_a_boolean",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_contracts.py::test_budget_is_not_coerced",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_correctness.py::test_mask_providers",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_correctness.py::test_trees",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_correctness.py::test_tree_attention",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_correctness.py::test_lossless",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cross_prompt.py::test_window_selection_uses_common_root_not_forward_index",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cross_prompt.py::test_state_comparison_retains_changed_velocity_and_negative_margin",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_complete_null_falsifies_only_bounded_H1",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_count_equal_semantic_difference_is_observed",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_depth2_witness_excludes_invalid_first_EOS_and_missing_target",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_infeasible_is_not_a_null_transfer",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_incomplete_or_failed_gate_cannot_produce_a_verdict",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_natural_depth2_witness",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_true_quality_flags_do_not_override_trace_mismatch",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_data.py::test_malformed_prompt_records_fail",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_data.py::test_synthetic_shape_rejects_coercion_and_unbounded_values",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_budget_and_native_ar_match_per_token_and_audit",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_one_shot_cancel_signal_is_latched_and_never_reclassified",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_sink_first_commit_failure_preserves_committed_fact_and_stops_next_forward",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_invalid_prompt_is_rejected_before_forward",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_eos_prefill_is_in_complete_argmax_audit",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_sink_failure_before_first_forward_is_zero_work",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_decoder_rejects_bad_impl_tree_pairs",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_esp_mask_init_errors",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_ema_rejects_short_prompt_and_bad_level",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_build_mask_provider_rejects_unknown_method",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_stop_on_eos_matches_ar_and_stops_early",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_context_limit_sets_the_flag_and_matches_budgeted_ar",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_budget_truncation_without_context_limit",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_fork_generator_copies_state_and_leaves_source",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_kv_crop_and_keep_block_positions",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_kv_rejects_unsupported_cache_type",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_select_token_greedy_and_sample",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_tree_probs_temperature_scales_and_greedy_matches_softmax",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_max_new_tokens_one_is_prefill_only",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_naive_static_uses_literal_block_attention",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_nominal_block_complexity_static_vs_dynamic",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_eos_truncates_committed_now_mid_pass",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_ar_generate_stops_on_eos",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_ar_generate_respects_context_limit",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_stop_on_eos_false_keeps_going_past_eos_id",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_totals_sums_pooled_counts",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_aggregate_categories_and_zero_decode_calls_guard",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_evaluate_empty_prompts_skips_warmup",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_evaluate_warmup_restores_budget_and_writes_csvs",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_evaluate_without_ar_baseline_omits_match_fields",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_warmup_restores_max_new_tokens_on_generate_failure",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_esp_mtp_test_entry_wires_legacy_inputs",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_dependencies.py::test_scientific_modules_do_not_import_assembly_or_framework",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_dependencies.py::test_package_and_help_do_not_import_torch_transformers_or_rpipe",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_device.py::test_cpu_device_stays_cpu",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_device.py::test_dtype_names",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_device.py::test_unknown_dtype_is_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_device.py::test_seed_is_repeatable",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_docs.py::test_relative_markdown_links_resolve",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_docs.py::test_first_party_docs_have_one_canonical_chinese_copy",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_docs_index.py::test_every_doc_is_linked_from_agents",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_docs_index.py::test_scientific_modules_match_the_design",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_docs_index.py::test_every_tool_has_a_usage_docstring",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_ema_history.py::test_position_index_matches_extrapolation_step",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_ema_history.py::test_synthetic_trajectories",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_ema_history.py::test_rejected_drafts_do_not_enter_history",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_ema_history.py::test_frozen_velocity_still_tracks_anchor",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_ema_history.py::test_order0_level_plus_slope",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_observer_preserves_bf16_outputs_calls_and_restores",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_wrong_selection_is_rejected_and_restored",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_eos_or_budget_trim_is_not_counted_as_committed_and_wrong_owner_fails",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_tau_aggregation_does_not_gate_on_ar_and_keeps_all_weights",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_new_full_contract_keeps_original_settings_and_480_inputs",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_historical_full_argmax_original_inputs",
+      "target": "spec_mtp",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_pending_report_does_not_link_unpublished_local_evidence",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_tau_plot_requires_full_argmax_pass_but_not_ar_exact",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_bf16_controls.py::test_bf16_controls_restore_and_record",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_bf16_shapes.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_bf16_shapes.py::test_shape_patch_is_local_and_restores_on_failure",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_protocol_aggregation_keeps_call_weighting_and_quality",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_protocol_primary_cannot_be_selected_from_tau",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_launch_once_restores_native_scheduler",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_corrected_studies_keep_full_coverage_and_mask_update",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_historical_qwen_original_prompt_coverage",
+      "target": "spec_mtp",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_repeat_roots.py::test_terminal_repeat_is_not_an_extra_nonterminal_opportunity",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_repeat_roots.py::test_parent_repeat_acceptance_violates_declared_pruning_contract",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_table1_contract.py::test_weighting_decomposes_within_and_between_categories",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_table1_contract.py::test_prefix_counts_partial_boundary_and_preserves_early_stop",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_table1_contract.py::test_invalid_denominators_or_block_sizes_are_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_table1_gap.py::test_pooled_prompt_and_clipping_have_distinct_denominators",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_table1_gap.py::test_pairing_uses_exact_ratio_ties_and_rejects_identity_mismatch",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_table1_gap.py::test_bad_coverage_or_duplicate_rows_cannot_be_summarized",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_third_party.py::test_original_files_hash_and_compile",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_third_party.py::test_recorded_preflight_cannot_be_reported_as_valid_tau",
+      "target": "spec_mtp",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_third_party.py::test_audit_uses_prefix_parent_and_limits_remaining",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_third_party.py::test_unchanged_source_self_match_is_not_prefix_acceptance",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_extension_windows.py::test_earliest_eligible_hit_and_full_union_including_trailing_roots",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_extension_windows.py::test_no_shared_hit_uses_predeclared_rejection_control",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_extension_windows.py::test_unused_owner_and_no_continuing_window_are_explicit",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_extension_windows.py::test_second_slot_ar_path_requires_correct_first_and_available_target",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_fingerprint_tool.py::test_compare_reports_field_level_differences",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_gpu_admission.py::test_recognized_display_process_is_not_a_blocker",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_gpu_admission.py::test_only_confirmed_cuda_or_known_runtime_context_blocks",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_gpu_admission.py::test_mixed_display_context_is_not_assigned_fake_cuda_bytes",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_kernel_controls.py::test_norm_graph_native_replication_and_unchanged_state",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_kernel_controls.py::test_fixed_linear_row_reference_preserves_shape",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_kernel_controls.py::test_exact_block_uses_fresh_cache",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_local_state_proxy.py::test_fixed_masks_only_use_selected_state_and_proxy",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_local_state_proxy.py::test_future_mask_change_preserves_current_verification",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_local_state_proxy.py::test_frozen_targets_retain_entry_and_bound_windows",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_local_state_proxy.py::test_greedy_seed_is_not_an_independent_sampling_axis",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_local_state_proxy.py::test_recorded_first_divergence_uses_previous_owner_seeds",
+      "target": "spec_mtp",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_lossless_properties.py::test_spec_equals_ar_for_any_preset",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_lossless_properties.py::test_context_limit_output_is_the_budgeted_ar_output",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_lossless_properties.py::test_presets_cover_every_paper_cell",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_lossless_properties.py::test_every_preset_builds_a_decoder",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_lossless_properties.py::test_sample_init_is_token_identical_at_positive_temperature",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_lossless_properties.py::test_sample_init_is_token_identical_at_temperature_zero",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_lossless_properties.py::test_sample_init_noise_is_unchanged_by_the_fork",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_mask_provider_boundaries.py::test_esp_update_false_leaves_masks_unchanged",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_mask_provider_boundaries.py::test_esp_offset_and_sample_inits",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_mask_provider_boundaries.py::test_ema_update_false_freezes_velocity_but_moves_anchor",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_mask_provider_boundaries.py::test_ema_extrapolate_ema_rebuilds_masks_after_commit",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_mask_provider_boundaries.py::test_build_mask_provider_wires_esp_and_ema",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_mask_settings.py::test_frozen_mean_does_not_update",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_mask_settings.py::test_mean_plus_gamma_uses_study_overrides",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_mask_settings.py::test_unknown_mask_is_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_model.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_model.py::test_cache_retains_each_layers_own_values_and_requested_path",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_nonofficial_revalidation.py::test_host_peak_plus_margin_and_actual_foreign_gpu",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_nonofficial_revalidation.py::test_copied_untimed_and_argmax_helpers_are_original_bytes",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_norm_queue_audit.py::test_pending_and_native_failure_do_not_run_a_model_or_readout",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_norm_queue_audit.py::test_one_completion_is_accounted_once_with_three_tau_aggregates",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_norm_queue_audit.py::test_all_eight_wait_for_native_study_process",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_output_hidden.py::test_only_final_norm_matches_all_layer_reference_and_preserves_logits",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_output_hidden.py::test_hook_removed_when_forward_fails",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_output_hidden.py::test_state_observation_delay_proxy_updates_and_norm_mapping",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_output_hidden.py::test_output_chain_lossless_sampling_budget_and_exact_state_positions",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_output_hidden.py::test_output_rejects_untied_and_invalid_states",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_output_hidden.py::test_observed_exact_hiddens_equal_full_causal_prefix",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_output_hidden.py::test_output_sampling_eos_truncation_matches_ar",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_output_hidden.py::test_bf16_branching_siblings_share_depth_masks_without_mutating_state",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_output_hidden.py::test_nonfirst_sibling_updates_actual_hidden_path_and_cache",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_package.py::test_rpipe_is_vendored_from_the_recorded_commit",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_package.py::test_console_scripts_expose_vendored_rpipe_and_spec_mtp",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_package.py::test_manifest_covers_package_sources",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_package.py::test_cli_lock_only_for_make_run_launch",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_package.py::test_run_does_not_create_lock_when_freeze",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_package.py::test_run_writes_lock_when_missing_and_unfrozen",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_package.py::test_load_lock_absent_is_none",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_package.py::test_load_lock_rejects_corrupt_and_non_object",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_package.py::test_package_initializers_do_not_define_business_functions",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_all_eleven_effective_configs_match_native_expansion",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_changed_or_incomplete_repeat_index_is_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_resource_guard_precedes_model_and_both_decode_paths",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_unmade_repeat_writes_pending_only",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_phi_rms.py::test_phi64_uses_native_slot_and_scale_without_state_mutation",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_phi_rms.py::test_rms_singleton_and_high_precision_keep_input_and_shape",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_prepared_methods_argmax.py::test_every_prepared_spec_method_has_full_argmax_coverage_and_rejects_corruption",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_profile_tool.py::test_component_buckets",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_profile_tool.py::test_profile_small",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_prompts.py::test_window_is_per_category_in_name_order",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_prompts.py::test_synthetic_prompts_are_seeded",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_prompts.py::test_registry_builds_synthetic_prompts_without_a_tokenizer",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_prompts.py::test_select_prompts_caps_and_keeps_eval_eos",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_prompts.py::test_local_prompts_text_mode_and_bad_mode",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_proxy_transfer.py::test_one_slot_scope_lossless_actual_owner_and_placebo",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_proxy_transfer.py::test_transfer_cleanup_after_intervention_forward_failure",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_q178_numerics.py::test_canonical_prefix_state_ends_at_root_minus_one",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_q178_numerics.py::test_synchronization_reads_actual_cache_and_restores_hooks",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_q178_numerics.py::test_synchronization_cleanup_after_forward_failure",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_q178_operators.py::test_cpu_norm32_mapping_equals_native_and_preserves_inputs",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_q178_operators.py::test_operator_replay_restores_provider_and_hooks",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_rare_path_boundaries.py::test_detectability_preserves_tiny_nonzero_mass",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_rare_path_boundaries.py::test_zero_and_certain_mass_endpoints",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_rare_path_boundaries.py::test_zero_observation_upper_bound_and_detection_threshold",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_rare_path_boundaries.py::test_detectability_rejects_invalid_inputs",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_rare_path_boundaries.py::test_first_gain_can_end_in_loss_with_real_root_accounting",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_rare_path_boundaries.py::test_first_gain_can_cancel_to_zero",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_rare_path_boundaries.py::test_preserved_direction_and_diagnostic_metadata_scope",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_rare_path_boundaries.py::test_bad_counts_or_unshared_prefix_are_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_readout_report.py::test_report_refuses_stale_or_invalid_identity_without_losing_numbers",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_readout_report.py::test_upstream_allows_identity_complete_partial_aggregate",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_readout_report.py::test_failed_atomic_replace_preserves_prior_numbers_and_process",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_readout_report.py::test_spec_cli_report_keeps_upstream_identity_and_specialized_evidence_gates",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_repeat_readout.py::test_ar_mismatch_is_reported_without_invalidating_tau",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_repeat_readout.py::test_incomplete_or_wrong_verifier_audit_cannot_produce_valid_cell",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_repeat_readout.py::test_tau_pairing_uses_ratio_and_rejects_question_reordering",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_repeat_readout.py::test_input_contract_uses_real_old_run_eos_and_derived_device",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_repeat_readout.py::test_completed_checkpoint_reconciles_all480_pairs",
+      "target": "spec_mtp",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_repeat_readout.py::test_cross_checkout_pending_readout_writes_only_separate_output",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_repeat_readout.py::test_cpu_acceptance_checkpoint_matches_completed_cells_and_published_pairs",
+      "target": "spec_mtp",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_sampled_depth.py::test_sampled_second_depth_legality",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_sampling_causality.py::test_conditional_draws_are_shared_not_greedy",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_sampling_causality.py::test_output_hidden_sample_matching_equals_fresh_AR",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_sampling_causality.py::test_positive_temperature_draft_is_top1_while_verifier_samples",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_sampling_causality.py::test_owner1_seeds_have_correct_rows_and_positions",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_sampling_continuation.py::test_first_hit_uses_seed_identity_not_draw_offset",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_sampling_continuation.py::test_zero_and_all_hit_interval_endpoints",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_sampling_continuation.py::test_event_summary_rejects_invalid_observations",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_sampling_continuation.py::test_stress_detection_does_not_raise_original_condition_power",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_sampling_continuation.py::test_prompt_sign_prediction_includes_zero_and_infeasible",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_state_rounding_factors.py::test_phi_native_endpoint_and_scope",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_state_rounding_factors.py::test_rms_native_endpoint_and_inputs_held",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_state_rounding_factors.py::test_selective_state_real_cache_and_cleanup",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_state_rounding_factors.py::test_selective_cleanup_on_failure",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_state_rounding_factors.py::test_equal_counts_do_not_hide_path_changes",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_state_rounding_factors.py::test_state_interaction_can_falsify_additivity",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tiny_llama.py::test_tiny_llama_embeds_token_ids",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_attention_cache.py::test_matches_naive_builder",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_attention_cache.py::test_returned_tensors_do_not_alias_the_cache",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_attention_cache.py::test_decoder_uses_it_only_for_dynamic_trees",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_attention_cache.py::test_max_entries_must_be_at_least_one",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_attention_cache.py::test_static_efficient_cache_matches_naive_builder",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_attention_cache.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_empty_tree_helpers",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_node_budget_rejects_too_small_block_complexity",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_static_rejects_more_branches_than_masks",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_static_zero_width_stops_deeper_levels",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_topk_skips_banned_and_taken_tokens",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_dynamic_stops_when_pruning_exhausts_tiny_vocab",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_build_tree_dispatch_and_unknown_mode",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_children_of_and_block_layout_indices",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_window_observer.py::test_observation_preserves_tokens_trace_and_temporal_seed",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_window_observer.py::test_observer_cleanup_and_provider_restore_on_model_failure",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_window_observer.py::test_target_margin_sign_and_best_alternative",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_window_observer.py::test_crossed_norms_preserve_observed_vectors_and_change_only_magnitude",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_correction.py::test_known_affine_residual_and_independent_bias",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_correction.py::test_centering_leaves_intercept_unpenalized",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_correction.py::test_zero_residual_is_identity",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_correction.py::test_invalid_fit_inputs_rejected",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_correction.py::test_frozen_payload_is_immutable_and_hash_checked",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_correction.py::test_apply_rejects_unknown_arm_space_and_bad_dimension",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_freeze_precedes_holdout_extraction_and_real_cpu_flow",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_reject_data_leakage_and_invalid_positions",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_process_rejects_incomplete_or_corrupt_matrix",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_exact_match_one_passes",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_gate_failures",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_unaudited_esp_run_fails",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_run_gate_raises_and_records",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_complete_pass",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_subset_is_incomplete",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_missing_result_is_incomplete",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_failed_run_fails",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_mixed_source_digest_fails",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_seed_mismatch_is_incomplete",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_skips_run_scope",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_ar_baseline_needs_summary",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_alignment_probe_needs_its_csv",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_empty_rate_is_missing",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_two_overall_rows_are_rejected",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_task_name_is_case_insensitive",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_run_gate_without_draft_still_gates",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_empty_index_is_incomplete",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_explicit_expected_factors",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_declared_factors_without_axes",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_final_gate_requires_raw_evidence",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_final_gate_reports_ar_mismatch_without_blocking_argmax",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_final_gate_rejects_source_drift",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_final_gate_rejects_config_drift",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_rechecks_missing_evidence",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_legacy_axis_seed_is_not_an_experiment_factor",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_final_gate_rejects_live_input_file_drift",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_cuda_device_alias_does_not_look_like_config_drift",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_study_quality_failure_marks_generic_envelope_incomplete",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_declared_factors_follow_mapping_axis_override_contract",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_declared_factors_bind_inherited_conditions",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_argmax_audit_required_even_when_ar_exact",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_argmax_token_and_owner_tampering_fails",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_ar_mismatch_is_diagnostic_and_native_gate_passes",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_jsonl_argmax_audit_must_match_raw",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_revalidation_keeps_failure_and_execute_bytes_and_is_idempotent",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_cached_ar_summary_does_not_block_argmax_gate",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_csv_logger.py::test_appends_rows_under_one_header",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_named.py::test_convert_nests_attribute_access",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_named.py::test_override_types_the_value",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_properties.py::test_digest_ignores_insertion_order",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_properties.py::test_changed_files_is_the_symmetric_difference_of_entries",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_properties.py::test_digest_changes_iff_files_change",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_properties.py::test_declared_factors_is_the_full_product",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_properties.py::test_ar_rate_never_substitutes_for_missing_argmax_audit",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_properties.py::test_apply_variant_overrides_preset_keys_and_is_idempotent",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_properties.py::test_apply_variant_is_case_insensitive",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_properties.py::test_unknown_variant_raises",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_properties.py::test_empty_variant_returns_input",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_properties.py::test_command_and_study_arg",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_properties.py::test_command_edge_cases",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_properties.py::test_main_forwards_to_rpipe",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_import_registers_nothing",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_register_sources_is_idempotent_and_keeps_rpipe_defaults",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_validate_accepts_smoke_variants",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_validate_rejects_unsupported_configs",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_alignment_probe_and_ar_baseline_skip_tree_checks",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_register_writes_source_manifest",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_freeze_without_lock_fails",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_freeze_detects_changed_spec_mtp_source",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_freeze_detects_changed_rpipe_commit",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_repository_studies_expand_and_validate",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_layer_must_be_a_mapping",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_legacy_cfg_takes_device_from_system_and_seed_from_run",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_config_errors_suggest_the_fix",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_register_error_names_the_study",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_freeze_rejects_corrupt_lock",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_source_lock_covers_all_file_changes",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_remake_requires_new_version_after_source_change",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_recipe.py::test_prompt_source_drift_rejected_before_construction",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_registry.py::test_modelscope_respects_local_files_only",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_smoke_study_matches_plain_generation",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_rpipe_entry_runs_the_same_chain",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_make_then_launch_scripts_path",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_context_limit_run_passes_on_reached_budget",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_argmax_audit_passes_without_independent_ar",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_bad_config_fails_before_construction",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_freeze_rejects_spec_mtp_change_after_make",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_freeze_rejects_study_change_after_make",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_alignment_probe_writes_metrics_and_passes_the_gate",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_ar_baseline_runs_the_same_stage_chain",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_ar_diagnostic_mismatch_does_not_block_native_success",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_source_preflight_preserves_existing_result",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_nested_config_axis_validates_effective_factors_and_rejects_subsets",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_output_hidden_real_cli_and_tampered_owner_evidence",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_smoke_study.py::test_bf16_five_methods_and_independent_ar_native_cli",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_study_phase_exports.py::test_native_phase_dispatches_exported_callable",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_study_phase_exports.py::test_seven_cells_are_exact_original_tail_with_new_identity",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_study_phase_exports.py::test_historical_continuation_original_source_refs",
+      "target": "studies/shared",
+      "tags": [
+        "external_evidence"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_study_phase_exports.py::test_continuation_mapping_preserves_contract_and_old_history",
+      "target": "studies/shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/tools/test_run_tests.py::test_manifest_covers_all_declared_sources",
+      "target": "tools",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/tools/test_run_tests.py::test_missing_outcomes_block_completion",
+      "target": "tools",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/tools/test_run_tests.py::test_phase_evidence_failure_propagates",
+      "target": "tools",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_frozen_model_identity_rejects_actual_backend_change",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_collect_rejects_wrong_or_boolean_seed_before_state_write",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_summarize_and_process_reject_report_seed_mismatch",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_invalid_logits_rejected_in_token_and_tree_selection",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_negative_infinity_bans_tokens_without_invalidating_distribution",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_temperature_scaling_overflow_rejected_before_sampling_or_tree",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_invalid_model_logits_stop_without_losing_prior_commits",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_custom_pairing_cannot_remove_required_identity_checks",
+      "target": "spec_mtp.analysis",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_custom_pairing_adds_factor_once_without_changing_valid_pairs",
+      "target": "spec_mtp.analysis",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_compare_keeps_required_and_additional_pairing_checks",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_later_token_failure_preserves_successful_commits_within_block",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decode.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
+      "target": "spec_mtp.decode",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_negative_mse_cannot_finalize_or_pass_persisted_matrix",
+      "target": "studies.k_affine_residual.structure.evaluation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_matrix_keeps_zero_mse_and_negative_arm_differences",
+      "target": "studies.k_affine_residual.structure.evaluation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_data.py::test_record_limit_applies_before_category_filter",
+      "target": "spec_mtp.data",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_data.py::test_exact_record_limit_keeps_filter_and_trailing_blanks",
+      "target": "spec_mtp.data",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_overall_category_counts_each_prompt_once",
+      "target": "spec_mtp.analysis",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_prompts.py::test_eval_prompt_limit_rejects_negative_or_coerced_values",
+      "target": "studies._shared.structure.inputs",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_prompts.py::test_alignment_prompt_cap_is_idempotent_and_keeps_eos",
+      "target": "studies._shared.structure.alignment_probe",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_checks.py::test_alignment_gate_rejects_inconsistent_persisted_counts",
+      "target": "studies._shared.structure.validation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_data.py::test_dolly_prompt_limit_preserves_zero_and_filtered_order",
+      "target": "spec_mtp.data",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_data.py::test_dolly_prompt_limit_rejects_invalid_counts_before_tokenizing",
+      "target": "spec_mtp.data",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_output_admission_precedes_model_construction",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_failed_model_construction_closes_reserved_incomplete_output",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_rejects_model_manifest_before_constructing_model",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_model_sources_reject_resolved_members_outside_root",
+      "target": "spec_mtp.audit",
+      "tags": [
+        "offline_cpu"
+      ]
+    }
+  ],
+  "plans": {
+    "cpu-pr": {
+      "budget_seconds": 420,
+      "exclude": []
+    }
+  }
+}

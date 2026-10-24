@@ -103,8 +103,8 @@ def export():
     from rpipe.structure.artifact.config import load_config
     from rpipe.structure.artifact.provenance import check_frozen as check_plan
     from rpipe.structure.make.expand import load_study_yaml
-    from spec_mtp.structure.artifact.sources import manifest, check_frozen
-    from spec_mtp.structure.artifact.validation import verify_evidence
+    from studies._shared.structure.sources import manifest, check_frozen
+    from studies._shared.structure.validation import verify_evidence
     read = lambda p: json.loads(p.read_text(encoding='utf-8'))
     declaration = load_study_yaml(STUDY)
     source = manifest()

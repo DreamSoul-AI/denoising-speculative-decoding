@@ -14,8 +14,8 @@ def main():
     parser.add_argument('--raw', required=True, type=Path)
     args = parser.parse_args()
     import torch
-    from spec_mtp.structure.algorithm.output_masks import OutputHiddenMaskProvider
-    from spec_mtp.structure.artifact.sources import manifest
+    from spec_mtp.masks import OutputHiddenMaskProvider
+    from studies._shared.structure.sources import manifest
 
     study = Path(__file__).resolve().parent
     observer = json.loads((study / 'docs/window_diagnosis_v1.json').read_text(encoding='utf-8'))

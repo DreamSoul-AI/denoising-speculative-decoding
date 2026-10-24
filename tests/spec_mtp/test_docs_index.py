@@ -11,10 +11,9 @@ def test_every_doc_is_linked_from_agents():
     assert not missing, f'add to AGENTS.md §2: {missing}'
 
 
-def test_every_tool_is_listed_in_layout():
-    layout = (ROOT / 'docs' / 'layout.md').read_text(encoding='utf-8')
-    missing = [p.name for p in sorted((ROOT / 'tools').glob('*.py')) if p.name not in layout]
-    assert not missing, f'add to docs/layout.md tools/: {missing}'
+def test_scientific_modules_match_the_design():
+    expected = {'__init__', '__main__', 'cli', 'contracts', 'data', 'model', 'decode', 'masks', 'tree', 'audit', 'analysis'}
+    assert {p.stem for p in (ROOT / 'src/spec_mtp').glob('*.py')} == expected
 
 
 def test_every_tool_has_a_usage_docstring():

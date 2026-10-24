@@ -68,8 +68,8 @@ def summarize(rows, is_ar):
 
 
 def load_cell(study, folder, cfg, prompts, manifest, snapshot, reference):
-    from spec_mtp.structure.artifact.evidence import file_hash
-    from spec_mtp.structure.artifact.validation import verify_evidence
+    from studies._shared.structure.evidence import file_hash
+    from studies._shared.structure.validation import verify_evidence
     from untimed_pairing import verify_inputs
     assets = folder/'assets'
     result = read(folder/'result.json')
@@ -131,8 +131,8 @@ def main():
     import yaml
     from rpipe.structure.artifact.provenance import check_frozen as pcheck
     from rpipe.structure.make.expand import load_study_yaml
-    from spec_mtp.structure.artifact.sources import manifest as sources, check_frozen
-    from spec_mtp.structure.artifact.evidence import file_hash
+    from studies._shared.structure.sources import manifest as sources, check_frozen
+    from studies._shared.structure.evidence import file_hash
     study = Path(__file__).resolve().parent
     cells = {name: {'native_status': 'pending'} for name in CASES}
     index_path = study/'index.json'

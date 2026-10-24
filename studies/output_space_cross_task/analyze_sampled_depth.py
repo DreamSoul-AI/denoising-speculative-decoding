@@ -17,7 +17,7 @@ def legal_second_flip(first_a, first_b, first_target, second_target, eos, nodes_
 
 def main():
     import torch
-    from spec_mtp.structure.artifact.sources import manifest
+    from studies._shared.structure.sources import manifest
     docs = Path(__file__).resolve().parent / 'docs'
     directory = ROOT / '.tmp/sampling-continuation-20261015-v1'
     paths = {'tool': Path(__file__), 'plan': docs / 'SAMPLED_DEPTH_PLAN.md',

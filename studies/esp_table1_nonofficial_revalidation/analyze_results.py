@@ -95,9 +95,9 @@ def main(baseline_runs=None, study_dir=None, output_dir=None):
     from revalidation_contract import check_refs
     from rpipe.structure.artifact.provenance import check_frozen as pcheck
     from rpipe.structure.make.expand import load_study_yaml
-    from spec_mtp.structure.artifact.sources import check_frozen, manifest
-    from spec_mtp.structure.artifact.validation import verify_evidence
-    from spec_mtp.structure.artifact.evidence import digest
+    from studies._shared.structure.sources import check_frozen, manifest
+    from studies._shared.structure.validation import verify_evidence
+    from studies._shared.structure.evidence import digest
     study = STUDY if study_dir is None else Path(study_dir).resolve()
     output = study / 'docs' if output_dir is None else Path(output_dir).resolve()
     assert Path.cwd().resolve() == study.parents[1], 'Run from the frozen execution checkout root for declared relative inputs'

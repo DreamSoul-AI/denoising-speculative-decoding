@@ -3,7 +3,7 @@ import hashlib
 import json
 from contextlib import contextmanager
 from unittest.mock import patch
-from spec_mtp.structure.algorithm import decoding
+import spec_mtp.decode as decoding
 
 
 def token_digest(ids):

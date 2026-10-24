@@ -1,0 +1,27 @@
+[importlinter]
+root_package = spec_mtp
+include_external_packages = True
+
+[importlinter:contract:science_without_framework]
+name = Scientific package has no Study execution dependency
+type = forbidden
+source_modules =
+    spec_mtp
+forbidden_modules =
+    rpipe
+    studies
+
+[importlinter:contract:core_without_concrete_model]
+name = Scientific core does not import concrete model or CLI
+type = forbidden
+source_modules =
+    spec_mtp.contracts
+    spec_mtp.data
+    spec_mtp.decode
+    spec_mtp.masks
+    spec_mtp.tree
+    spec_mtp.audit
+    spec_mtp.analysis
+forbidden_modules =
+    spec_mtp.cli
+    spec_mtp.model

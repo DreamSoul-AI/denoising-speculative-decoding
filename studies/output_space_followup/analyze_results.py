@@ -19,7 +19,7 @@ def main():
     parser.add_argument('--raw', type=Path, required=True)
     args = parser.parse_args()
     import torch
-    from spec_mtp.structure.artifact.sources import manifest
+    from studies._shared.structure.sources import manifest
     read = lambda p: json.loads(p.read_text(encoding='utf-8'))
     study = Path(__file__).resolve().parent
     data = read(study / 'docs/execution_v1.json')

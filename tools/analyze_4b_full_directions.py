@@ -91,7 +91,7 @@ def plot(body, path):
 
 
 def main():
-    from spec_mtp.structure.artifact.sources import check_frozen, manifest as sources
+    from studies._shared.structure.sources import check_frozen, manifest as sources
     from rpipe.structure.artifact.provenance import check_frozen as pcheck
     from rpipe.structure.make.expand import load_study_yaml
     owners = [STUDY]

@@ -27,8 +27,8 @@ def main():
     args=parser.parse_args()
     import torch  # noqa: F401 - Windows torch-first
     import yaml
-    from spec_mtp.structure.artifact.sources import manifest,check_frozen
-    from spec_mtp.structure.artifact.validation import verify_evidence
+    from studies._shared.structure.sources import manifest,check_frozen
+    from studies._shared.structure.validation import verify_evidence
     from rpipe.structure.artifact.provenance import check_frozen as pcheck
     read=lambda p:json.loads(p.read_text(encoding='utf-8'))
     study=args.study.resolve()

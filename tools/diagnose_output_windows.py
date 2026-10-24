@@ -7,6 +7,8 @@ traces, and captures preceding seed masks/logits plus exact normalized hiddens.
 No alternative decoder/Run scheduler, source change, download or tuning.
 """
 
+from spec_mtp.masks import build_mask_provider
+
 import argparse
 import hashlib
 import json
@@ -42,8 +44,8 @@ def cosine(a, b):
 
 def observe(model, prompt, spec, eval_cfg, eos, reference, targets, seed=124):
     import torch
-    from spec_mtp.structure.algorithm.decoding import SpecDecoder
-    from spec_mtp.structure.algorithm.output_masks import OutputHiddenMaskProvider
+    from spec_mtp.decode import SpecDecoder
+    from spec_mtp.masks import OutputHiddenMaskProvider
 
     k = int(spec['num_masks'])
     assert k == 2 and spec['tree']['branches'] == [1, 1] and not spec['tree']['pruning']
@@ -118,7 +120,7 @@ def observe(model, prompt, spec, eval_cfg, eos, reference, targets, seed=124):
                    model.register_forward_hook(after, with_kwargs=True)]
         with patch.object(OutputHiddenMaskProvider, 'masks_per_owner', provider_spy):
             output, stats = SpecDecoder(model, spec, eval_cfg, eos_ids=eos,
-                                       generator=torch.Generator(device=model.device).manual_seed(seed)).generate(prompt)
+                                       generator=torch.Generator(device=model.device).manual_seed(seed), mask_policy=build_mask_provider(spec, model.embedding_table)).generate(prompt)
     finally:
         for handle in handles:
             handle.remove()
@@ -165,10 +167,10 @@ def main():
     import yaml
     from rpipe.structure.system.config import SystemConfig
     from rpipe.structure.system.runtime import apply_runtime
-    from spec_mtp.structure.artifact.evidence import model_digest, runtime
-    from spec_mtp.structure.artifact.sources import manifest
-    from spec_mtp.structure.control.named import _convert
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    from studies._shared.structure.evidence import model_digest, runtime
+    from studies._shared.structure.sources import manifest
+    from studies._shared.structure.config import _convert
+    from spec_mtp.model import HFCausalLM
 
     read = lambda path: json.loads(path.read_text(encoding='utf-8'))
     study = args.study.resolve()

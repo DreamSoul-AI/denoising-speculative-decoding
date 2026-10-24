@@ -1,7 +1,0 @@
-# output_space_extension
-
-Four predeclared new translation prompts q175–q178, unchanged matched input/output0/output1 chain and independent AR. [PLAN](<../../docs/研究计划 Denoising Speculative Decoding.md#legacy-studies-output-space-extension-docs-plan>) freezes hypotheses, selection, budget and transfer rules. Native recipe/Flow phases reuse SpecMTP implementations. Local ModelScope weights and original evidence are retained; no push, merge or data cleanup.
-
-Completed: [report](docs/STUDY_REPORT.md), [native evidence](docs/execution_v1.json), [numbers](docs/NUMBERS.md), [frozen windows](docs/window_selection_v1.json), [transfers](docs/transfer_diagnosis_v1.json), [post hoc slot audit](docs/slot_diagnosis_v1.json), [small matrix](docs/matrix_v1.json). q178 transfers both change accepted8→9 with mixed losses/gains and changed paths; three other new prompts remain null. All outputs equal independent AR, no new default or global EMA claim.
-
-Q178 numerical controls: [predeclared contract](<../../docs/研究计划 Denoising Speculative Decoding.md#legacy-studies-output-space-extension-docs-numerical-plan>), [measurement](docs/numerical_diagnosis_v1.json), [offline audit](docs/numerical_analysis_v1.json), [plan review](<../../docs/研究计划 Denoising Speculative Decoding.md#legacy-studies-output-space-extension-docs-numerical-plan-review>). Strict repeats and canonical self-state controls preserve the fixed9-versus8 effect; proxyrounding and individualkernels remain outside the causal claim.

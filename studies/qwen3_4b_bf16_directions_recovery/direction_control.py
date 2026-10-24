@@ -16,7 +16,8 @@ sys.path.insert(0, str(BASE))
 sys.path.insert(0, str(ROOT / 'tools'))
 from untimed_pairing import PairedUntimedEval, build_cuda  # noqa: E402
 from diagnose_4b_mask_windows import admission, content_start_of  # noqa: E402
-from spec_mtp.structure.algorithm import decoding  # noqa: E402
+from studies._shared.structure import evaluate as assembly
+import spec_mtp.decode as decoding  # noqa: E402
 from rpipe.structure.algorithm.factory import AlgorithmRegistry  # noqa: E402
 from rpipe.structure.model.factory import ModelRegistry  # noqa: E402
 
@@ -33,8 +34,8 @@ def control(provider, mode, start, info):
     assert not provider.normalize and not provider.extrapolate_ema and provider.level_mode == 'order0'
     original_init, original_commit = provider.init_from_prompt, provider.on_token_committed
 
-    def initialize(embeds):
-        original_init(embeds)
+    def initialize(embeds, generator=None):
+        original_init(embeds, generator=generator)
         full_mean, template = provider._level.clone(), (embeds[1] - embeds[0]).clone()
         if mode == 'content':
             assert 0 <= start < len(embeds) - 1
@@ -107,7 +108,7 @@ class DirectionEval(PairedUntimedEval):
         tokenizer = AutoTokenizer.from_pretrained(BASE / 'shared/model/modelscope/Qwen/Qwen3-4B', local_files_only=True)
         starts = [content_start_of(tokenizer, records[p['question_id']]['turns'][0], p['input_ids']) for p in expected]
         mode = self.config.setting('direction')
-        builder, generate = decoding.build_mask_provider, decoding.SpecDecoder.generate
+        builder, generate = assembly.build_mask_provider, decoding.SpecDecoder.generate
         current, progress = {'index': 0, 'direction': {}}, []
         assets = Path(system.assets_dir)
         (assets / 'direction_admission.json').write_text(json.dumps(model.meta['direction_admission'], indent=2) + '\n')
@@ -137,7 +138,7 @@ class DirectionEval(PairedUntimedEval):
             current['index'] += 1
             return output, stats
 
-        with patch.object(decoding, 'build_mask_provider', side_effect=controlled_builder), \
+        with patch.object(assembly, 'build_mask_provider', side_effect=controlled_builder), \
                 patch.object(decoding.SpecDecoder, 'generate', observed_generate):
             result = super().run(data, model, system, tracker)
         assert current['index'] == 480

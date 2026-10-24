@@ -38,7 +38,7 @@ def main():
     parser.add_argument('--operator', required=True, type=Path)
     args = parser.parse_args()
     import torch
-    from spec_mtp.structure.artifact.sources import manifest
+    from studies._shared.structure.sources import manifest
     read = lambda p: json.loads(p.read_text(encoding='utf-8'))
     study = Path(__file__).resolve().parent
     old = ROOT / '.tmp/q241-canonical-20261014-v1'

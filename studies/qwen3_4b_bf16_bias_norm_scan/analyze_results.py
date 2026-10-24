@@ -82,7 +82,7 @@ def plot(cells, means, path):
         plt.close(fig)
 
 def load_reused(data_root):
-    from spec_mtp.structure.artifact import validation
+    from studies._shared.structure import validation
     data_root = Path(data_root).resolve()
     formal = read(BASE / 'docs/paired_evidence_v1.json')
     original = read(ROOT / 'studies/qwen3_4b_bf16_directions/docs/direction_evidence_v1.json')
@@ -143,7 +143,7 @@ def check_matrix(decl, entries):
 
 def verify_reused(data_root, output_dir=None):
     from norm_control import check_refs
-    from spec_mtp.structure.artifact import validation
+    from studies._shared.structure import validation
     check_refs()
     formal, _, _, _, reference, cells = load_reused(data_root)
     comparisons = []
@@ -186,7 +186,7 @@ def continuation_entries(study, decl, entries, continuation):
     """Map only unexecuted old cells to identical scientific configurations."""
     from rpipe.structure.control.merge import deep_merge
     from rpipe.structure.artifact.provenance import check_frozen as pcheck
-    from spec_mtp.structure.artifact.sources import check_frozen, manifest
+    from studies._shared.structure.sources import check_frozen, manifest
     new_decl = yaml.safe_load((continuation / 'study.yaml').read_text(encoding='utf-8'))
     assert new_decl['axes'] == {'algorithm.config': decl['axes']['algorithm.config'][1:]}
     old_common = yaml.safe_load((study / 'experiment_config.yaml').read_text(encoding='utf-8'))
@@ -216,7 +216,7 @@ def main(data_root=None, study_dir=None, output_dir=None, continuation_study=Non
     from norm_control import check_refs
     from rpipe.structure.artifact.provenance import check_frozen as pcheck
     from rpipe.structure.make.expand import load_study_yaml
-    from spec_mtp.structure.artifact.sources import check_frozen, manifest
+    from studies._shared.structure.sources import check_frozen, manifest
     data_root = ROOT if data_root is None else Path(data_root).resolve()
     study = STUDY if study_dir is None else Path(study_dir).resolve()
     output = study / 'docs' if output_dir is None else Path(output_dir).resolve()

@@ -150,7 +150,7 @@ def audit_saved(study, paired):
     """Recheck saved tokens and first blocks; do not re-sign native Runs."""
     import importlib.util
     import sys
-    from spec_mtp.structure.artifact import validation
+    from studies._shared.structure import validation
     root = Path(__file__).resolve().parents[1]
     norm = root / 'studies/qwen3_4b_bf16_bias_norm_scan'
     sys.path.insert(0, str(norm))
@@ -167,8 +167,8 @@ def audit_saved(study, paired):
         cell = paired['cells'][name]
         folder = study / 'runs' / cell['run_id']
         assert cell['native_status'] == 'succeeded'
-        for path, expected in cell['files_sha256'].items():
-            assert sha(folder / path) == expected, name + ':' + path
+        from spec_mtp.audit import verify_files
+        verify_files(folder, cell['files_sha256'])
         raw = helpers.read(folder / 'assets/decode_observations.json')['out']['evidence']
         rows = cell['rows']
         assert len(raw) == len(rows) == len(prompts) == 480

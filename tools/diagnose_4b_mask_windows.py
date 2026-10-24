@@ -2,6 +2,8 @@
 
     python tools/diagnose_4b_mask_windows.py --study studies/qwen3_4b_bf16_five_methods --out .tmp/4b-mask-windows-v1
 """
+
+from spec_mtp.masks import build_mask_provider
 import argparse
 from copy import deepcopy
 import json
@@ -68,7 +70,7 @@ def intervention_masks(shadow, proxies, zero):
 
 
 def walk(tree, logits):
-    from spec_mtp.structure.algorithm.decoding import select_token
+    from spec_mtp.decode import select_token
     owner, accepted, chosen = 0, [], []
     while True:
         token = select_token(logits[owner], 0., None)
@@ -91,8 +93,8 @@ def active_predecessor(trace, prompt_length):
 @torch.no_grad()
 def input_control(model, prompt, generated_prefix, spec, velocity_mode='native', random_seed=None,
                   content_start=None, state_report=None):
-    from spec_mtp.structure.algorithm.mask_providers import build_mask_provider
-    from spec_mtp.structure.control.named import _convert
+    from spec_mtp.masks import build_mask_provider
+    from studies._shared.structure.config import _convert
     provider = build_mask_provider(_convert(spec), model.embedding_table)
     embeds = model.embed(prompt)[0]
     provider.init_from_prompt(embeds)
@@ -145,10 +147,10 @@ class WindowCaptured(Exception):
 
 @torch.no_grad()
 def capture_window(model, prompt, spec, eval_cfg, eos, seed, minimum=8):
-    from spec_mtp.structure.algorithm import decoding
-    from spec_mtp.structure.algorithm.output_masks import OutputHiddenMaskProvider
-    from spec_mtp.structure.control.named import _convert
-    original_build, original_tree = decoding.build_mask_provider, decoding.build_tree
+    import spec_mtp.decode as decoding
+    from spec_mtp.masks import OutputHiddenMaskProvider
+    from studies._shared.structure.config import _convert
+    original_build, original_tree = build_mask_provider, decoding.build_tree
     original_observe, original_masks = OutputHiddenMaskProvider.observe_committed, OutputHiddenMaskProvider.masks_per_owner
     active, packet, generated = {}, {}, []
 
@@ -195,13 +197,13 @@ def capture_window(model, prompt, spec, eval_cfg, eos, seed, minimum=8):
 
     handles = [model.register_forward_pre_hook(before, with_kwargs=True), model.register_forward_hook(after, with_kwargs=True)]
     try:
-        with patch.object(decoding, 'build_mask_provider', build), patch.object(decoding, 'build_tree', tree_builder), \
+        with patch.object(decoding, 'build_tree', tree_builder), \
                 patch.object(OutputHiddenMaskProvider, 'observe_committed', observe), \
                 patch.object(OutputHiddenMaskProvider, 'masks_per_owner', masks), \
                 patch.object(decoding, 'time', SimpleNamespace(perf_counter=lambda: 0.)):
             try:
                 decoding.SpecDecoder(model, _convert(spec), _convert(dict(eval_cfg, max_new_tokens=32)), eos,
-                    torch.Generator(device=model.device).manual_seed(seed)).generate(prompt)
+                    torch.Generator(device=model.device).manual_seed(seed), mask_policy=build(_convert(spec), model.embedding_table)).generate(prompt)
             except WindowCaptured:
                 pass
     finally:
@@ -213,10 +215,10 @@ def capture_window(model, prompt, spec, eval_cfg, eos, seed, minimum=8):
 
 @torch.no_grad()
 def capture_input_window(model, prompt, spec, eval_cfg, eos, seed, minimum):
-    from spec_mtp.structure.algorithm import decoding
-    from spec_mtp.structure.algorithm.output_masks import OutputHiddenMaskProvider
-    from spec_mtp.structure.algorithm.tree_attention import mask_indices_of
-    from spec_mtp.structure.control.named import _convert
+    import spec_mtp.decode as decoding
+    from spec_mtp.masks import OutputHiddenMaskProvider
+    from spec_mtp.tree import mask_indices_of
+    from studies._shared.structure.config import _convert
     original_tree = decoding.build_tree
     shadows = [OutputHiddenMaskProvider(2, model.embedding_table, order=i, beta=.9, beta_prime=.99) for i in (0, 1)]
     active, packet, generated = {}, {}, []
@@ -261,7 +263,7 @@ def capture_input_window(model, prompt, spec, eval_cfg, eos, seed, minimum):
                 patch.object(decoding, 'time', SimpleNamespace(perf_counter=lambda: 0.)):
             try:
                 decoding.SpecDecoder(model, _convert(spec), _convert(dict(eval_cfg, max_new_tokens=32)), eos,
-                    torch.Generator(device=model.device).manual_seed(seed)).generate(prompt)
+                    torch.Generator(device=model.device).manual_seed(seed), mask_policy=build_mask_provider(_convert(spec), model.embedding_table)).generate(prompt)
             except WindowCaptured:
                 pass
     finally:
@@ -273,9 +275,9 @@ def capture_input_window(model, prompt, spec, eval_cfg, eos, seed, minimum):
 
 @torch.no_grad()
 def probe_window(model, packet, spec, reference, variants=VARIANTS, control='zero'):
-    from spec_mtp.structure.algorithm import decoding, kv_cache
-    from spec_mtp.structure.algorithm.tree_attention import DynamicTreeAttentionCache, mask_indices_of
-    from spec_mtp.structure.control.named import _convert
+    from spec_mtp import decode as decoding, model as kv_cache
+    from spec_mtp.tree import DynamicTreeAttentionCache, mask_indices_of
+    from studies._shared.structure.config import _convert
     tree, baseline = packet['tree'], packet['baseline']
     accepted, chosen = packet['accepted'], packet['chosen']
     assert packet['prefix_generated'] == reference[:len(packet['prefix_generated'])]
@@ -339,9 +341,9 @@ def probe_window(model, packet, spec, reference, variants=VARIANTS, control='zer
 
 def main():
     from analyze_4b_geometry import sha
-    from spec_mtp.structure.artifact.sources import manifest
-    from spec_mtp.structure.artifact.evidence import model_digest, runtime
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    from studies._shared.structure.sources import manifest
+    from studies._shared.structure.evidence import model_digest, runtime
+    from spec_mtp.model import HFCausalLM
     from transformers import AutoModelForCausalLM
     from rpipe.structure.system.runtime import apply_runtime
     from rpipe.structure.system.config import SystemConfig

@@ -4,10 +4,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 import torch
-from spec_mtp.structure.algorithm import decoding
-from spec_mtp.structure.algorithm.eval import SpecMtpEvalAlgorithm
-from spec_mtp.structure.artifact import evidence
-from spec_mtp.structure.model.registry import _build_hf
+import spec_mtp.decode as decoding
+from studies._shared.structure.algorithm import SpecMtpEvalAlgorithm
+from studies._shared.structure import evidence
+from studies._shared.structure.model import _build_hf
 from rpipe.structure.algorithm.factory import AlgorithmRegistry
 from rpipe.structure.model.factory import ModelRegistry
 

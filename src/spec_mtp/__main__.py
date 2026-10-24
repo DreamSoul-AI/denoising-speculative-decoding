@@ -1,5 +1,5 @@
-"""``python -m spec_mtp`` → thin entry over the RPipe cli."""
+"""Scientific command line entry."""
+from spec_mtp.cli import main
 
-from spec_mtp.flow.cli import main
-
-raise SystemExit(main())
+if __name__ == "__main__":
+    raise SystemExit(main())

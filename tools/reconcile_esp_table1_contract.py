@@ -9,7 +9,7 @@ import math
 import os
 from pathlib import Path
 
-from spec_mtp.structure.artifact.evidence import digest
+from studies._shared.structure.evidence import digest
 
 ROOT = Path(__file__).resolve().parents[1]
 STUDY = ROOT / 'studies/esp_table1_bf16_full_argmax'
@@ -66,8 +66,8 @@ def main():
     os.environ['CUDA_VISIBLE_DEVICES'] = ''
     os.environ['HF_HUB_OFFLINE'] = '1'
     import torch  # Windows must load torch before transformers.
-    from spec_mtp.structure.data.datasets import load_tokenizer
-    from spec_mtp.structure.data.specbench import encode, load_records
+    from spec_mtp.data import load_tokenizer
+    from spec_mtp.data import encode, load_records
 
     assert torch.empty(0).device.type == 'cpu'
     source_paths = ['studies/esp_table1_bf16_full_argmax/docs/protocol_evidence_v1.json',

@@ -44,7 +44,7 @@ def path_accounting(left, right, left_accepted, right_accepted):
 
 
 def main():
-    from spec_mtp.structure.artifact.sources import manifest
+    from studies._shared.structure.sources import manifest
     study = Path(__file__).resolve().parent
     paths = {'tool': Path(__file__), 'plan': study / 'docs/FIRST_DELTA_PLAN.md',
         'summary': study / 'docs/sampling_expansion_analysis_v1.json',

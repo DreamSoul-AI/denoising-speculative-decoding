@@ -1,56 +1,55 @@
-# Denoising Speculative Decoding Agent 工作约定
+# 去噪推测解码 项目协作约定
+适用于本仓库及其子目录。当前用户要求优先，开始前读取目标文件、相关规范和已有成果的最新内容。
 
-适用于本仓库。长期约定在这里。目录、解码口径、怎么跑 Study、测试入口在下表。数字在对应报告里。
+# 一、项目与唯一文档
+- GitHub 地址：[DreamSoul-AI/denoising-speculative-decoding](https://github.com/DreamSoul-AI/denoising-speculative-decoding)。本地位置以当前关联源码目录为准，不写死盘符、用户名或下载目录
+- 项目中文名为“去噪推测解码”，已由 Enmao 确认。正文使用中文，源码标识、接口、命令与原始来源标题保留必要原文
+- [README](README.md) 维护项目现状及入口，[通用调研](<docs/去噪推测解码 通用调研.md>) 维护机制、比较、来源和历史验证摘要
+- [架构设计](<docs/去噪推测解码 架构设计.md>) 维护目标职责、合同、状态、运行部署和验证，[代码结构设计](<docs/去噪推测解码 代码结构设计.md>) 唯一维护目标目录、Python 文件责任、依赖与测试镜像
+- [研究计划](<docs/去噪推测解码 研究计划.md>) 是唯一中文计划，Study 按研究问题分章。旧英文计划与冻结子计划只从固定 Git 历史取证，不恢复并行正本
+- 第一方长期文档只保留上述根入口和四份文档。研究报告价值内容归入通用调研，日常进度写提交和 PR。Study、测试和工具不另建 README、PLAN、NUMBERS、审查、交接或逐事报告
+- 从目标与质量场景推导职责、接口、状态和依赖，现有实现只作为行为和故障证据。按奥卡姆剃刀说明每个模块的必要性、不增加的后果和持续成本，不以旧文件树倒推目标设计
+- 图示保留在正文 Mermaid 中，区分源码依赖、运行调用和部署。图语法检查不能替代合同或实现验证
 
-## 1. 怎么工作
+# 二、如何定位 DreamSoul 资料
+1. 从当前项目关联的文件夹、README 资料链接或工作区入口找到 DreamSoul 文档库，按实际可访问位置读取根约定和相关索引，不假定任何本机绝对路径
+2. 按任务读取现有成果、对应规范正文与最新交接。通常从相对于实际资料库的 `文档/规范/研发/开发/`、`文档/规范/研发/研究/` 和 `文档/规范/飞书/` 定位
+3. 架构任务再定位 `研发/研究/软件开发 Software Engineering/软件架构设计 Software Architecture Design/`，读取通用调研、大纲、端侧智能体案例与来源索引。采用其场景、黑盒合同、多视图和验证方法，按本项目裁剪
+4. 本地已关联正文时直接使用，需确认云端最新内容时沿原分享链接读取。没有本地资料库时，使用下列飞书索引定位，不复制重复资料库
+5. 路径或链接失效时先查当前位置。无法定位或没有权限就说明缺口和影响，继续不依赖它的工作，不按同名猜链接或伪称读过正文
 
-1. 先读 [README.md](README.md) 和相关入口。不必每次通读整个 `docs/`。
-2. 文档和实现不一致时，先核对原因。已记下的接受数在 [history-extrapolation.md](docs/history-extrapolation.md)。
-3. 改目录或分层看 [layout.md](docs/layout.md)。`src/rpipe/` 是上游拷贝（`src/rpipe/ORIGIN`，RPipe `main` v0.3.1）。`src/spec_mtp/` 只放 SpecMTP。不改拷过来的框架文件，Windows 先 import torch 除外。不要把 SpecMTP 注册进 `rpipe`。
-4. 按改动范围验证，并改被这次改动碰到的文档。
+# 三、规范索引与按任务读取
+总入口为 [飞书规范总索引](https://dreamsoul.feishu.cn/docx/UmU1d2EwLoeET5xCJChcOKPknyb) 与 [工具与教程总索引](https://dreamsoul.feishu.cn/docx/VSQ5dlJl3o0hbIxrEhUc8qKEnBc)。索引用于定位，细则以实际正文的范围、修订和项目状态为准。
 
-## 2. 文档入口
+| **任务类型** | **开始前读取** | **落实重点** |
+| --- | --- | --- |
+| 代码开发与修复 | [代码规范](https://dreamsoul.feishu.cn/docx/FKrsdHO9bolq4YxV2KAcosghnme)及相关实现/调用方 | 保留真实输入与持久化校验，复用既有依赖，最小完整改动，避免隐式状态 |
+| 多人协作、分支与 PR | [多人协作代码开发规范](https://dreamsoul.feishu.cn/docx/WihCdOtlqoeYjaxrpeXckFomnCh) | 工作分支 → PR → dev，再由 dev 发布 PR → main，跨责任/合同变化请受影响 Owner 评审 |
+| 测试编写与执行 | [测试规范 代码](https://dreamsoul.feishu.cn/docx/KE4IdW6EWoKdvExSkdvcjTJFnsf) | 镜像源码，五维元数据，独立参数结果，按影响/成本选择，未执行与缺结果不记通过 |
+| 日志与运行取证 | [日志规范 Logging Specification](https://dreamsoul.feishu.cn/docx/RBlFdcSSBo93q9x6p8kcdU6wnYb) | 记录实际运行身份/事件/结果，业务证据与诊断日志分开，未知不填假零，排除敏感载荷 |
+| CI/CD、构建、交付与发布 | [CI CD 执行规范](https://dreamsoul.feishu.cn/docx/NrJ4d0WVGo9t4uxAVwScFTBVnRb) | 验证绑定提交/基线/环境，失败与漏收集阻断，本地检查和自动流水线分开，不擅改保护规则 |
+| 技术、工具与架构调研 | [通用调研规范](https://dreamsoul.feishu.cn/docx/YcWIdE4INoLqoLxR5O8cbl7hnTf) | 问题驱动，解释机制和代价，直接来源就近引用，固定版本/阅读深度/未知 |
+| 论文与学术研究 | [文献调研规范](https://dreamsoul.feishu.cn/docx/QKXhdAW2doZCvUxHSoFcpT0Mn5e) | 原论文与官方实现优先，按问题组织，分开论文主张、自实现、第三方、实际测量 |
+| 研究计划与实验设计 | [研究计划规范](https://dreamsoul.feishu.cn/docx/POdQdHYeqo7ujpxmJH1ctOMPn1g) | 保留建议采用状态，连接文献、数据、模型、算法、指标和对照，写明暂停及恢复条件 |
+| 中文文档与排版 | [飞书文档规范](https://dreamsoul.feishu.cn/docx/DdmxdrNvBo9AMXxkAYmc4EJ6nwe) | 中文层级、混排、加粗表头、就近引用及正式内容清理，实际上传时再验原生引用和文本绘图 |
 
-| **需要** | **入口** |
-| --- | --- |
-| 目录、vendored RPipe、`origin` 规则、shared | [layout.md](docs/layout.md) |
-| 解码、mask、和论文不一致的地方 | [architecture.md](docs/architecture.md) |
-| 怎么跑 Study | [studies/README.md](studies/README.md) |
-| RPipe 职责映射与迁移边界 | [rpipe-migration.md](docs/rpipe-migration.md) |
-| 测试与 CI | [testing.md](docs/testing.md) |
-| Windows | [windows.md](docs/windows.md) |
-| 还没拍板的下一步 | [brainstorm.md](docs/brainstorm.md) |
-| 唯一项目研究计划 | [中文](<docs/研究计划 Denoising Speculative Decoding.md>) / [English](<docs/Research Plan Denoising Speculative Decoding.md>) |
-| 研究证据、历史草稿与规范入口 | [research/readme.md](docs/research/readme.md) |
-| 论文 PDF | [papers/index.md](docs/papers/index.md)。PDF 不进 git |
-| 问题与兼容性 | [bugs.md](docs/bugs.md) |
-| 开发记录 | [record.md](docs/record.md) |
-| 异机接手与待验范围 | [handover.md](docs/handover.md) |
-| 已经记下的接受数 | [history-extrapolation.md](docs/history-extrapolation.md) |
+入口齐全不代表全部规范已落地。当前任务只应用实际读取且适用的要求，不加载无关历史限制。
 
-一般技术文档文件名用小写；Study 目录入口用 `README.md`，报告和数字用 `docs/STUDY_REPORT.md`、`docs/NUMBERS.md`。项目计划只保留 docs/ 下上述中英文两份（全称文件名按Enmao 12:53要求）；子Study计划写入项目计划独立章节，不新建PLAN.md。
+# 四、固定依赖、数据与执行边界
+- `src/rpipe/` 全树（含其 docs 和许可）固定于 ORIGIN 的 v0.3.1 提交，既存 Windows 差异保留。下游不改副本，通用缺陷在 RPipe 仓独立修复后另行确认完整同步
+- `src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/upstream/` 的 README、code、results 整体及旁侧 `ORIGIN.json` 保持字节，所有版权许可证保留。第三方原码不能称作者官方实现
+- 原始 `datasets/spec_bench/` 保留，已渲染输入、日志、trace、图和运行源码快照按制品管理，不能据生成物清理授权扩展删除其它源码或正式数据
+- 科学宿主的目标为标准 Python 包，只有 Study 使用 RPipe 声明和实际需要的 `structure/flow` 薄适配。保留默认六阶段，不复制整套库或无职责空壳
+- 新执行先确认研究范围并更新唯一计划，以新 version/Run 冻结实际源码、输入、配置和模型。旧 Run 不覆盖、不重签，来源不明保留未知
+- T0 正确性门为完整提交链的验证前向 argmax 审计，独立 AR 一致率只诊断。接受数/τ、数值自检和速度收益分别报告。采样分布保证未完成验证，不能由 T0 推广
+- ESP 旧长矩阵暂停，七格范数与11格独立配对不自动接卡。BF16 相对独立 AR 的算子数值机理排查永久停止。2026年10月20日确认的 K=[A,b] 仿射残差校正作为独立 Study，先 CPU 小规模、再冻结 K 跨数据集，无校正/仅 bias/完整 K 三臂；它不是已实现 Kalman 或已证泛化。代码重构只做有界离线 CPU 工程验证，历史命令、计划、登录态不构成新 GPU、下载或测速授权
+- 未来获准执行时复用 ModelScope，不覆盖既有 CUDA torch；设备和环境路径现场定位。取消先阻止新派发，已执行副作用与未知结果保留，不盲目重试
 
-## 3. 协作
+# 五、协作、平台与完成检查
+- 当前架构重构只推送本任务隔离工作分支，完成当前 HEAD 本地有界 CPU 回归，创建面向 `dev` 的代码 Draft PR 后等待评审，不合并、不强推、不启用 autoMerge、不发布。既往普通开发授权不扩大当前范围
+- 写入前重读目标、保留他人修改。运行、验证和临时材料留任务临时目录或显式外部运行根，长期正文只保留一份必要摘要
+- 飞书操作用对应技能和 `lark-cli --as user`，先核身份和用法，失败区分环境/登录/资源权限，不静默换机器人，不自行切浏览器
+- 飞书引用沿用实际取得的完整分享链接和锚点。同步、上传、发消息和邀请按本次授权，不凭旧链接自动执行
+- 完成检查编码、标题、链接、表格、必要 Mermaid 解析与 diff 范围。旧文档/证据消费者已知失效应明确报告，不能宣称全量测试或远端 CI 通过
 
-- 保留工作区里已有改动。临时输出放 `.tmp/`。Study 产物（`runs/`、`shared/`、`scripts/`、`index.json`、`process.json`）不进 git。
-- 默认分支为 `main`。工作分支通过 PR 先进入 `dev`，再由同仓库 `dev` 的 PR 进入 `main`；不直接推 `dev`/`main`，不强推或删除长期分支。
-- Enmao已长期授权：本仓库范围内的正常提交、按PR流程推工作分支、合入`dev`及用本地检查代替远端CI直接执行，不重复询问、不使用提问弹窗。授权依据及审批记录见[handover.md](docs/handover.md)。
-- PR按`cpu-checks`和`Branch flow`的检查范围完成验证；可提供远端结果或等价本地检查证据，写明实际命令、结果及未验证范围，不把未运行的远端CI写成通过。保留平台实际强制的分支保护和评审要求。
-- 自动审批拒绝时，在报告写明准确命令、工作目录、拒绝理由和执行状态，继续不依赖该动作的工作，交监督助手处理，不弹提问窗。
-- 删除实验数据、强推、合入`main`或花钱前暂停相应动作，在报告记录待处理事项，不弹提问窗。Enmao已授权已合dev的本地/远端topic及废弃worktree登记清理：远程合后即清，本地退出后清，每约5个合dev PR全面复查；核对tip未变、祖先关系、运行进程与数据。main/dev及GPU活动分支/worktree保留，未合过时项先列PR说明。废弃目录的数据原地保留，不以清worktree删除实验结果；清单见[清理记录](docs/research/remote-branch-cleanup-2026-10-15.md)。
-
-## 4. 代码放在哪
-
-- `src/rpipe/`：调度、Flow、Tracker、artifact、make。提交见 `ORIGIN`。
-- `src/spec_mtp/`：Data / Model / Algorithm（`(eval, spec_mtp)`）、`structure/api/recipe.py`、`flow/<phase>/run.py`、专项 artifact/evidence/validation；根 recipe/cli 与 flow.checks 仅兼容导出。注册发生在 Study `recipe.py`（import 时 `register_sources()`，Run 时 `register(ctx)`）。
-- 入口：`python -m spec_mtp` 是薄封装，其余转给这份 `rpipe`。不恢复 `src/main.py`。不要加 `sitecustomize.py`。
-
-## 5. 实验
-
-- 开跑前在唯一项目计划写该Study独立章节，并在Study声明记录不可变计划commit/blob与章节（问题、对照、指标、停止规则、[studies/README.md](studies/README.md) §5 排班）。
-- `python -m spec_mtp make studies/<name>`，再 `python -m spec_mtp launch studies/<name>`。
-- `flow.prepare_shared: false`（RPipe make 下载只认 torchvision）。Run prepare 仍把 SpecBench 和权重写进 `shared/`。**不要写 `origin: foreign`**（[layout.md](docs/layout.md)）。权重用 ModelScope。
-- 实验验收遵循最新用户确认及冻结协议。当前BF16/T0研究的正确性门是全部提交token等于对应验证前向logits的argmax；独立AR一致率仅报告、不作失败门，见[当前研究计划](<docs/研究计划 Denoising Speculative Decoding.md#legacy-docs-research-esp-table1-bf16-reproduction-plan>)。历史执行证据与已有成功Run不重签。按本次用户授权，旧AR门失败且execute完整的Run可仅重新验收：保留失败result备份、raw/输入/来源哈希及新validator SHA，不重跑execute。永久停止BF16 ESP相对独立AR的算子数值机理排查。接受数、τ及其口径写入报告，不把γ叫成slope。
-- 已有数字的格子不重跑。不复用一个 Run 目录。源码或输入变化用新的 algorithm.config.version；make/remake 不签收旧成功 Run。
-- Study collect 从 execute 的原始观测计算指标，summarize 跑成功门，write 再核验，process 只终验当前 index。
-- Windows：`PYTHONUTF8=1`，`D:\anaconda3\python.exe`，不另建 venv。
+- 本任务不修改 Actions、CI/CD、workflow 或仓库设置，不读取/创建凭据。固定 `src/rpipe/` 原字节及打包保留；验证产物不进 Git。

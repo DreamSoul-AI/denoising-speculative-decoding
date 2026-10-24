@@ -13,10 +13,10 @@ def load(out, plan, tool):
     from diagnose_output_windows import file_hash
     from rpipe.structure.system.config import SystemConfig
     from rpipe.structure.system.runtime import apply_runtime
-    from spec_mtp.structure.artifact.evidence import model_digest, runtime
-    from spec_mtp.structure.artifact.sources import manifest
-    from spec_mtp.structure.control.named import _convert
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    from studies._shared.structure.evidence import model_digest, runtime
+    from studies._shared.structure.sources import manifest
+    from studies._shared.structure.config import _convert
+    from spec_mtp.model import HFCausalLM
     root = Path(__file__).resolve().parents[2]
     study = root / 'studies/output_space_extension'
     read = lambda p: json.loads(p.read_text(encoding='utf-8'))
@@ -71,8 +71,8 @@ def load(out, plan, tool):
 
 def verify(c):
     from diagnose_output_windows import file_hash
-    from spec_mtp.structure.artifact.evidence import model_digest, runtime
-    from spec_mtp.structure.artifact.sources import manifest
+    from studies._shared.structure.evidence import model_digest, runtime
+    from studies._shared.structure.sources import manifest
     assert all(file_hash(p) == c.binding[k] for k, p in c.paths.items())
     assert all(file_hash(c.cache / n) == m['sha256'] for n, m in c.snapshot['files'].items())
     assert model_digest(c.model) == c.native['model_digest'] and runtime() == c.previous['runtime']

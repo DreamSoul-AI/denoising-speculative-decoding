@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 import rpipe
 
-from spec_mtp import cli
-from spec_mtp.structure.artifact import sources
+from studies._shared.flow import cli
+from studies._shared.structure import sources
 
 tomllib = pytest.importorskip('tomllib')  # Python >= 3.11
 
@@ -49,9 +49,9 @@ def test_console_scripts_expose_vendored_rpipe_and_spec_mtp():
 
 def test_manifest_covers_package_sources():
     body = sources.manifest()
-    assert {'spec_mtp/recipe.py', 'spec_mtp/flow/collect/run.py',
-            'spec_mtp/structure/artifact/validation.py',
-            'spec_mtp/structure/algorithm/decoding.py'} <= set(body['files'])
+    assert {'studies/_shared/structure/recipe.py', 'studies/_shared/flow/collect/run.py',
+            'studies/_shared/structure/validation.py',
+            'spec_mtp/decode.py'} <= set(body['files'])
     assert not any(name.startswith('rpipe/') for name in body['files'])
     assert body['digest'] == sources.files_digest(body['files'])
 
