@@ -43,6 +43,23 @@ def test_source_mismatch_is_independent_of_correct_argmax():
     assert not result.source_integrity and result.argmax_coverage and result.argmax_correctness
 
 
+def test_model_sources_reject_resolved_members_outside_root(tmp_path, monkeypatch):
+    import hashlib
+    from pathlib import Path
+    from spec_mtp.audit import verify_model_files
+
+    root = tmp_path / 'model'
+    root.mkdir()
+    member = root / 'config.json'
+    member.write_bytes(b'{}')
+    outside = tmp_path / 'external-config.json'
+    original = Path.resolve
+    # Simulate an external symlink resolution without requiring OS symlink privileges.
+    monkeypatch.setattr(Path, 'resolve', lambda self, *a, **k: outside if self == member else original(self, *a, **k))
+    with pytest.raises(ValueError, match='escapes'):
+        verify_model_files(root, {'config.json': hashlib.sha256(b'{}').hexdigest()})
+
+
 def test_truncated_jsonl_never_becomes_complete(tmp_path):
     req = request()
     _, _, sink = run(req)

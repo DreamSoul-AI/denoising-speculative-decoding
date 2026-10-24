@@ -195,6 +195,14 @@ class HFCausalLM(nn.Module):
             if self._owns_model:
                 self.hf = None
 
+    def describe(self):
+        """Actual loaded session facts, independent of caller source labels."""
+        return {'model_class': type(self.hf).__name__, 'config': self.config.to_dict(),
+                'attention_backend': self.config._attn_implementation,
+                'device': str(self.device), 'dtype': str(self.dtype),
+                'vocab_size': self.vocab_size, 'max_positions': self.max_positions,
+                'tied_embeddings': self.tied_embeddings}
+
     @property
     def device(self):
         return self.embedding_table.device

@@ -11,11 +11,18 @@ from spec_mtp.contracts import AuditResult
 
 class JsonlSink:
     """Exclusive output identity; each acknowledged record is flushed."""
-    def __init__(self, path):
+    def __init__(self, path, *, model_root=None, model_sources=None):
         self.path = Path(path)
+        self.model_root = model_root
+        self.model_sources = None if model_sources is None else dict(model_sources)
+        self.model_info = None
         self.handle = self.path.open('x', encoding='utf-8', newline='\n')
 
     def write(self, observation):
+        if self.model_sources is not None and observation.get('event') in ('header', 'end'):
+            verify_model_files(self.model_root, self.model_sources)
+            if observation['event'] == 'header':
+                observation = {**observation, 'model_sources': self.model_sources, 'model': self.model_info}
         self.handle.write(json.dumps(dict(observation), ensure_ascii=False, allow_nan=False) + '\n')
         self.handle.flush()
 
@@ -34,12 +41,36 @@ def verify_files(root, declared):
         path = (root / relative).resolve()
         if not path.is_relative_to(root):
             raise ValueError('evidence member escapes the explicit root')
-        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        digest = hashlib.sha256()
+        with path.open('rb') as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+                digest.update(chunk)
+        actual = digest.hexdigest()
         if actual != expected:
             raise ValueError(f'evidence member changed: {relative}')
 
 
-def audit_run(raw, expected_sources):
+def _model_sources(declared):
+    if not isinstance(declared, dict) or not declared:
+        raise ValueError('model sources must be a nonempty relative-member SHA256 object')
+    for name, sha in declared.items():
+        if (not isinstance(name, str) or not name or Path(name).is_absolute() or '..' in Path(name).parts
+                or not isinstance(sha, str) or len(sha) != 64 or any(c not in '0123456789abcdef' for c in sha)):
+            raise ValueError('invalid relative model member or SHA256')
+    return declared
+
+
+def verify_model_files(root, declared):
+    """Verify every local model file, using a manifest kept outside that root."""
+    declared = _model_sources(declared)
+    root = Path(root).resolve()
+    actual = {p.relative_to(root).as_posix() for p in root.rglob('*') if p.is_file()}
+    if set(declared) != actual:
+        raise ValueError('model source members differ from the complete local model directory')
+    verify_files(root, declared)
+
+
+def audit_run(raw, expected_sources, *, expected_model_sources=None):
     """Check existing observations only; never regenerate missing logits."""
     reasons = []
     try:
@@ -66,6 +97,17 @@ def audit_run(raw, expected_sources):
         source_integrity = header.get('sources') == dict(expected_sources)
         if not source_integrity:
             reasons.append('source digest mismatch')
+        if 'model_sources' in header or expected_model_sources is not None:
+            actual_model_sources = _model_sources(header.get('model_sources'))
+            if expected_model_sources is None:
+                source_integrity = False
+                reasons.append('expected model sources required for model provenance audit')
+            elif actual_model_sources != _model_sources(expected_model_sources):
+                source_integrity = False
+                reasons.append('model source digest mismatch')
+            if not isinstance(header.get('model'), dict):
+                source_integrity = False
+                reasons.append('missing actual model summary')
         tokens, commits = end['committed'], records[1:-1]
         if (not isinstance(tokens, list) or len(tokens) != len(commits)
                 or any(type(t) is not int or t < 0 for t in tokens)

@@ -19,6 +19,8 @@ K=[A,b] 仿射残差校正已于2026年10月20日确认作为独立 Study 路线
 
 `src/rpipe/` 固定于 `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5`（v0.3.1），既存 Windows torch-first 差异按当前字节保留。第三方 ESP 来源树及 `ORIGIN.json` 保留，不能把它称为作者官方实现。原始 SpecBench 数据保留于 `datasets/spec_bench/question.jsonl`。
 
+科学 CLI 的 `decode` 必须显式提供 `--model-sources <JSON>`：清单位于模型目录外，以相对路径映射该完整、自包含的本地模型目录内全部文件的 SHA256，不缺项、不含目录外成员。输出也放在模型根外；解析后逃逸模型根的符号链接会被拒绝，不直接承诺兼容引用外部 blobs 的 Hub 快照。载模前、运行头及结束记录写出前分块读取核验实际文件；漂移时保留部分观测，不写完成末行。运行头另记实际模型 config、backend、device、dtype 和能力，调用者原 `sources` 标签保持原义。审计带模型来源的新记录时使用 `audit <raw> --sources <标签JSON> --model-sources <原模型清单JSON>`；缺少独立模型清单不能记来源完整。旧无模型来源字段的记录仍只比较原标签，不代表重新验证实际模型。`audit/compare` 不加载模型或重新生成观测。
+
 旧逐条运行证据、日志、图和报告保留在固定历史/外部运行根，未恢复进 Git。历史原件重放项在 `tests/manifest.json` 逐 selector 列出缺失原件；当前声明、输入拒绝、模型、mask、提交链、来源和聚合合同仍在 CPU 计划内。精确历史重放未执行，不能称全部历史结果已复核。
 
 # 三、开发与验证

@@ -3043,6 +3043,34 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_rejects_model_manifest_before_constructing_model",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_audit.py::test_model_sources_reject_resolved_members_outside_root",
+      "target": "spec_mtp.audit",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

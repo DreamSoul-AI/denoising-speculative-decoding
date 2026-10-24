@@ -8,6 +8,19 @@ from spec_mtp.cli import main
 from test_decode import request, run
 
 
+def model_args(tmp_path):
+    import hashlib
+    from types import SimpleNamespace
+    model = tmp_path / 'model'
+    model.mkdir()
+    (model / 'config.json').write_text('{}', encoding='utf-8')
+    manifest = tmp_path / 'model-sources.json'
+    manifest.write_text(json.dumps({'config.json': hashlib.sha256(b'{}').hexdigest()}), encoding='utf-8')
+    path = tmp_path / 'request.json'
+    path.write_text(json.dumps(asdict(request())), encoding='utf-8')
+    return SimpleNamespace(request=path, model=model, model_sources=manifest, output=tmp_path / 'raw.jsonl')
+
+
 def test_cli_audit_consumes_existing_rows_only(tmp_path, capsys):
     req = request()
     _, _, sink = run(req)
@@ -71,15 +84,15 @@ def test_cli_output_admission_precedes_model_construction(tmp_path, monkeypatch,
     from spec_mtp.cli import _decode
     import spec_mtp.model
 
-    path = tmp_path / 'request.json'
-    path.write_text(json.dumps(asdict(request())), encoding='utf-8')
+    args = model_args(tmp_path)
     output = tmp_path / 'raw.jsonl' if output_state == 'existing' else tmp_path / 'missing' / 'raw.jsonl'
     if output_state == 'existing':
         output.write_bytes(b'original evidence\n')
     constructed = []
     monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', lambda *args, **kwargs: constructed.append(args))
     with pytest.raises(OSError):
-        _decode(SimpleNamespace(request=path, model=tmp_path, output=output))
+        args.output = output
+        _decode(args)
     assert constructed == []
     if output_state == 'existing':
         assert output.read_bytes() == b'original evidence\n'
@@ -95,14 +108,14 @@ def test_cli_failed_model_construction_closes_reserved_incomplete_output(tmp_pat
     import spec_mtp.audit
     import spec_mtp.model
 
-    path, output = tmp_path / 'request.json', tmp_path / 'raw.jsonl'
-    path.write_text(json.dumps(asdict(request())), encoding='utf-8')
+    args = model_args(tmp_path)
+    output = args.output
     sinks = []
     close_error = OSError('sink close failed')
 
     class ObservedSink(JsonlSink):
-        def __init__(self, path):
-            super().__init__(path)
+        def __init__(self, path, **kwargs):
+            super().__init__(path, **kwargs)
             sinks.append(self)
 
         def close(self):
@@ -118,7 +131,7 @@ def test_cli_failed_model_construction_closes_reserved_incomplete_output(tmp_pat
     monkeypatch.setattr(spec_mtp.audit, 'JsonlSink', ObservedSink)
     monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', fail_model)
     with pytest.raises(RuntimeError) as raised:
-        _decode(SimpleNamespace(request=path, model=tmp_path, output=output))
+        _decode(args)
     assert raised.value is failure
     assert len(sinks) == 1 and sinks[0].handle.closed
     assert output.read_bytes() == b''
@@ -134,15 +147,131 @@ def test_cli_success_closes_its_model_and_keeps_auditable_output(tmp_path, monke
     import spec_mtp.model
 
     class Session(FakeSession):
+        def describe(self):
+            return {'device': 'cpu', 'dtype': 'torch.float32', 'model_class': 'FakeSession'}
+
         def close(self):
             self.closed = True
 
     session = Session()
-    path, output = tmp_path / 'request.json', tmp_path / 'raw.jsonl'
-    path.write_text(json.dumps(asdict(request())), encoding='utf-8')
+    args = model_args(tmp_path)
+    output = args.output
     monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', lambda *args, **kwargs: session)
-    result = _decode(SimpleNamespace(request=path, model=tmp_path, output=output))
+    result = _decode(args)
     assert result['execution'] == 'completed' and result['evidence_complete']
     assert session.closed and session.calls > 0
-    audit = audit_run(output, request().sources)
+    manifest = json.loads(args.model_sources.read_text())
+    assert not audit_run(output, request().sources).source_integrity
+    audit = audit_run(output, request().sources, expected_model_sources=manifest)
     assert audit.source_integrity and audit.argmax_coverage and audit.argmax_correctness
+
+
+@pytest.mark.parametrize('damage', ['empty', 'list', 'bad_sha', 'stale', 'missing_member', 'extra_member', 'escape', 'inside_root', 'output_inside_root'])
+def test_cli_rejects_model_manifest_before_constructing_model(tmp_path, monkeypatch, damage):
+    from spec_mtp.cli import _decode
+    import spec_mtp.model
+
+    args = model_args(tmp_path)
+    declared = json.loads(args.model_sources.read_text())
+    if damage == 'empty':
+        declared = {}
+    elif damage == 'list':
+        declared = []
+    elif damage == 'bad_sha':
+        declared['config.json'] = 'invalid'
+    elif damage == 'stale':
+        declared['config.json'] = '0' * 64
+    elif damage == 'missing_member':
+        declared['missing.safetensors'] = '0' * 64
+    elif damage == 'extra_member':
+        (args.model / 'extra.safetensors').write_bytes(b'new weights')
+    elif damage == 'escape':
+        declared['../request.json'] = '0' * 64
+    elif damage == 'inside_root':
+        args.model_sources = args.model / 'sources.json'
+    else:
+        args.output = args.model / 'raw.jsonl'
+    args.model_sources.write_text(json.dumps(declared), encoding='utf-8')
+    calls = []
+    monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', lambda *a, **k: calls.append(a))
+    with pytest.raises((ValueError, OSError)):
+        _decode(args)
+    assert calls == [] and not args.output.exists()
+
+
+@pytest.mark.parametrize('damage', ['modify', 'add', 'remove'])
+def test_cli_model_drift_cannot_write_completed_end(tmp_path, monkeypatch, damage):
+    from spec_mtp.cli import _decode
+    from spec_mtp.decode import DecodeFailure
+    from spec_mtp.audit import audit_run
+    from test_decode import FakeSession
+    import spec_mtp.model
+
+    args = model_args(tmp_path)
+
+    class Session(FakeSession):
+        def describe(self):
+            return {'device': 'cpu', 'dtype': 'torch.float32', 'model_class': 'FakeSession'}
+
+        def __call__(self, *a, **kwargs):
+            result = super().__call__(*a, **kwargs)
+            if damage == 'modify':
+                (args.model / 'config.json').write_text('{"changed":true}', encoding='utf-8')
+            elif damage == 'add':
+                (args.model / 'added.safetensors').write_bytes(b'added weights')
+            else:
+                (args.model / 'config.json').unlink(missing_ok=True)
+            return result
+
+        def close(self):
+            self.closed = True
+
+    session = Session()
+    monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', lambda *a, **k: session)
+    with pytest.raises(DecodeFailure) as raised:
+        _decode(args)
+    assert isinstance(raised.value.__cause__, ValueError)
+    assert not raised.value.result.evidence_complete
+    assert session.calls > 0 and session.closed
+    rows = [json.loads(line) for line in args.output.read_text().splitlines()]
+    assert rows[0]['model']['device'] == 'cpu'
+    assert not any(row['event'] == 'end' for row in rows)
+    assert not audit_run(args.output, request().sources,
+                         expected_model_sources=json.loads(args.model_sources.read_text())).source_integrity
+
+
+def test_cli_real_local_model_sources_and_read_only_audit(tmp_path, capsys):
+    import hashlib
+    import torch
+    from transformers import LlamaConfig, LlamaForCausalLM
+
+    args = model_args(tmp_path)
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(123)
+        native = LlamaForCausalLM(LlamaConfig(vocab_size=16, hidden_size=8, intermediate_size=16,
+            num_hidden_layers=1, num_attention_heads=2, num_key_value_heads=1,
+            max_position_embeddings=32, tie_word_embeddings=True, attn_implementation='eager')).eval()
+    assert sum(p.numel() for p in native.parameters()) == 728
+    native.save_pretrained(args.model)
+    declared = {p.relative_to(args.model).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in args.model.rglob('*') if p.is_file()}
+    args.model_sources.write_text(json.dumps(declared), encoding='utf-8')
+    assert main(['decode', '--request', str(args.request), '--model', str(args.model),
+                 '--model-sources', str(args.model_sources), '--output', str(args.output)]) == 0
+    assert json.loads(capsys.readouterr().out)['evidence_complete']
+    header = json.loads(args.output.read_text().splitlines()[0])
+    assert header['sources'] == request().sources and header['model_sources'] == declared
+    assert header['model']['device'] == 'cpu' and header['model']['dtype'] == 'torch.float32'
+    assert header['model']['config']['hidden_size'] == 8 and header['model']['tied_embeddings']
+    assert header['model']['attention_backend'] == 'eager'
+    labels = tmp_path / 'labels.json'
+    labels.write_text(json.dumps(dict(request().sources)), encoding='utf-8')
+    command = ['audit', str(args.output), '--sources', str(labels)]
+    assert main(command) == 1
+    assert not json.loads(capsys.readouterr().out)['source_integrity']
+    assert main(command + ['--model-sources', str(args.model_sources)]) == 0
+    assert json.loads(capsys.readouterr().out)['source_integrity']
+    declared['model.safetensors'] = '0' * 64
+    args.model_sources.write_text(json.dumps(declared), encoding='utf-8')
+    assert main(command + ['--model-sources', str(args.model_sources)]) == 1
+    assert not json.loads(capsys.readouterr().out)['source_integrity']
