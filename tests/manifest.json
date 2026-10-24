@@ -3022,6 +3022,27 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_output_admission_precedes_model_construction",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_failed_model_construction_closes_reserved_incomplete_output",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
+      "target": "spec_mtp.cli",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

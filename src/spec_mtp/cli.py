@@ -26,11 +26,12 @@ def _decode(args: argparse.Namespace) -> dict[str, Any]:
     # No implicit Hub or device fallback; decode only the explicitly supplied local model.
     if not Path(args.model).is_dir():
         raise ValueError('--model must name a local model directory')
-    model = HFCausalLM(args.model, local_files_only=True)
+    model = None
     sink = None
     primary = None
     try:
         sink = JsonlSink(args.output)
+        model = HFCausalLM(args.model, local_files_only=True)
         result = generate(request, model, build_mask_provider(request.spec, model.embedding_table), sink)
         return asdict(result)
     except BaseException as error:

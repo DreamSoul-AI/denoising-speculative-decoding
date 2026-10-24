@@ -63,3 +63,86 @@ def test_cli_compare_keeps_required_and_additional_pairing_checks(tmp_path, caps
     result = json.loads(capsys.readouterr().out)
     mismatch = change == 'input_sha256' or (change == 'factor' and bool(keys))
     assert result['incomparable'] == int(mismatch) and result['ties'] == int(not mismatch)
+
+
+@pytest.mark.parametrize('output_state', ['existing', 'missing_parent'])
+def test_cli_output_admission_precedes_model_construction(tmp_path, monkeypatch, output_state):
+    from types import SimpleNamespace
+    from spec_mtp.cli import _decode
+    import spec_mtp.model
+
+    path = tmp_path / 'request.json'
+    path.write_text(json.dumps(asdict(request())), encoding='utf-8')
+    output = tmp_path / 'raw.jsonl' if output_state == 'existing' else tmp_path / 'missing' / 'raw.jsonl'
+    if output_state == 'existing':
+        output.write_bytes(b'original evidence\n')
+    constructed = []
+    monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', lambda *args, **kwargs: constructed.append(args))
+    with pytest.raises(OSError):
+        _decode(SimpleNamespace(request=path, model=tmp_path, output=output))
+    assert constructed == []
+    if output_state == 'existing':
+        assert output.read_bytes() == b'original evidence\n'
+    else:
+        assert not output.exists()
+
+
+@pytest.mark.parametrize('close_fails', [False, True])
+def test_cli_failed_model_construction_closes_reserved_incomplete_output(tmp_path, monkeypatch, close_fails):
+    from types import SimpleNamespace
+    from spec_mtp.cli import _decode
+    from spec_mtp.audit import JsonlSink, audit_run
+    import spec_mtp.audit
+    import spec_mtp.model
+
+    path, output = tmp_path / 'request.json', tmp_path / 'raw.jsonl'
+    path.write_text(json.dumps(asdict(request())), encoding='utf-8')
+    sinks = []
+    close_error = OSError('sink close failed')
+
+    class ObservedSink(JsonlSink):
+        def __init__(self, path):
+            super().__init__(path)
+            sinks.append(self)
+
+        def close(self):
+            super().close()
+            if close_fails:
+                raise close_error
+
+    failure = RuntimeError('model construction failed')
+
+    def fail_model(*args, **kwargs):
+        raise failure
+
+    monkeypatch.setattr(spec_mtp.audit, 'JsonlSink', ObservedSink)
+    monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', fail_model)
+    with pytest.raises(RuntimeError) as raised:
+        _decode(SimpleNamespace(request=path, model=tmp_path, output=output))
+    assert raised.value is failure
+    assert len(sinks) == 1 and sinks[0].handle.closed
+    assert output.read_bytes() == b''
+    assert not audit_run(output, request().sources).argmax_coverage
+    assert getattr(failure, 'cleanup_failures', []) == ([close_error] if close_fails else [])
+
+
+def test_cli_success_closes_its_model_and_keeps_auditable_output(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from spec_mtp.cli import _decode
+    from spec_mtp.audit import audit_run
+    from test_decode import FakeSession
+    import spec_mtp.model
+
+    class Session(FakeSession):
+        def close(self):
+            self.closed = True
+
+    session = Session()
+    path, output = tmp_path / 'request.json', tmp_path / 'raw.jsonl'
+    path.write_text(json.dumps(asdict(request())), encoding='utf-8')
+    monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', lambda *args, **kwargs: session)
+    result = _decode(SimpleNamespace(request=path, model=tmp_path, output=output))
+    assert result['execution'] == 'completed' and result['evidence_complete']
+    assert session.closed and session.calls > 0
+    audit = audit_run(output, request().sources)
+    assert audit.source_integrity and audit.argmax_coverage and audit.argmax_correctness
