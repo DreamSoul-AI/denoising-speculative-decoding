@@ -3076,60 +3076,7 @@
   "plans": {
     "cpu-pr": {
       "budget_seconds": 420,
-      "exclude": [
-        {
-          "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_published_counts_reaggregate_without_rewriting_original",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json"
-        },
-        {
-          "test_id": "tests/spec_mtp/test_4b_geometry.py::test_published_saved_audit_preserves_full_coverage_and_old_accounting",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: docs/research/4b-paired-raw-audit-2026-10-16.json"
-        },
-        {
-          "test_id": "tests/spec_mtp/test_4b_input_control.py::test_4b_control_reuses_fixed_original_manifests",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: studies/output_space_4b_input_control/docs/prompts_manifest.json and original recheck/holdout manifests"
-        },
-        {
-          "test_id": "tests/spec_mtp/test_4b_pairing_contract.py::test_historical_11_cell_original_inputs",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: studies/qwen3_4b_bf16_five_methods/docs/prompts_manifest.json and modelscope_snapshot.json"
-        },
-        {
-          "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_historical_norm_scan_immutable_source_refs",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: studies/qwen3_4b_bf16_bias_norm_scan/docs/source_refs.json"
-        },
-        {
-          "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_published_reuse_checkpoint_matches_existing_endpoints",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: studies/qwen3_4b_bf16_bias_norm_scan/docs/reused_readiness_v1.json"
-        },
-        {
-          "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_historical_full_argmax_original_inputs",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: studies/esp_table1_bf16_full/docs/prompts_manifest.json and full_argmax copy"
-        },
-        {
-          "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_historical_qwen_original_prompt_coverage",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: studies/esp_table1_bf16_qwen_protocol/docs/prompts_manifest.json and full copy"
-        },
-        {
-          "test_id": "tests/spec_mtp/test_esp_third_party.py::test_recorded_preflight_cannot_be_reported_as_valid_tau",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: docs/research/esp-third-party-audit-2026-10-15.json"
-        },
-        {
-          "test_id": "tests/spec_mtp/test_local_state_proxy.py::test_recorded_first_divergence_uses_previous_owner_seeds",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: studies/output_space_cross_task/docs/local_factor_diagnosis_v1.json"
-        },
-        {
-          "test_id": "tests/spec_mtp/test_repeat_readout.py::test_completed_checkpoint_reconciles_all480_pairs",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: studies/esp_table1_nonofficial_revalidation/docs/bc10_checkpoint_v1.json and bc30_checkpoint_v1.json"
-        },
-        {
-          "test_id": "tests/spec_mtp/test_repeat_readout.py::test_cpu_acceptance_checkpoint_matches_completed_cells_and_published_pairs",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: studies/esp_table1_nonofficial_revalidation/docs/cpu_acceptance_checkpoint_v1.json"
-        },
-        {
-          "test_id": "tests/studies/shared/test_study_phase_exports.py::test_historical_continuation_original_source_refs",
-          "reason": "Historical evidence removed by the approved docs baseline; not executed, never replaced with fabricated originals. Missing: studies/qwen3_4b_bf16_bias_norm_continuation/docs/source_refs.json"
-        }
-      ]
+      "exclude": []
     }
   }
 }

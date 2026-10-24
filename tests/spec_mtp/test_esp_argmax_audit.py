@@ -110,9 +110,9 @@ def test_new_full_contract_keeps_original_settings_and_480_inputs():
     assert 'argmax_audit.py' in after['provenance']['include']
 
 
-def test_historical_full_argmax_original_inputs():
-    previous = ROOT/'studies/esp_table1_bf16_full'
-    current = ROOT/'studies/esp_table1_bf16_full_argmax'
+def test_historical_full_argmax_original_inputs(historical_file):
+    previous = historical_file('studies/esp_table1_bf16_full/docs/prompts_manifest.json').parents[1]
+    current = historical_file('studies/esp_table1_bf16_full_argmax/docs/prompts_manifest.json').parents[1]
     assert (previous/'docs/prompts_manifest.json').read_bytes()==(current/'docs/prompts_manifest.json').read_bytes()
     assert len(json.loads((current/'docs/prompts_manifest.json').read_text())['rendered_prompts'])==480
 

@@ -205,15 +205,15 @@ def test_reused_only_missing_private_evidence_fails_without_new_outputs(monkeypa
     assert not (tmp_path / 'output').exists()
 
 
-def test_published_reuse_checkpoint_matches_existing_endpoints(monkeypatch):
+def test_published_reuse_checkpoint_matches_existing_endpoints(monkeypatch, historical_file):
     m = norm_reader(monkeypatch)
-    proof = m.read(m.STUDY / 'docs/reused_readiness_v1.json')
-    original = m.read(ROOT / 'studies/qwen3_4b_bf16_directions/docs/direction_evidence_v1.json')
+    proof = m.read(historical_file('studies/qwen3_4b_bf16_bias_norm_scan/docs/reused_readiness_v1.json'))
+    original = m.read(historical_file('studies/qwen3_4b_bf16_directions/docs/direction_evidence_v1.json'))
     assert not proof['complete'] and proof['reused_only'] and not proof['new_cells_inspected']
     assert len(proof['cells']) == 5 and len(proof['expected_new_cases']) == 8
     for path, expected in proof['formal_sources'].items():
         assert '\\' not in path and path.startswith('studies/')
-        assert m.sha(ROOT / path) == expected
+        assert m.sha(historical_file(path)) == expected
     for name, cell in proof['cells'].items():
         source = original['cells'][name.split('/')[0]]
         assert cell['totals'] == source['totals']
@@ -246,5 +246,17 @@ def test_measured_4b_admission_keeps_reserve_and_gpu_exclusion(monkeypatch):
         helper.apply_capacity(base, dict(cap, complete=False), True)
 
 
-def test_historical_norm_scan_immutable_source_refs(monkeypatch):
-    module(monkeypatch).check_refs()
+def test_historical_norm_scan_immutable_source_refs(monkeypatch, historical_file):
+    m = module(monkeypatch)
+    path = historical_file('studies/qwen3_4b_bf16_bias_norm_scan/docs/source_refs.json')
+    import json
+    refs = json.loads(path.read_text(encoding='utf-8'))
+    for name in refs['files']:
+        historical_file(name)
+    # Current validator reads the original frozen bytes; Git still queries the real repository.
+    check_output = m.subprocess.check_output
+    monkeypatch.setattr(m, 'subprocess', SimpleNamespace(
+        check_output=lambda args, **kwargs: check_output(args, **{**kwargs, 'cwd': ROOT})))
+    monkeypatch.setattr(m, 'ROOT', path.parents[3])
+    monkeypatch.setattr(m, 'STUDY', path.parents[1])
+    m.check_refs()

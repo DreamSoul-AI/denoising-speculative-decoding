@@ -171,9 +171,9 @@ def test_saved_audit_rejects_missing_or_changed_native_files(tmp_path):
         verify_files(tmp_path, {'../outside': 'not read'})
 
 
-def test_published_saved_audit_preserves_full_coverage_and_old_accounting():
+def test_published_saved_audit_preserves_full_coverage_and_old_accounting(historical_file):
     import json
-    audit = json.loads((ROOT / 'docs/research/4b-paired-raw-audit-2026-10-16.json').read_text(encoding='utf-8'))
+    audit = json.loads(historical_file('docs/research/4b-paired-raw-audit-2026-10-16.json').read_text(encoding='utf-8'))
     saved = audit['saved_audit']
     assert saved['raw_files_checked'] == 66 and saved['raw_argmax_checked_tokens'] == 809118
     assert saved['shared_AR_tokens'] == 81880 and len(saved['pairs']) == 20

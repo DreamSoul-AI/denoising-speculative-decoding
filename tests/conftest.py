@@ -42,3 +42,31 @@ def cli(*args, entry='studies._shared.flow.cli', check=False):
 @pytest.fixture
 def study_copy(tmp_path):
     return lambda patch=None, name='smoke_copy': copy_study(tmp_path, patch, name)
+
+
+@pytest.fixture(scope='session')
+def historical_file(tmp_path_factory):
+    """Read immutable historical inputs, never import or execute archived source."""
+    import hashlib
+
+    commit = 'b8b20b5ada7fd860894114cbf224ce749af430cf'
+    root = tmp_path_factory.mktemp('historical-inputs')
+
+    def materialize(relative):
+        relative = Path(relative)
+        if relative.is_absolute() or '..' in relative.parts:
+            raise ValueError('historical member must stay inside the archive')
+        command = ['git', '-c', 'safe.directory=' + str(ROOT), '-C', str(ROOT)]
+        oid = subprocess.check_output(command + ['rev-parse', commit + ':' + relative.as_posix()],
+                                      text=True, timeout=20).strip()
+        data = subprocess.check_output(command + ['cat-file', 'blob', oid], timeout=20)
+        assert hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest() == oid
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            with path.open('xb') as stream:
+                stream.write(data)
+        assert path.read_bytes() == data, 'historical input was changed: ' + str(relative)
+        return path
+
+    return materialize

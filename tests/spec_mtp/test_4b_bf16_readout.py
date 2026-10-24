@@ -96,8 +96,8 @@ def published_reader(reader, monkeypatch):
     return module
 
 
-def test_published_counts_reaggregate_without_rewriting_original(published_reader):
-    path = STUDY / 'docs/paired_evidence_v1.json'
+def test_published_counts_reaggregate_without_rewriting_original(published_reader, historical_file):
+    path = historical_file('studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json')
     before = path.read_bytes()
     result = published_reader.verify(path)
     assert (result['cells_checked'], result['pairs_checked']) == (11, 20)

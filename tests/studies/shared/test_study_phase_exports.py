@@ -35,8 +35,8 @@ def test_seven_cells_are_exact_original_tail_with_new_identity():
     assert after == before
 
 
-def test_historical_continuation_original_source_refs():
-    new = ROOT / 'studies/qwen3_4b_bf16_bias_norm_continuation'
+def test_historical_continuation_original_source_refs(historical_file):
+    new = historical_file('studies/qwen3_4b_bf16_bias_norm_continuation/docs/source_refs.json').parents[1]
     refs = json.loads((new / 'docs/source_refs.json').read_text(encoding='utf-8'))
     assert refs['original_recovered_run'] == '6ee3f749ee20c450'
 

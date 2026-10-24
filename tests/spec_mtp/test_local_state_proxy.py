@@ -59,9 +59,9 @@ def test_greedy_seed_is_not_an_independent_sampling_axis():
     assert select_token(logits, 0., torch.Generator().manual_seed(127)) == 1
 
 
-def test_recorded_first_divergence_uses_previous_owner_seeds():
+def test_recorded_first_divergence_uses_previous_owner_seeds(historical_file):
     import json
-    report = json.loads((ROOT / 'studies/output_space_cross_task/docs/local_factor_diagnosis_v1.json').read_text(encoding='utf-8'))
+    report = json.loads(historical_file('studies/output_space_cross_task/docs/local_factor_diagnosis_v1.json').read_text(encoding='utf-8'))
     assert [s['root'] for s in report['steps']] == [716, 717, 719, 720]
     for prior, current in zip(report['steps'], report['steps'][1:]):
         for left, right in zip(prior['cases'], current['cases']):

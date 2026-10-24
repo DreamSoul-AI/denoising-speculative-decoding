@@ -70,10 +70,10 @@ def test_corrected_studies_keep_full_coverage_and_mask_update():
     assert node_budget_for(60,1)==29 and node_budget_for(60,2)==19
 
 
-def test_historical_qwen_original_prompt_coverage():
+def test_historical_qwen_original_prompt_coverage(historical_file):
     import json
     for name in ('esp_table1_bf16_qwen_protocol','esp_table1_bf16_full'):
-        root=ROOT/'studies'/name
+        root=historical_file('studies/'+name+'/docs/prompts_manifest.json').parents[1]
         prompts=json.loads((root/'docs/prompts_manifest.json').read_text())['rendered_prompts']
         assert len(prompts)==(480 if name.endswith('_full') else 13)
         assert len({p['question_id'] for p in prompts})==len(prompts)

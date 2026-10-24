@@ -37,12 +37,12 @@ def test_predeclared_11_cells_share_bf16_data_and_two_mask_trees():
     assert [s['output']['order'] for s in specs[3:5]] == [0,1]
 
 
-def test_historical_11_cell_original_inputs():
-    prompts = json.loads((STUDY/'docs/prompts_manifest.json').read_text())
-    prior = json.loads((ROOT/'studies/esp_table1_bf16_full_argmax/docs/prompts_manifest.json').read_text())
+def test_historical_11_cell_original_inputs(historical_file):
+    prompts = json.loads(historical_file('studies/qwen3_4b_bf16_five_methods/docs/prompts_manifest.json').read_text())
+    prior = json.loads(historical_file('studies/esp_table1_bf16_full_argmax/docs/prompts_manifest.json').read_text())
     assert len(prompts['rendered_prompts']) == 480
     assert prompts['rendered_prompts'] == prior['rendered_prompts']
-    assert len(json.loads((STUDY/'docs/modelscope_snapshot.json').read_text())['files']) == 14
+    assert len(json.loads(historical_file('studies/qwen3_4b_bf16_five_methods/docs/modelscope_snapshot.json').read_text())['files']) == 14
 
 
 @pytest.mark.parametrize('failure', [None, 'runtime', 'dtype', 'prompt', 'weights', 'tied'])

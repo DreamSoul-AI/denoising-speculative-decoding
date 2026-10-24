@@ -26,8 +26,8 @@ def test_original_files_hash_and_compile(monkeypatch):
         compile(path.read_bytes(), str(path), 'exec')
 
 
-def test_recorded_preflight_cannot_be_reported_as_valid_tau():
-    report = json.loads((ROOT / 'docs/research/esp-third-party-audit-2026-10-15.json').read_text(encoding='utf-8'))
+def test_recorded_preflight_cannot_be_reported_as_valid_tau(historical_file):
+    report = json.loads(historical_file('docs/research/esp-third-party-audit-2026-10-15.json').read_text(encoding='utf-8'))
     assert not report['author_official'] and not report['quality_passed'] and not report['full_480_executed']
     assert [r['bc'] for r in report['rows']] == [10, 30, 60]
     assert sum(r['completed_model_calls'] for r in report['rows']) == 6

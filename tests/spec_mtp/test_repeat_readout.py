@@ -96,10 +96,10 @@ def test_input_contract_uses_real_old_run_eos_and_derived_device(monkeypatch):
 
 
 @pytest.mark.parametrize("budget", [10, 30])
-def test_completed_checkpoint_reconciles_all480_pairs(monkeypatch, budget):
+def test_completed_checkpoint_reconciles_all480_pairs(monkeypatch, budget, historical_file):
     m = reader(monkeypatch)
-    snapshot = m.read(ROOT / f'studies/esp_table1_nonofficial_revalidation/docs/bc{budget}_checkpoint_v1.json')
-    old = next(c for c in m.read(ROOT / 'studies/esp_table1_bf16_full_argmax/docs/protocol_evidence_v1.json')['cells']
+    snapshot = m.read(historical_file(f'studies/esp_table1_nonofficial_revalidation/docs/bc{budget}_checkpoint_v1.json'))
+    old = next(c for c in m.read(historical_file('studies/esp_table1_bf16_full_argmax/docs/protocol_evidence_v1.json'))['cells']
                if c['BC'] == budget and c['num_masks'] == 1)
     assert snapshot['native_status'] == 'succeeded' and snapshot['validation_policy'] == 'verifier-argmax-v1'
     assert len(snapshot['rows']) == len(snapshot['token_audits']) == 480
@@ -154,18 +154,18 @@ def test_cross_checkout_pending_readout_writes_only_separate_output(monkeypatch,
         m.main(study_dir=study, output_dir=output)
 
 
-def test_cpu_acceptance_checkpoint_matches_completed_cells_and_published_pairs(monkeypatch):
+def test_cpu_acceptance_checkpoint_matches_completed_cells_and_published_pairs(monkeypatch, historical_file):
     m = reader(monkeypatch)
-    proof = m.read(ROOT / 'studies/esp_table1_nonofficial_revalidation/docs/cpu_acceptance_checkpoint_v1.json')
+    proof = m.read(historical_file('studies/esp_table1_nonofficial_revalidation/docs/cpu_acceptance_checkpoint_v1.json'))
     assert not proof['complete_8b_matrix'] and proof['no_model_forward'] and proof['no_timing']
     assert [c['BC'] for c in proof['table1_cells'] if c['complete']] == [10, 30]
     for cell in proof['table1_cells'][:2]:
-        path = ROOT / cell['checkpoint']
+        path = historical_file(cell['checkpoint'])
         assert m.sha(path) == cell['checkpoint_sha256']
         original = m.read(path)
         assert cell['pooled_tau'] == original['totals']['pooled_tau']
         assert cell['paired'] == {k: v for k, v in original['vs_original'].items() if k != 'rows'}
-    paired = m.read(ROOT / 'studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json')
+    paired = m.read(historical_file('studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json'))
     recheck = proof['four_b_published_reaggregation']
     assert (recheck['cells_checked'], recheck['pairs_checked']) == (11, 20)
     assert recheck['cells'] == {k: v['totals'] for k, v in paired['cells'].items()}
