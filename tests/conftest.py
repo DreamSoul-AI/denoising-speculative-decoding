@@ -1,6 +1,7 @@
 """Shared helpers: copy the smoke Study into a temp dir and run it through RPipe."""
 
 import os
+import importlib.util
 import shutil
 import subprocess
 import sys
@@ -11,6 +12,10 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SMOKE = ROOT / 'studies' / 'smoke'
+_spec = importlib.util.spec_from_file_location('sd_test_process_tree', Path(__file__).with_name('_process_tree.py'))
+_process_tree = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_process_tree)
+
 # Child interpreters must verify this checkout, not a different globally editable SD.
 os.environ['PYTHONPATH'] = os.pathsep.join((str(ROOT / 'src'), str(ROOT)))
 
@@ -30,10 +35,11 @@ def copy_study(tmp_path, patch=None, name='smoke_copy'):
     return dest
 
 
-def cli(*args, entry='studies._shared.flow.cli', check=False):
+def cli(*args, entry='studies._shared.flow.cli', check=False, timeout=90):
     env = {**os.environ, 'PYTHONUTF8': '1', 'MPLBACKEND': 'Agg'}
-    proc = subprocess.run([sys.executable, '-m', entry, *map(str, args)],
-                          capture_output=True, text=True, env=env, cwd=ROOT, timeout=90)
+    proc = _process_tree.sh([sys.executable, '-m', entry, *map(str, args)],
+                          capture_output=True, text=True, encoding='utf8', errors='backslashreplace',
+                          check=False, env=env, cwd=ROOT, timeout=timeout)
     if check and proc.returncode != 0:
         raise AssertionError(proc.stdout[-4000:] + proc.stderr[-4000:])
     return proc

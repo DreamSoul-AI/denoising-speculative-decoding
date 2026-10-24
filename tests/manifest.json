@@ -3071,6 +3071,34 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/tools/test_run_tests.py::test_expected_phase_identity_is_preserved_without_weakening_gate",
+      "target": "tools.run_tests.Recorder",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/tools/test_cli_ownership.py::test_successful_cli_helper_reaps_owned_descendant",
+      "target": "tests.conftest.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/tools/test_cli_ownership.py::test_timeout_confirms_owned_process_cleanup",
+      "target": "tests.conftest.cli",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/tools/test_cli_ownership.py::test_unsupported_process_ownership_refuses_before_launch",
+      "target": "tests.conftest.cli",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {
