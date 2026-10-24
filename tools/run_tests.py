@@ -80,12 +80,17 @@ class Recorder:
         base = report.nodeid.partition('[')[0]
         metadata = self.entries[base]
         verdict = 'failed' if report.failed or report.skipped else 'passed'
+        native_status = report.outcome
+        if hasattr(report, 'wasxfail'):
+            native_status = 'xfail' if report.skipped else 'xpass' if report.passed else report.outcome
         self.failed |= verdict == 'failed'
         key = hashlib.sha256(report.nodeid.encode()).hexdigest()
         self.save(key + '.' + report.when + '.json', {
             'run_id': self.environment['run_id'], 'plan_id': 'cpu-pr',
             'attempt': 1, **metadata, 'test_id': report.nodeid, 'environment': self.environment,
             'phase': report.when, 'status': report.outcome, 'verdict': verdict,
+            'native_status': native_status,
+            **({'wasxfail': report.wasxfail} if hasattr(report, 'wasxfail') else {}),
             'duration': report.duration, 'metrics': {}, 'cost': {},
             'failure': str(report.longrepr) if report.failed or report.skipped else None, 'artifacts': []})
         if report.when == 'teardown':

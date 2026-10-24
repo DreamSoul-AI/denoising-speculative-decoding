@@ -3071,6 +3071,13 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/tools/test_run_tests.py::test_expected_phase_identity_is_preserved_without_weakening_gate",
+      "target": "tools.run_tests.Recorder",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {
