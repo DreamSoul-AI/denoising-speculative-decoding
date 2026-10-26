@@ -41,5 +41,5 @@ def test_relative_markdown_links_resolve():
 
 def test_first_party_docs_have_one_canonical_chinese_copy():
     assert {p.name for p in (ROOT / 'docs').glob('*.md')} == {
-        '去噪推测解码 通用调研.md', '去噪推测解码 架构设计.md',
+        '通用调研 General Research 去噪推测解码.md', '去噪推测解码 架构设计.md',
         '去噪推测解码 代码结构设计.md', '去噪推测解码 研究计划.md'}
