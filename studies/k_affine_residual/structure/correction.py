@@ -75,6 +75,21 @@ class FrozenCorrection:
         return {'payload': self.payload, 'sha256': self.sha256}
 
 
+def require_implemented_protocol(name: str) -> str:
+    """The only coded correction is the committed-token affine residual.
+
+    Trajectory-plus-observation updates and Kalman filtering are different
+    protocols. Naming them here does not select an implementation.
+    """
+    if name != PROTOCOL:
+        raise ValueError(
+            f'{name} is not implemented; only {PROTOCOL} exists. '
+            'That protocol fits an affine residual at an already committed token. '
+            'It is not a Kalman filter and does not combine a draft trajectory with a verify observation.'
+        )
+    return name
+
+
 def fit_correction(x, residual, *, model_space: str, fit_documents, fit_data_sha: str) -> FrozenCorrection:
     x, residual = matrix(x, 'x'), matrix(residual, 'residual')
     if x.shape[0] != residual.shape[0]:

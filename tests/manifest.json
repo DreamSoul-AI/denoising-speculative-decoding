@@ -325,6 +325,13 @@
       ]
     },
     {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_zero_decode_calls_have_no_tau",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
       "test_id": "tests/spec_mtp/test_analysis.py::test_pooled_tau_and_missing_prompts_are_explicit",
       "target": "spec_mtp",
       "tags": [
@@ -2164,6 +2171,13 @@
     },
     {
       "test_id": "tests/studies/k_affine_residual/structure/test_correction.py::test_invalid_fit_inputs_rejected",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_correction.py::test_only_committed_token_affine_protocol_is_implemented",
       "target": "studies/k_affine_residual/structure",
       "tags": [
         "offline_cpu"

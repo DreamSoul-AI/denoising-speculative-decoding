@@ -8,7 +8,7 @@ from pathlib import Path
 
 import torch
 
-from studies.k_affine_residual.structure.correction import ARMS, PROTOCOL, digest, fit_correction
+from studies.k_affine_residual.structure.correction import ARMS, PROTOCOL, digest, fit_correction, require_implemented_protocol
 from studies.k_affine_residual.structure.evaluation import aligned_arrays, validate_documents
 
 SOURCE = 'k_affine_residual'
@@ -57,6 +57,7 @@ def extract_pairs(session, documents, positions, model_space):
 
 
 def run_pilot(session, documents, positions, assets_dir, *, seed, extract=extract_pairs):
+    require_implemented_protocol(PROTOCOL)
     if type(seed) is not int:
         raise ValueError('seed must be an integer')
     docs = validate_documents(documents, positions)

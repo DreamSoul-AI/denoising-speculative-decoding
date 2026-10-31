@@ -1,4 +1,18 @@
-"""Pure count protocols and paired comparisons; no execution or file IO."""
+"""Count protocols and paired comparisons. Timing ratios stay in separate fields.
+
+No execution or file IO. ``tau`` is committed tokens over decode calls.
+Zero decode calls have no ratio. Wall-clock ratios are observations, not a
+claim that the run is faster.
+"""
+
+def prompt_tau(committed, decode_calls):
+    """Single tau formula. Zero decode calls are missing, not zero."""
+    if type(committed) is not int or committed < 0 or type(decode_calls) is not int or decode_calls < 0:
+        raise ValueError('tau counts must be nonnegative integers')
+    if decode_calls == 0:
+        return None
+    return committed / decode_calls
+
 
 def _counts(row):
     for key in ('accepted', 'committed', 'decode_calls', 'new_tokens'):
@@ -23,8 +37,7 @@ def summarize(records, protocol):
     missing = [qid for qid in expected if qid not in qids]
     unexpected = [qid for qid in qids if qid not in expected]
     counts = totals(rows)
-    calls = counts['decode_calls']
-    tau = counts['committed'] / calls if calls else None
+    tau = prompt_tau(counts['committed'], counts['decode_calls'])
     return {'protocol': dict(protocol), 'prompts': len(rows), 'counts': counts, 'tau': tau,
             'missing': missing, 'unexpected': unexpected,
             'complete': not missing and not unexpected and all(row.get('evidence_complete') is True for row in rows)}
@@ -60,41 +73,52 @@ def compare(left, right, pairing):
             'losses': sum(p['accepted_delta'] < 0 for p in pairs if p['comparable']),
             'incomparable': sum(not p['comparable'] for p in pairs)}
 
+def _count_summary(group):
+    """Acceptance accounting only. Depth rates describe attempts, not speed."""
+    committed = sum(r['committed'] for r in group)
+    decode_calls = sum(r['decode_calls'] for r in group)
+    new_tokens = sum(r['new_tokens'] for r in group)
+    tau = prompt_tau(committed, decode_calls)
+    summary = {
+        'prompts': len(group),
+        'tau': tau,
+        'call_reduction': 1.0 - 1.0 / tau if tau is not None and tau > 0 else None,
+        'new_tokens_per_prompt': new_tokens / len(group),
+    }
+    for depth in (1, 2, 3):
+        observed = all(f'attempt_d{depth}' in r and f'accept_d{depth}' in r for r in group)
+        attempts = sum(int(r[f'attempt_d{depth}']) for r in group) if observed else None
+        accepts = sum(int(r[f'accept_d{depth}']) for r in group) if observed else None
+        summary[f'attempt_d{depth}'] = attempts
+        summary[f'accept_d{depth}'] = accepts
+        summary[f'accept_rate_d{depth}'] = accepts / attempts if attempts and accepts is not None else None
+    return summary
+
+
+def _timing_summary(group):
+    """Wall-clock observations. A ratio here is not an acceptance or quality result."""
+    spec_time = sum(r['spec_time'] for r in group)
+    new_tokens = sum(r['new_tokens'] for r in group)
+    summary = {'tokens_per_s': new_tokens / spec_time if spec_time > 0 else 0.0}
+    if any('ar_time' in r for r in group):
+        complete_ar = all('ar_time' in r and 'exact_match' in r for r in group)
+        summary['AR_observed_prompts'] = sum('ar_time' in r and 'exact_match' in r for r in group)
+        summary['AR_complete'] = complete_ar
+        ar_time = sum(r['ar_time'] for r in group) if complete_ar else None
+        summary['speedup'] = ar_time / spec_time if complete_ar and spec_time > 0 else None
+        summary['exact_match_rate'] = sum(r['exact_match'] for r in group) / len(group) if complete_ar else None
+    return summary
+
+
 def _aggregate(rows):
-    """Aggregate per-prompt rows into per-category + overall summaries."""
+    """Per-category and overall view. Counts and timing stay in separate builders."""
     groups: dict = {}
     for row in rows:
         for key in dict.fromkeys((row['category'], 'overall')):
             groups.setdefault(key, []).append(row)
     out = {}
     for key, group in sorted(groups.items()):
-        committed = sum(r['committed'] for r in group)
-        decode_calls = sum(r['decode_calls'] for r in group)
-        new_tokens = sum(r['new_tokens'] for r in group)
-        spec_time = sum(r['spec_time'] for r in group)
-        tau = committed / decode_calls if decode_calls else None
-        summary = {
-            'prompts': len(group),
-            'tau': tau,
-            'call_reduction': 1.0 - 1.0 / tau if tau is not None and tau > 0 else None,
-            'new_tokens_per_prompt': new_tokens / len(group),
-            'tokens_per_s': new_tokens / spec_time if spec_time > 0 else 0.0,
-        }
-        if any('ar_time' in r for r in group):
-            complete_ar = all('ar_time' in r and 'exact_match' in r for r in group)
-            summary['AR_observed_prompts'] = sum('ar_time' in r and 'exact_match' in r for r in group)
-            summary['AR_complete'] = complete_ar
-            ar_time = sum(r['ar_time'] for r in group) if complete_ar else None
-            summary['speedup'] = ar_time / spec_time if complete_ar and spec_time > 0 else None
-            summary['exact_match_rate'] = sum(r['exact_match'] for r in group) / len(group) if complete_ar else None
-        for depth in (1, 2, 3):
-            observed = all(f'attempt_d{depth}' in r and f'accept_d{depth}' in r for r in group)
-            attempts = sum(int(r[f'attempt_d{depth}']) for r in group) if observed else None
-            accepts = sum(int(r[f'accept_d{depth}']) for r in group) if observed else None
-            summary[f'attempt_d{depth}'] = attempts
-            summary[f'accept_d{depth}'] = accepts
-            summary[f'accept_rate_d{depth}'] = accepts / attempts if attempts and accepts is not None else None
-        out[key] = summary
+        out[key] = {**_count_summary(group), **_timing_summary(group)}
     return out
 
 def totals(rows):

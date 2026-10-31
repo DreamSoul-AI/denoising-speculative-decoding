@@ -14,7 +14,7 @@ Reports the paper's metrics per SpecBench category and overall:
 from spec_mtp.masks import build_mask_provider
 
 import torch
-from spec_mtp.analysis import _aggregate, totals as totals
+from spec_mtp.analysis import _aggregate, prompt_tau
 
 from studies._shared.structure import csv_logger
 from studies._shared.structure.inputs import legacy_inputs, make_generator
@@ -91,7 +91,7 @@ def evaluate(model, prompts, eos_ids, spec_cfg, eval_cfg, seed, device, save_dir
             'committed': stats['committed'],
             'decode_calls': stats['decode_calls'],
             'accepted': stats['accepted'],
-            'tau': stats['committed'] / max(stats['decode_calls'], 1),
+            'tau': prompt_tau(int(stats['committed']), int(stats['decode_calls'])),
             'spec_time': stats['prefill_time'] + stats['decode_time'],
             'hit_context_limit': stats['hit_context_limit'],
         }

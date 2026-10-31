@@ -50,15 +50,16 @@ def validate(config: dict[str, Any]) -> dict[str, Any]:
 
     from studies._shared.structure.algorithm import TASKS, effective_spec, task_name
     from studies._shared.structure.config import _convert
-    from spec_mtp.data import _REGISTRY as DATASETS
+    from spec_mtp.data import dataset_names
 
     data, model, algorithm = (_layer(config, name) for name in ('data', 'model', 'algorithm'))
     if algorithm.get('source') != SOURCE:
         raise SpecMtpConfigError(f'algorithm.source must be {SOURCE!r} in a SpecMTP Study')
     if algorithm.get('mode') != 'eval':
         raise SpecMtpConfigError('SpecMTP decoding is an eval Algorithm; set algorithm.mode: eval')
-    if data.get('source') == SOURCE and str(data.get('name', '')).lower() not in DATASETS:
-        raise SpecMtpConfigError(f'unknown SpecMTP data name: {data.get("name")!r}' + suggest(data.get('name'), list(DATASETS)))
+    known_data = dataset_names()
+    if data.get('source') == SOURCE and str(data.get('name', '')).lower() not in known_data:
+        raise SpecMtpConfigError(f'unknown SpecMTP data name: {data.get("name")!r}' + suggest(data.get('name'), list(known_data)))
     if model.get('source') == SOURCE:
         if model.get('name') not in ('tiny_llama', 'hf_causal'):
             raise SpecMtpConfigError(f'unknown SpecMTP model name: {model.get("name")!r}'

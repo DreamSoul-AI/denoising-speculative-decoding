@@ -242,10 +242,15 @@ _REGISTRY = {
     'dolly': (read_dolly, encode_dolly),
 }
 
+def dataset_names():
+    """Names this package can read. Study validation uses this list, not a private dict."""
+    return tuple(_REGISTRY)
+
+
 def _module(data_cfg):
     name = str(data_cfg.get('name', 'specbench')).lower()
     if name not in _REGISTRY:
-        raise ValueError(f'Unknown dataset: {name}. Available: {list(_REGISTRY)}')
+        raise ValueError(f'Unknown dataset: {name}. Available: {list(dataset_names())}')
     return _REGISTRY[name]
 
 def needs_tokenizer(data_cfg):

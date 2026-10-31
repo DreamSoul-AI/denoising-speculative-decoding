@@ -13,6 +13,7 @@ import pytest
 import torch
 
 from spec_mtp import decode as decoding
+from spec_mtp.analysis import _aggregate, totals
 from studies._shared.structure import evaluate as esp_mtp
 from studies._shared.structure.config import apply_variant
 from spec_mtp.decode import SpecDecoder, ar_generate, select_token, tree_probs
@@ -169,10 +170,10 @@ def test_totals_sums_pooled_counts():
         {'accepted': 2, 'committed': 5, 'decode_calls': 3, 'new_tokens': 6},
         {'accepted': 1, 'committed': 4, 'decode_calls': 2, 'new_tokens': 4},
     ]
-    assert esp_mtp.totals(rows) == {
+    assert totals(rows) == {
         'accepted': 3, 'committed': 9, 'decode_calls': 5, 'new_tokens': 10,
     }
-    assert esp_mtp.totals([]) == {
+    assert totals([]) == {
         'accepted': 0, 'committed': 0, 'decode_calls': 0, 'new_tokens': 0,
     }
 
@@ -187,9 +188,8 @@ def test_aggregate_categories_and_zero_decode_calls_guard():
          'attempt_d1': 2, 'accept_d1': 1,
          'attempt_d2': 1, 'accept_d2': 0, 'attempt_d3': 0, 'accept_d3': 0},
     ]
-    summaries = esp_mtp._aggregate(rows)
+    summaries = _aggregate(rows)
     assert set(summaries) == {'a', 'b', 'overall'}
-    # decode_calls=0 → max(..., 1) so tau = committed/1 = 0 for category a
     assert summaries['a']['tau'] is None
     assert summaries['a']['call_reduction'] is None
     assert summaries['a']['tokens_per_s'] == 0.0

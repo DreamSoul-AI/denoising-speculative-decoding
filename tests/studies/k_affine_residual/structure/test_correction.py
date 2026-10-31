@@ -5,7 +5,7 @@ import pytest
 import torch
 
 from studies.k_affine_residual.structure.correction import (
-    ARMS, FrozenCorrection, apply_correction, fit_correction,
+    ARMS, FrozenCorrection, apply_correction, fit_correction, require_implemented_protocol,
 )
 
 
@@ -51,6 +51,13 @@ def test_zero_residual_is_identity(arm):
 def test_invalid_fit_inputs_rejected(x, residual):
     with pytest.raises(ValueError):
         fit(x, residual)
+
+
+def test_only_committed_token_affine_protocol_is_implemented():
+    assert require_implemented_protocol('postcommit-final-norm-v1') == 'postcommit-final-norm-v1'
+    for name in ('kalman', 'trajectory', 'observation', 'trajectory_observation'):
+        with pytest.raises(ValueError, match='not implemented'):
+            require_implemented_protocol(name)
 
 
 def test_frozen_payload_is_immutable_and_hash_checked():

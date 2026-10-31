@@ -54,7 +54,7 @@ def _assets(tmp_path, rate='1.0', with_sources=True, overall=True, name='a'):
     (assets / 'decode_inputs.json').write_text(json.dumps(inputs))
     (assets / 'decode_observations.json').write_text(json.dumps(raw))
     if overall and rate == '1.0':
-        from studies._shared.structure.evaluate import _aggregate
+        from spec_mtp.analysis import _aggregate
         flat = [{'category': k, **v} for k, v in _aggregate([row]).items()]
         with (assets / 'summary.csv').open('w', newline='', encoding='utf-8') as handle:
             writer = csv.DictWriter(handle, fieldnames=list(flat[0]))
@@ -379,7 +379,7 @@ def test_argmax_token_and_owner_tampering_fails(tmp_path,key,value):
 
 
 def test_ar_mismatch_is_diagnostic_and_native_gate_passes(tmp_path):
-    from studies._shared.structure.evaluate import _aggregate
+    from spec_mtp.analysis import _aggregate
     assets = _assets(tmp_path,rate='0.0')
     raw = json.loads((assets/'decode_observations.json').read_text())
     flat = [{'category':k,**v} for k,v in _aggregate(raw['out']['rows']).items()]

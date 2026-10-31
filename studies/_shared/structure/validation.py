@@ -209,7 +209,7 @@ def verify_evidence(config: dict[str, Any], assets: Path) -> None:
             for key in ('accepted', 'committed', 'decode_calls', 'new_tokens'):
                 if row[key] != stats[key]:
                     raise SpecMtpGateError(f'{key} evidence mismatch')
-        from studies._shared.structure.evaluate import _aggregate
+        from spec_mtp.analysis import _aggregate
         expected_summary = _aggregate(rows)['overall']
         actual = _overall(assets)
         def same_value(key, value):
