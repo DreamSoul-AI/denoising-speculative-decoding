@@ -10,6 +10,55 @@
   },
   "tests": [
     {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_zero_gain_is_the_trajectory_provider_token_for_token",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_blended_masks_keep_ar_output_and_argmax_audit",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_masks_follow_the_blend_and_never_write_back",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_decoder_observes_prefill_and_every_continuing_round",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_invalid_observation_settings_are_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_observation_rejects_hidden_providers_and_bad_logits",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_round_split_groups_by_previous_outcome",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
       "test_id": "tests/spec_mtp/test_4b_bf16_plot.py::test_row_vs_column_preserves_all_wins_ties_losses_without_double_inverting_calls",
       "target": "spec_mtp",
       "tags": [

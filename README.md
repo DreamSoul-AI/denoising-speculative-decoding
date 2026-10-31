@@ -3,7 +3,7 @@
 
 截至2026年10月21日的 8B 非官方 Table 1 独立复验已经完成，论文目标未复现。数字和原件在 [历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>)。提交 token 的验证前向 argmax 自检与独立 AR 一致率分别报告，τ 是提交数与解码调用数之比，不能据此认定实际速度收益。
 
-已实现的 K 校正是协议 `postcommit-final-norm-v1` 的合成工程夹具，不是 2026年10月31日会议中的 trajectory 与 observation 联合更新，也不是 Kalman 滤波。160 对数据协议和真实模型收益都还没有执行。问题与停止条件见 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)。
+已实现的 K 校正是协议 `postcommit-final-norm-v1` 的合成工程夹具，不是 2026年10月31日会议中的 trajectory 与 observation 联合更新，也不是 Kalman 滤波。160 对数据协议和真实模型收益都还没有执行。会议方法按默认公式 `trajectory-observation-blend-v1` 实现为 `spec.observation.gain`，尚无接受数测量。问题与停止条件见 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)。
 
 # 一、文档入口
 | **文档** | **维护内容** |
@@ -16,7 +16,7 @@
 | [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 研究问题、假设、对照和停止规则 |
 | [开发计划 Development Plan 去噪推测解码](<docs/开发计划 Development Plan 去噪推测解码.md>) | 剩余工程、验收和待确认的来源策略 |
 | [缺陷记录 Bug Report 去噪推测解码](<docs/缺陷记录 Bug Report 去噪推测解码.md>) | 尚未关闭的问题 |
-| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-01 计时失败不再改写计数.md>) | 最近的计时分离；此前的重整从该记录回溯 |
+| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>) | 最近的联合 mask 实现；计时分离见 [2026-11-01 计时失败不再改写计数](<docs/开发记录 Development Record/2026-11-01 计时失败不再改写计数.md>)，此前的重整从该记录回溯 |
 | [运行记录 Run Record](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>) | 历史测量。最近的离线计划在 [2026-11-01 离线 CPU 计划](<docs/运行记录 Run Record/2026-11-01 离线CPU计划.md>) |
 
 # 二、当前实现与使用边界

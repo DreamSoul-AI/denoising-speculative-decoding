@@ -269,7 +269,64 @@ class EMAVelocityMaskProvider:
             self._level = self._level + self.lam * (new_embed - self._level)
 
 
+class ObservationBlendMaskProvider:
+    """Protocol `trajectory-observation-blend-v1`.
+
+    m_j = mhat_j + g * (z_j - mhat_j), where mhat_j is the wrapped trajectory
+    provider's mask and z_j = softmax(l_j) @ E is the expected input embedding
+    under the previous verify forward's logits at mask slot j of the deepest
+    accepted node. Those logits predict exactly the token slot j stands in for.
+    The observation lives for one round and is never written into the
+    trajectory state, so g = 0 is the wrapped provider token for token.
+    """
+    needs_hidden = False
+
+    def __init__(self, base, embedding_table, gain):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('observation blend wraps input-embedding providers only')
+        if isinstance(gain, bool) or not isinstance(gain, (int, float)) or not 0 <= gain <= 1:
+            raise ValueError('observation gain must be a number in [0, 1]')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.embedding_table = embedding_table
+        self.gain = float(gain)
+        self._observation: Any = None
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        self._observation = None
+
+    def observe_mask_logits(self, mask_logits):
+        if mask_logits.shape[0] != self.num_masks:
+            raise ValueError('observation needs one logit row per mask slot')
+        if not torch.isfinite(mask_logits).any(dim=-1).all() or torch.isnan(mask_logits).any():
+            raise ValueError('observation logits need a finite candidate per row')
+        probs = torch.softmax(mask_logits.float(), dim=-1)
+        table = self.embedding_table
+        self._observation = probs.to(table.dtype) @ table
+
+    def observation(self):
+        return self._observation
+
+    def masks(self):
+        trajectory = self.base.masks()
+        if self._observation is None or self.gain == 0:
+            return trajectory
+        z = self._observation.to(trajectory.device, trajectory.dtype)
+        return trajectory + self.gain * (z - trajectory)
+
+    def on_token_committed(self, new_embed, prev_embed):
+        self.base.on_token_committed(new_embed, prev_embed)
+
+
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
+    observation = spec_cfg.get('observation')
+    if observation is not None:
+        base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'observation'}
+        if set(observation) != {'gain'}:
+            raise ValueError('spec.observation accepts only gain')
+        base = build_mask_provider(base_cfg, embedding_table, generator)
+        return ObservationBlendMaskProvider(base, embedding_table, observation['gain'])
     method = str(spec_cfg.get('method', 'esp')).lower()
     num_masks = int(spec_cfg.get('num_masks', 1))
     if method == 'esp':

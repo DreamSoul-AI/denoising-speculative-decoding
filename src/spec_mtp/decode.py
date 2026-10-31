@@ -227,6 +227,9 @@ class SpecDecoder:
             stats['output_hidden_prefill'] = {'observed_positions': t, 'scale': float(cast(HiddenMaskPolicy, provider).scale),
                                               'state_dtype': 'float32', 'final_normalized': True}
         mask_logits = logits[t:t + k].clone()                         # [k, V]
+        observe = getattr(provider, 'observe_mask_logits', None)
+        if observe is not None:
+            observe(mask_logits)
         model.crop_cache(cache, t)                                       # evict masks
 
         committed = [root_token]
@@ -365,6 +368,8 @@ class SpecDecoder:
             n_star = accepted_nodes[-1] if accepted_nodes else 0
             mask_rows = mask_indices_of(tree, k, n_star)
             mask_logits = logits[mask_rows].clone()
+            if observe is not None:
+                observe(mask_logits)
             if self.output_hidden:
                 proxy_hiddens = out.last_hidden_state[0, mask_rows].clone()
 

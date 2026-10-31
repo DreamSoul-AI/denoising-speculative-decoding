@@ -6,7 +6,20 @@
 
 主问题：在固定模型和固定验证规则下，联合使用历史 trajectory 与本轮 observation 的状态更新，是否比只用其中一侧更能提高接受效率，并且这种提高不能仅由“多利用了最后提交 token”解释。
 
-公式、状态更新和伪代码还没有写成可执行协议。在这三件事写清之前，不比较消融，不启动真实模型。
+## 默认公式 `trajectory-observation-blend-v1`
+会议没有给出公式。2026年11月1日按下面的默认定义推进，这是执行者的假设，负责人可以替换；替换后用新协议名，旧结果不改签。
+
+第 r 轮解码有 k 个 mask 槽。槽 j 在本轮代表“下一棵树第 j 层”的 token。
+
+- trajectory 预测 \(\hat m_j^{(r)}\)：现有 provider（ESP Eq 5 均值或 EMA 外推）的 mask，只由已提交 token 的嵌入更新，寿命为整次生成。
+- observation \(z_j^{(r)} = \mathrm{softmax}(\ell_j^{(r-1)})^\top E\)：上一次验证前向（第一轮用 prefill）在最深接受节点第 j 个 mask 槽上的 logits，对输入嵌入表 E 取期望。这组 logits 预测的正是槽 j 在本轮所代表的位置，不是刚提交的 token。寿命为一轮，不写回 trajectory 状态。
+- 联合：\(m_j^{(r)} = \hat m_j^{(r)} + g\,(z_j^{(r)} - \hat m_j^{(r)})\)，g 是评测前冻结的标量。
+
+g=0 为仅 trajectory，与原 provider 逐 token 相同；g=1 为仅 observation（prefill 仍用 trajectory 初值）；0<g<1 为联合。验证规则不变，所以 T0 输出与独立 AR 的关系和原方法相同。它与 `postcommit-final-norm-v1` 的差别是：observation 来自尚未提交位置的预测分布，而不是已提交 token 的最终 hidden；没有拟合 A、b，也没有协方差递推，不是 Kalman。仿射 K 作用在 z 上（z→Az+b）是下一步差距，目前不实现。
+
+A1 的检验口径是 `analysis.round_split`：按上一轮是否接受草稿，把解码轮分成 prefill 后、接受后和拒绝后三组，各自给出轮数、接受数、提交数和 τ。代码入口为 `spec.observation.gain`，实现与测试见 [2026-11-01 trajectory 与 observation 联合 mask](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>)。
+
+真实模型比较仍需另行批准。公式就位后，先做 CPU 合成检查。
 
 # 二、假设、替代解释和反驳条件
 | **编号** | **主张** | **会被什么结果反驳** |
@@ -65,7 +78,7 @@ K 的拟合只使用拟合划分。评测划分、同模型的另一数据集、
 
 | **阶段** | **完成标准** | **停止** |
 | --- | --- | --- |
-| 公式 | 写出状态变量、寿命、更新式和伪代码，并标明与 `postcommit-final-norm-v1` 的差异 | 公式仍能被读成“只是最后提交 token”或“就是现有 EMA”时，不进入实现 |
+| 公式 | 默认定义 `trajectory-observation-blend-v1` 已写在第一章，已实现于同一解码入口（2026年11月1日） | 负责人替换公式时改用新协议名 |
 | 合成检查 | CPU、合成输入、无网络。检查拟合/评测隔离、接受轮与拒绝轮的计数、仅 bias 与完整 K 的增量 | 泄漏、非有限值或计数口径分叉 |
 | 最小真实比较 | 在另行批准后，固定一个已有本地模型和一份隔离划分，跑上表中能够实现的臂 | 正确性门失败，或输出长度差异大到不能解释接受差异 |
 | 扩展 | 同模型另一数据集，然后才是另一模型；长距离外推、中间层校正、diffusion/flow matching 只在主问题有稳定结论后单独立项 | 用扩展结果回头修改主问题的成功标准 |

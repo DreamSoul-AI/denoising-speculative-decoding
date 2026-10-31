@@ -14,6 +14,30 @@ def prompt_tau(committed, decode_calls):
     return committed / decode_calls
 
 
+def round_split(trace):
+    """Decode rounds grouped by whether the previous round accepted a draft.
+
+    The first decode round follows prefill and is its own group. Each group
+    keeps rounds, accepted drafts and committed tokens; tau is per group.
+    """
+    groups = {name: {'rounds': 0, 'accepted': 0, 'committed': 0}
+              for name in ('after_prefill', 'after_accept', 'after_reject')}
+    previous = None
+    for row in trace:
+        accepted, committed = len(row['accepted_nodes']), len(row['committed_tokens'])
+        if committed < 1 or committed > accepted + 1:
+            raise ValueError('round must commit accepted drafts plus at most one bonus')
+        name = 'after_prefill' if previous is None else 'after_accept' if previous else 'after_reject'
+        group = groups[name]
+        group['rounds'] += 1
+        group['accepted'] += accepted
+        group['committed'] += committed
+        previous = accepted > 0
+    for group in groups.values():
+        group['tau'] = prompt_tau(group['committed'], group['rounds'])
+    return groups
+
+
 def _counts(row):
     for key in ('accepted', 'committed', 'decode_calls', 'new_tokens'):
         value = row[key]
