@@ -44,6 +44,33 @@ def test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only():
             assert all(pair['incomparable'] == 0 for pair in pairs.values())
 
 
+@pytest.mark.parametrize('tree', [{'num_masks': 1, 'branches': [3]}, {'num_masks': 2, 'branches': [3, 2]},
+                                  {'num_masks': 3, 'branches': [2, 2, 2]}])
+def test_oracle_masks_accept_full_depth_after_prefill(tree):
+    from spec_mtp.decode import SpecDecoder, ar_generate
+    from spec_mtp.masks import build_mask_provider
+    from spec_mtp.model import HFCausalLM
+
+    torch.manual_seed(3)
+    model = HFCausalLM(tiny_config={'vocab_size': 50, 'hidden_size': 32, 'intermediate_size': 64,
+                                    'num_layers': 2, 'num_heads': 4, 'num_kv_heads': 2,
+                                    'max_position_embeddings': 128})
+    model.hf.float()
+    prompt = torch.randint(0, 50, (1, 9), generator=torch.Generator().manual_seed(4))
+    eval_cfg = {'max_new_tokens': 25, 'temperature': 0.0, 'stop_on_eos': False}
+    reference = ar_generate(model, prompt, eval_cfg)[0]
+    spec = pilot.spec_for('esp', tree, 0.0)
+    # A random model often repeats one token; parent-repeat pruning would ban the true token.
+    spec['tree']['pruning'] = False
+    provider = pilot.OracleMaskProvider(build_mask_provider(spec, model.embedding_table), model.embedding_table,
+                                        reference[0, prompt.shape[1]:].tolist())
+    output, stats = SpecDecoder(model, spec, eval_cfg, mask_policy=provider).generate(prompt)
+    assert torch.equal(output, reference)
+    k = tree['num_masks']
+    later = [len(row['accepted_nodes']) for row in stats['trace'][1:] if not row['stopped']]
+    assert later and all(accepted == k for accepted in later)
+
+
 def test_output_inside_source_tree_is_rejected(tmp_path):
     with pytest.raises(ValueError, match='outside the source tree'):
         pilot.run(pilot.DEFAULT, pilot.Path(pilot.__file__).parent / 'never-created')

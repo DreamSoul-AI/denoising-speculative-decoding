@@ -10,6 +10,13 @@
   },
   "tests": [
     {
+      "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_oracle_masks_accept_full_depth_after_prefill",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
       "test_id": "tests/spec_mtp/test_observation_blend.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
       "target": "spec_mtp",
       "tags": [

@@ -101,7 +101,7 @@ K 的拟合只使用拟合划分。评测划分、同模型的另一数据集、
 | 范数七格与 11 格配对 | 暂停 |
 | `postcommit-final-norm-v1` | 工程夹具已实现；160 对与真实接受收益未执行 |
 | `trajectory-observation-blend-v1` CPU 合成三臂 | 完成；没有一致收益，ESP 仅观测 6 格全低于轨迹；小模型 mask 作用弱，功效有限 |
-| `trajectory-observation-rejection-v1` CPU 合成（探索） | EMA 联合·拒绝对 EMA 轨迹 104 胜 68 负（p=0.007），约 1–2% τ；事后提出，待新种子确认 |
+| `trajectory-observation-rejection-v1` CPU 合成 | 探索运行 EMA 联合·拒绝对 EMA 轨迹 104:68；新种子确认 102:71（p=0.022），主判据通过。但对 ESP 轨迹 88:94，ESP 上联合无益，H1 对最强基线未获支持 |
 | 采样分布保证、独立 AR 等价、端到端速度 | 未完成，不能由 T0 推广 |
 
 # 八、和开发计划的关系

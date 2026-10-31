@@ -195,6 +195,87 @@ def run_seed(config, seed):
     return result
 
 
+class OracleMaskProvider:
+    """Upper bound only: slot j of a depth-d owner gets the true embedding of the token it stands for.
+
+    Reads the AR reference continuation, i.e. future tokens. Positions past the
+    reference fall back to the wrapped trajectory masks. Not a decoding method.
+    """
+    needs_hidden = False
+
+    def __init__(self, base, embedding_table, continuation):
+        self.base, self.num_masks = base, base.num_masks
+        self.embedding_table = embedding_table
+        self.continuation = list(continuation)
+        self.committed = 0
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        self.committed = 0
+
+    def masks(self):
+        return self.base.masks()
+
+    def on_token_committed(self, new_embed, prev_embed):
+        self.base.on_token_committed(new_embed, prev_embed)
+        self.committed += 1
+
+    def masks_for_tree(self, tree):
+        trajectory = self.base.masks()
+        owners = trajectory.unsqueeze(0).repeat(1 + tree.num_nodes, 1, 1)
+        for owner, depth in enumerate([0] + list(tree.depths)):
+            for slot in range(self.num_masks):
+                index = self.committed - 1 + depth + slot + 1
+                if index < len(self.continuation):
+                    owners[owner, slot] = self.embedding_table[self.continuation[index]].to(trajectory.dtype)
+        return owners
+
+
+def run_oracle(config, seed):
+    """Trajectory versus oracle masks on the same model, prompts and trees as run_seed."""
+    generator = torch.Generator().manual_seed(seed)
+    content = config['content_vocab']
+    lang_a = make_language(content, config['branching'], config['sharpness'], generator)
+    lang_b = make_language(content, config['branching'], config['sharpness'], generator)
+    train = config['train']
+    half = train['sequences'] // 2
+    data = torch.cat([sample(lang_a, content, half, train['length'], generator),
+                      sample(lang_b, content + 1, half, train['length'], generator)])
+    session, losses = train_model(config, data, seed)
+    plan = config['prompts']
+    sample(lang_a, content, plan['fit'], plan['length'], generator)
+    splits = {'holdout': sample(lang_a, content, plan['holdout'], plan['length'], generator),
+              'cross': sample(lang_b, content + 1, plan['cross'], plan['length'], generator)}
+    eval_cfg = {'max_new_tokens': config['max_new_tokens'], 'temperature': 0.0, 'stop_on_eos': False}
+    result = {'seed': seed, 'train_losses': losses, 'trees': []}
+    for tree in config['trees']:
+        entry = {'tree': tree, 'splits': {}}
+        for split, rows in splits.items():
+            arms = {}
+            for name in ('esp_trajectory', 'esp_oracle'):
+                out = []
+                for index in range(rows.shape[0]):
+                    prompt = rows[index:index + 1]
+                    reference = ar_generate(session, prompt, eval_cfg)[0]
+                    spec = spec_for('esp', tree, 0.0)
+                    provider = build_mask_provider(spec, session.embedding_table)
+                    if name == 'esp_oracle':
+                        provider = OracleMaskProvider(provider, session.embedding_table,
+                                                      reference[0, prompt.shape[1]:].tolist())
+                    decoder = SpecDecoder(session, spec, eval_cfg, generator=torch.Generator().manual_seed(0),
+                                          mask_policy=provider)
+                    output, stats = decoder.generate(prompt)
+                    out.append({'qid': f'{split}-{index}', 'accepted': stats['accepted'],
+                                'committed': stats['committed'], 'decode_calls': stats['decode_calls'],
+                                'new_tokens': stats['new_tokens'], 'rounds': round_split(stats['trace']),
+                                'argmax_passed': stats['verification_argmax_audit']['passed'],
+                                'ar_equal': bool(torch.equal(output, reference))})
+                arms[name] = {**pooled(out), 'rows': out}
+            entry['splits'][split] = arms
+        result['trees'].append(entry)
+    return result
+
+
 def source_identity():
     root = Path(__file__).resolve().parents[3]
     try:
@@ -206,13 +287,14 @@ def source_identity():
     return {'git_head': head, 'dirty': dirty}
 
 
-def run(config, output):
+def run(config, output, oracle=False):
     output = Path(output)
     root = Path(__file__).resolve().parents[3]
     if output.resolve().is_relative_to(root):
         raise ValueError('pilot output must stay outside the source tree')
     output.mkdir(parents=True, exist_ok=False)
-    header = {'protocol': PROTOCOL, 'scope': 'CPU synthetic pilot; not a real-model, speed or sampling result',
+    header = {'protocol': PROTOCOL + ('-oracle-bound' if oracle else ''),
+              'scope': 'CPU synthetic pilot; not a real-model, speed or sampling result',
               'config': config, 'config_sha256': hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest(),
               'source': source_identity(), 'torch': torch.__version__, 'python': platform.python_version(),
               'platform': platform.platform(), 'device': 'cpu', 'dtype': 'float32'}
@@ -220,7 +302,7 @@ def run(config, output):
         json.dump(header, handle, indent=2)
     results = []
     for seed in config['seeds']:
-        result = run_seed(config, seed)
+        result = (run_oracle if oracle else run_seed)(config, seed)
         with (output / f'seed-{seed}.json').open('x', encoding='utf-8') as handle:
             json.dump(result, handle, indent=2, allow_nan=False)
         results.append(result)
@@ -231,12 +313,13 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', required=True)
     parser.add_argument('--seeds', type=int, nargs='*')
+    parser.add_argument('--oracle-bound', action='store_true',
+                        help='trajectory versus future-token oracle masks; an upper bound, not a method')
     args = parser.parse_args(argv)
     config = json.loads(json.dumps(DEFAULT))
     if args.seeds:
         config['seeds'] = args.seeds
-    torch.set_num_threads(max(1, torch.get_num_threads()))
-    run(config, args.output)
+    run(config, args.output, oracle=args.oracle_bound)
 
 
 if __name__ == '__main__':
