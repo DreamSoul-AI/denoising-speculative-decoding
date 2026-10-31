@@ -89,6 +89,24 @@ def test_masks_follow_the_blend_and_never_write_back():
     assert torch.allclose(full.masks(), z)
 
 
+def test_owner_depth_shifts_the_observation_and_falls_back_past_k():
+    torch.manual_seed(1)
+    table = torch.randn(30, 5)
+    blend = ObservationBlendMaskProvider(ESPMaskProvider(3, table), table, 0.5)
+    blend.init_from_prompt(torch.randn(6, 5))
+    trajectory = blend.base.masks()
+    assert torch.equal(blend.masks_by_depth(), trajectory.expand(4, 3, 5))
+    blend.observe_mask_logits(torch.randn(3, 30))
+    z = blend.observation()
+    by_depth = blend.masks_by_depth()
+    for depth in range(4):
+        for slot in range(3):
+            target = depth + slot
+            expected = trajectory[slot] + 0.5 * (z[target] - trajectory[slot]) if target < 3 else trajectory[slot]
+            assert torch.allclose(by_depth[depth, slot], expected)
+    assert torch.equal(blend.masks(), by_depth[0])
+
+
 def test_decoder_observes_prefill_and_every_continuing_round():
     model = _model()
     spec = _spec('esp', 2, 'static', gain=0.5)

@@ -272,10 +272,11 @@ class EMAVelocityMaskProvider:
 class ObservationBlendMaskProvider:
     """Protocol `trajectory-observation-blend-v1`.
 
-    m_j = mhat_j + g * (z_j - mhat_j), where mhat_j is the wrapped trajectory
-    provider's mask and z_j = softmax(l_j) @ E is the expected input embedding
-    under the previous verify forward's logits at mask slot j of the deepest
-    accepted node. Those logits predict exactly the token slot j stands in for.
+    z_i = softmax(l_i) @ E is the expected input embedding under the previous
+    verify forward's logits at mask slot i of the deepest accepted node; they
+    predict the token at depth i of the current tree. Slot j of an owner at
+    depth d stands in for depth d + j, so
+        m[d, j] = mhat_j + g * (z_{d+j} - mhat_j)   if d + j <= k, else mhat_j.
     The observation lives for one round and is never written into the
     trajectory state, so g = 0 is the wrapped provider token for token.
     """
@@ -308,12 +309,21 @@ class ObservationBlendMaskProvider:
     def observation(self):
         return self._observation
 
-    def masks(self):
+    def masks_by_depth(self):
+        """[k + 1, k, d]: masks for owners at tree depth 0..k."""
         trajectory = self.base.masks()
+        k = self.num_masks
+        out = trajectory.unsqueeze(0).repeat(k + 1, 1, 1)
         if self._observation is None or self.gain == 0:
-            return trajectory
+            return out
         z = self._observation.to(trajectory.device, trajectory.dtype)
-        return trajectory + self.gain * (z - trajectory)
+        for depth in range(k):
+            slots = k - depth
+            out[depth, :slots] = trajectory[:slots] + self.gain * (z[depth:] - trajectory[:slots])
+        return out
+
+    def masks(self):
+        return self.masks_by_depth()[0]
 
     def on_token_committed(self, new_embed, prev_embed):
         self.base.on_token_committed(new_embed, prev_embed)
