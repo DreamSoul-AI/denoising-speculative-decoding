@@ -210,10 +210,11 @@ class OracleMaskProvider:
     """
     needs_hidden = False
 
-    def __init__(self, base, embedding_table, continuation):
+    def __init__(self, base, embedding_table, continuation, first_slot=0):
         self.base, self.num_masks = base, base.num_masks
         self.embedding_table = embedding_table
         self.continuation = list(continuation)
+        self.first_slot = int(first_slot)
         self.committed = 0
 
     def init_from_prompt(self, prompt_embeds, generator=None):
@@ -231,7 +232,7 @@ class OracleMaskProvider:
         trajectory = self.base.masks()
         owners = trajectory.unsqueeze(0).repeat(1 + tree.num_nodes, 1, 1)
         for owner, depth in enumerate([0] + list(tree.depths)):
-            for slot in range(self.num_masks):
+            for slot in range(self.first_slot, self.num_masks):
                 index = self.committed - 1 + depth + slot + 1
                 if index < len(self.continuation):
                     owners[owner, slot] = self.embedding_table[self.continuation[index]].to(trajectory.dtype)
@@ -259,16 +260,18 @@ def run_oracle(config, seed):
         entry = {'tree': tree, 'splits': {}}
         for split, rows in splits.items():
             arms = {}
-            for name in ('esp_trajectory', 'esp_oracle'):
+            for name, first_slot in (('esp_trajectory', None), ('esp_oracle', 0), ('esp_oracle_after_bonus', 1)):
+                if first_slot is not None and first_slot >= tree['num_masks']:
+                    continue
                 out = []
                 for index in range(rows.shape[0]):
                     prompt = rows[index:index + 1]
                     reference = ar_generate(session, prompt, eval_cfg)[0]
                     spec = spec_for('esp', tree, 0.0)
                     provider = build_mask_provider(spec, session.embedding_table)
-                    if name == 'esp_oracle':
+                    if first_slot is not None:
                         provider = OracleMaskProvider(provider, session.embedding_table,
-                                                      reference[0, prompt.shape[1]:].tolist())
+                                                      reference[0, prompt.shape[1]:].tolist(), first_slot)
                     decoder = SpecDecoder(session, spec, eval_cfg, generator=torch.Generator().manual_seed(0),
                                           mask_policy=provider)
                     output, stats = decoder.generate(prompt)
