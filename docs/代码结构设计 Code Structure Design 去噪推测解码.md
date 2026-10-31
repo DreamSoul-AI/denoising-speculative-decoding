@@ -1,10 +1,10 @@
 **去噪推测解码 代码结构设计**
-更新日期：2026年10月21日。状态：目标结构，尚未实施。本文维护目标文件职责与依赖，行为合同由 [架构设计](<去噪推测解码 架构设计.md>) 维护。
+更新日期：2026年10月31日。状态：宿主包与 K Study 夹具已按本文落位。行为合同由 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 维护，尚未完成的迁移见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。
 
 # 一、目录原则与范围
-宿主使用 `src/spec_mtp/` 的标准 Python 包布局，按科学责任组织。`flow/structure` 只用于 Study 声明和实际适配，不把宿主机械切成 RPipe 两柱。目标保留已有 Python3.10 下限与已固定依赖，目录设计不授权新增或升级依赖。
+宿主使用 `src/spec_mtp/` 的标准 Python 包。Study 只在自己的声明和确需适配里使用 `flow/structure`，不把宿主再切成 RPipe 两柱。依赖下限保持 Python 3.10 与已固定的 Transformers，目录调整不授权升级依赖。
 
-当前源码仍为旧 `flow/structure` 组织，本轮没有移动实现。下面是待评审目标，按完整行为增量落位，不批量生成空文件，也不按旧文件逐一改名。目标删除/兼容涉及旧代码与配置时另按用户范围确认。
+下面的树是当前源码责任，不是另一套待建空目录。历史 Study 声明保留在 `studies/`，不因本树没有逐一展开就被删除。第三方 ESP 树和固定 `src/rpipe/` 保持原字节。
 
 # 二、目标目录
 ```text
@@ -30,7 +30,7 @@ denoising-speculative-decoding/
 │   │       └── upstream/                 # 第三方原树整体，保持现有成员及字节
 │   └── rpipe/                            # 固定上游完整树，不在本设计内重新拆分
 ├── studies/
-│   └── k_affine_residual/        # 已选独立研究，当前尚未实现
+│   └── k_affine_residual/        # 合成夹具；协议 postcommit-final-norm-v1
 │       ├── study.yaml
 │       ├── experiment_config.yaml
 │       ├── structure/
@@ -77,10 +77,15 @@ denoising-speculative-decoding/
 │   │       └── process/test_run.py
 │   └── tools/test_run_tests.py
 └── docs/
-    ├── 去噪推测解码 通用调研.md
-    ├── 去噪推测解码 架构设计.md
-    ├── 去噪推测解码 代码结构设计.md
-    └── 去噪推测解码 研究计划.md
+    ├── 通用调研 General Research 去噪推测解码.md
+    ├── 文献调研 Literature Review 去噪推测解码.md
+    ├── 架构设计 Architecture Design 去噪推测解码.md
+    ├── 代码结构设计 Code Structure Design 去噪推测解码.md
+    ├── 研究计划 Research Plan 去噪推测解码.md
+    ├── 开发计划 Development Plan 去噪推测解码.md
+    ├── 缺陷记录 Bug Report 去噪推测解码.md
+    ├── 开发记录 Development Record/
+    └── 运行记录 Run Record/
 ```
 
 目录树具体展开此次目标科学模块、K Study 和测试。其它既有 Study 声明、`configs/`、诊断工具和旧实现当前保留，未来迁移按实际研究用途逐项确认，不由此树省略推定删除授权。纯命名空间 `__init__.py` 及固定第三方依赖不递归生成同名测试，包导入副作用由 `test_main.py` 验证。第三方路径的中间命名空间按现有字节保留，不为标准布局移动来源。
@@ -198,16 +203,19 @@ forbidden_modules =
 | `datasets/spec_bench/` | 当前原始静态数据，保留来源与字节，不当运行缓存删 |
 | `tests/manifest.json` | 静态计划和用例元数据，可入 Git，不与同名运行 manifest 混用 |
 | 显式外部运行/验证根 | 冻结输入、K、raw token/审计/trace、日志、逐项结果及可重建报告，不进源树 Git |
-| `docs/` | 唯一四份正文，历史摘要集中通用调研，不复制测试或 Study 报告 |
+| `docs/` | 唯一当前入口；历史测量在运行记录，演进在开发记录 |
 
 第三方 upstream 的八份来源成员（README、四份 code、三份 results）以及 `ORIGIN.json` 属来源完整性例外，仍保留其原位置和字节。固定 RPipe 全树也不是本轮第一方文档上限的清理对象。
 
 # 八、当前差距与实施检查
-当前 `spec_mtp` 源码分散于旧 `structure/flow`，含根 facade、诊断工具和 Study 根 recipe。上述目标尚无新代码文件，当前固定 RPipe 仍把运行产物放 Study，外部运行根需上游兼容能力。旧文档测试、旧计划 hash 恢复和正式 provenance 声明仍引用已删的历史路径，本轮没有改测试/配置来假装可执行。
+宿主文件、K 夹具和测试镜像已经落在上表位置。仍待处理的是职责残留，不是再造一套目录：
 
-实施时逐步核对：先满足科学输入/状态/审计合同，再落具体模块与测试；每次移动保留错误处理、原始外部输入校验及当前科学语义；更新消费者、打包/入口、来源与静态测试计划后再删旧代码。旧 `spec-mtp make/launch/process` 的兼容策略先明确，不静默改变默认行为。K 先 CPU 小规模，不在架构实施中夹带真实模型实验。
+- `SpecDecoder.generate` 的统计字典同时保存接受计数和墙钟字段。汇总时计数与计时已经分开计算，但解码器仍把两类数放在同一个 dict。拆开会改变既有读取合同，留在开发计划。
+- `studies/_shared/structure/evaluate.py` 仍负责预热、计时和 CSV。它调用宿主解码器，不再自己计算 τ。
+- 固定 `src/rpipe/` 仍是 v0.3.1。是否改为跟随上游模板，见开发计划的待确认项。
+- 2026年10月31日会议提出的 trajectory 与 observation 联合校正没有代码。现有 K Study 不能代替它。
 
-本文依据已读取《代码规范》《测试规范 代码》、软件架构设计四资料及 RPipe 共同 Study 合同。采用清楚职责、状态权威、最小接口、具体镜像与可检查依赖，未安装 Import Linter 或修改配置，不声称目标结构已实现或测试已通过。
+旧 `spec-mtp make/launch/process` 会明确拒绝并指向 `python -m studies._shared.flow.cli`。删除历史 Study、第三方树或原始数据不在本次范围。
 
 ## 本分支落位
 上述科学模块已迁移，旧 `structure/algorithm/reference` 仅保留不可改的 ESP 来源树。科学 CLI 不再代理研究调度，Study 共享接入在 `studies/_shared/`，K 的三个科学函数和 collect/summarize/process 适配位于本章规定位置。只读来源 manifest 覆盖科学包与被复用的 `_shared` 接入。

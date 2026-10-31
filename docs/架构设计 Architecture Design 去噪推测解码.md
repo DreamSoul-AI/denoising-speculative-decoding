@@ -1,5 +1,5 @@
 **去噪推测解码 架构设计**
-更新日期：2026年10月21日。状态：目标设计；本分支已落位科学包与薄适配，当前验证范围见 PR 正文。机制与历史证据见 [通用调研 General Research](<通用调研 General Research 去噪推测解码.md>)，目标落位见 [代码结构设计](<去噪推测解码 代码结构设计.md>)，实验范围见 [研究计划](<去噪推测解码 研究计划.md>)。
+更新日期：2026年10月31日。状态：当前选定设计。科学包与 Study 薄适配已落在源码中；实现差距和验收顺序见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。机制见 [通用调研 General Research](<通用调研 General Research 去噪推测解码.md>)，历史数字见 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，文件职责见 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，实验问题见 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。
 
 # 一、从研究目标推导架构
 ## （一）目标、上下文与约束
@@ -101,7 +101,7 @@ flowchart TB
 
 箭头仅表示 import/类型引用。解码通过注入模型会话进入具体接入，源码不导入 HF 接入。科学包不导入 `rpipe`、`studies` 或 `tools`。数据与模型不导入解码，审计/分析不导入模型，科学模块不写 Study 的 process/result。跨研究复用进入宿主公共入口，Study 内部私有函数不被宿主反向导入。
 
-目标具体文件与允许依赖只在 [代码结构设计](<去噪推测解码 代码结构设计.md>) 维护。Import Linter 草案用于静态边界，不证明动态导入、数据泄漏、状态或数值合同正确，当前未安装/配置。
+目标具体文件与允许依赖只在 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>) 维护。Import Linter 草案用于静态边界，不证明动态导入、数据泄漏、状态或数值合同正确，当前未安装/配置。
 ## （二）一次完整研究运行
 ```mermaid
 sequenceDiagram
@@ -201,7 +201,7 @@ Study 的 `study.yaml` 说明因素、seed、扩展及冻结声明，`experiment
 
 当前 `python -m spec_mtp` 的 RPipe 代理与 console API 有兼容消费者。目标科学 CLI 提供显式 decode/audit/compare，Study 执行使用 RPipe 入口。旧 make/launch/process 等的保留、转发或弃用需实施前逐项确认，不能在纯文档阶段承诺参数兼容，也不能因此让科学宿主依赖框架内部。
 
-已选的 `k_affine_residual` 目标 Study 先以 CPU postcommit 小样本验证 K=[A,b]，再封存完整 K 与独立 bias-only 跨数据集比较三臂。m 为已提交前缀 P 的连续均值 embedding，y 为刚提交 token，按同一因果位置提取 z(m)/z(y)，不使用下一词标签。拟合为 float64 中心化 ridge λ=.001、截距不正则，仅 bias 独立拟合 b0，不能复用完整 K 的 b。先冻结 K/b0/fit IDs/hash，才提取 holdout/cross，测试数据不得回流拟合。该研究特有方法先在 Study `structure/` 落位，公共模型接入/审计/分析复用宿主，不改 decoder 或预建通用校正框架。当前 dev 无实现，本轮不执行，也不把 latent MSE 改善写成真实接受提升。操作定义及固定旧计划定位见研究计划第五章。
+已选的 `k_affine_residual` 在 Study `structure/` 实现协议 `postcommit-final-norm-v1`：m 为已提交前缀的连续均值 embedding，y 为刚提交 token，同一因果位置比较最终归一化 hidden。拟合为 float64 中心化 ridge λ=.001，截距不正则；仅 bias 使用独立 b0。先冻结 K 再读 holdout/cross。当前 Study 配置是合成 token 的工程夹具，不是 160 对数据协议，也不是 2026年10月31日会议中的 trajectory 与 observation 联合更新。代码拒绝把 Kalman 或 trajectory/observation 名称当成已实现协议。latent MSE 不能写成接受率提升。公式与对照见研究计划。
 
 # 七、验证、测试与 CI/CD
 ## （一）合同到用例
@@ -226,7 +226,7 @@ Study 的 `study.yaml` 说明因素、seed、扩展及冻结声明，`experiment
 
 结果逐项落盘到独立验证根，含 run_id、plan_id、test_id、attempt、五维、环境/源提交/基线、status、verdict、metrics、cost、duration、failure 和 artifacts，保留 setup/call/teardown。纯测量 `measured/verdict=null`，有质量门才 passed/failed，error/timeout/missing 和不允许的 skipped 阻断。中断可从已存记录重建部分报告，不用“已执行子集通过”替代完成。
 ## （三）当前未完成项与发布边界
-本轮只进行静态文档/链接/范围及离线 P01。旧 `test_docs_index.py` 读 `docs/layout.md`，`test_docs.py` 固定双语计划/归并 manifest，部分 Study provenance 和分析器引用已删除运行证据；测试/配置保持未改，预期不能全绿。后续实施须改真实合同和消费者，不保留重复文档骗过字符串测试。
+离线 CPU 计划覆盖科学宿主、Study 接入和 K 合成夹具。历史原件重放与真实模型实验分开登记。本轮不改 Actions、保护规则或依赖版本。测试通过只说明工程合同，不说明论文目标或速度收益。未执行项见开发计划和运行记录。
 
 当前 Actions 的 `cpu-checks` 在 PR 及其既定分支运行 Ubuntu/Python3.12，Branch flow 检查工作分支 → dev → main。本轮不改工作流、保护、pin 或自动合并。未来按受影响合同、本地假路径、包安装和必要 GPU 条件分阶段验证，结果绑定实际提交、目标基线、环境及交付文件哈希。源码测试与构建完成不代表已发布。
 
@@ -242,7 +242,7 @@ Study 的 `study.yaml` 说明因素、seed、扩展及冻结声明，`experiment
 
 实施候选顺序为：先冻结科学合同与可枚举 CPU 反例，再迁移纯 mask/tree/analysis，随后迁移 model/decode/audit 与测试镜像，最后改 Study/CLI/来源与运行根接入。每步核对实际 token/计数/错误行为，不能把目录移动本身当行为等价。旧消费者、静态配置及测试需随实际改造完整更新，删除其它源码或数据仍先核用户范围。
 
-方法依据为关联 DreamSoul 架构设计四资料、CPU 内存清理固定样板及已读取研发规范，具体范围见通用调研第七章。质量场景、黑盒表、源码/运行/部署与简约取舍是本项目裁剪，没有执行正式 ATAM 或标准符合性认证。本文描述待评审目标，不表示实现、实验和 CI 已完成。
+质量场景、黑盒职责、源码/运行/部署分离和简约取舍是本项目的裁剪。固定 RPipe 副本仍是 v0.3.1，不把参考仓的后续演进写成已升级。本文描述当前选定职责；源码映射以代码结构设计为准，完成状态以运行记录为准。
 
 ## （四）本分支的 CPU 验证边界
 `tests/manifest.json` 是静态用例清单，`tools/run_tests.py` 仅适配 pytest 选择和逐项记录，不参与 GitHub 工作流。CPU 计划包括科学宿主、实际 Study 接入、损坏/缺失/配对/来源拒绝及 K 合成工程合同。历史重放项按精确 selector 列出删除的原件和未执行原因，不用合成样例冒充历史。混合用例已把静态配置合同与原件重放拆开，静态合同继续必需。

@@ -1,18 +1,23 @@
 # 去噪推测解码
 研究免训练多 token 起草与验证：以 ESP 为参照，比较输入嵌入 EMA、速度外推和输出隐藏状态掩码。中文名称为“去噪推测解码”。仓库地址：[DreamSoul-AI/denoising-speculative-decoding](https://github.com/DreamSoul-AI/denoising-speculative-decoding)。
 
-截至2026年10月21日，8B 非官方 Table 1 独立复验已完成，论文目标未复现，关键结果及证据边界见 [通用调研 General Research](<docs/通用调研 General Research 去噪推测解码.md>)。提交 token 的验证前向 argmax 自检与独立 AR 一致率分别报告，τ 是提交数与解码调用数之比，不能据此认定实际速度收益。
+截至2026年10月21日的 8B 非官方 Table 1 独立复验已经完成，论文目标未复现。数字和原件在 [历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>)。提交 token 的验证前向 argmax 自检与独立 AR 一致率分别报告，τ 是提交数与解码调用数之比，不能据此认定实际速度收益。
 
-K=[A,b] 仿射残差校正已于2026年10月20日确认作为独立 Study 路线，先 CPU 小规模，再冻结 K 作跨数据集三臂对照。本分支提供独立 Study 的合成微型随机模型工程验证，尚未执行原定160对数据协议，未证明命中率或泛化提升。
+已实现的 K 校正是协议 `postcommit-final-norm-v1` 的合成工程夹具，不是 2026年10月31日会议中的 trajectory 与 observation 联合更新，也不是 Kalman 滤波。160 对数据协议和真实模型收益都还没有执行。问题与停止条件见 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)。
 
 # 一、文档入口
 | **文档** | **维护内容** |
 | --- | --- |
 | [协作约定](AGENTS.md) | 资料定位、适用规范及执行边界 |
-| [通用调研 General Research 去噪推测解码](<docs/通用调研 General Research 去噪推测解码.md>) | 技术机制、来源比较与证据边界；现存历史结果待归日期记录 |
-| [去噪推测解码 架构设计](<docs/去噪推测解码 架构设计.md>) | 目标质量场景、职责、接口、状态、部署和验证 |
-| [去噪推测解码 代码结构设计](<docs/去噪推测解码 代码结构设计.md>) | 目标 Python 包、文件责任、依赖及测试镜像 |
-| [去噪推测解码 研究计划](<docs/去噪推测解码 研究计划.md>) | 唯一中文计划、Study 问题与暂停/恢复条件 |
+| [通用调研 General Research 去噪推测解码](<docs/通用调研 General Research 去噪推测解码.md>) | 机制、方案、直接来源与当前判断 |
+| [文献调研 Literature Review 去噪推测解码](<docs/文献调研 Literature Review 去噪推测解码.md>) | 已读文献、阅读深度和与本项目的关系 |
+| [架构设计 Architecture Design 去噪推测解码](<docs/架构设计 Architecture Design 去噪推测解码.md>) | 职责、状态、流程、质量目标和取舍 |
+| [代码结构设计 Code Structure Design 去噪推测解码](<docs/代码结构设计 Code Structure Design 去噪推测解码.md>) | 模块责任、接口、依赖和测试镜像 |
+| [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 研究问题、假设、对照和停止规则 |
+| [开发计划 Development Plan 去噪推测解码](<docs/开发计划 Development Plan 去噪推测解码.md>) | 剩余工程、验收和待确认的来源策略 |
+| [缺陷记录 Bug Report 去噪推测解码](<docs/缺陷记录 Bug Report 去噪推测解码.md>) | 尚未关闭的问题 |
+| [开发记录 Development Record](<docs/开发记录 Development Record/2026-10-31 工程重构与文档重整.md>) | 本次结构调整及迁移 |
+| [运行记录 Run Record](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>) | 历史测量；新的执行另写日期记录 |
 
 # 二、当前实现与使用边界
 当前安装包为 `denoise-spec-mtp`，科学包 `spec_mtp` 按 `contracts/data/model/decode/masks/tree/audit/analysis/cli` 分工。`python -m spec_mtp` / `spec-mtp` 提供 `decode/audit/compare`；旧 make/launch/process 研究命令明确拒绝并提示使用 `python -m studies._shared.flow.cli`。只有 `studies/` 使用 RPipe 薄适配。
@@ -34,8 +39,4 @@ K=[A,b] 仿射残差校正已于2026年10月20日确认作为独立 Study 路线
 
 Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproject.toml)，当前研究宿主为 `spec_mtp`。目录入口：[产品或库源码](src/spec_mtp/)、[研究声明与适配](studies/)、[测试](tests/)、[当前文档](docs/)。运行与测试按本 README、相关设计和实际配置选择，不把历史命令视为新的实验授权。
 
-已有通用调研 General Research、架构设计、代码结构设计和研究计划，入口见上表。文献调研、开发计划、缺陷记录、开发记录 Development Record 与运行记录 Run Record 尚未建立独立当前入口，待按实际研究与开发进展补齐。现有研究计划不能替代开发计划，通用调研不能替代文献调研；历史结果仍按各文档的来源和版本解释。
-
-文档职责按 AGENTS.md 维护：通用调研只回答机制、方案、来源与当前判断，历史设计、迁移和修复经过归开发记录，实际执行及旧结果归运行记录，不保留历史摘要章。设计呈现当前选定方向及实现差距，计划维护后续工作与判据。已有内容尚未符合时逐文件迁移并登记缺口，不能只改名或把旧验证记为当前结果。
-
-通用调研已采用“通用调研 General Research 项目名称.md”。其余现有专项文件沿用历史“项目名 文档类型”名称，通过上表定位，作为本仓现阶段的命名例外登记；新建或后续迁移采用 AGENTS.md 的“文档类型 [English Name] 项目名称.md”，改名时同步所有消费者与引用，不自动批量迁移。
+文档职责按 AGENTS.md 维护。通用调研不代替文献调研，研究计划不代替开发计划。历史测量在运行记录，结构调整在开发记录。飞书规范正文本次没有读到，入口索引不能代替那些正文。

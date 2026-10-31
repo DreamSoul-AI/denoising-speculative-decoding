@@ -1,5 +1,5 @@
 **去噪推测解码 通用调研**
-更新日期：2026年10月21日。中文名为建议名。研究范围为免训练多 token 预测、ESP、输入/输出掩码及接受验证。本文集中维护机制与实际证据，目标合同见 [架构设计](<去噪推测解码 架构设计.md>)，后续实验见 [研究计划](<去噪推测解码 研究计划.md>)。
+更新日期：2026年10月31日。研究范围是免训练多 token 预测、ESP、输入/输出掩码和接受验证。本文维护机制、方案、直接来源和当前判断。历史数字在 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，职责在 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>)，待检验问题在 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。学术阅读深度在 [文献调研](<文献调研 Literature Review 去噪推测解码.md>)。
 
 # 一、核心问题与结论
 本项目要回答：没有辅助训练或额外起草模型时，怎样从同一目标模型获得多个候选，哪些掩码与树结构能提高接受效率，以及什么证据足以支持正确性和收益判断。
@@ -51,11 +51,11 @@ flowchart LR
 
 EMA 可平滑历史变化，但这本身不提供噪声观测模型、协方差、Kalman 增益或最优估计证明。“去噪推测解码”为项目建议名，本仓未实现 diffusion 去噪模型或 Kalman 滤波。输出一阶的直觉需要由配对负例和状态干预检验，不能由公式名称认定成立。
 
-Enmao 于2026年10月20日20:57确认的 K=[A,b] 路线采用 `z′=z+A[e(y)−e(m)]+b` 仿射残差校正，独立 Study 先做 CPU 小规模，再冻结 K 检验跨数据集，无校正/仅 bias/完整 K 三臂。该选择是最新研究决策，当前基线未含实现和新结果，不把旧分支来源当当前代码。仿射校正与真正 Kalman 的协方差/增益递推分开，尚未证明 data-independence 或命中率提升，具体对齐与防泄漏合同见研究计划第五章。
+2026年10月20日确认的记号是 `K=[A,b]`，形式为 `z′=z+A[e(y)−e(m)]+b`。仓库里已经实现的只有协议 `postcommit-final-norm-v1`：在已经提交的 token 上做 float64 中心化 ridge，并保留无校正、仅 bias、完整 K 三臂。它不是 Kalman 滤波，也不是用历史 trajectory 和本轮 verify observation 更新状态。合成 tiny 模型只检查工程路径。跨数据集收益和命中率都还没有这次测量。对照条件见研究计划。
 ## （三）四种正确性与效果问题
 | **问题** | **需要的证据** | **现有范围** |
 | --- | --- | --- |
-| 提交是否服从这次验证 | 提交 token、forward/row/owner、argmax、输入/输出哈希与完整覆盖 | T0 正确性门已实现，历史结果在第五章，当前未重跑 |
+| 提交是否服从这次验证 | 提交 token、forward/row/owner、argmax、输入/输出哈希与完整覆盖 | T0 正确性门已实现，历史数字在运行记录，当前未重跑 |
 | 是否等于独立 AR | 同模型/输入/预算的完整独立序列、首分叉与长度 | BF16 历史有大量差异，只诊断；不以自检覆盖它 |
 | 随机采样是否保持目标分布 | 明确算法前提、随机数合同、分布推导与适当验证 | 本仓未完成一般保证；共享 generator 的路径观察不足以单独证明 |
 | 是否实际更快/更省 | 同质量与输出协议、硬件/预热/同步、完整端到端时长/资源 | 此阶段不测速，零计时占位不作测量 |
@@ -82,67 +82,8 @@ Enmao 于2026年10月20日20:57确认的 K=[A,b] 路线采用 `z′=z+A[e(y)−e
 | 质量与进度分开 | execute 完成、来源完整、数学自检、论文目标分别可能失败 | 多维结果不压成一个 success/complete |
 | 先满足当前研究规模 | 尚无远程伸缩或多后端平台需求 | 单机模块和一个执行协调者，不建服务与通用插件市场 |
 
-# 五、历史结果的有效矩阵
-## （一）8B 非官方 Table 1 独立复验
-固定 SpecBench480、Qwen3-8B、BF16/T0、seed123、256/EOS、λ=0.1 更新均值、动态树剪枝、单 mask。BC10/30/60 的最大草稿节点为4/14/29。正确性门为每个提交 token 等于其验证前向对应 logits 的 argmax，覆盖首 token、owner、行位置、完整提交链和哈希。独立 AR 一致率只诊断。
-
-| **BC** | **pooled τ** | **prompt mean τ** | **category mean τ** | **论文对照** | **自检 token** | **AR exact/480** |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 10 | 1.399047031 | 1.431765889 | 1.403033561 | 未指定 | 79,757 | 188 |
-| 30 | 1.563377504 | 1.593232237 | 1.563387272 | 1.63 | 79,762 | 175 |
-| 60 | 1.647301264 | 1.669498033 | 1.649693144 | 1.74 | 79,618 | 185 |
-
-三格原生 Run 与 Study process 历史记录为成功，合计239,137 token 自检通过。BC30/60 距论文−0.066622496/−0.092698736。三种聚合均未达到对应目标，独立复验与旧完整结果逐 prompt 计数相同。来源为下方 H01，不是本轮重新执行。
-
-pooled τ=Σ解码阶段实际提交 token/Σdecode calls，prefill 首 token 不进分子分母。prompt mean 为逐条等权均值，category mean 先在类别内 pooled 再类别等权。作者任务权重尚未确认。接受数可能在 EOS/预算裁剪前计算，不能与裁剪后 committed 混用，也不能把 τ 当实测加速倍数。
-## （二）4B BF16 五方法加 AR
-固定480条、seed123、BF16/T0、256/EOS，双 mask 动态剪枝树，BC30/60 对应9/19草稿节点。五方法×两预算加单次 AR 共11个 Run 完成，10个 Spec Run 共809,118提交 token 的 argmax 自检通过。以下为 pooled τ，完整比较在 H02 的固定历史原件。
-
-| **方法** | **BC30 τ** | **BC60 τ** | **BC30 accepted / 总 calls** | **BC60 accepted / 总 calls** |
-| --- | ---: | ---: | ---: | ---: |
-| frozen mean | 1.402894760 | 1.499078504 | 23,188 / 57,825 | 26,913 / 54,197 |
-| 输入零阶 | 1.422420206 | 1.519108823 | 23,926 / 56,938 | 27,523 / 53,309 |
-| 输入一阶 | 1.511957584 | 1.636339710 | 27,371 / 53,668 | 31,611 / 49,875 |
-| 输出零阶 | 1.433178245 | 1.528922466 | 24,382 / 56,577 | 27,828 / 52,896 |
-| 输出一阶 | 1.435539512 | 1.529835528 | 24,573 / 56,716 | 27,903 / 52,951 |
-
-总 calls 包含 prefill，与 τ 的分母不同。输出一阶相对零阶在 BC30/60 accepted 增191/75，calls 也增139/55，输出 token 增332/132，prompt mean τ 均下降。两输出方法对均值基线有小幅总量改善，仍弱于输入一阶。不同长度/轨迹、β 和内部状态精度构成混杂，单 seed 固定480条不支持纯空间因果、普遍优势或速度结论。AR 一致范围161–184/480，只作诊断。
-## （三）偏置方向与范数
-4B BF16/T0、固定480条、BC30 六格方向对照完成，485,860提交 token 自检通过。e2−e1 的 τ=1.507777653，同范数随机三 seed 为1.495188134/1.464349086/1.523884714，均值1.494473978。零偏置为1.422420206，内容初始化为1.364829262。来源 H03。
-
-随机方向反驳“只有 e2−e1 有效”，不能证明任意方向等效。内容初始化同时改变后续更新，不能当成纯方向实验。范数倍率0.5×仅首格完成，τ=1.471389646，80,940 token 自检通过，collect 故障修复后没有重跑 execute。余七格和后续11格独立配对暂停，未完成范数曲线。来源 H04。
-## （四）探索结果与失败边界
-| **研究主题** | **可复用认识** | **不能外推的内容与原件** |
-| --- | --- | --- |
-| 4B FP32 输入 EMA | first26 frozen/updating/长记忆一阶 accepted 为680/704/777，参数在 first26 选择 | 旧 Run 未保留，后组/全量不是独立调参验证。H05 |
-| 4B FP32 输出同链 | first26 输入/输出零/输出一为238/329/321，四条新输入为51/39/47，均 AR 一致且不计时 | 新输入未保持收益，树为双槽静态链 BC9，不与 BF16 动态树直接排名。H06 |
-| 0.6B 输出代理与移植 | 固定 q173 的局部历史代理能改变后续命中，跨 prompt 多次出现无效、正反抵消与方向反转 | 单位置因果只覆盖所固定 KV/状态，18个采样单位8增10减且不平衡。H07 |
-| 罕见事件与算子精度 | 低温零命中功效不足，升温可观测不能外推原温度。数值微差或相同计数不能唯一归因 kernel | 0.6B 单位置/罕见事件及 BF16 算子机理阶段已停止，不继续扩展。H07 |
-| 非作者第三方 ESP | 固定 q121、8B BF16 的 BC10/30/60 在六次 forward 内首 token 数学门失败，无有效 τ | 原 HF API 适配了外部 BF16/输入/禁计时条件，不能称原 CLI 或作者官方复现。H08 |
-| 原生证据链故障 | 来源拒绝可能覆盖同 ID 失败状态、Study 聚合可能先写通用 complete，专项曾修正预检/写回 | 保留来源与终态分层，旧 Run 不重签。RPipe Issue #36/#37 是历史定位，当前上游状态未重新核实。H09 |
-
-# 六、历史原件、哈希与恢复边界
-以下统一固定在文档重组前 `dev` 提交 `b8b20b5ada7fd860894114cbf224ce749af430cf`。链接只定位原件，不表示本轮重新核验完整原始前向。下列 SHA-256 已从固定 Git blob 读取核对，检出换行转换可能产生另一工作树哈希。完整 Run、原始 token/logits、权重及缓存原本就不随 Git 提供。
-
-| **编号** | **固定 Git 原路径** | **用途** |
-| --- | --- | --- |
-| H01 | [repeat_evidence_v1.json](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/b8b20b5ada7fd860894114cbf224ce749af430cf/studies/esp_table1_nonofficial_revalidation/docs/repeat_evidence_v1.json) | 三格逐 prompt 计数、审计及 Run/source 哈希 |
-| H02 | [paired_evidence_v1.json](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/b8b20b5ada7fd860894114cbf224ce749af430cf/studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json) | 五方法两预算配对、负例及 AR 差异 |
-| H03 | [direction_evidence_v1.json](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/b8b20b5ada7fd860894114cbf224ce749af430cf/studies/qwen3_4b_bf16_directions/docs/direction_evidence_v1.json) | 方向六格来源与计数 |
-| H04 | [first_cell_recovery_v1.json](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/b8b20b5ada7fd860894114cbf224ce749af430cf/studies/qwen3_4b_bf16_bias_norm_continuation/docs/first_cell_recovery_v1.json) | 首格恢复、旧失败及 execute 未重跑 |
-| H05 | [history-extrapolation.md](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/b8b20b5ada7fd860894114cbf224ce749af430cf/docs/history-extrapolation.md) | 早期 FP32 接受数，原 Run 缺失 |
-| H06 | [FP32 同链报告](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/b8b20b5ada7fd860894114cbf224ce749af430cf/studies/output_space_4b_recheck_v2/docs/STUDY_REPORT.md)及[四条新输入](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/b8b20b5ada7fd860894114cbf224ce749af430cf/studies/output_space_4b_holdout/docs/STUDY_REPORT.md) | 发现样本和新增输入分别保留 |
-| H07 | [cross-task 报告](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/b8b20b5ada7fd860894114cbf224ce749af430cf/studies/output_space_cross_task/docs/STUDY_REPORT.md)及[extension 报告](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/b8b20b5ada7fd860894114cbf224ce749af430cf/studies/output_space_extension/docs/STUDY_REPORT.md) | 代理、罕见事件、数值反例 |
-| H08 | [第三方审计报告](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/b8b20b5ada7fd860894114cbf224ce749af430cf/docs/research/esp-third-party-reproduction-2026-10-15.md) | 第三方来源、适配与失败 |
-| H09 | [旧问题记录](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/b8b20b5ada7fd860894114cbf224ce749af430cf/docs/bugs.md) | 来源、聚合与平台故障的适用版本 |
-
-H01 Git blob SHA-256：`a45a60a60e1e0644be8ad4cc3d058842d4d6becccac7550fc014ba52abc964c6`。H02：`8e85ac6ea9984047abf0ffd5d6653b28b6aadd74aa876139fa10465dc5bbf274`。H03：`e157ab5ed9fa0721681da3fd68b842ec6d9d1aa1dcb5923499f66540eca36bab`。H04：`fe50f3470b3f42fb7ab805c6c56a57b5474dd07df2421c8bd8f808fd9447c907`。
-
-H01 清理前工作树为 CRLF，SHA-256 是 `ba5df63a0419a7b889d81056e925f4b3ef6e5215be8137d6efb61ff50620e544`，其固定 Git blob 为 LF。恢复历史执行条件时按原运行登记的字节/换行核验，不能用 Git blob 哈希替换旧证据声明或重签。
-
-原数据 `datasets/spec_bench/question.jsonl` 字节保留，SHA-256 为 `7dd26882f31ada100c2aa7447019b5349bddc55697021acbc5643fdc8740aa21`。已渲染 prompt manifest 属历史快照，与原始数据集分开。
-
-本轮删除旧第一方报告、双语重复计划、规范副本、图、运行 JSON、源码/配置验收快照。旧 `provenance.include`、来源哈希恢复、分析器与文档测试仍指向其中部分路径。当前文档是设计交付，旧 Study 不能直接重放。后续如需原字节分析，从固定提交逐项取出到隔离运行根并核 SHA，不能重建到新源码目录冒充当前输入，更不能用新计划重签旧 Run。
+# 五、历史测量的位置
+8B 非官方 Table 1、4B 五方法、方向与范数、探索失败，以及 H01–H09 的哈希和恢复边界，已迁入 [2026-10-31 历史证据归位](<运行记录 Run Record/2026-10-31 历史证据归位.md>)。那些数字保持原口径和原件链接。本文只保留机制判断：固定条件下可以比较接受数与调用数；BC30/60 未达到论文目标；输入一阶在已完成的 4B 五方法里总量最好；同范数随机方向也能高于零偏置。τ 不是实测加速。
 
 # 七、来源、阅读范围与未验证事项
 公开资料实际访问日期为2026年10月21日。下表分别说明原文阅读、源码分析和历史引用，不把成功抓取页面当作全文精读。
@@ -160,6 +101,6 @@ H01 清理前工作树为 CRLF，SHA-256 是 `ba5df63a0419a7b889d81056e925f4b3ef
 | DreamSoul 架构方法四资料 | 本地2026年10月21日版：主报告、大纲、端侧案例、来源索引全文 | 采用质量场景、黑盒合同、源码/运行视图、状态唯一归属、取消与简约取舍；未重读全部原标准 |
 | CPU 内存清理样板 | `6938f10447b250958856a845fc5448aa1185b52d` 的 AGENTS 与三文档 | 采用文档粒度与证据/目标分离，不借用其 Windows 产品模块 |
 
-本轮按 [AGENTS](../AGENTS.md) 九类规范读取关联本地正文。代码规范与中文排版全文、协作规范分支/评审、测试规范五维/镜像/计划与结果、日志规范来源/事件/未知、CI/CD 绑定提交与阻断、通用/文献调研来源与深度、研究计划六方面及建议采用状态用于当前设计。没有因入口存在声称全部工程规则已经实施。
+2026年10月31日重读了本仓入口、当前源码和两份参考仓当时可取得的版本，记录在开发记录。飞书规范正文和会议逐字稿因用户令牌过期没有读到，不能把索引或会议摘要写成已经核对过的规范或结论。10月21日对论文和历史证据的阅读深度仍然有效，本轮没有重新打开这些论文。
 
-尚未完成：作者输入/模板/聚合合同确认、论文 τ 差距归因、范数完整扫描、采样分布保证、独立 AR 等价、真实速度收益、目标架构实施及全量回归。没有安装 Import Linter、升级依赖或启用新 CI。图示与静态文档检查只覆盖表达及范围，不能替代这些验证。
+尚未完成：作者输入与聚合合同、论文 τ 差距归因、范数完整曲线、采样分布保证、独立 AR 等价、真实速度，以及 trajectory 与 observation 的公式和实验。没有升级依赖，也没有把固定 RPipe 换成参考仓的新树。
