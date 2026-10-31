@@ -17,14 +17,14 @@ def _model():
                                    'max_position_embeddings': 1024})
 
 
-def _spec(method, k, mode, gain=None, condition='none'):
+def _spec(method, k, mode, gain=None, condition='none', form='mean'):
     spec = {'method': method, 'num_masks': k, 'impl': 'efficient' if mode == 'static' else 'naive',
             'block_complexity': None if mode == 'static' else 30,
             'tree': {'mode': mode, 'branches': [7, 2][:k] if mode == 'static' else None, 'pruning': True},
             'mask': {'init': 'mean_prompt', 'lam': 0.1, 'update': True},
             'ema': {'beta': 0.9, 'step_scale': 1.0, 'normalize': False, 'update': True}}
     if gain is not None:
-        spec['observation'] = {'gain': gain, 'condition': condition}
+        spec['observation'] = {'gain': gain, 'condition': condition, 'form': form}
     return spec
 
 
@@ -55,10 +55,11 @@ def test_zero_gain_is_the_trajectory_provider_token_for_token(method, k, mode, c
 @pytest.mark.parametrize('gain', [0.5, 1.0])
 @pytest.mark.parametrize('temperature', [0.0, 1.0])
 @pytest.mark.parametrize('condition', ['none', 'rejection'])
-def test_blended_masks_keep_ar_output_and_argmax_audit(method, k, mode, gain, temperature, condition):
+@pytest.mark.parametrize('form', ['mean', 'top1'])
+def test_blended_masks_keep_ar_output_and_argmax_audit(method, k, mode, gain, temperature, condition, form):
     model = _model()
     for index, prompt in enumerate(PROMPTS):
-        out, stats = _decode(model, _spec(method, k, mode, gain, condition), prompt, temperature, 50 + index)
+        out, stats = _decode(model, _spec(method, k, mode, gain, condition, form), prompt, temperature, 50 + index)
         ar_out, _ = ar_generate(model, prompt, {'max_new_tokens': 20, 'temperature': temperature, 'stop_on_eos': False},
                                 generator=torch.Generator().manual_seed(50 + index))
         assert torch.equal(out, ar_out)
@@ -151,6 +152,31 @@ def test_rejection_condition_falls_back_when_children_hold_all_mass():
     assert torch.equal(owners[0, 0], blend.base.masks()[0])
     with pytest.raises(ValueError, match='condition'):
         ObservationBlendMaskProvider(ESPMaskProvider(1, table), table, 0.5, condition='kalman')
+
+
+def test_top1_form_uses_the_most_likely_allowed_token():
+    torch.manual_seed(5)
+    table = torch.randn(12, 4)
+    logits = torch.randn(2, 12)
+    logits[0, 3], logits[0, 9], logits[1, 7] = 9.0, 8.0, 9.0
+    tree = DraftTree(root_token=0, tokens=[3, 5, 7], depths=[1, 1, 2], parents=[0, 0, 1])
+    plain = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 1.0, form='top1')
+    plain.init_from_prompt(torch.randn(5, 4))
+    plain.observe_mask_logits(logits)
+    assert plain.protocol == 'trajectory-observation-top1-v1'
+    assert torch.allclose(plain.masks(), table[[3, 7]])
+    rejecting = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 1.0, condition='rejection', form='top1')
+    rejecting.init_from_prompt(torch.randn(5, 4))
+    rejecting.observe_mask_logits(logits)
+    assert rejecting.protocol == 'trajectory-observation-top1-rejection-v1'
+    owners = rejecting.masks_for_tree(tree)
+    assert torch.allclose(owners[0, 0], table[9])
+    second = torch.softmax(logits[1], dim=-1)
+    second[7] = -1
+    assert torch.allclose(owners[1, 0], table[int(second.argmax())])
+    assert torch.allclose(owners[0, 1], table[7]) and torch.allclose(owners[2, 0], table[7])
+    with pytest.raises(ValueError, match='form'):
+        ObservationBlendMaskProvider(ESPMaskProvider(1, table), table, 0.5, form='median')
 
 
 def test_decoder_observes_prefill_and_every_continuing_round():

@@ -286,24 +286,34 @@ class ObservationBlendMaskProvider:
     children therefore uses z_{d+1} conditioned on "not a child token":
         z = (z_{d+1} - sum_c p_c e_c) / (1 - sum_c p_c),
     falling back to mhat_1 when the children hold all the mass.
+
+    form='top1' replaces the expectation with the embedding of the most likely
+    token (under rejection: the most likely non-child token), keeping the
+    mask input on the token manifold.
     """
     needs_hidden = False
-    PROTOCOLS = {'none': 'trajectory-observation-blend-v1', 'rejection': 'trajectory-observation-rejection-v1'}
+    PROTOCOLS = {('mean', 'none'): 'trajectory-observation-blend-v1',
+                 ('mean', 'rejection'): 'trajectory-observation-rejection-v1',
+                 ('top1', 'none'): 'trajectory-observation-top1-v1',
+                 ('top1', 'rejection'): 'trajectory-observation-top1-rejection-v1'}
     _MIN_REMAINING = 1e-6
 
-    def __init__(self, base, embedding_table, gain, condition='none'):
+    def __init__(self, base, embedding_table, gain, condition='none', form='mean'):
         if getattr(base, 'needs_hidden', False):
             raise ValueError('observation blend wraps input-embedding providers only')
         if isinstance(gain, bool) or not isinstance(gain, (int, float)) or not 0 <= gain <= 1:
             raise ValueError('observation gain must be a number in [0, 1]')
-        if condition not in self.PROTOCOLS:
+        if condition not in ('none', 'rejection'):
             raise ValueError('observation condition must be none or rejection')
+        if form not in ('mean', 'top1'):
+            raise ValueError('observation form must be mean or top1')
         self.base = base
         self.num_masks = base.num_masks
         self.embedding_table = embedding_table
         self.gain = float(gain)
         self.condition = condition
-        self.protocol = self.PROTOCOLS[condition]
+        self.form = form
+        self.protocol = self.PROTOCOLS[form, condition]
         self._observation: Any = None
         self._probs: Any = None
 
@@ -320,7 +330,7 @@ class ObservationBlendMaskProvider:
         probs = torch.softmax(mask_logits.float(), dim=-1)
         table = self.embedding_table
         self._probs = probs
-        self._observation = probs.to(table.dtype) @ table
+        self._observation = table[probs.argmax(dim=-1)] if self.form == 'top1' else probs.to(table.dtype) @ table
 
     def observation(self):
         return self._observation
@@ -357,8 +367,14 @@ class ObservationBlendMaskProvider:
             if remaining <= self._MIN_REMAINING:
                 owners[owner, 0] = trajectory[0]
                 continue
-            rejected = p.to(self.embedding_table.dtype) @ self.embedding_table[tokens]
-            z = ((self._observation[depth] - rejected) / remaining).to(trajectory.device, trajectory.dtype)
+            if self.form == 'top1':
+                allowed = self._probs[depth].clone()
+                allowed[tokens] = -1.0
+                z = self.embedding_table[allowed.argmax()]
+            else:
+                rejected = p.to(self.embedding_table.dtype) @ self.embedding_table[tokens]
+                z = (self._observation[depth] - rejected) / remaining
+            z = z.to(trajectory.device, trajectory.dtype)
             owners[owner, 0] = trajectory[0] + self.gain * (z - trajectory[0])
         return owners
 
@@ -373,11 +389,11 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
     observation = spec_cfg.get('observation')
     if observation is not None:
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'observation'}
-        if 'gain' not in observation or not set(observation) <= {'gain', 'condition'}:
-            raise ValueError('spec.observation accepts only gain and condition')
+        if 'gain' not in observation or not set(observation) <= {'gain', 'condition', 'form'}:
+            raise ValueError('spec.observation accepts only gain, condition and form')
         base = build_mask_provider(base_cfg, embedding_table, generator)
         return ObservationBlendMaskProvider(base, embedding_table, observation['gain'],
-                                            observation.get('condition', 'none'))
+                                            observation.get('condition', 'none'), observation.get('form', 'mean'))
     method = str(spec_cfg.get('method', 'esp')).lower()
     num_masks = int(spec_cfg.get('num_masks', 1))
     if method == 'esp':

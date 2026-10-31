@@ -25,13 +25,14 @@ def test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only():
     config['model'].update(hidden_size=16, intermediate_size=32, max_position_embeddings=64)
     config['train'].update(sequences=32, length=16, steps=3, batch=4)
     config['prompts'] = {'fit': 2, 'holdout': 2, 'cross': 2, 'length': 8}
+    config['variants'] = [list(variant) for variant in pilot.SUFFIX]
     result = pilot.run_seed(config, 5)
     entry = result['trees'][0]
     assert set(entry['fit_grid']['esp_rejection']) == {'0.0', '0.25', '0.5', '0.75', '1.0'}
     for base in pilot.BASES:
-        for condition in pilot.CONDITIONS:
-            assert entry['selected_gain'][f'{base}_{condition}'] in pilot.JOINT_GAINS
-    names = ('trajectory', 'observation', 'joint', 'observation_rejection', 'joint_rejection')
+        for tag in ('none', 'rejection', 'top1', 'top1_rejection'):
+            assert entry['selected_gain'][f'{base}_{tag}'] in pilot.JOINT_GAINS
+    names = ('trajectory', *(f'{arm}{suffix}' for suffix in pilot.SUFFIX.values() for arm in ('observation', 'joint')))
     for split in ('holdout', 'cross'):
         body = entry['splits'][split]
         arms = body['arms']
@@ -39,6 +40,8 @@ def test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only():
         assert all(arm['ar_equal_all'] and arm['argmax_all_passed'] for arm in arms.values())
         assert arms['esp_joint_rejection']['gain'] == entry['selected_gain']['esp_rejection']
         assert arms['ema_joint_rejection']['condition'] == 'rejection'
+        assert arms['esp_joint_top1_rejection']['form'] == 'top1'
+        assert arms['esp_joint_top1']['gain'] == entry['selected_gain']['esp_top1']
         assert all(len(rows) == 2 for rows in body['rows'].values())
         for pairs in (body['paired_vs_esp_trajectory'], body['paired_vs_own_trajectory']):
             assert all(pair['incomparable'] == 0 for pair in pairs.values())

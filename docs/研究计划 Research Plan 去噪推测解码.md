@@ -21,6 +21,9 @@ g=0 为仅 trajectory，与原 provider 逐 token 相同；g=1 为仅 observatio
 v1 合成结果（第七章）提示一个结构问题：某个 owner 的 mask logits 只有在它成为最深接受节点时才会进入下一棵树，而这时它的所有子节点 token 都已被拒绝。v1 却把集中在这些 token 上的边际分布当作 observation。变体用验证结果条件化：深度 d 的 owner 若有子节点 C，其槽 1 用
 \(\tilde z = (z_{d+1} - \sum_{c\in C} p_c e_c) / (1 - \sum_{c\in C} p_c)\)，即排除被拒 token 后重新归一化的期望嵌入；剩余质量不超过 \(10^{-6}\) 时退回 trajectory。其他槽与 v1 相同。入口为 `spec.observation.condition: rejection`。它把“本轮 verify 的拒绝”当作观测去更新“历史预测的分布”，是对会议思路更直接的一种读法，仍不是 Kalman。
 
+### 变体 `form: top1`
+未来 token oracle（运行记录）表明，把 mask 输入换成真实 token 嵌入时 τ 可接近 k+1，而期望嵌入只拿到约 1–2% 的空间。一个解释是期望嵌入落在 token 流形之外。`spec.observation.form: top1` 把 z 换成最可能 token 的嵌入；与拒绝条件化合用时取最可能的非子节点 token。协议名为 `trajectory-observation-top1-v1` 与 `trajectory-observation-top1-rejection-v1`。先在种子 11/12/13 上探索，有希望再按同样的写前判据在新种子上确认。
+
 A1 的检验口径是 `analysis.round_split`：按上一轮是否接受草稿，把解码轮分成 prefill 后、接受后和拒绝后三组，各自给出轮数、接受数、提交数和 τ。代码入口为 `spec.observation.gain`，实现与测试见 [2026-11-01 trajectory 与 observation 联合 mask](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>)。
 
 真实模型比较仍需另行批准。公式就位后，先做 CPU 合成检查。
