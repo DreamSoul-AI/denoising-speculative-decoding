@@ -228,7 +228,7 @@ class SpecDecoder:
                                               'state_dtype': 'float32', 'final_normalized': True}
         mask_logits = logits[t:t + k].clone()                         # [k, V]
         observe = getattr(provider, 'observe_mask_logits', None)
-        by_depth = getattr(provider, 'masks_by_depth', None)
+        for_tree = getattr(provider, 'masks_for_tree', None)
         if observe is not None:
             observe(mask_logits)
         model.crop_cache(cache, t)                                       # evict masks
@@ -266,8 +266,8 @@ class SpecDecoder:
             if self.output_hidden:
                 depth_masks = cast(HiddenMaskPolicy, provider).masks_per_owner(proxy_hiddens).to(dtype)
                 owner_masks = depth_masks[[0] + tree.depths]
-            elif by_depth is not None:
-                owner_masks = by_depth().to(dtype)[[0] + tree.depths]
+            elif for_tree is not None:
+                owner_masks = for_tree(tree).to(dtype)
             else:
                 masks = provider.masks().to(dtype)
                 owner_masks = masks.unsqueeze(0).expand(1 + num_nodes, k, -1)

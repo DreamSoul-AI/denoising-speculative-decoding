@@ -27,15 +27,21 @@ def test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only():
     config['prompts'] = {'fit': 2, 'holdout': 2, 'cross': 2, 'length': 8}
     result = pilot.run_seed(config, 5)
     entry = result['trees'][0]
-    assert set(entry['fit_grid']['esp']) == {'0.0', '0.25', '0.5', '0.75', '1.0'}
+    assert set(entry['fit_grid']['esp_rejection']) == {'0.0', '0.25', '0.5', '0.75', '1.0'}
     for base in pilot.BASES:
-        assert entry['selected_gain'][base] in pilot.JOINT_GAINS
+        for condition in pilot.CONDITIONS:
+            assert entry['selected_gain'][f'{base}_{condition}'] in pilot.JOINT_GAINS
+    names = ('trajectory', 'observation', 'joint', 'observation_rejection', 'joint_rejection')
     for split in ('holdout', 'cross'):
-        arms = entry['splits'][split]['arms']
-        assert set(arms) == {f'{b}_{a}' for b in pilot.BASES for a in ('trajectory', 'observation', 'joint')}
+        body = entry['splits'][split]
+        arms = body['arms']
+        assert set(arms) == {f'{b}_{a}' for b in pilot.BASES for a in names}
         assert all(arm['ar_equal_all'] and arm['argmax_all_passed'] for arm in arms.values())
-        assert arms['esp_joint']['gain'] == entry['selected_gain']['esp']
-        assert all(pair['incomparable'] == 0 for pair in entry['splits'][split]['paired_vs_esp_trajectory'].values())
+        assert arms['esp_joint_rejection']['gain'] == entry['selected_gain']['esp_rejection']
+        assert arms['ema_joint_rejection']['condition'] == 'rejection'
+        assert all(len(rows) == 2 for rows in body['rows'].values())
+        for pairs in (body['paired_vs_esp_trajectory'], body['paired_vs_own_trajectory']):
+            assert all(pair['incomparable'] == 0 for pair in pairs.values())
 
 
 def test_output_inside_source_tree_is_rejected(tmp_path):

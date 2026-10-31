@@ -25,16 +25,17 @@ from spec_mtp.decode import SpecDecoder, ar_generate
 from spec_mtp.masks import build_mask_provider
 from spec_mtp.model import HFCausalLM
 
-PROTOCOL = 'trajectory-observation-blend-v1'
+PROTOCOL = 'trajectory-observation-pilot-v2'
 JOINT_GAINS = (0.25, 0.5, 0.75)
 BASES = ('esp', 'ema')
+CONDITIONS = ('none', 'rejection')
 
 DEFAULT = {
     'content_vocab': 48, 'branching': 3, 'sharpness': 2.0,
     'model': {'hidden_size': 64, 'intermediate_size': 128, 'num_hidden_layers': 2,
               'num_attention_heads': 4, 'num_key_value_heads': 2, 'max_position_embeddings': 256},
     'train': {'sequences': 4096, 'length': 96, 'steps': 1500, 'batch': 32, 'lr': 3e-3},
-    'prompts': {'fit': 24, 'holdout': 24, 'cross': 24, 'length': 24},
+    'prompts': {'fit': 32, 'holdout': 32, 'cross': 32, 'length': 24},
     'max_new_tokens': 48,
     'trees': [{'num_masks': 1, 'branches': [14]}, {'num_masks': 2, 'branches': [7, 2]},
               {'num_masks': 3, 'branches': [7, 5, 3]}],
@@ -92,13 +93,13 @@ def train_model(config, data, seed):
     return session, losses
 
 
-def spec_for(base, tree, gain):
+def spec_for(base, tree, gain, condition='none'):
     spec = {'method': 'esp' if base == 'esp' else 'ema_velocity', 'num_masks': tree['num_masks'],
             'impl': 'efficient', 'tree': {'mode': 'static', 'branches': list(tree['branches']), 'pruning': True},
             'mask': {'init': 'mean_prompt', 'lam': 0.1, 'update': True},
             'ema': {'beta': 0.9, 'step_scale': 1.0, 'normalize': False, 'update': True, 'level': 'last'}}
     if gain:
-        spec['observation'] = {'gain': gain}
+        spec['observation'] = {'gain': gain, 'condition': condition}
     return spec
 
 
@@ -131,8 +132,12 @@ def pooled(rows):
             'ar_equal_all': all(row['ar_equal'] for row in rows), 'rounds': groups}
 
 
-def arm_rows(session, base, tree, gain, prompts, config, references):
-    return decode_rows(session, spec_for(base, tree, gain), prompts, config['max_new_tokens'], references)
+def arm_rows(session, base, tree, gain, prompts, config, references, condition='none'):
+    return decode_rows(session, spec_for(base, tree, gain, condition), prompts, config['max_new_tokens'], references)
+
+
+def paired(rows, reference):
+    return {key: value for key, value in compare(rows, reference, {}).items() if key != 'pairs'}
 
 
 def run_seed(config, seed):
@@ -160,24 +165,32 @@ def run_seed(config, seed):
     for tree in config['trees']:
         entry = {'tree': tree, 'fit_grid': {}, 'selected_gain': {}, 'splits': {}}
         for base in BASES:
-            grid = {}
-            for gain in (0.0, *JOINT_GAINS, 1.0):
-                grid[str(gain)] = pooled(arm_rows(session, base, tree, gain, prompts['fit'], config, references))
-            entry['fit_grid'][base] = grid
-            best = max(JOINT_GAINS, key=lambda g: (grid[str(g)]['tau'], -g))
-            entry['selected_gain'][base] = best
+            trajectory = pooled(arm_rows(session, base, tree, 0.0, prompts['fit'], config, references))
+            for condition in CONDITIONS:
+                grid = {'0.0': trajectory}
+                for gain in (*JOINT_GAINS, 1.0):
+                    grid[str(gain)] = pooled(arm_rows(session, base, tree, gain, prompts['fit'], config,
+                                                      references, condition))
+                entry['fit_grid'][f'{base}_{condition}'] = grid
+                entry['selected_gain'][f'{base}_{condition}'] = max(JOINT_GAINS, key=lambda g: (grid[str(g)]['tau'], -g))
         for split in ('holdout', 'cross'):
             arms, raw = {}, {}
             for base in BASES:
-                for name, gain in (('trajectory', 0.0), ('observation', 1.0),
-                                   ('joint', entry['selected_gain'][base])):
-                    rows = arm_rows(session, base, tree, gain, prompts[split], config, references)
+                plan_arms = [('trajectory', 0.0, 'none')]
+                for condition in CONDITIONS:
+                    suffix = '' if condition == 'none' else '_rejection'
+                    plan_arms += [(f'observation{suffix}', 1.0, condition),
+                                  (f'joint{suffix}', entry['selected_gain'][f'{base}_{condition}'], condition)]
+                for name, gain, condition in plan_arms:
+                    rows = arm_rows(session, base, tree, gain, prompts[split], config, references, condition)
                     raw[f'{base}_{name}'] = rows
-                    arms[f'{base}_{name}'] = {**pooled(rows), 'gain': gain}
-            pairs = {name: {key: value for key, value in compare(raw[name], raw['esp_trajectory'], {}).items()
-                            if key != 'pairs'}
-                     for name in raw if name != 'esp_trajectory'}
-            entry['splits'][split] = {'arms': arms, 'paired_vs_esp_trajectory': pairs}
+                    arms[f'{base}_{name}'] = {**pooled(rows), 'gain': gain, 'condition': condition}
+            entry['splits'][split] = {
+                'arms': arms, 'rows': raw,
+                'paired_vs_esp_trajectory': {name: paired(raw[name], raw['esp_trajectory'])
+                                             for name in raw if name != 'esp_trajectory'},
+                'paired_vs_own_trajectory': {name: paired(raw[name], raw[name.split('_')[0] + '_trajectory'])
+                                             for name in raw if not name.endswith('_trajectory')}}
         result['trees'].append(entry)
     return result
 

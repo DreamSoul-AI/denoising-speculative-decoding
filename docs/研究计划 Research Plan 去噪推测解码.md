@@ -17,6 +17,10 @@
 
 g=0 为仅 trajectory，与原 provider 逐 token 相同；g=1 为仅 observation（prefill 仍用 trajectory 初值）；0<g<1 为联合。验证规则不变，所以 T0 输出与独立 AR 的关系和原方法相同。它与 `postcommit-final-norm-v1` 的差别是：observation 来自尚未提交位置的预测分布，而不是已提交 token 的最终 hidden；没有拟合 A、b，也没有协方差递推，不是 Kalman。仿射 K 作用在 z 上（z→Az+b）是下一步差距，目前不实现。
 
+### 变体 `trajectory-observation-rejection-v1`
+v1 合成结果（第七章）提示一个结构问题：某个 owner 的 mask logits 只有在它成为最深接受节点时才会进入下一棵树，而这时它的所有子节点 token 都已被拒绝。v1 却把集中在这些 token 上的边际分布当作 observation。变体用验证结果条件化：深度 d 的 owner 若有子节点 C，其槽 1 用
+\(\tilde z = (z_{d+1} - \sum_{c\in C} p_c e_c) / (1 - \sum_{c\in C} p_c)\)，即排除被拒 token 后重新归一化的期望嵌入；剩余质量不超过 \(10^{-6}\) 时退回 trajectory。其他槽与 v1 相同。入口为 `spec.observation.condition: rejection`。它把“本轮 verify 的拒绝”当作观测去更新“历史预测的分布”，是对会议思路更直接的一种读法，仍不是 Kalman。
+
 A1 的检验口径是 `analysis.round_split`：按上一轮是否接受草稿，把解码轮分成 prefill 后、接受后和拒绝后三组，各自给出轮数、接受数、提交数和 τ。代码入口为 `spec.observation.gain`，实现与测试见 [2026-11-01 trajectory 与 observation 联合 mask](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>)。
 
 真实模型比较仍需另行批准。公式就位后，先做 CPU 合成检查。

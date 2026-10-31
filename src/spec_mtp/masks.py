@@ -279,23 +279,38 @@ class ObservationBlendMaskProvider:
         m[d, j] = mhat_j + g * (z_{d+j} - mhat_j)   if d + j <= k, else mhat_j.
     The observation lives for one round and is never written into the
     trajectory state, so g = 0 is the wrapped provider token for token.
+
+    condition='rejection' (`trajectory-observation-rejection-v1`): an owner's
+    mask logits seed the next tree only if it is the deepest accepted node, in
+    which case every child token was rejected. Slot 1 of an owner with
+    children therefore uses z_{d+1} conditioned on "not a child token":
+        z = (z_{d+1} - sum_c p_c e_c) / (1 - sum_c p_c),
+    falling back to mhat_1 when the children hold all the mass.
     """
     needs_hidden = False
+    PROTOCOLS = {'none': 'trajectory-observation-blend-v1', 'rejection': 'trajectory-observation-rejection-v1'}
+    _MIN_REMAINING = 1e-6
 
-    def __init__(self, base, embedding_table, gain):
+    def __init__(self, base, embedding_table, gain, condition='none'):
         if getattr(base, 'needs_hidden', False):
             raise ValueError('observation blend wraps input-embedding providers only')
         if isinstance(gain, bool) or not isinstance(gain, (int, float)) or not 0 <= gain <= 1:
             raise ValueError('observation gain must be a number in [0, 1]')
+        if condition not in self.PROTOCOLS:
+            raise ValueError('observation condition must be none or rejection')
         self.base = base
         self.num_masks = base.num_masks
         self.embedding_table = embedding_table
         self.gain = float(gain)
+        self.condition = condition
+        self.protocol = self.PROTOCOLS[condition]
         self._observation: Any = None
+        self._probs: Any = None
 
     def init_from_prompt(self, prompt_embeds, generator=None):
         self.base.init_from_prompt(prompt_embeds, generator=generator)
         self._observation = None
+        self._probs = None
 
     def observe_mask_logits(self, mask_logits):
         if mask_logits.shape[0] != self.num_masks:
@@ -304,6 +319,7 @@ class ObservationBlendMaskProvider:
             raise ValueError('observation logits need a finite candidate per row')
         probs = torch.softmax(mask_logits.float(), dim=-1)
         table = self.embedding_table
+        self._probs = probs
         self._observation = probs.to(table.dtype) @ table
 
     def observation(self):
@@ -322,6 +338,30 @@ class ObservationBlendMaskProvider:
             out[depth, :slots] = trajectory[:slots] + self.gain * (z[depth:] - trajectory[:slots])
         return out
 
+    def masks_for_tree(self, tree):
+        """[1 + nodes, k, d]: per-owner masks in block order (root first)."""
+        owners = self.masks_by_depth()[[0] + list(tree.depths)]
+        if self.condition != 'rejection' or self._observation is None or self.gain == 0:
+            return owners
+        trajectory = self.base.masks()
+        children: dict[int, list[int]] = {}
+        for node, parent in enumerate(tree.parents, start=1):
+            children.setdefault(parent, []).append(tree.tokens[node - 1])
+        for owner in range(owners.shape[0]):
+            depth = 0 if owner == 0 else tree.depths[owner - 1]
+            if depth >= self.num_masks or owner not in children:
+                continue
+            tokens = torch.tensor(sorted(set(children[owner])), device=self._probs.device)
+            p = self._probs[depth, tokens]
+            remaining = 1.0 - float(p.sum())
+            if remaining <= self._MIN_REMAINING:
+                owners[owner, 0] = trajectory[0]
+                continue
+            rejected = p.to(self.embedding_table.dtype) @ self.embedding_table[tokens]
+            z = ((self._observation[depth] - rejected) / remaining).to(trajectory.device, trajectory.dtype)
+            owners[owner, 0] = trajectory[0] + self.gain * (z - trajectory[0])
+        return owners
+
     def masks(self):
         return self.masks_by_depth()[0]
 
@@ -333,10 +373,11 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
     observation = spec_cfg.get('observation')
     if observation is not None:
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'observation'}
-        if set(observation) != {'gain'}:
-            raise ValueError('spec.observation accepts only gain')
+        if 'gain' not in observation or not set(observation) <= {'gain', 'condition'}:
+            raise ValueError('spec.observation accepts only gain and condition')
         base = build_mask_provider(base_cfg, embedding_table, generator)
-        return ObservationBlendMaskProvider(base, embedding_table, observation['gain'])
+        return ObservationBlendMaskProvider(base, embedding_table, observation['gain'],
+                                            observation.get('condition', 'none'))
     method = str(spec_cfg.get('method', 'esp')).lower()
     num_masks = int(spec_cfg.get('num_masks', 1))
     if method == 'esp':
