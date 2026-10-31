@@ -16,8 +16,8 @@
 | [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 研究问题、假设、对照和停止规则 |
 | [开发计划 Development Plan 去噪推测解码](<docs/开发计划 Development Plan 去噪推测解码.md>) | 剩余工程、验收和待确认的来源策略 |
 | [缺陷记录 Bug Report 去噪推测解码](<docs/缺陷记录 Bug Report 去噪推测解码.md>) | 尚未关闭的问题 |
-| [开发记录 Development Record](<docs/开发记录 Development Record/2026-10-31 工程重构与文档重整.md>) | 本次结构调整及迁移 |
-| [运行记录 Run Record](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>) | 历史测量；新的执行另写日期记录 |
+| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-01 计时失败不再改写计数.md>) | 最近的计时分离；此前的重整从该记录回溯 |
+| [运行记录 Run Record](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>) | 历史测量。最近的离线计划在 [2026-11-01 离线 CPU 计划](<docs/运行记录 Run Record/2026-11-01 离线CPU计划.md>) |
 
 # 二、当前实现与使用边界
 当前安装包为 `denoise-spec-mtp`，科学包 `spec_mtp` 按 `contracts/data/model/decode/masks/tree/audit/analysis/cli` 分工。`python -m spec_mtp` / `spec-mtp` 提供 `decode/audit/compare`；旧 make/launch/process 研究命令明确拒绝并提示使用 `python -m studies._shared.flow.cli`。只有 `studies/` 使用 RPipe 薄适配。

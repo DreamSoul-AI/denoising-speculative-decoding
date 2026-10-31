@@ -202,6 +202,46 @@ def test_aggregate_categories_and_zero_decode_calls_guard():
     assert summaries['overall']['prompts'] == 2
 
 
+def test_clock_failure_returns_counts_without_inventing_zero_time(tiny, monkeypatch):
+    def broken():
+        raise RuntimeError('clock')
+
+    monkeypatch.setattr(decoding.time, 'perf_counter', broken)
+    prompt = _prompt()
+    spec = apply_variant({}, 'esp_static')
+    output, stats = SpecDecoder(
+        tiny, spec, _eval(max_new_tokens=4),
+        mask_policy=build_mask_provider(spec, tiny.embedding_table)).generate(prompt)
+    assert output.shape[1] == prompt.shape[1] + stats['new_tokens']
+    assert stats['new_tokens'] >= 1 and stats['committed'] >= 1
+    assert 'prefill_time' not in stats and 'decode_time' not in stats
+    _, ar_stats = ar_generate(tiny, prompt, _eval(max_new_tokens=4))
+    assert ar_stats['ar_calls'] >= 1 and 'ar_time' not in ar_stats
+
+
+def test_evaluate_keeps_counts_when_sync_and_clock_fail(tiny, monkeypatch, tmp_path):
+    def broken_sync(_device):
+        raise RuntimeError('sync')
+
+    def broken():
+        raise RuntimeError('clock')
+
+    monkeypatch.setattr(esp_mtp, 'sync_device', broken_sync)
+    monkeypatch.setattr(decoding.time, 'perf_counter', broken)
+    prompts = [{'category': 'x', 'input_ids': _prompt(seed=8, length=6)}]
+    result = esp_mtp.evaluate(
+        tiny, prompts, [], apply_variant({}, 'esp_static'),
+        _eval(max_new_tokens=3, warmup=True, warmup_tokens=1,
+              log_per_prompt=False, run_ar_baseline=False),
+        seed=1, device='cpu', save_dir=str(tmp_path))
+    row = result['rows'][0]
+    assert row['new_tokens'] == 3
+    assert type(row['committed']) is int and row['committed'] >= 1
+    assert 'spec_time' not in row
+    assert result['summaries']['overall']['tokens_per_s'] is None
+    assert result['summaries']['overall']['tau'] == row['committed'] / row['decode_calls']
+
+
 def test_evaluate_empty_prompts_skips_warmup(tiny, tmp_path):
     """No prompts: warmup short-circuits; _aggregate is {}; CSV loggers never write a row."""
     result = esp_mtp.evaluate(

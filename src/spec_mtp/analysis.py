@@ -95,17 +95,29 @@ def _count_summary(group):
     return summary
 
 
+def _real_number(value):
+    return type(value) in (int, float) and value == value and value not in (float('inf'), float('-inf'))
+
+
 def _timing_summary(group):
-    """Wall-clock observations. A ratio here is not an acceptance or quality result."""
-    spec_time = sum(r['spec_time'] for r in group)
+    """Wall-clock observations. Missing timing is not a zero-duration run."""
+    times = [r.get('spec_time') for r in group]
+    complete_spec = all(_real_number(value) and value >= 0 for value in times)
+    spec_time = sum(times) if complete_spec else None
     new_tokens = sum(r['new_tokens'] for r in group)
-    summary = {'tokens_per_s': new_tokens / spec_time if spec_time > 0 else 0.0}
+    if not complete_spec:
+        summary = {'tokens_per_s': None}
+    else:
+        summary = {'tokens_per_s': new_tokens / spec_time if spec_time > 0 else 0.0}
     if any('ar_time' in r for r in group):
-        complete_ar = all('ar_time' in r and 'exact_match' in r for r in group)
-        summary['AR_observed_prompts'] = sum('ar_time' in r and 'exact_match' in r for r in group)
+        complete_ar = all(
+            _real_number(r.get('ar_time')) and r.get('ar_time') >= 0 and _real_number(r.get('exact_match'))
+            for r in group)
+        summary['AR_observed_prompts'] = sum(
+            _real_number(r.get('ar_time')) and _real_number(r.get('exact_match')) for r in group)
         summary['AR_complete'] = complete_ar
         ar_time = sum(r['ar_time'] for r in group) if complete_ar else None
-        summary['speedup'] = ar_time / spec_time if complete_ar and spec_time > 0 else None
+        summary['speedup'] = ar_time / spec_time if complete_ar and spec_time else None
         summary['exact_match_rate'] = sum(r['exact_match'] for r in group) / len(group) if complete_ar else None
     return summary
 

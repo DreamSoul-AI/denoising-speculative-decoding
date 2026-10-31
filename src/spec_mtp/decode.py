@@ -37,6 +37,35 @@ from spec_mtp.tree import (DynamicTreeAttentionCache, TreeAttentionCache,
                                           build_block_attention, mask_indices_of)
 
 
+def _clock():
+    """Wall time is an observation. A broken clock does not stop decoding."""
+    try:
+        value = time.perf_counter()
+    except Exception:
+        return None
+    if type(value) not in (int, float) or value != value or value in (float('inf'), float('-inf')):
+        return None
+    return float(value)
+
+
+def _elapsed(started):
+    if started is None:
+        return None
+    finished = _clock()
+    if finished is None:
+        return None
+    value = finished - started
+    if value != value or value < 0 or value in (float('inf'), float('-inf')):
+        return None
+    return value
+
+
+def _record_elapsed(stats, key, started):
+    value = _elapsed(started)
+    if value is not None:
+        stats[key] = value
+
+
 def _fork_generator(generator: torch.Generator | None) -> torch.Generator | None:
     """Independent Generator with the same current state (None stays None)."""
     if generator is None:
@@ -171,7 +200,7 @@ class SpecDecoder:
             raise ValueError('prompt plus mask slots exceeds context capacity')
 
         # ---- Prefill: [prompt | m_1..m_k], plain causal mask. -------------
-        start = time.perf_counter()
+        start = _clock()
         prompt_embeds = model.embed(prompt_ids)[0]                    # [t, d]
         provider.init_from_prompt(prompt_embeds, generator=_fork_generator(self.generator))
         masks = provider.masks().to(dtype)                            # [k, d]
@@ -210,10 +239,10 @@ class SpecDecoder:
         if not self.output_hidden:
             provider.on_token_committed(root_embed, prev_token_embed)
         prev_token_embed = root_embed
-        stats['prefill_time'] = time.perf_counter() - start
+        _record_elapsed(stats, 'prefill_time', start)
 
         # ---- Decode: simultaneous verification + generation. --------------
-        decode_start = time.perf_counter()
+        decode_start = _clock()
         while len(committed) < self.max_new_tokens and not self._is_eos(committed[-1]) and not self._poll_cancel():
             remaining = self.max_new_tokens - len(committed)
             probs = tree_probs(mask_logits, self.temperature)
@@ -339,7 +368,7 @@ class SpecDecoder:
             if self.output_hidden:
                 proxy_hiddens = out.last_hidden_state[0, mask_rows].clone()
 
-        stats['decode_time'] = time.perf_counter() - decode_start
+        _record_elapsed(stats, 'decode_time', decode_start)
         stats['new_tokens'] = len(committed)
         stats['termination_reason'] = ('cancelled' if self.was_cancelled else
             'context' if stats['hit_context_limit'] else 'eos' if self._is_eos(committed[-1]) else 'budget')
@@ -384,7 +413,7 @@ def ar_generate(model, prompt_ids, eval_cfg, eos_ids=(), generator=None):
     t = prompt_ids.size(1)
     if t > model.max_positions:
         raise ValueError('prompt exceeds context capacity')
-    start = time.perf_counter()
+    start = _clock()
 
     cache = model.new_cache()
     position_ids = torch.arange(t, device=device).unsqueeze(0)
@@ -408,11 +437,8 @@ def ar_generate(model, prompt_ids, eval_cfg, eos_ids=(), generator=None):
         committed.append(select_token(out.logits[0, -1], temperature, generator))
         calls += 1
 
-    stats = {
-        'ar_calls': calls,
-        'ar_time': time.perf_counter() - start,
-        'ar_new_tokens': len(committed),
-    }
+    stats = {'ar_calls': calls, 'ar_new_tokens': len(committed)}
+    _record_elapsed(stats, 'ar_time', start)
     output = torch.cat([
         prompt_ids,
         torch.tensor([committed], dtype=torch.long, device=device),

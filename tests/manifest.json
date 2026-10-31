@@ -882,6 +882,20 @@
       ]
     },
     {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_clock_failure_returns_counts_without_inventing_zero_time",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_evaluate_keeps_counts_when_sync_and_clock_fail",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
       "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_evaluate_empty_prompts_skips_warmup",
       "target": "spec_mtp",
       "tags": [
