@@ -19,6 +19,10 @@
 
 首版把同一组 z 共享给树上所有 owner。深度 d 的 owner 的槽 j 代表第 d+j 层，因此 d>0 时错位。在任何测量之前改为 `masks_by_depth`：槽 j 用 \(z_{d+j}\)，超出 k 时退回 trajectory；解码器有此方法时按 `tree.depths` 取 owner 的 mask。协议名不变，因为此前没有产生测量。
 
+## 拒绝条件化变体
+
+`spec.observation.condition: rejection`（协议 `trajectory-observation-rejection-v1`）。解码器的挂钩由 `masks_by_depth` 改为 `masks_for_tree(tree)`，provider 拿到整棵树后，对有子节点的 owner 的槽 1 用排除子节点 token 后重新归一化的期望嵌入，只需子节点的嵌入，不对整张词表重算。v1 等价于不做排除的同一入口。测试覆盖手算条件化、质量全在子节点时退回 trajectory、非法 condition，以及两种 condition 下 g=0 恒等和与 AR 一致。
+
 ## CPU 合成检查入口
 
 `studies/trajectory_observation/structure/pilot.py` 在 CPU 上训练 tiny tied LLaMA 学两种合成二阶马尔可夫语言，只在语言 A 拟合 prompt 上选联合增益，冻结后报告语言 A 隔离 prompt 与语言 B 的 τ、`round_split`、AR 一致和 argmax 审计。输出必须在源码树外，已存在的文件不覆盖。它还没有包装成 RPipe Study。结果见 [联合 mask 检查](<../运行记录 Run Record/2026-11-01 联合mask检查.md>)。
