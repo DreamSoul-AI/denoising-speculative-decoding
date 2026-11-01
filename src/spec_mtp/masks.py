@@ -578,6 +578,7 @@ class VerifyCorrectionMaskProvider:
         elif kind == 'affine':
             self._A = torch.tensor(payload['A'], dtype=torch.float32)
             self._b = torch.tensor(payload['b'], dtype=torch.float32)
+            self._ridge = float(payload['ridge']) if 'ridge' in payload else None
             if self.online:
                 self._gram0 = torch.tensor(payload['gram'], dtype=torch.float64)
                 self._rhs0 = torch.tensor(payload['rhs'], dtype=torch.float64)
@@ -589,6 +590,7 @@ class VerifyCorrectionMaskProvider:
         self._round_commits = 0
         self._masks_calls = 0
         self._pending = None
+        self._online_updates = 0
 
     def init_from_prompt(self, prompt_embeds, generator=None):
         self.base.init_from_prompt(prompt_embeds, generator=generator)
@@ -596,6 +598,7 @@ class VerifyCorrectionMaskProvider:
         self._round_commits = 0
         self._masks_calls = 0
         self._pending = None
+        self._online_updates = 0
         if self._gram0 is not None:
             self._gram = self._gram0.clone()
             self._rhs = self._rhs0.clone()
@@ -616,9 +619,15 @@ class VerifyCorrectionMaskProvider:
                 self._gram = self._gram + row[:, None] * row[None, :]
                 self._rhs = self._rhs + row[:, None] * error.double()[None, :]
                 eye = torch.eye(self._gram.shape[0], dtype=torch.float64)
-                solution = torch.linalg.solve(self._gram + 1e-8 * eye, self._rhs)
+                if self._ridge is None:
+                    penalty = 1e-8 * eye
+                else:
+                    eye[-1, -1] = 0.0
+                    penalty = self._ridge * eye
+                solution = torch.linalg.solve(self._gram + penalty, self._rhs)
                 self._A = solution[:-1].T.float()
                 self._b = solution[-1].float()
+            self._online_updates += 1
             self._pending = None
         self.base.on_token_committed(new_embed, prev_embed)
         self._z = new_embed.detach()
@@ -645,6 +654,12 @@ class VerifyCorrectionMaskProvider:
         self._masks_calls += 1
         self._round_commits = 0
         return out
+
+    def diagnostics(self):
+        report = {'online_updates': self._online_updates}
+        if self._A0 is not None:
+            report['A_drift'] = float((self._A.double() - self._A0.double()).pow(2).sum().sqrt())
+        return report
 
 
 def fit_mask_correction(m_hat, z, target, kind):
@@ -673,6 +688,73 @@ def fit_mask_correction(m_hat, z, target, kind):
             'gram': gram.tolist(), 'rhs': rhs.tolist()}
 
 
+RIDGE_GRID = tuple(10.0 ** exponent for exponent in range(-4, 5))
+
+
+def fit_affine_ridge(m_hat, z, target, ridge):
+    """Affine least squares with ridge on A only. The intercept column is unpenalized."""
+    delta = (z - m_hat).double()
+    error = (target - m_hat).double()
+    if delta.ndim != 2 or error.shape != delta.shape or delta.shape[0] < 2:
+        raise ValueError('correction fit needs at least two rows')
+    if not torch.isfinite(delta).all() or not torch.isfinite(error).all():
+        raise ValueError('correction fit inputs must be finite')
+    ridge = float(ridge)
+    if ridge <= 0.0:
+        raise ValueError('affine ridge must be positive')
+    design = torch.cat([delta, torch.ones(delta.shape[0], 1, dtype=delta.dtype)], dim=1)
+    gram = design.T @ design
+    rhs = design.T @ error
+    penalty = torch.eye(gram.shape[0], dtype=gram.dtype)
+    penalty[-1, -1] = 0.0
+    solution = torch.linalg.solve(gram + ridge * penalty, rhs)
+    return {'A': solution[:-1].T.tolist(), 'b': solution[-1].tolist(),
+            'gram': gram.tolist(), 'rhs': rhs.tolist(), 'ridge': ridge}
+
+
+def select_affine_ridge(blocks, seed, folds=5):
+    """Pick the ridge on prompt blocks. The score is replay MSE inside those blocks only."""
+    count = len(blocks)
+    if count < folds or folds < 2:
+        raise ValueError('ridge selection needs at least one prompt per fold')
+    order = torch.randperm(count, generator=torch.Generator().manual_seed(int(seed))).tolist()
+    sizes = [count // folds] * folds
+    for index in range(count % folds):
+        sizes[index] += 1
+    chunks, cursor = [], 0
+    for size in sizes:
+        chunks.append(order[cursor:cursor + size])
+        cursor += size
+    cv = []
+    for ridge in RIDGE_GRID:
+        squared = rows = 0.0
+        for held in chunks:
+            train = [blocks[index] for index in range(count) if index not in held]
+            val = [blocks[index] for index in held]
+            fit = fit_affine_ridge(*_stack_blocks(train), ridge)
+            squared += _affine_residual(*_stack_blocks(val), fit)
+            rows += sum(block[0].shape[0] for block in val)
+        cv.append({'ridge': ridge, 'mse': squared / rows})
+    chosen = min(cv, key=lambda item: (item['mse'], -item['ridge']))
+    fit = fit_affine_ridge(*_stack_blocks(blocks), chosen['ridge'])
+    fit['cv'] = cv
+    fit['rows'] = int(sum(block[0].shape[0] for block in blocks))
+    fit['prompts'] = count
+    return fit
+
+
+def _stack_blocks(blocks):
+    return tuple(torch.cat([block[axis] for block in blocks], dim=0) for axis in range(3))
+
+
+def _affine_residual(m_hat, z, target, fit):
+    delta = z.double() - m_hat.double()
+    weight = torch.tensor(fit['A'], dtype=torch.float64)
+    bias = torch.tensor(fit['b'], dtype=torch.float64)
+    error = m_hat.double() + delta @ weight.T + bias - target.double()
+    return float(error.pow(2).sum())
+
+
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
     observation = spec_cfg.get('observation')
     bonus = spec_cfg.get('bonus_slot')
@@ -684,7 +766,7 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
     if correction is not None:
         if not isinstance(correction, dict) or correction.get('kind') not in ('scalar', 'diagonal', 'affine', 'reject_token'):
             raise ValueError('spec.correction kind must be scalar, diagonal, affine or reject_token')
-        if not set(correction) <= {'kind', 'online', 'k', 'num', 'den', 'A', 'b', 'gram', 'rhs'}:
+        if not set(correction) <= {'kind', 'online', 'k', 'num', 'den', 'A', 'b', 'gram', 'rhs', 'ridge'}:
             raise ValueError('spec.correction has an unknown field')
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'correction'}
         base = build_mask_provider(base_cfg, embedding_table, generator)

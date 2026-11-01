@@ -321,7 +321,29 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     online.masks()
     before = online._A.clone()
     online.on_token_committed(target[0].clone(), torch.zeros(3))
-    assert online._A.shape == before.shape
+    assert online._A.shape == before.shape and online.diagnostics()['online_updates'] == 1
+    generator = torch.Generator().manual_seed(0)
+    zed = torch.randn(30, 4, generator=generator)
+    guess = torch.randn(30, 4, generator=generator)
+    delta = zed - guess
+    truth = guess + delta * 0.3
+    from spec_mtp.masks import fit_affine_ridge, select_affine_ridge
+    recovered = fit_affine_ridge(guess, zed, truth, 1e-6)
+    assert torch.allclose(torch.tensor(recovered['A']), torch.eye(4) * 0.3, atol=1e-4)
+    blocks = [(guess[start:start + 6], zed[start:start + 6], truth[start:start + 6]) for start in range(0, 30, 6)]
+    chosen = select_affine_ridge(blocks, 0)
+    assert chosen['ridge'] > 0 and chosen['prompts'] == 5 and 'eval' not in chosen
+    ridge_online = VerifyCorrectionMaskProvider(ESPMaskProvider(1, torch.zeros(4, 4)), 'affine', chosen, online=True)
+    ridge_online.init_from_prompt(torch.zeros(2, 4))
+    ridge_online.base._masks = guess[:1]
+    ridge_online._z = zed[0].clone()
+    ridge_online._masks_calls = 1
+    frozen_A = ridge_online._A.clone()
+    ridge_online.masks()
+    assert torch.equal(ridge_online._A, frozen_A) and ridge_online.diagnostics()['online_updates'] == 0
+    ridge_online.on_token_committed(truth[0].clone(), torch.zeros(4))
+    ridge_online.init_from_prompt(torch.zeros(2, 4))
+    assert torch.equal(ridge_online._A, frozen_A) and ridge_online.diagnostics()['online_updates'] == 0
     spec = {**_spec('esp', 1, 'static'), 'correction': {'kind': 'scalar', 'k': 0.0, 'num': 0.0, 'den': 1.0}}
     model, prompt = _model(), PROMPTS[0]
     reference, _ = ar_generate(model, prompt, {'max_new_tokens': 20, 'temperature': 0, 'stop_on_eos': False})

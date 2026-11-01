@@ -22,7 +22,7 @@ import torch
 
 from spec_mtp.analysis import compare, prompt_tau, round_split
 from spec_mtp.decode import SpecDecoder, ar_generate
-from spec_mtp.masks import build_mask_provider, fit_mask_correction
+from spec_mtp.masks import build_mask_provider, fit_mask_correction, select_affine_ridge
 from spec_mtp.model import HFCausalLM
 
 PROTOCOL = 'trajectory-observation-pilot-v2'
@@ -264,6 +264,73 @@ def _affine_mse(m_hat, z, target, fit):
     return float((prediction - target.double()).pow(2).mean())
 
 
+def _fit_blocks(session, config, sequences):
+    spec = spec_for('esp', {'num_masks': 1, 'branches': [1]}, 0.0)
+    prompt_len = config['prompts']['length']
+    blocks = []
+    for seq in sequences:
+        embeds = session.embed(seq)[0]
+        if embeds.size(0) <= prompt_len + 1:
+            continue
+        policy = build_mask_provider(spec, session.embedding_table)
+        policy.init_from_prompt(embeds[:prompt_len])
+        policy.on_token_committed(embeds[prompt_len], embeds[prompt_len - 1])
+        predicted, observed, target = [], [], []
+        for index in range(prompt_len + 1, embeds.size(0)):
+            predicted.append(policy.masks()[0].detach().float().cpu())
+            observed.append(embeds[index - 1].detach().float().cpu())
+            target.append(embeds[index].detach().float().cpu())
+            policy.on_token_committed(embeds[index], embeds[index - 1])
+        blocks.append((torch.stack(predicted), torch.stack(observed), torch.stack(target)))
+    return blocks
+
+
+def _ridge_trees(result, session, config, prompts, references):
+    """Frozen mixed-language ridge affine is the primary. Lambda is chosen on fit prompts only."""
+    fit_blocks = _fit_blocks(session, config, [references[qid] for qid, _prompt in prompts['fit_a']])
+    fit_blocks += _fit_blocks(session, config, [references[qid] for qid, _prompt in prompts['fit_b']])
+    fit = select_affine_ridge(fit_blocks, result['seed'])
+    hidden = int(fit_blocks[0][0].shape[1])
+    eval_blocks = {
+        'fit': fit_blocks,
+        'eval_a': _fit_blocks(session, config, [references[qid] for qid, _prompt in prompts['eval_a']]),
+        'eval_b': _fit_blocks(session, config, [references[qid] for qid, _prompt in prompts['eval_b']]),
+    }
+
+    def stacked(blocks):
+        return tuple(torch.cat([block[axis] for block in blocks], dim=0) for axis in range(3))
+
+    result['fit'] = {
+        'rows': fit['rows'], 'prompts': fit['prompts'], 'hidden': hidden,
+        'params': hidden * hidden + hidden, 'params_per_output': hidden + 1,
+        'ridge': fit['ridge'], 'cv': fit['cv'],
+        'mse': {name: _affine_mse(*stacked(blocks), fit) for name, blocks in eval_blocks.items()},
+    }
+    frozen = {key: fit[key] for key in ('A', 'b', 'gram', 'rhs', 'ridge')}
+    frozen['kind'] = 'affine'
+    online = {**frozen, 'online': True}
+    arms = {
+        'esp_trajectory': ('esp', None),
+        'esp_affine': ('esp', frozen),
+        'esp_affine_online': ('esp', online),
+    }
+    for tree in config['trees']:
+        entry = {'tree': tree, 'splits': {}}
+        for split in ('eval_a', 'eval_b'):
+            raw = {}
+            for name, (base, correction) in arms.items():
+                raw[name] = arm_rows(session, base, tree, 0.0, prompts[split], config, references, correction=correction)
+            entry['splits'][split] = {
+                'arms': {name: pooled(rows) for name, rows in raw.items()},
+                'rows': raw,
+                'paired_vs_esp_trajectory': {name: paired(raw[name], raw['esp_trajectory'])
+                                             for name in raw if name != 'esp_trajectory'},
+                'paired_online_vs_frozen': paired(raw['esp_affine_online'], raw['esp_affine']),
+            }
+        result['trees'].append(entry)
+    return result
+
+
 def _affine_trees(result, session, config, prompts, references):
     """Frozen affine is the primary. Fit uses language A only. Online continues that Gram."""
     pairs = {split: _fit_pairs(session, config, [references[qid] for qid, _prompt in prompts[split]], 'esp')
@@ -317,9 +384,16 @@ def run_seed(config, seed):
     session, losses = train_model(config, data, seed)
     train_seconds = time.perf_counter() - started
     plan = config['prompts']
-    splits = {'fit': sample(lang_a, content, plan['fit'], plan['length'], generator),
-              'holdout': sample(lang_a, content, plan['holdout'], plan['length'], generator),
-              'cross': sample(lang_b, content + 1, plan['cross'], plan['length'], generator)}
+    if config.get('affine_ridge'):
+        count = plan['fit']
+        splits = {'fit_a': sample(lang_a, content, count, plan['length'], generator),
+                  'fit_b': sample(lang_b, content + 1, count, plan['length'], generator),
+                  'eval_a': sample(lang_a, content, count, plan['length'], generator),
+                  'eval_b': sample(lang_b, content + 1, count, plan['length'], generator)}
+    else:
+        splits = {'fit': sample(lang_a, content, plan['fit'], plan['length'], generator),
+                  'holdout': sample(lang_a, content, plan['holdout'], plan['length'], generator),
+                  'cross': sample(lang_b, content + 1, plan['cross'], plan['length'], generator)}
     prompts = {name: [(f'{name}-{index}', rows[index:index + 1]) for index in range(rows.shape[0])]
                for name, rows in splits.items()}
     eval_cfg = {'max_new_tokens': config['max_new_tokens'], 'temperature': 0.0, 'stop_on_eos': False}
@@ -332,6 +406,8 @@ def run_seed(config, seed):
         return _kalman_trees(result, session, config, prompts, references)
     if config.get('correction'):
         return _correction_trees(result, session, config, prompts, references)
+    if config.get('affine_ridge'):
+        return _ridge_trees(result, session, config, prompts, references)
     if config.get('affine'):
         return _affine_trees(result, session, config, prompts, references)
     for tree in config['trees']:
@@ -475,6 +551,7 @@ def run(config, output, oracle=False):
     protocol = ({'hard': 'bonus-slot-hard-v1', 'topk': 'bonus-slot-topk-v1'}.get(bonus_mode) if bonus_mode
                 else 'kalman-mask-scalar-v1' if config.get('kalman')
                 else 'trajectory-verify-correction-v1' if config.get('correction')
+                else 'trajectory-verify-affine-ridge-v1' if config.get('affine_ridge')
                 else 'trajectory-verify-affine-v1' if config.get('affine')
                 else PROTOCOL + ('-oracle-bound' if oracle else ''))
     header = {'protocol': protocol,
@@ -508,10 +585,14 @@ def main(argv=None):
                         help='trajectory, scalar Kalman, offline K and rejection-token baseline')
     parser.add_argument('--affine', action='store_true',
                         help='frozen affine versus ESP, plus rejection baseline and online affine')
+    parser.add_argument('--affine-ridge', action='store_true',
+                        help='mixed-language ridge affine versus ESP, plus online affine')
     args = parser.parse_args(argv)
     config = json.loads(json.dumps(DEFAULT))
     if args.seeds:
         config['seeds'] = args.seeds
+    if args.affine_ridge and (args.affine or args.correction or args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
+        raise ValueError('affine-ridge does not combine with the other pilot modes')
     if args.affine and (args.correction or args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
         raise ValueError('affine does not combine with the other pilot modes')
     if args.correction and (args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
@@ -529,6 +610,9 @@ def main(argv=None):
         config['variants'] = []
     elif args.correction:
         config['correction'] = True
+        config['variants'] = []
+    elif args.affine_ridge:
+        config['affine_ridge'] = True
         config['variants'] = []
     elif args.affine:
         config['affine'] = True
