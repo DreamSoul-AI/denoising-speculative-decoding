@@ -102,7 +102,12 @@ oracle 按槽拆分说明接受数的空间全在 mask 槽 0：模型在 bonus �
 ### 候选 `bonus-slot-topk-v1`
 硬 argmax 失败后，按新指令只再试一个不增加前向、针对同一槽的候选。槽 0 改为上一轮该行 logits 在草稿宽度 w（该层 `branches`）上重新归一化后的期望嵌入，其余槽仍是 trajectory。假设：真 token 若常落在草稿 top-w 内，这个期望比单词嵌入更不怕 top-1 选错，又比全词表均值更靠近 token 流形，从而更接近 oracle 所用的真实嵌入。协议名 `bonus-slot-topk-v1`，配置 `spec.bonus_slot.mode: topk`。
 
-**第四个合成确认判据（2026年11月1日，运行前写定）**：同一 pilot，`--bonus-slot topk`，种子 21/22/23。主比较为 ESP `bonus-slot-topk-v1` 对 ESP 轨迹，判定方式与 top1 相同。探索用种子 11/12/13。探索若胜不多于负，不跑确认，并停止再改合成 bonus 槽。确认不通过同样停止。这是 hard 失败之后的单独一次候选，不把已关闭的 observation 形式重新打开。
+**第四个合成确认判据（2026年11月1日，运行前写定）**：同一 pilot，`--bonus-slot topk`，种子 21/22/23。主比较为 ESP `bonus-slot-topk-v1` 对 ESP 轨迹，判定方式与 top1 相同。探索用种子 11/12/13。探索若胜不多于负，不跑确认，并停止再改合成 bonus 槽。确认不通过同样停止。这是 hard 失败之后的单独一次候选，不把已关闭的 observation 形式重新打开。该探索已失败（78:96），确认未跑。合成 bonus 槽变体到此停止。
+
+### 真实小模型比较（Qwen3-0.6B，CPU）
+合成方向停止后，只在本机已缓存的 Qwen3-0.6B 上做。不用 1.7B/4B，不下载，不用 GPU。假设：沿用 4 条 prompt 那次的树（k=1，`branches` [4]，T=0，`stop_on_eos` false），把样本扩到 32 条固定短 prompt、每条 16 个新 token。树不再改。prompt 在开跑前写死，见运行配置。
+
+**真实模型判据（2026年11月1日，运行前写定）**：三条臂为 ESP 默认、`bonus-slot-hard-v1`、`bonus-slot-topk-v1`，同一批 prompt，各自与独立 AR 比 token。任一臂与 AR 不一致或 argmax 审计失败，该臂的 τ 不解释成接受收益。功效比较是 prompt 级 τ（解码提交数 / 解码调用数），hard 对 ESP、topk 对 ESP 各做一次双侧符号检验：τ 更高为胜，p<0.05 且胜多于负才算该臂更高。两次比较不做校正，这个限制随结果写明。τ 均值用 prompt 为单元的 10000 次百分位自助法 95% 区间（种子 0）。接受长度是每轮 `accepted_nodes` 的长度分布。每 token 前向次数为（prefill 与 decode 调用之和）/ 新 token 数，墙钟按整段 `generate` 计。这些是描述，不另设通过线。不通过不改树、不换模型、不再加合成变体。
 
 资源需求在公式和最小比较的输入规模确定前不编造预算。历史“GPU 不空闲”不能当作新的执行许可。取消时保留已写出的部分观测，不把未完成矩阵记为成功。
 
@@ -121,6 +126,7 @@ oracle 按槽拆分说明接受数的空间全在 mask 槽 0：模型在 bonus �
 | oracle 按槽拆分 | 全部槽 oracle 的 τ 接近 k+1；只给 bonus 之后的槽真实嵌入时 τ 与轨迹相同。可得空间都在槽 1（当轮 bonus token），更深 mask 不能补上 |
 | `bonus-slot-hard-v1` | 探索未通过。种子 11/12/13，ESP bonus 对 ESP 轨迹 79 胜 99 负（p=0.154），方向为更差。不跑确认 |
 | `bonus-slot-topk-v1` | 探索未通过。种子 11/12/13，ESP top-k 对 ESP 轨迹 78 胜 96 负（p=0.197）。不跑确认，停止再改合成 bonus 槽 |
+| Qwen3-0.6B CPU 真实比较 | 判据已写。32 条短 prompt、每条 16 token，ESP 与 hard、topk 对 AR 的一致性，以及两条 bonus 臂对 ESP 的 τ 符号检验。测量见运行记录 |
 | 采样分布保证、独立 AR 等价、端到端速度 | 未完成，不能由 T0 推广 |
 
 # 八、和开发计划的关系
