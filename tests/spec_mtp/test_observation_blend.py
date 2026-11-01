@@ -288,6 +288,36 @@ def test_scalar_kalman_step_steady_gain_and_lossless_decode():
         KalmanMaskProvider(1, torch.zeros(4, 3), mode='soft')
 
 
+def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
+    from spec_mtp.masks import ESPMaskProvider, VerifyCorrectionMaskProvider, fit_mask_correction
+
+    mhat = torch.zeros(6, 3)
+    observed = torch.tensor([[1.0, 0.0, 0.0]]).repeat(6, 1)
+    target = 0.4 * observed
+    fit = fit_mask_correction(mhat, observed, target, 'scalar')
+    assert abs(fit['k'] - 0.4) < 1e-6
+    provider = VerifyCorrectionMaskProvider(ESPMaskProvider(2, torch.zeros(4, 3)), 'scalar', {'k': 0.5})
+    provider.init_from_prompt(torch.zeros(2, 3))
+    provider.base._masks = torch.tensor([[1.0, 1.0, 1.0], [2.0, 2.0, 2.0]])
+    provider._z = torch.tensor([3.0, 1.0, 1.0])
+    provider._masks_calls = 1
+    corrected = provider.masks()
+    assert torch.allclose(corrected[0], torch.tensor([2.0, 1.0, 1.0]))
+    assert torch.allclose(corrected[1], torch.tensor([2.0, 2.0, 2.0]))
+    reject = VerifyCorrectionMaskProvider(ESPMaskProvider(1, torch.zeros(4, 2)), 'reject_token')
+    reject.init_from_prompt(torch.ones(2, 2))
+    reject.masks()
+    reject.on_token_committed(torch.tensor([4.0, 0.0]), torch.zeros(2))
+    reject.masks()
+    reject.on_token_committed(torch.tensor([5.0, 0.0]), torch.zeros(2))
+    assert torch.allclose(reject.masks()[0], torch.tensor([5.0, 0.0]))
+    spec = {**_spec('esp', 1, 'static'), 'correction': {'kind': 'scalar', 'k': 0.0, 'num': 0.0, 'den': 1.0}}
+    model, prompt = _model(), PROMPTS[0]
+    reference, _ = ar_generate(model, prompt, {'max_new_tokens': 20, 'temperature': 0, 'stop_on_eos': False})
+    output, stats = _decode(model, spec, prompt, 0, 0)
+    assert torch.equal(output, reference) and stats['verification_argmax_audit']['passed']
+
+
 def test_round_split_groups_by_previous_outcome():
     trace = [{'accepted_nodes': [1, 2], 'committed_tokens': [5, 6, 7]},
              {'accepted_nodes': [], 'committed_tokens': [8]},

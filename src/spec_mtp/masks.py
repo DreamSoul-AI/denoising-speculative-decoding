@@ -545,11 +545,125 @@ class KalmanMaskProvider:
                 'phi': phi, 'prop8_beta_star': 1.0 / (1.0 + root)}
 
 
+class VerifyCorrectionMaskProvider:
+    """m = m_hat + K(z - m_hat) on slot 0. z is the last committed embedding.
+
+    K is supplied by an offline fit. `reject_token` instead copies z into slot 0
+    only after a decode round that committed one token. Online updates are the
+    scalar least squares continued from that fit, not a new Kalman recursion.
+    """
+    needs_hidden = False
+
+    def __init__(self, base, kind, payload=None, online=False):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('verify correction wraps input-embedding providers only')
+        if kind not in ('scalar', 'diagonal', 'affine', 'reject_token'):
+            raise ValueError('correction kind must be scalar, diagonal, affine or reject_token')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.kind = kind
+        self.online = bool(online)
+        if self.online and kind != 'scalar':
+            raise ValueError('online correction is scalar only')
+        payload = dict(payload or {})
+        self._k = self._num = self._den = None
+        self._diag = self._A = self._b = None
+        if kind == 'scalar':
+            self._k = float(payload['k'])
+            self._num = float(payload.get('num', 0.0))
+            self._den = float(payload.get('den', 0.0))
+        elif kind == 'diagonal':
+            self._diag = torch.tensor(payload['k'], dtype=torch.float32)
+        elif kind == 'affine':
+            self._A = torch.tensor(payload['A'], dtype=torch.float32)
+            self._b = torch.tensor(payload['b'], dtype=torch.float32)
+        self._z = None
+        self._round_commits = 0
+        self._masks_calls = 0
+        self._pending = None
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        self._z = None
+        self._round_commits = 0
+        self._masks_calls = 0
+        self._pending = None
+
+    def on_token_committed(self, new_embed, prev_embed):
+        if self._pending is not None and self.online and self._round_commits == 0:
+            mhat, zed = self._pending
+            error = (new_embed - mhat).float()
+            delta = (zed - mhat).float()
+            self._num += float((error * delta).sum())
+            self._den += float((delta * delta).sum())
+            self._k = self._num / max(self._den, 1e-12)
+            self._pending = None
+        self.base.on_token_committed(new_embed, prev_embed)
+        self._z = new_embed.detach()
+        self._round_commits += 1
+
+    def _corrected(self, mhat):
+        delta = self._z.to(device=mhat.device, dtype=mhat.dtype) - mhat
+        if self.kind == 'scalar':
+            return mhat + delta * mhat.new_tensor(self._k)
+        if self.kind == 'diagonal':
+            return mhat + delta * self._diag.to(device=mhat.device, dtype=mhat.dtype)
+        return mhat + delta @ self._A.to(device=mhat.device, dtype=mhat.dtype).T + self._b.to(device=mhat.device, dtype=mhat.dtype)
+
+    def masks(self):
+        out = self.base.masks().clone()
+        if self.kind == 'reject_token':
+            if self._masks_calls >= 2 and self._round_commits == 1 and self._z is not None:
+                out[0] = self._z.to(dtype=out.dtype, device=out.device)
+        elif self._z is not None and self._masks_calls >= 1:
+            mhat = out[0]
+            out[0] = self._corrected(mhat)
+            if self.online:
+                self._pending = (mhat.detach(), self._z.detach())
+        self._masks_calls += 1
+        self._round_commits = 0
+        return out
+
+
+def fit_mask_correction(m_hat, z, target, kind):
+    """Least squares for m = m_hat + K(z - m_hat), or plus a bias when affine."""
+    if kind not in ('scalar', 'diagonal', 'affine'):
+        raise ValueError('fit kind must be scalar, diagonal or affine')
+    delta = (z - m_hat).double()
+    error = (target - m_hat).double()
+    if delta.ndim != 2 or error.shape != delta.shape or delta.shape[0] < 2:
+        raise ValueError('correction fit needs at least two rows')
+    if not torch.isfinite(delta).all() or not torch.isfinite(error).all():
+        raise ValueError('correction fit inputs must be finite')
+    if kind == 'scalar':
+        num = (error * delta).sum()
+        den = (delta * delta).sum().clamp_min(1e-12)
+        return {'k': float(num / den), 'num': float(num), 'den': float(den)}
+    if kind == 'diagonal':
+        num = (error * delta).sum(dim=0)
+        den = (delta * delta).sum(dim=0).clamp_min(1e-12)
+        return {'k': (num / den).tolist()}
+    design = torch.cat([delta, torch.ones(delta.shape[0], 1, dtype=delta.dtype)], dim=1)
+    solution = torch.linalg.lstsq(design, error).solution
+    return {'A': solution[:-1].T.tolist(), 'b': solution[-1].tolist()}
+
+
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
     observation = spec_cfg.get('observation')
     bonus = spec_cfg.get('bonus_slot')
+    correction = spec_cfg.get('correction')
+    if correction is not None and (observation is not None or bonus is not None or str(spec_cfg.get('method', 'esp')).lower() == 'kalman'):
+        raise ValueError('correction does not combine with observation, bonus_slot or kalman')
     if str(spec_cfg.get('method', 'esp')).lower() == 'kalman' and (observation is not None or bonus is not None):
         raise ValueError('kalman does not combine with observation or bonus_slot')
+    if correction is not None:
+        if not isinstance(correction, dict) or correction.get('kind') not in ('scalar', 'diagonal', 'affine', 'reject_token'):
+            raise ValueError('spec.correction kind must be scalar, diagonal, affine or reject_token')
+        if not set(correction) <= {'kind', 'online', 'k', 'num', 'den', 'A', 'b'}:
+            raise ValueError('spec.correction has an unknown field')
+        base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'correction'}
+        base = build_mask_provider(base_cfg, embedding_table, generator)
+        return VerifyCorrectionMaskProvider(base, correction['kind'], correction, online=bool(correction.get('online', False)))
     if observation is not None and bonus is not None:
         raise ValueError('bonus_slot does not combine with observation')
     if bonus is not None:

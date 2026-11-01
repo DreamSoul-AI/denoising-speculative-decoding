@@ -42,7 +42,7 @@
 入口齐全不代表全部规范已落地。当前任务只应用实际读取且适用的要求，不加载无关历史限制。
 
 # 四、固定依赖、数据与执行边界
-- 仓库不再内嵌 `src/rpipe/`，也不设顶层 `tools/`。Study 流程在 `spec_mtp` 内自有实现，目录以 [RPipe](https://github.com/DreamSoul-AI/RPipe) 为结构模板持续对齐。通用流程缺陷改本仓实现，并对照该模板；第三方 ESP 来源树及 `ORIGIN.json` 保持字节
+- 仓库不再内嵌 `src/rpipe/`，也不设顶层 `tools/`。Study 流程在 `spec_mtp` 内自有实现，目录以 RPipe 为结构模板持续对齐。通用流程缺陷改本仓实现，并对照该模板；第三方 ESP 来源树及 `ORIGIN.json` 保持字节
 - `src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/upstream/` 的 README、code、results 整体及旁侧 `ORIGIN.json` 保持字节，所有版权许可证保留。第三方原码不能称作者官方实现
 - 原始 `datasets/spec_bench/` 保留，已渲染输入、日志、trace、图和运行源码快照按制品管理，不能据生成物清理授权扩展删除其它源码或正式数据
 - 科学宿主的目标为标准 Python 包，只有 Study 使用 RPipe 声明和实际需要的 `structure/flow` 薄适配。保留默认六阶段，不复制整套库或无职责空壳

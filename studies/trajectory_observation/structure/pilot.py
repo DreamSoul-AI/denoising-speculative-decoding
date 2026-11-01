@@ -22,7 +22,7 @@ import torch
 
 from spec_mtp.analysis import compare, prompt_tau, round_split
 from spec_mtp.decode import SpecDecoder, ar_generate
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.masks import build_mask_provider, fit_mask_correction
 from spec_mtp.model import HFCausalLM
 
 PROTOCOL = 'trajectory-observation-pilot-v2'
@@ -96,7 +96,7 @@ def train_model(config, data, seed):
     return session, losses
 
 
-def spec_for(base, tree, gain, condition='none', form='mean', bonus_slot=False, kalman=None):
+def spec_for(base, tree, gain, condition='none', form='mean', bonus_slot=False, kalman=None, correction=None):
     spec = {'method': {'esp': 'esp', 'ema': 'ema_velocity', 'kalman': 'kalman'}[base],
             'num_masks': tree['num_masks'],
             'impl': 'efficient', 'tree': {'mode': 'static', 'branches': list(tree['branches']), 'pruning': True},
@@ -109,6 +109,8 @@ def spec_for(base, tree, gain, condition='none', form='mean', bonus_slot=False, 
         spec['bonus_slot'] = {'mode': bonus_slot if isinstance(bonus_slot, str) else 'hard'}
     elif gain:
         spec['observation'] = {'gain': gain, 'condition': condition, 'form': form}
+    if correction:
+        spec['correction'] = correction
     return spec
 
 
@@ -146,8 +148,8 @@ def pooled(rows):
 
 
 def arm_rows(session, base, tree, gain, prompts, config, references, condition='none', form='mean', bonus_slot=False,
-             kalman=None):
-    return decode_rows(session, spec_for(base, tree, gain, condition, form, bonus_slot, kalman), prompts,
+             kalman=None, correction=None):
+    return decode_rows(session, spec_for(base, tree, gain, condition, form, bonus_slot, kalman, correction), prompts,
                        config['max_new_tokens'], references)
 
 
@@ -198,6 +200,62 @@ def _kalman_trees(result, session, config, prompts, references):
     return result
 
 
+def _fit_pairs(session, config, sequences, base):
+    spec = spec_for(base, {'num_masks': 1, 'branches': [1]}, 0.0)
+    prompt_len = config['prompts']['length']
+    predicted, observed, target = [], [], []
+    for seq in sequences:
+        embeds = session.embed(seq)[0]
+        if embeds.size(0) <= prompt_len + 1:
+            continue
+        policy = build_mask_provider(spec, session.embedding_table)
+        policy.init_from_prompt(embeds[:prompt_len])
+        policy.on_token_committed(embeds[prompt_len], embeds[prompt_len - 1])
+        for index in range(prompt_len + 1, embeds.size(0)):
+            predicted.append(policy.masks()[0].detach().float().cpu())
+            observed.append(embeds[index - 1].detach().float().cpu())
+            target.append(embeds[index].detach().float().cpu())
+            policy.on_token_committed(embeds[index], embeds[index - 1])
+    return torch.stack(predicted), torch.stack(observed), torch.stack(target)
+
+
+def _correction_trees(result, session, config, prompts, references):
+    """Four meeting arms. K is fit on language A only and frozen for eval, except the online scalar."""
+    fit_sequences = [references[qid] for qid, _prompt in prompts['fit']]
+    predicted, observed, target = _fit_pairs(session, config, fit_sequences, 'esp')
+    fits = {kind: fit_mask_correction(predicted, observed, target, kind) for kind in ('scalar', 'diagonal', 'affine')}
+    result['fit'] = {'rows': int(predicted.shape[0]),
+                     'scalar_k': fits['scalar']['k'],
+                     'diagonal_mean': float(torch.tensor(fits['diagonal']['k']).mean())}
+    arms = {
+        'esp_trajectory': ( 'esp', None),
+        'ema_trajectory': ('ema', None),
+        'kalman_online': ('kalman', None),
+        'esp_scalar': ('esp', {**fits['scalar'], 'kind': 'scalar'}),
+        'esp_diagonal': ('esp', {**fits['diagonal'], 'kind': 'diagonal'}),
+        'esp_affine': ('esp', {**fits['affine'], 'kind': 'affine'}),
+        'esp_scalar_online': ('esp', {**fits['scalar'], 'kind': 'scalar', 'online': True}),
+        'esp_reject_token': ('esp', {'kind': 'reject_token'}),
+    }
+    for tree in config['trees']:
+        entry = {'tree': tree, 'splits': {}}
+        for split in ('holdout', 'cross'):
+            raw = {}
+            for name, (base, correction) in arms.items():
+                raw[name] = arm_rows(session, base, tree, 0.0, prompts[split], config, references,
+                                     kalman='online' if base == 'kalman' else None, correction=correction)
+            entry['splits'][split] = {
+                'arms': {name: pooled(rows) for name, rows in raw.items()},
+                'rows': raw,
+                'paired_vs_esp_trajectory': {name: paired(raw[name], raw['esp_trajectory'])
+                                             for name in raw if name != 'esp_trajectory'},
+                'paired_diagonal_vs_reject': paired(raw['esp_diagonal'], raw['esp_reject_token']),
+                'paired_online_vs_frozen_scalar': paired(raw['esp_scalar_online'], raw['esp_scalar']),
+            }
+        result['trees'].append(entry)
+    return result
+
+
 def run_seed(config, seed):
     generator = torch.Generator().manual_seed(seed)
     content = config['content_vocab']
@@ -224,6 +282,8 @@ def run_seed(config, seed):
         return _bonus_trees(result, session, config, prompts, references)
     if config.get('kalman'):
         return _kalman_trees(result, session, config, prompts, references)
+    if config.get('correction'):
+        return _correction_trees(result, session, config, prompts, references)
     for tree in config['trees']:
         entry = {'tree': tree, 'fit_grid': {}, 'selected_gain': {}, 'splits': {}}
         variants = [tuple(variant) for variant in config['variants']]
@@ -363,7 +423,9 @@ def run(config, output, oracle=False):
     output.mkdir(parents=True, exist_ok=False)
     bonus_mode = config.get('bonus_slot')
     protocol = ({'hard': 'bonus-slot-hard-v1', 'topk': 'bonus-slot-topk-v1'}.get(bonus_mode) if bonus_mode
-                else 'kalman-mask-scalar-v1' if config.get('kalman') else PROTOCOL + ('-oracle-bound' if oracle else ''))
+                else 'kalman-mask-scalar-v1' if config.get('kalman')
+                else 'trajectory-verify-correction-v1' if config.get('correction')
+                else PROTOCOL + ('-oracle-bound' if oracle else ''))
     header = {'protocol': protocol,
               'scope': 'CPU synthetic pilot; not a real-model, speed or sampling result',
               'config': config, 'config_sha256': hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest(),
@@ -391,10 +453,14 @@ def main(argv=None):
                         help='ESP trajectory versus bonus-slot-hard-v1 or bonus-slot-topk-v1')
     parser.add_argument('--kalman', action='store_true',
                         help='ESP, fixed EMA, blend-v1, online Kalman and frozen-K Kalman')
+    parser.add_argument('--correction', action='store_true',
+                        help='trajectory, scalar Kalman, offline K and rejection-token baseline')
     args = parser.parse_args(argv)
     config = json.loads(json.dumps(DEFAULT))
     if args.seeds:
         config['seeds'] = args.seeds
+    if args.correction and (args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
+        raise ValueError('correction does not combine with kalman, bonus-slot, variants or the oracle')
     if args.kalman and (args.bonus_slot or args.variants or args.oracle_bound):
         raise ValueError('kalman does not combine with bonus-slot, observation variants or the oracle')
     if args.bonus_slot:
@@ -405,6 +471,9 @@ def main(argv=None):
     elif args.kalman:
         config['kalman'] = True
         config['blend_gain'] = 0.5
+        config['variants'] = []
+    elif args.correction:
+        config['correction'] = True
         config['variants'] = []
     elif args.variants:
         variants = [item.split(':') for item in args.variants]

@@ -24,6 +24,13 @@
       ]
     },
     {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_verify_correction_recovers_scalar_and_edits_only_slot_zero",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
       "test_id": "tests/spec_mtp/test_observation_blend.py::test_top1_form_uses_the_most_likely_allowed_token",
       "target": "spec_mtp",
       "tags": [

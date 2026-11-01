@@ -112,7 +112,33 @@ oracle 按槽拆分说明接受数的空间全在 mask 槽 0：模型在 bonus �
 ### 标量卡尔曼 mask（`kalman-mask-scalar-v1`）
 bonus 槽不再改。v6 第 5.9 节的状态是高阶 hidden 和 \((n+1)\times(n+1)\) 协方差。这里的默认是更小的一条，假设写明：观测用现有 `on_token_committed` 的输入嵌入，不是末层 hidden；状态是各维共享的标量随机游走（\(F=1\)），\(q,r,P,K\) 都是标量。在线臂用 Sage–Husa，遗忘因子 0.95，\(r_{\min}=10^{-6}\)，\(q_{\min}=10^{-8}\)，初始 \(q=0.01r\)。冻结臂在 prompt 预热结束时锁定 \(K\)。mask 是滤波后的水平，重复到每个槽。它不与 observation 或 bonus 槽混用。命题 8 的 \(\beta^\star\) 属于 \(n=1\)、\(R\to 0\) 的局部线性趋势；把本实现的 \(q/r\) 代入该闭式只作对照，不相等只说明这不是那个模型。标量稳态本身有恒等式：固定增益 \(\lambda\) 是 \(q/r=\lambda^2/(1-\lambda)\) 的稳态卡尔曼增益，ESP 的 \(\lambda=0.1\) 因此对应某一个稳态增益。
 
-**卡尔曼合成判据（2026年11月2日，运行前写定）**：同一 pilot，`--kalman`，探索种子 11/12/13。臂为 ESP 轨迹、固定 EMA（\(\beta=0.9\)）、blend-v1（增益固定 0.5，不再在拟合集上重选）、在线卡尔曼、冻结 \(K\)。主比较是在线卡尔曼对 ESP 轨迹，prompt 级三树接受数差，双侧符号检验，p<0.05 且胜多于负才算通过，然后才跑种子 21/22/23。探索若胜不多于负，不跑确认，也不上 Qwen3-0.6B。A2 是同一次运行里在线对冻结 \(K\) 的同一检验，只报告，不代替主比较；在线不优于冻结，就不把收益写成来自在线重估 \(K\)。A1 用拒绝后轮次的提交数做同一符号检验：主比较通过但拒绝后轮次不通过，则不能排除“只是多用了已提交 token”。固定 EMA 与命题 8 的 \(\beta^\star(q/r)\) 只记录差距，不设通过线。确认通过之后才在本机 Qwen3-0.6B 上做小比较，树与 32 条 prompt 那次相同。
+**卡尔曼合成判据（2026年11月2日，运行前写定）**：同一 pilot，`--kalman`，探索种子 11/12/13。臂为 ESP 轨迹、固定 EMA（\(\beta=0.9\)）、blend-v1（增益固定 0.5，不再在拟合集上重选）、在线卡尔曼、冻结 \(K\)。主比较是在线卡尔曼对 ESP 轨迹，prompt 级三树接受数差，双侧符号检验，p<0.05 且胜多于负才算通过，然后才跑种子 21/22/23。探索若胜不多于负，不跑确认，也不上 Qwen3-0.6B。A2 是同一次运行里在线对冻结 \(K\) 的同一检验，只报告，不代替主比较；在线不优于冻结，就不把收益写成来自在线重估 \(K\)。A1 用拒绝后轮次的提交数做同一符号检验：主比较通过但拒绝后轮次不通过，则不能排除“只是多用了已提交 token”。固定 EMA 与命题 8 的 \(\beta^\star(q/r)\) 只记录差距，不设通过线。确认通过之后才在本机 Qwen3-0.6B 上做小比较，树与 32 条 prompt 那次相同。该确认已失败（101:83，p=0.210）。它只对应下面 formulation 的 trajectory、没有观测项，不据此改会议方案，也不再调这条标量滤波。
+
+### 10 月 31 日会议的合并（formulation）
+会议原话，不是本仓已经测过的结论。Jason：把 input difference 乘上学习得到的 K，作为 correction 加到最后的猜测上；收益主要来自最后 commit 的 token，只在猜错时用最后的 next token 仍有一点作用；K 更像 model specific，在线调 K 没有额外收益，倾向先收集数据再离线拟合。Enmao：两路合并，状态是 trajectory（ESP/EMA 那种长程 model predict），观测是本轮 verify 的当前结果，卡尔曼是这个合并的 closed form；要消融掉观测项，先写公式和伪代码。会上没有给出 K 的维度和完整公式。
+
+本仓据此写下的公式，其中维度、拟合和槽位是假设：
+
+\[m = \hat m + K(z-\hat m)\]
+
+- \(\hat m\)：ESP 或 EMA 的 mask 轨迹，只改槽 0。假设槽 0 是“最后那个猜测”。
+- \(z\)：最近一次已提交 token 的输入嵌入。假设这就是本轮 verify 结果，不用末层 hidden，也不再做一次前向。
+- \(K\)：在语言 A 的拟合 prompt 上，用 AR 参考续写重放轨迹，最小二乘让槽 0 接近下一 token 的嵌入。评测集不重选。标量、对角、仿射三种都拟合；主比较用对角。仿射是 \(m=\hat m+A(z-\hat m)+b\)。在线臂只延续标量最小二乘，初值来自同一次拟合。
+- 已测过的 `kalman-mask-scalar-v1` 没有 \(z\)，只重写轨迹本身，对应消融里的 trajectory-only，不是这条公式的失败。
+
+```text
+Fit(fit sequences): replay trajectory; collect (m_hat, z=last commit, y=next embed); least squares
+Decode step:
+  m_hat <- trajectory masks
+  if reject-only baseline and previous round committed exactly one token:
+      m[0] <- z
+  else if correction and z exists:
+      m[0] <- m_hat[0] + K(z - m_hat[0])
+  draft and verify
+  on each committed embed: update trajectory; z <- that embed; online scalar may update K
+```
+
+**观测修正的合成判据（2026年11月2日，运行前写定）**：同一 pilot，`--correction`，探索种子 11/12/13。四档为 (a) ESP 与固定 EMA；(b) 现有标量卡尔曼在线臂，不改参数；(c) ESP 加冻结的标量、对角、仿射 K；(d) 只在上一解码轮恰好提交一个 token 时，把槽 0 换成该 token 的嵌入。主比较是 (c) 的对角 K 对 ESP 轨迹，prompt 级三树接受数差，双侧符号检验，p<0.05 且胜多于负才跑种子 21/22/23。探索若胜不多于负，不跑确认，也不上 Qwen3-0.6B。A1 看对角对 (d)：对角不更高，就不把收益写成超出“拒绝轮用最后 token”。A2 看标量在线对标量冻结：在线不更高，就不把在线调 K 写成必要。确认通过后才在 Qwen3-0.6B 上做 CPU 小比较。
 
 资源需求在公式和最小比较的输入规模确定前不编造预算。历史“GPU 不空闲”不能当作新的执行许可。取消时保留已写出的部分观测，不把未完成矩阵记为成功。
 
@@ -132,7 +158,8 @@ bonus 槽不再改。v6 第 5.9 节的状态是高阶 hidden 和 \((n+1)\times(n
 | `bonus-slot-hard-v1` | 探索未通过。种子 11/12/13，ESP bonus 对 ESP 轨迹 79 胜 99 负（p=0.154），方向为更差。不跑确认 |
 | `bonus-slot-topk-v1` | 探索未通过。种子 11/12/13，ESP top-k 对 ESP 轨迹 78 胜 96 负（p=0.197）。不跑确认，停止再改合成 bonus 槽 |
 | Qwen3-0.6B CPU 真实比较 | 32 条 prompt 三条臂都与 AR token 相同。hard 对 ESP 的 τ 为 5 胜 20 负（p=0.004），方向更低。topk 为 5 胜 14 负（p=0.064），判据未通过，均值差区间也在 0 以下。不改树、不换模型 |
-| `kalman-mask-scalar-v1` | 确认未通过。探索 117:59（p=1.5e-5），新种子 21/22/23 为 101 胜 83 负（p=0.210）。不上 Qwen3-0.6B |
+| `kalman-mask-scalar-v1` | 确认未通过。探索 117:59（p=1.5e-5），新种子 21/22/23 为 101 胜 83 负（p=0.210）。这只是 trajectory、不加本轮 verify 观测的一档，不代表否定 10 月 31 日的合并方案。不上 Qwen3-0.6B |
+| 轨迹加 verify 观测修正 | 判据已写。对角 K 离线拟合，对 ESP 轨迹。测量见运行记录 |
 | 采样分布保证、独立 AR 等价、端到端速度 | 未完成，不能由 T0 推广 |
 
 # 八、和开发计划的关系
