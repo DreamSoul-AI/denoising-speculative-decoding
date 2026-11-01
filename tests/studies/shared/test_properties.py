@@ -131,7 +131,7 @@ def test_command_edge_cases(tmp_path):
 
 def test_main_forwards_to_rpipe(monkeypatch, tmp_path, capsys):
     calls = []
-    import rpipe.flow.cli as rpipe_cli
+    import spec_mtp.flow.cli as rpipe_cli
 
     monkeypatch.setattr(rpipe_cli, 'main', lambda argv: calls.append(argv) or None)
     assert cli.main(['status', str(tmp_path)]) == 0

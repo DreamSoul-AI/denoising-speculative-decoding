@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 from diagnose_output_windows import file_hash, margin
 
 
@@ -100,7 +100,7 @@ def main():
               'note': 'First-slot hypotheses were predeclared; second-slot scalar audit is explicitly post hoc from already saved logits.',
               'source_digest': report['source_digest'], 'raw_report_sha256': file_hash(args.raw / 'diagnosis.json'),
               'raw_tensor_sha256': report['raw_tensor_sha256'], 'tool_sha256': file_hash(Path(__file__)),
-              'helper_sha256': file_hash(ROOT / 'tools/diagnose_output_windows.py'), 'findings': findings}
+              'helper_sha256': file_hash(ROOT / 'studies/_shared/structure/diagnose_output_windows.py'), 'findings': findings}
     target = study / 'docs/slot_diagnosis_v1.json'
     if target.exists():
         assert read(target) == result, 'existing diagnosis differs; preserve it'

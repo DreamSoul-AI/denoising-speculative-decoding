@@ -9,7 +9,7 @@ from spec_mtp.masks import OutputHiddenMaskProvider
 
 
 def test_fixed_masks_only_use_selected_state_and_proxy(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q241_local_factors import fixed_masks
     provider = OutputHiddenMaskProvider(2, torch.arange(35, dtype=torch.float32).reshape(5, 7) + 1)
     state = {'anchor': torch.arange(7, dtype=torch.float32) + 1, 'velocity': torch.ones(7) * .1}
@@ -24,7 +24,7 @@ def test_fixed_masks_only_use_selected_state_and_proxy(monkeypatch):
 
 
 def test_future_mask_change_preserves_current_verification(model, monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q241_local_factors import replay_fixed_block
     cache = kv_cache.new_cache()
     model(model.embed(torch.tensor([[1, 2]])), torch.tensor([[0, 1]]), past_key_values=cache)
@@ -45,7 +45,7 @@ def test_future_mask_change_preserves_current_verification(model, monkeypatch):
 
 
 def test_frozen_targets_retain_entry_and_bound_windows(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_state_extension import frozen_targets
     selected = frozen_targets({'intervention_root': 10, 'targets': [10, 11, 13, 14, 18, 20, 22, 23]})
     assert selected == [10, 11, 13, 14, 22, 23]

@@ -6,7 +6,7 @@ import pytest
 import torch
 import yaml
 import spec_mtp.decode as decoding
-from rpipe.structure.make.expand import expand_patches, load_study_yaml
+from spec_mtp.structure.make.expand import expand_patches, load_study_yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 STUDY = ROOT/'studies/qwen3_4b_bf16_five_methods'

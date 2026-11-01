@@ -197,7 +197,7 @@ Study 的 `study.yaml` 说明因素、seed、扩展及冻结声明，`experiment
 
 研究问题和实验安排只在唯一中文研究计划按 Study 分章，结果只在通用调研保留必要摘要与固定原件定位，执行 raw 和可重建报告在外部运行根。Study、测试和工具不再规划 README、PLAN、NUMBERS 或逐事报告。测试排除项和入口说明留本文与代码结构设计。
 
-共同合同对齐2026年10月21日 RPipe 文档重设计固定提交 `057666b432661694575d91150c232e63254e96bd` 的 [研究流水线 架构设计](https://github.com/DreamSoul-AI/RPipe/blob/057666b432661694575d91150c232e63254e96bd/docs/研究流水线%20架构设计.md) 第五章。其目标语义不是 SD 当前固定副本能力，后续采用仍需实现与评审。固定 `src/rpipe/` 不在本仓修补，通用问题在上游独立修复后另行完整同步，包含源码、许可与来源。
+共同合同对齐2026年10月21日 RPipe 文档重设计固定提交 `057666b432661694575d91150c232e63254e96bd` 的 [研究流水线 架构设计](https://github.com/DreamSoul-AI/RPipe/blob/057666b432661694575d91150c232e63254e96bd/docs/研究流水线%20架构设计.md) 第五章。其目标语义不是 SD 当前固定副本能力，后续采用仍需实现与评审。2026年11月1日起本仓不再内嵌该副本，Study 流程由 `spec_mtp` 实现，并以上游仓库为结构模板持续对齐。
 
 当前 `python -m spec_mtp` 的 RPipe 代理与 console API 有兼容消费者。目标科学 CLI 提供显式 decode/audit/compare，Study 执行使用 RPipe 入口。旧 make/launch/process 等的保留、转发或弃用需实施前逐项确认，不能在纯文档阶段承诺参数兼容，也不能因此让科学宿主依赖框架内部。
 
@@ -245,6 +245,6 @@ Study 的 `study.yaml` 说明因素、seed、扩展及冻结声明，`experiment
 质量场景、黑盒职责、源码/运行/部署分离和简约取舍是本项目的裁剪。固定 RPipe 副本仍是 v0.3.1，不把参考仓的后续演进写成已升级。本文描述当前选定职责；源码映射以代码结构设计为准，完成状态以运行记录为准。
 
 ## （四）本分支的 CPU 验证边界
-`tests/manifest.json` 是静态用例清单，`tools/run_tests.py` 仅适配 pytest 选择和逐项记录，不参与 GitHub 工作流。CPU 计划包括科学宿主、实际 Study 接入、损坏/缺失/配对/来源拒绝及 K 合成工程合同。历史重放项按精确 selector 列出删除的原件和未执行原因，不用合成样例冒充历史。混合用例已把静态配置合同与原件重放拆开，静态合同继续必需。
+`tests/manifest.json` 是静态用例清单，`tests/run.py` 仅适配 pytest 选择和逐项记录，不参与 GitHub 工作流。CPU 计划包括科学宿主、实际 Study 接入、损坏/缺失/配对/来源拒绝及 K 合成工程合同。历史重放项按精确 selector 列出删除的原件和未执行原因，不用合成样例冒充历史。混合用例已把静态配置合同与原件重放拆开，静态合同继续必需。
 
 K 工程 fixture 使用随机 tied tiny LLaMA、CPU FP32、eager；先拟合并独占写入 full K/b0，再提取 holdout/cross。collect 核文件 SHA、fit IDs/hash、模型空间和配对，summarize/process 拒绝缺三臂/缺 split/缺 seed。它只验证工程路径，原计划160对协议及真实接受收益未执行。固定 RPipe0.3.1 的外部运行根/强取消差距仍保留，不在本仓复制调度器或更换私有依赖。

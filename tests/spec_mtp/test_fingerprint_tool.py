@@ -1,10 +1,10 @@
-"""tools/decode_fingerprint.py compare logic (the full fingerprint runs manually, ~40 s)."""
+"""studies/_shared/structure/decode_fingerprint.py compare logic (the full fingerprint runs manually, ~40 s)."""
 
 import importlib.util
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location('decode_fingerprint', ROOT / 'tools' / 'decode_fingerprint.py')
+spec = importlib.util.spec_from_file_location('decode_fingerprint', ROOT / 'studies' / '_shared' / 'structure' / 'decode_fingerprint.py')
 fp = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fp)
 

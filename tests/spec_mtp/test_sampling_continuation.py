@@ -5,7 +5,7 @@ from test_window_observer import ROOT
 
 
 def summary(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_rare_stress import event_summary
     return event_summary
 
@@ -42,7 +42,7 @@ def test_stress_detection_does_not_raise_original_condition_power(monkeypatch):
 
 @pytest.mark.parametrize('delta,expected', [(0,'falsified'),(-1,'falsified'),(2,'preserved'),(None,'infeasible_not_scored')])
 def test_prompt_sign_prediction_includes_zero_and_infeasible(monkeypatch, delta, expected):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     monkeypatch.syspath_prepend(str(ROOT))
     from studies.output_space_cross_task.analyze_continuation import bounded_sign_prediction
     a = {'qid':242,'seed':126}

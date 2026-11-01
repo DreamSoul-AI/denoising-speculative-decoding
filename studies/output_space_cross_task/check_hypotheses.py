@@ -12,7 +12,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 from diagnose_output_windows import TRACE_KEYS, file_hash
 
 QIDS = [241, 242, 243, 244]
@@ -100,9 +100,9 @@ def verdict(native, diagnostic, eos):
 
 def export():
     import torch  # noqa: F401 - Windows scientific imports require torch first.
-    from rpipe.structure.artifact.config import load_config
-    from rpipe.structure.artifact.provenance import check_frozen as check_plan
-    from rpipe.structure.make.expand import load_study_yaml
+    from spec_mtp.structure.artifact.config import load_config
+    from spec_mtp.structure.artifact.provenance import check_frozen as check_plan
+    from spec_mtp.structure.make.expand import load_study_yaml
     from studies._shared.structure.sources import manifest, check_frozen
     from studies._shared.structure.validation import verify_evidence
     read = lambda p: json.loads(p.read_text(encoding='utf-8'))
@@ -146,7 +146,7 @@ def export():
     target = STUDY / 'docs/execution_v1.json'
     write_new_or_equal(target, body)
     from diagnose_extension import choose_window
-    selection = {'matrix_sha256': file_hash(target), 'runner_sha256': file_hash(ROOT / 'tools/diagnose_study_windows.py'),
+    selection = {'matrix_sha256': file_hash(target), 'runner_sha256': file_hash(ROOT / 'studies/_shared/structure/diagnose_study_windows.py'),
         'prompts': [{'question_id': qid, **choose_window(rows['output_order0']['raw']['evidence'][i]['stats']['trace'],
             rows['output_order1']['raw']['evidence'][i]['stats']['trace'])} for i, qid in enumerate(QIDS)]}
     write_new_or_equal(STUDY / 'docs/window_selection_v1.json', selection)

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
-    from rpipe.flow.context import FlowContext
+    from spec_mtp.flow.context import FlowContext
 
 from studies._shared.structure.validation import GATE_KEY, SpecMtpGateError, evaluate_run, verify_evidence
 def run_gate(ctx: FlowContext) -> dict[str, Any]:

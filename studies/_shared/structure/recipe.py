@@ -15,7 +15,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from rpipe.structure.make.recipe import RecipeContext
+    from spec_mtp.structure.make.recipe import RecipeContext
 
 SOURCE = 'spec_mtp'
 FLASH_ATTENTION = ('flash_attention_2', 'flash_attention_3')
@@ -46,7 +46,7 @@ def validate(config: dict[str, Any]) -> dict[str, Any]:
     Returns a small description of the checked Run. Only conditions the
     decoder already requires are checked here; nothing is relaxed or added.
     """
-    from rpipe.structure.control.layers import AlgorithmConfig
+    from spec_mtp.structure.control.layers import AlgorithmConfig
 
     from studies._shared.structure.algorithm import TASKS, effective_spec, task_name
     from studies._shared.structure.config import _convert
@@ -99,7 +99,7 @@ def register_sources() -> None:
 
 
 def register(ctx: RecipeContext) -> None:
-    from rpipe.structure.make.expand import load_study_yaml
+    from spec_mtp.structure.make.expand import load_study_yaml
 
     from studies._shared.structure.sources import RUN_ASSET_NAME, check_frozen, manifest
 
@@ -114,7 +114,7 @@ def register(ctx: RecipeContext) -> None:
     from studies._shared.structure.evidence import digest
 
     current['config_digest'] = digest(ctx.config)
-    from rpipe.structure.artifact.provenance import source_files
+    from spec_mtp.structure.artifact.provenance import source_files
 
     current['study_files'] = source_files(ctx.study_dir, study)
     check_frozen(ctx.study_dir, study, current)

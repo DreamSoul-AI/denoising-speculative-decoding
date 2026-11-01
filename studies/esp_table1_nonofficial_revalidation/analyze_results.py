@@ -93,8 +93,8 @@ def verify_contract(inputs, previous, cfg):
 
 def main(baseline_runs=None, study_dir=None, output_dir=None):
     from revalidation_contract import check_refs
-    from rpipe.structure.artifact.provenance import check_frozen as pcheck
-    from rpipe.structure.make.expand import load_study_yaml
+    from spec_mtp.structure.artifact.provenance import check_frozen as pcheck
+    from spec_mtp.structure.make.expand import load_study_yaml
     from studies._shared.structure.sources import check_frozen, manifest
     from studies._shared.structure.validation import verify_evidence
     from studies._shared.structure.evidence import digest

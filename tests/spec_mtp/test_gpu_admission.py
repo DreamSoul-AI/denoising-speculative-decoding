@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def module():
-    spec = importlib.util.spec_from_file_location('gpu_admission_test', ROOT / 'tools/gpu_admission.py')
+    spec = importlib.util.spec_from_file_location('gpu_admission_test', ROOT / 'studies/_shared/structure/gpu_admission.py')
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m

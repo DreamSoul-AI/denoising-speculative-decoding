@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 from diagnose_output_windows import file_hash, SEMANTIC_KEYS, TRACE_KEYS
 from diagnose_extension import choose_window
 from diagnose_rare_events import detectability
@@ -63,7 +63,7 @@ def main():
     assert file_hash(args.expansion / 'selected_tensors.pt') == expansion['raw_tensor_sha256']
     for data, tool, plan in [(expansion, 'diagnose_sampling_expansion.py', 'SAMPLING_EXPANSION_PLAN.md'),
                              (rare, 'diagnose_rare_events.py', 'RARE_EVENT_PLAN.md')]:
-        assert file_hash(ROOT / 'tools' / tool) == data['source_binding']['tool']
+        assert file_hash(ROOT / 'studies' / '_shared' / 'structure' / tool) == data['source_binding']['tool']
         assert file_hash(study / 'docs' / plan) == data['source_binding']['plan']
     assert len(expansion['units']) == 10 and len(old['units']) == 2
     rows = [summarize_unit(u, old_dir, True) for u in old['units']]

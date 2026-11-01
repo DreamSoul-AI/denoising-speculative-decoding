@@ -9,7 +9,7 @@ from test_window_observer import ROOT, model as model, spec
 
 
 def test_canonical_prefix_state_ends_at_root_minus_one(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_numerics import canonical_states
     hidden = torch.tensor([[1., 0.], [0., 1.], [2., 1.]])
     table = torch.ones(3, 2)
@@ -23,7 +23,7 @@ def test_canonical_prefix_state_ends_at_root_minus_one(monkeypatch):
 
 
 def test_synchronization_reads_actual_cache_and_restores_hooks(model, monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_numerics import canonical_states, synchronized_transfer
     prompt, cfg, reference, targets, root, masks = baseline(model)
     ids = torch.tensor([reference['output_ids']])
@@ -41,7 +41,7 @@ def test_synchronization_reads_actual_cache_and_restores_hooks(model, monkeypatc
 
 
 def test_synchronization_cleanup_after_forward_failure(model, monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_numerics import synchronized_transfer
     prompt, cfg, reference, targets, root, masks = baseline(model)
     original = OutputHiddenMaskProvider.masks_per_owner

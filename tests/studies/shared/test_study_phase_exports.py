@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[3]
 @pytest.mark.parametrize('name', ['qwen3_4b_bf16_paired_revalidation', 'qwen3_4b_bf16_bias_norm_continuation'])
 @pytest.mark.parametrize('phase', ['collect', 'summarize', 'write', 'process'])
 def test_native_phase_dispatches_exported_callable(monkeypatch, name, phase):
-    from rpipe.flow.study import run_study_phase
+    from spec_mtp.flow.study import run_study_phase
     native = importlib.import_module('studies._shared.flow.' + phase)
     calls = []
     monkeypatch.setattr(native, 'run', lambda ctx: calls.append(ctx))
@@ -43,9 +43,9 @@ def test_historical_continuation_original_source_refs(historical_file):
 @pytest.mark.parametrize('change', ['none', 'prompt', 'axis', 'executed_old'])
 def test_continuation_mapping_preserves_contract_and_old_history(monkeypatch, tmp_path, change):
     import importlib.util
-    from rpipe.structure.control.merge import deep_merge
+    from spec_mtp.structure.control.merge import deep_merge
     from studies._shared.structure import sources
-    from rpipe.structure.artifact import provenance
+    from spec_mtp.structure.artifact import provenance
     path = ROOT / 'studies/qwen3_4b_bf16_bias_norm_scan/analyze_results.py'
     spec = importlib.util.spec_from_file_location('norm_mapping_test', path)
     reader = importlib.util.module_from_spec(spec)

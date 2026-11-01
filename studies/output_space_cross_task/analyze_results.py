@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 from diagnose_output_windows import file_hash
 from diagnose_extension import choose_window
 
@@ -85,7 +85,7 @@ def main():
 
     phi = read(args.phi / 'diagnosis.json')
     assert phi['quality_passed'] and file_hash(args.phi / 'selected_tensors.pt') == phi['raw_tensor_sha256']
-    assert file_hash(ROOT / 'tools/diagnose_q178_phi_rms.py') == phi['source_binding']['tool']
+    assert file_hash(ROOT / 'studies/_shared/structure/diagnose_q178_phi_rms.py') == phi['source_binding']['tool']
     assert file_hash(ROOT / 'studies/output_space_extension/docs/PHI_RMS_PLAN.md') == phi['source_binding']['plan']
     assert file_hash(ROOT / 'studies/output_space_extension/kernel_common.py') == phi['source_binding']['common']
     data = torch.load(args.phi / 'selected_tensors.pt', weights_only=True, mmap=True, map_location='cpu')

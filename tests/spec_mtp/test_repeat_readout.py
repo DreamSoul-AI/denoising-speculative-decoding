@@ -116,8 +116,8 @@ def test_cross_checkout_pending_readout_writes_only_separate_output(monkeypatch,
     m = reader(monkeypatch)
     monkeypatch.syspath_prepend(str(ROOT / 'studies/esp_table1_nonofficial_revalidation'))
     import revalidation_contract
-    from rpipe.structure.artifact import provenance
-    from rpipe.structure.make import expand
+    from spec_mtp.structure.artifact import provenance
+    from spec_mtp.structure.make import expand
     from studies._shared.structure import sources
     monkeypatch.setattr(revalidation_contract, 'check_refs', lambda: None)
     monkeypatch.setattr(provenance, 'check_frozen', lambda *args: None)

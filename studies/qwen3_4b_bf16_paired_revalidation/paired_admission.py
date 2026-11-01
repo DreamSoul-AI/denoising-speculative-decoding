@@ -5,7 +5,7 @@ import sys
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 import gpu_admission  # noqa: E402
 from norm_admission import apply_capacity, CAPACITY  # noqa: E402
 from resource_admission import wait_for_admission as original_wait  # noqa: E402

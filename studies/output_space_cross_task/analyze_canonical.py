@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 from diagnose_output_windows import file_hash
 
 
@@ -19,7 +19,7 @@ def main():
     raw = args.raw / 'diagnosis.json'
     report = json.loads(raw.read_text(encoding='utf-8'))
     assert report['quality_passed'] and file_hash(args.raw / 'selected_tensors.pt') == report['raw_tensor_sha256']
-    assert file_hash(ROOT / 'tools/diagnose_q241_canonical.py') == report['source_binding']['tool']
+    assert file_hash(ROOT / 'studies/_shared/structure/diagnose_q241_canonical.py') == report['source_binding']['tool']
     assert file_hash(study / 'docs/CANONICAL_PLAN.md') == report['source_binding']['plan']
     samples = torch.load(args.raw / 'selected_tensors.pt', mmap=True, weights_only=True, map_location='cpu')
     cases = {c['label']: c for c in report['cases']}

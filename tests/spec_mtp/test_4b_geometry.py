@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def tool(name):
-    spec = importlib.util.spec_from_file_location(name, ROOT / 'tools' / f'{name}.py')
+    spec = importlib.util.spec_from_file_location(name, ROOT / 'studies' / '_shared' / 'structure' / f'{name}.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 import yaml
-from rpipe.structure.algorithm.factory import AlgorithmRegistry
-from rpipe.structure.data.factory import DataRegistry
-from rpipe.structure.make.recipe import RecipeContext
-from rpipe.structure.model.factory import ModelRegistry
+from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+from spec_mtp.structure.data.factory import DataRegistry
+from spec_mtp.structure.make.recipe import RecipeContext
+from spec_mtp.structure.model.factory import ModelRegistry
 
 from studies._shared.structure import recipe
 from studies._shared.structure import sources
@@ -26,9 +26,9 @@ def _config(**algorithm_config):
 
 def test_import_registers_nothing():
     code = ('import spec_mtp, studies._shared.structure.algorithm;'
-            'from rpipe.structure.data.factory import DataRegistry;'
-            'from rpipe.structure.model.factory import ModelRegistry;'
-            'from rpipe.structure.algorithm.factory import AlgorithmRegistry;'
+            'from spec_mtp.structure.data.factory import DataRegistry;'
+            'from spec_mtp.structure.model.factory import ModelRegistry;'
+            'from spec_mtp.structure.algorithm.factory import AlgorithmRegistry;'
             'assert not [k for k in DataRegistry.list() if k[1]=="spec_mtp"];'
             'assert not [k for k in ModelRegistry.list() if k[1]=="spec_mtp"];'
             'assert ("eval","spec_mtp") not in AlgorithmRegistry.list()')
@@ -124,8 +124,8 @@ def test_repository_studies_expand_and_validate(tmp_path, study):
     """make-level expansion through RPipe, then the recipe checks on every Run config (no weights)."""
     import shutil
 
-    from rpipe.structure.make import expand_study
-    from rpipe.structure.make.expand import load_study_yaml
+    from spec_mtp.structure.make import expand_study
+    from spec_mtp.structure.make.expand import load_study_yaml
 
     src = Path(__file__).resolve().parents[3] / 'studies' / study
     dest = tmp_path / study
@@ -160,7 +160,7 @@ def test_layer_must_be_a_mapping():
 def test_legacy_cfg_takes_device_from_system_and_seed_from_run():
     from types import SimpleNamespace
 
-    from rpipe.structure.control.layers import AlgorithmConfig
+    from spec_mtp.structure.control.layers import AlgorithmConfig
 
     from studies._shared.structure.config import legacy_cfg
 
@@ -220,7 +220,7 @@ def test_source_lock_covers_all_file_changes(study_copy, kind):
 
 
 def test_remake_requires_new_version_after_source_change(study_copy):
-    from rpipe.structure.make import expand_study
+    from spec_mtp.structure.make import expand_study
     study = study_copy()
     sources.write_lock(study)
     expanded = expand_study(study)

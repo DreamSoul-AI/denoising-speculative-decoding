@@ -9,7 +9,7 @@ from test_window_observer import ROOT, model as model, spec
 
 
 def test_cpu_norm32_mapping_equals_native_and_preserves_inputs(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_operators import map_masks
     provider = OutputHiddenMaskProvider(2, torch.randn(13, 7), order=1)
     provider.anchor, provider.velocity = torch.randn(7), torch.randn(7)
@@ -26,7 +26,7 @@ def test_cpu_norm32_mapping_equals_native_and_preserves_inputs(monkeypatch):
 
 
 def test_operator_replay_restores_provider_and_hooks(model, monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_numerics import canonical_states
     from diagnose_q178_operators import NATIVE, replay
     prompt, cfg, reference, targets, root, masks = baseline(model)

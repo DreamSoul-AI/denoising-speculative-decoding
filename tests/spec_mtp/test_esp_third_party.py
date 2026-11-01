@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def auditor(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
-    spec = importlib.util.spec_from_file_location('audit_esp_third_party', ROOT / 'tools/audit_esp_third_party.py')
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
+    spec = importlib.util.spec_from_file_location('audit_esp_third_party', ROOT / 'studies/_shared/structure/audit_esp_third_party.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

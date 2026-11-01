@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 from diagnose_output_windows import file_hash, SEMANTIC_KEYS, TRACE_KEYS, margin
 from diagnose_extension import choose_window
 
@@ -50,7 +50,7 @@ def main():
     for data, folder, tool, plan in [(sampling, args.sampling, 'diagnose_sampling_paths.py', 'SAMPLING_PLAN.md'),
                                      (owner, args.owner, 'diagnose_q241_owner1.py', 'OWNER_PLAN.md')]:
         assert file_hash(folder / 'selected_tensors.pt') == data['raw_tensor_sha256']
-        assert file_hash(ROOT / 'tools' / tool) == data['source_binding']['tool']
+        assert file_hash(ROOT / 'studies' / '_shared' / 'structure' / tool) == data['source_binding']['tool']
         assert file_hash(study / 'docs' / plan) == data['source_binding']['plan']
     old = torch.load(ROOT / '.tmp/q241-local-factors-20261015-v1/selected_tensors.pt',
                      weights_only=True, map_location='cpu', mmap=True)

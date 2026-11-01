@@ -1673,14 +1673,14 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_package.py::test_rpipe_is_vendored_from_the_recorded_commit",
+      "test_id": "tests/spec_mtp/test_package.py::test_rpipe_copy_is_gone_and_the_template_is_recorded",
       "target": "spec_mtp",
       "tags": [
         "offline_cpu"
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_package.py::test_console_scripts_expose_vendored_rpipe_and_spec_mtp",
+      "test_id": "tests/spec_mtp/test_package.py::test_console_scripts_expose_spec_mtp",
       "target": "spec_mtp",
       "tags": [
         "offline_cpu"

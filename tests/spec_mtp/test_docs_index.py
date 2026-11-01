@@ -17,6 +17,10 @@ def test_scientific_modules_match_the_design():
 
 
 def test_every_tool_has_a_usage_docstring():
-    for path in sorted((ROOT / 'tools').glob('*.py')):
+    root = ROOT / 'studies' / '_shared' / 'structure'
+    scripts = [path for path in sorted(root.glob('*.py')) if path.name.startswith((
+        'diagnose_', 'analyze_', 'audit_', 'capture_', 'profile_', 'decode_', 'gpu_', 'reconcile_'))]
+    assert scripts
+    for path in scripts:
         head = path.read_text(encoding='utf-8').lstrip()
-        assert head.startswith('"""') and 'python tools' in head.split('"""')[1].replace('\\\\', '/'), path.name
+        assert head.startswith('"""') and 'python studies/_shared/structure' in head.split('"""')[1].replace('\\\\', '/'), path.name

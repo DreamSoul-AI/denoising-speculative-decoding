@@ -1,7 +1,0 @@
-7a15c46b75c5eb951cccd60ed7b9fc3463db90f5
-repository: https://github.com/DreamSoul-AI/RPipe
-historical_repository: https://github.com/diaoenmao/RPipe
-release: v0.3.1 (main)
-local_difference: src/rpipe/__init__.py imports torch before NumPy on win32 only.
-license: MIT, LICENSE.md copied from the selected commit.
-source_policy: complete vendored src/rpipe retained; no pip/Git URL runtime dependency.

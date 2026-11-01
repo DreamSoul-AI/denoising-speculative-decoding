@@ -27,7 +27,7 @@ def _hash_stream(handle: Any) -> str:
 def runtime() -> dict[str, Any]:
     import torch
     import transformers
-    from rpipe.structure.artifact.provenance import capture_environment
+    from spec_mtp.structure.artifact.provenance import capture_environment
 
     return {**capture_environment(), 'transformers': transformers.__version__,
             'tf32_matmul': torch.backends.cuda.matmul.allow_tf32,

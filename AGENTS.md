@@ -42,7 +42,7 @@
 入口齐全不代表全部规范已落地。当前任务只应用实际读取且适用的要求，不加载无关历史限制。
 
 # 四、固定依赖、数据与执行边界
-- `src/rpipe/` 全树（含其 docs 和许可）固定于 ORIGIN 的 v0.3.1 提交，既存 Windows 差异保留。下游不改副本，通用缺陷在 RPipe 仓独立修复后另行确认完整同步
+- 仓库不再内嵌 `src/rpipe/`，也不设顶层 `tools/`。Study 流程在 `spec_mtp` 内自有实现，目录以 [RPipe](https://github.com/DreamSoul-AI/RPipe) 为结构模板持续对齐。通用流程缺陷改本仓实现，并对照该模板；第三方 ESP 来源树及 `ORIGIN.json` 保持字节
 - `src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/upstream/` 的 README、code、results 整体及旁侧 `ORIGIN.json` 保持字节，所有版权许可证保留。第三方原码不能称作者官方实现
 - 原始 `datasets/spec_bench/` 保留，已渲染输入、日志、trace、图和运行源码快照按制品管理，不能据生成物清理授权扩展删除其它源码或正式数据
 - 科学宿主的目标为标准 Python 包，只有 Study 使用 RPipe 声明和实际需要的 `structure/flow` 薄适配。保留默认六阶段，不复制整套库或无职责空壳
@@ -58,7 +58,7 @@
 - 飞书引用沿用实际取得的完整分享链接和锚点。同步、上传、发消息和邀请按本次授权，不凭旧链接自动执行
 - 完成检查编码、标题、链接、表格、必要 Mermaid 解析与 diff 范围。旧文档/证据消费者已知失效应明确报告，不能宣称全量测试或远端 CI 通过
 
-- 本任务不修改 Actions、CI/CD、workflow 或仓库设置，不读取/创建凭据。固定 `src/rpipe/` 原字节及打包保留；验证产物不进 Git。
+- 本任务不修改 Actions、CI/CD、workflow 或仓库设置，不读取/创建凭据。验证产物不进 Git。
 
 # 六、文档分工与研发迭代
 ## （一）入口、命名与职责

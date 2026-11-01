@@ -63,38 +63,8 @@ def _git(root: Path) -> dict[str, Any]:
 
 
 def rpipe_origin() -> dict[str, Any]:
-    """Vendored ``src/rpipe`` commit, or the installed distribution if that is missing."""
-    import rpipe
-
-    origin = Path(rpipe.__file__).resolve().parent / 'ORIGIN'
-    if origin.is_file():
-        commit = origin.read_text(encoding='utf-8').strip().split()[0]
-        return {
-            'version': getattr(rpipe, '__version__', None),
-            'commit': commit,
-            'vendored': True,
-            'files_digest': files_digest({p.relative_to(origin.parent).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
-                                          for p in sorted(origin.parent.rglob('*.py')) if '__pycache__' not in p.parts}),
-            'path': str(Path(rpipe.__file__).resolve().parent),
-        }
-    from importlib import metadata
-
-    out: dict[str, Any] = {}
-    try:
-        dist = metadata.distribution('rpipe')
-    except metadata.PackageNotFoundError:
-        return {'installed': False}
-    out['version'] = dist.version
-    raw = dist.read_text('direct_url.json')
-    if raw:
-        body = json.loads(raw)
-        out['url'] = body.get('url')
-        vcs = body.get('vcs_info') or {}
-        if vcs.get('commit_id'):
-            out['commit'] = vcs['commit_id']
-        if (body.get('dir_info') or {}).get('editable'):
-            out['editable'] = True
-    return out
+    """No embedded RPipe copy. The template repository is the alignment target."""
+    return {'vendored': False, 'template': 'https://github.com/DreamSoul-AI/RPipe'}
 
 
 def manifest() -> dict[str, Any]:
@@ -123,9 +93,9 @@ def write_lock(study_dir: Path | str) -> Path:
     path = lock_path(study_dir)
     old = load_lock(study_dir)
     if old is not None and (changed_files(old, body) or old.get('rpipe') != body.get('rpipe') or old.get('inputs') != body.get('inputs')):
-        from rpipe.structure.artifact.config import load_config
-        from rpipe.structure.control import experiment_config_from_mapping, run_config_from_merge
-        from rpipe.structure.make.expand import expand_patches, load_study_yaml
+        from spec_mtp.structure.artifact.config import load_config
+        from spec_mtp.structure.control import experiment_config_from_mapping, run_config_from_merge
+        from spec_mtp.structure.make.expand import expand_patches, load_study_yaml
 
         study = load_study_yaml(Path(study_dir))
         base = experiment_config_from_mapping(load_config(Path(study_dir) / 'experiment_config.yaml'))
@@ -189,9 +159,9 @@ def check_frozen(study_dir: Path | str, study: dict[str, Any], current: dict[str
 
 def declared_inputs(study_dir: Path) -> dict[str, str]:
     """Freeze local prompt/model files already available at make, without downloading."""
-    from rpipe.structure.artifact.config import load_config
-    from rpipe.structure.control import experiment_config_from_mapping, run_config_from_merge
-    from rpipe.structure.make.expand import expand_patches, load_study_yaml
+    from spec_mtp.structure.artifact.config import load_config
+    from spec_mtp.structure.control import experiment_config_from_mapping, run_config_from_merge
+    from spec_mtp.structure.make.expand import expand_patches, load_study_yaml
     from studies._shared.structure.evidence import file_hash
 
     if not (study_dir / 'experiment_config.yaml').is_file():

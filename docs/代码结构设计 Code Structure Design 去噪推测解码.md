@@ -4,7 +4,7 @@
 # 一、目录原则与范围
 宿主使用 `src/spec_mtp/` 的标准 Python 包。Study 只在自己的声明和确需适配里使用 `flow/structure`，不把宿主再切成 RPipe 两柱。依赖下限保持 Python 3.10 与已固定的 Transformers，目录调整不授权升级依赖。
 
-下面的树是当前源码责任，不是另一套待建空目录。历史 Study 声明保留在 `studies/`，不因本树没有逐一展开就被删除。第三方 ESP 树和固定 `src/rpipe/` 保持原字节。
+下面的树是当前源码责任，不是另一套待建空目录。历史 Study 声明保留在 `studies/`，不因本树没有逐一展开就被删除。第三方 ESP 树保持原字节。Study 流程在 `spec_mtp/flow` 与 `spec_mtp/structure`，以 https://github.com/DreamSoul-AI/RPipe 为结构模板，不再有内嵌 `src/rpipe/` 或顶层 `tools/`。
 
 # 二、目标目录
 ```text
@@ -28,7 +28,7 @@ denoising-speculative-decoding/
 │   │   └── structure/algorithm/reference/esp_reproduction_artifacts/
 │   │       ├── ORIGIN.json
 │   │       └── upstream/                 # 第三方原树整体，保持现有成员及字节
-│   └── rpipe/                            # 固定上游完整树，不在本设计内重新拆分
+│   │   # flow/ 与 structure/：Study 流程，本仓实现，对齐 RPipe 模板
 ├── studies/
 │   └── k_affine_residual/        # 合成夹具；协议 postcommit-final-norm-v1
 │       ├── study.yaml
@@ -50,9 +50,8 @@ denoising-speculative-decoding/
 │               ├── __init__.py
 │               └── run.py
 ├── datasets/spec_bench/question.jsonl     # 当前原始数据，保持字节
-├── tools/
-│   └── run_tests.py                      # 目标测试选择/结果适配，不是另一runner
 ├── tests/
+│   ├── run.py                            # 测试选择/结果适配，不是另一 runner
 │   ├── manifest.json                     # 静态测试元数据与计划，不是运行证据
 │   ├── spec_mtp/
 │   │   ├── test_main.py
@@ -186,38 +185,38 @@ forbidden_modules =
 | K `flow/collect/run.py` | `tests/studies/k_affine_residual/flow/collect/test_run.py` | 原始样本到指标的适配，不补算/补生成，缺数据保留 |
 | K `flow/summarize/run.py` | `tests/studies/k_affine_residual/flow/summarize/test_run.py` | 数学/来源/冻结失败阻断，纯测量与假设结论不混同 |
 | K `flow/process/run.py` | `tests/studies/k_affine_residual/flow/process/test_run.py` | 三臂/数据集/seed 缺失、重复、子集拒绝，不发起补跑 |
-| `tools/run_tests.py` | `tests/tools/test_run_tests.py` | 按清单先选后导入、逐参数/attempt 落盘、必需项缺失/超时/写失败非零 |
+| `tests/run.py` | `tests/tools/test_run_tests.py` | 按清单先选后导入、逐参数/attempt 落盘、必需项缺失/超时/写失败非零 |
 
 每行细分多个单信号用例，level/type/cost_class/result_type/priority 为标签与静态元数据。源码镜像不增加 `unit/integration/e2e` 一级目录。pytest 使用仓库根、`src` 和明确的 import 模式，镜像目录不加入产品模块搜索路径，避免同名测试目录遮蔽 `spec_mtp`。
 
 `__init__.py` 纯命名空间不逐个测自身，第三方树不生成本仓逐文件逻辑测试，已有旧消费者在实际改造时按稳定合同迁移，不把旧字符串快照当科学规则。共享 fake/合成数据先放用例附近，至少多个真实调用方复用时才提取 `tests/_helpers`，不用大 fixture 目录预铺空壳。
 
 # 七、验证入口与产物界限
-`tools/run_tests.py` 目标只适配现有 pytest 的选择、运行和结果回调。唯一 `tests/manifest.json` 保存静态元数据与计划，执行前列必需项、条件、资源、预算及排除理由，执行结果逐项写独立外部验证根。失败、收集缺失、取消与结果落盘失败不能把必需计划记为通过，详细字段与阻断条件见架构设计第七章。
+`tests/run.py` 只适配现有 pytest 的选择、运行和结果回调。唯一 `tests/manifest.json` 保存静态元数据与计划，执行前列必需项、条件、资源、预算及排除理由，执行结果逐项写独立外部验证根。失败、收集缺失、取消与结果落盘失败不能把必需计划记为通过，详细字段与阻断条件见架构设计第七章。
 
 | **位置** | **内容与规则** |
 | --- | --- |
 | `src/spec_mtp/` | 公共科学实现及完整保护的第三方来源子树，运行不回写 |
-| `src/rpipe/` | 固定上游完整副本，docs/许可亦不改，不复制其测试和工具 |
+| `spec_mtp/flow`、`spec_mtp/structure` | Study 流程由本仓实现，结构对齐 RPipe 模板；不再内嵌副本 |
 | `studies/` | 静态研究声明和有职责薄适配，不生成长期报告/图/证据快照 |
 | `datasets/spec_bench/` | 当前原始静态数据，保留来源与字节，不当运行缓存删 |
 | `tests/manifest.json` | 静态计划和用例元数据，可入 Git，不与同名运行 manifest 混用 |
 | 显式外部运行/验证根 | 冻结输入、K、raw token/审计/trace、日志、逐项结果及可重建报告，不进源树 Git |
 | `docs/` | 唯一当前入口；历史测量在运行记录，演进在开发记录 |
 
-第三方 upstream 的八份来源成员（README、四份 code、三份 results）以及 `ORIGIN.json` 属来源完整性例外，仍保留其原位置和字节。固定 RPipe 全树也不是本轮第一方文档上限的清理对象。
+第三方 upstream 的八份来源成员（README、四份 code、三份 results）以及 `ORIGIN.json` 属来源完整性例外，仍保留其原位置和字节。
 
 # 八、当前差距与实施检查
 宿主文件、K 夹具和测试镜像已经落在上表位置。仍待处理的是职责残留，不是再造一套目录：
 
 - 成功路径的 `prefill_time` / `decode_time` 仍留在解码统计里，因为已有读端用 0 表示“本次不计时”。时钟或同步失败时这两个键缺席，计数照常返回，汇总也不把缺席写成 0 时长。
 - `studies/_shared/structure/evaluate.py` 仍负责预热、计时和 CSV。它调用宿主解码器，不再自己计算 τ。
-- 固定 `src/rpipe/` 仍是 v0.3.1。是否改为跟随上游模板，见开发计划的待确认项。
-- 2026年10月31日会议提出的 trajectory 与 observation 联合校正没有代码。现有 K Study 不能代替它。
+- B2 已作废：没有内嵌 RPipe 副本。结构模板见开发计划第三节。
+- 2026年10月31日会议的联合 mask 已有默认实现和合成测量。合成形式搜索已停止，见研究计划第七章。真实模型比较未批准。
 
 旧 `spec-mtp make/launch/process` 会明确拒绝并指向 `python -m studies._shared.flow.cli`。删除历史 Study、第三方树或原始数据不在本次范围。
 
 ## 本分支落位
 上述科学模块已迁移，旧 `structure/algorithm/reference` 仅保留不可改的 ESP 来源树。科学 CLI 不再代理研究调度，Study 共享接入在 `studies/_shared/`，K 的三个科学函数和 collect/summarize/process 适配位于本章规定位置。只读来源 manifest 覆盖科学包与被复用的 `_shared` 接入。
 
-`.importlinter` 已落为候选规则；AST 合同检查覆盖科学包的实际 import，工具未安装时不冒称 Import Linter 执行通过。`tests/manifest.json` 声明函数级元数据并展开 pytest 参数 ID，`tools/run_tests.py` 将每个参数/阶段/attempt 的证据写到外部新目录。历史读端测试通过 `tests/conftest.py` 的共享 `historical_file` fixture，从固定 `b8b20b5ada7fd860894114cbf224ce749af430cf` 按需读取不可变 Git blob 到测试临时目录，逐对象及写入字节校验；缺对象明确失败。原15个参数项恢复为必需覆盖，现清单没有历史排除；分析器与校验门仍执行当前源码，旧源码仅作来源哈希输入，不导入执行，不重跑历史模型。其余收集项无遗漏才执行。
+`.importlinter` 已落为候选规则；AST 合同检查覆盖科学包的实际 import，工具未安装时不冒称 Import Linter 执行通过。`tests/manifest.json` 声明函数级元数据并展开 pytest 参数 ID，`tests/run.py` 将每个参数/阶段/attempt 的证据写到外部新目录。历史读端测试通过 `tests/conftest.py` 的共享 `historical_file` fixture，从固定 `b8b20b5ada7fd860894114cbf224ce749af430cf` 按需读取不可变 Git blob 到测试临时目录，逐对象及写入字节校验；缺对象明确失败。原15个参数项恢复为必需覆盖，现清单没有历史排除；分析器与校验门仍执行当前源码，旧源码仅作来源哈希输入，不导入执行，不重跑历史模型。其余收集项无遗漏才执行。

@@ -16,9 +16,9 @@ for name in ('qwen3_4b_bf16_five_methods', 'qwen3_4b_bf16_bias_norm_scan', 'esp_
     sys.path.insert(0, str(ROOT / 'studies' / name))
 from untimed_pairing import PairedUntimedEval, build_cuda  # noqa: E402
 from paired_admission import wait_for_admission  # noqa: E402
-from rpipe.structure.algorithm.factory import AlgorithmRegistry  # noqa: E402
-from rpipe.structure.model.factory import ModelRegistry  # noqa: E402
-from rpipe.structure.control.merge import deep_merge  # noqa: E402
+from spec_mtp.structure.algorithm.factory import AlgorithmRegistry  # noqa: E402
+from spec_mtp.structure.model.factory import ModelRegistry  # noqa: E402
+from spec_mtp.structure.control.merge import deep_merge  # noqa: E402
 from studies._shared.structure import ar_baseline
 from spec_mtp import decode as decoding  # noqa: E402
 

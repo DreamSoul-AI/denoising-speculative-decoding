@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import torch
 from untimed_4b import UntimedEval
-from rpipe.structure.algorithm.factory import AlgorithmRegistry
+from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
 
 class NumericsEval(UntimedEval):
     def run(self, data, model, system, tracker):

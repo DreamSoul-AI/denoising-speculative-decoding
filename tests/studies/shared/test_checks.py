@@ -26,8 +26,8 @@ def _assets(tmp_path, rate='1.0', with_sources=True, overall=True, name='a'):
     saved['config_digest'] = digest(cfg)
     study_dir = assets.parents[2]
     if (study_dir / 'study.yaml').exists():
-        from rpipe.structure.artifact.provenance import source_files
-        from rpipe.structure.make.expand import load_study_yaml
+        from spec_mtp.structure.artifact.provenance import source_files
+        from spec_mtp.structure.make.expand import load_study_yaml
         saved['study_files'] = source_files(study_dir, load_study_yaml(study_dir))
     if with_sources:
         (assets / 'spec_mtp_sources.json').write_text(json.dumps(saved), encoding='utf-8')
@@ -404,7 +404,7 @@ def test_revalidation_keeps_failure_and_execute_bytes_and_is_idempotent(tmp_path
     from pathlib import Path
     from studies._shared.structure import validation
     root=Path(__file__).resolve().parents[3]
-    spec=importlib.util.spec_from_file_location('revalidation_tool',root/'tools/revalidate_run.py')
+    spec=importlib.util.spec_from_file_location('revalidation_tool',root/'studies/_shared/flow/revalidate.py')
     tool=importlib.util.module_from_spec(spec);spec.loader.exec_module(tool)
     ctx=_study(tmp_path,[('a','failed',False,'d')])
     run=ctx.study_dir/'runs/run_a'

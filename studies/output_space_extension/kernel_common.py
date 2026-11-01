@@ -11,8 +11,8 @@ def load(out, plan, tool):
     import torch
     import yaml
     from diagnose_output_windows import file_hash
-    from rpipe.structure.system.config import SystemConfig
-    from rpipe.structure.system.runtime import apply_runtime
+    from spec_mtp.structure.system.config import SystemConfig
+    from spec_mtp.structure.system.runtime import apply_runtime
     from studies._shared.structure.evidence import model_digest, runtime
     from studies._shared.structure.sources import manifest
     from studies._shared.structure.config import _convert
@@ -25,7 +25,7 @@ def load(out, plan, tool):
         'previous_tensor': root / '.tmp/q178-numerical-20261014-v1/selected_tensors.pt',
         'snapshot': study / 'docs/modelscope_snapshot.json'}
     for name in ('diagnose_output_windows.py', 'diagnose_proxy_transfer.py', 'diagnose_q178_numerics.py'):
-        paths[name] = root / 'tools' / name
+        paths[name] = root / 'studies' / '_shared' / 'structure' / name
     native, previous = read(paths['native']), read(paths['previous_report'])
     rows = {r['case']: r for r in native['runs']}
     folder = study / 'runs' / rows['output_order1']['run_id']

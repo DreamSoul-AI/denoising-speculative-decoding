@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 from diagnose_output_windows import file_hash
 from analyze_results import slots
 
@@ -25,7 +25,7 @@ def main():
     frozen_tool = Path(__file__).parent / 'docs/operator_tool_v1.py.txt'
     assert file_hash(frozen_tool) == data['source_binding']['tool']
     measured = ast.parse(frozen_tool.read_text(encoding='utf-8'))
-    current = ast.parse((ROOT / 'tools/diagnose_q178_operators.py').read_text(encoding='utf-8'))
+    current = ast.parse((ROOT / 'studies/_shared/structure/diagnose_q178_operators.py').read_text(encoding='utf-8'))
     assert ast.dump(ast.Module(body=measured.body[1:], type_ignores=[])) == ast.dump(
         ast.Module(body=current.body[1:], type_ignores=[])), 'CLI execution logic differs from measured snapshot'
     assert file_hash(Path(__file__).parent / 'docs/OPERATOR_PLAN.md') == data['source_binding']['plan']

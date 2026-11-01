@@ -13,7 +13,7 @@ def row(root, accepted=(), stopped=False):
 
 
 def test_earliest_eligible_hit_and_full_union_including_trailing_roots(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_extension import choose_window
     zero = [row(3), row(4, [1]), row(6, stopped=True)]
     one = [row(3), row(4, [1]), row(6), row(7, stopped=True)]
@@ -22,7 +22,7 @@ def test_earliest_eligible_hit_and_full_union_including_trailing_roots(monkeypat
 
 
 def test_no_shared_hit_uses_predeclared_rejection_control(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_extension import choose_window
     selected = choose_window([row(3), row(4, stopped=True)], [row(3), row(4, stopped=True)])
     assert selected['intervention_root'] == 3
@@ -30,7 +30,7 @@ def test_no_shared_hit_uses_predeclared_rejection_control(monkeypatch):
 
 
 def test_unused_owner_and_no_continuing_window_are_explicit(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_extension import choose_window
     selected = choose_window([row(3, [1]), row(5, stopped=True)], [row(3, [1]), row(5, stopped=True)])
     assert selected['intervention_root'] == 3 and selected['selection_reason'] == 'unused-owner control'

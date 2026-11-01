@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 from diagnose_output_windows import file_hash
 from diagnose_q178_numerics import tensor_equal
 from analyze_results import slots
@@ -66,7 +66,7 @@ def main():
     assert next(t for t in cases['strict_one_from_zero_1']['replay']['trace'] if t['root_position'] == 86)['accepted_nodes'] == [1]
     result = {'kind': 'offline fixed-control verification; no new model forward', 'source_digest': report['source_digest'],
         'raw_report_sha256': file_hash(args.raw / 'diagnosis.json'), 'raw_tensor_sha256': report['raw_tensor_sha256'],
-        'tool_sha256': file_hash(Path(__file__)), 'helper_sha256': file_hash(ROOT / 'tools/diagnose_q178_numerics.py'),
+        'tool_sha256': file_hash(Path(__file__)), 'helper_sha256': file_hash(ROOT / 'studies/_shared/structure/diagnose_q178_numerics.py'),
         'strict_repeat_all_selected_tensors_bit_equal': True, 'strict_vs_canonical_graft_full_semantic_trace_equal': True,
         'first_observed_common_state_divergence': {'root_position': 89, 'anchor_max_abs_delta': float((altered['anchor'] - baseline['anchor']).abs().max()),
             'velocity_max_abs_delta': float((altered['velocity'] - baseline['velocity']).abs().max()),

@@ -17,7 +17,10 @@ _process_tree = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_process_tree)
 
 # Child interpreters must verify this checkout, not a different globally editable SD.
-os.environ['PYTHONPATH'] = os.pathsep.join((str(ROOT / 'src'), str(ROOT)))
+os.environ['PYTHONPATH'] = os.pathsep.join((
+    str(ROOT / 'src'), str(ROOT), str(ROOT / 'studies' / '_shared' / 'structure')))
+if str(ROOT / 'studies' / '_shared' / 'structure') not in sys.path:
+    sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 
 
 def copy_study(tmp_path, patch=None, name='smoke_copy'):

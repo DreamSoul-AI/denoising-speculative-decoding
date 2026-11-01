@@ -1,11 +1,11 @@
-"""tools/profile_cpu.py runs end to end on a very small model and keeps exact match."""
+"""studies/_shared/structure/profile_cpu.py runs end to end on a very small model and keeps exact match."""
 
 import importlib.util
 import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location('profile_cpu', ROOT / 'tools' / 'profile_cpu.py')
+spec = importlib.util.spec_from_file_location('profile_cpu', ROOT / 'studies' / '_shared' / 'structure' / 'profile_cpu.py')
 profile_cpu = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(profile_cpu)
 
