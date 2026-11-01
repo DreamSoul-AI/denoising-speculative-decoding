@@ -1694,6 +1694,27 @@
       ]
     },
     {
+      "test_id": "tests/spec_mtp/test_output_hidden_kalman.py::test_trajectory_matches_output_hidden_and_correction_stays_fp32",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_output_hidden_kalman.py::test_root_update_is_delayed_and_deep_error_is_separate",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_output_hidden_kalman.py::test_zero_gain_matches_output_hidden_and_nonzero_stays_lossless",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
       "test_id": "tests/spec_mtp/test_package.py::test_rpipe_copy_is_gone_and_the_template_is_recorded",
       "target": "spec_mtp",
       "tags": [

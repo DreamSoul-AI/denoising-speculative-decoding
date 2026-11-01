@@ -41,15 +41,18 @@ class OutputHiddenMaskProvider:
         for y in prompt_hidden:
             self.observe_committed(y)
 
-    def masks_per_owner(self, proxy_hiddens):
-        """Predict depths 0..k; the decoder shares each depth across tree siblings."""
-        # Proxies are at root..penultimate draft positions. The last owner
-        # has no observation; simulate only, without mutating committed state.
-        if proxy_hiddens.shape != (self.num_masks, self.anchor.numel()):
+    def trajectory(self, proxy_hiddens):
+        """Hidden slots and the observation at each owner. Does not mutate committed state.
+
+        Observation 0 is the last committed output hidden. Each later observation
+        is the anchor after the previous in-block proxy has been absorbed.
+        """
+        if self.anchor is None or proxy_hiddens.shape != (self.num_masks, self.anchor.numel()):
             raise ValueError('output proxy shape mismatch')
         anchor, velocity = self.anchor.clone(), self.velocity.clone()
-        owners = []
+        slots, observations = [], []
         for owner in range(self.num_masks + 1):
+            observations.append(anchor.clone())
             if owner < self.num_masks:
                 y = proxy_hiddens[owner].detach().float()
                 if self.order:
@@ -57,12 +60,21 @@ class OutputHiddenMaskProvider:
                 anchor = y
             else:
                 anchor = anchor + velocity
-            slots = torch.stack([anchor + slot * velocity for slot in range(self.num_masks)])
-            norms = slots.norm(dim=-1, keepdim=True)
-            if not torch.isfinite(slots).all() or not torch.isfinite(self.scale) or self.scale <= 0 or (norms <= 0).any():
-                raise ValueError('output mask mapping requires finite nonzero norms')
-            owners.append(self.scale * slots / norms)
-        return torch.stack(owners)
+            slots.append(torch.stack([anchor + slot * velocity for slot in range(self.num_masks)]))
+        return torch.stack(slots), torch.stack(observations)
+
+    def masks_per_owner(self, proxy_hiddens):
+        """Predict depths 0..k; the decoder shares each depth across tree siblings."""
+        # Proxies are at root..penultimate draft positions. The last owner
+        # has no observation; simulate only, without mutating committed state.
+        slots, _observations = self.trajectory(proxy_hiddens)
+        return self._map_hidden_slots(slots)
+
+    def _map_hidden_slots(self, slots):
+        norms = slots.norm(dim=-1, keepdim=True)
+        if not torch.isfinite(slots).all() or not torch.isfinite(self.scale) or self.scale <= 0 or (norms <= 0).any():
+            raise ValueError('output mask mapping requires finite nonzero norms')
+        return self.scale * slots / norms
 
 
 
@@ -1233,6 +1245,175 @@ class HybridGainKalman:
                 'extra_added': self.extra_added, 'extra_present': self.extra_present}
 
 
+class OutputHiddenHybridKalman:
+    """Diagonal Kalman correction on the output-hidden trajectory.
+
+    The correction is applied in FP32 before the norm map. `hybrid` starts
+    from a calibrated prior and multiplies P and Q by `boost`. `scratch`
+    starts at K=0. `frozen` keeps K. `trajectory` and `collect` emit the
+    uncorrected trajectory; `collect` records root pairs for calibration.
+    """
+
+    needs_hidden = True
+    protocol = 'output-hidden-hybrid-kalman-v1'
+
+    def __init__(self, base, mode='hybrid', payload=None):
+        if not isinstance(base, OutputHiddenMaskProvider):
+            raise ValueError('output hidden kalman wraps an output hidden trajectory')
+        if mode not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'collect'):
+            raise ValueError('output kalman mode must be hybrid, scratch, frozen, trajectory or collect')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.mode = mode
+        self._given = dict(payload or {})
+        self._boost = 1.0
+        self._k0 = self._p0 = self._r0 = self._q0 = None
+        self._k = self._p = self._r = self._q = None
+        self._reset_counts()
+
+    @property
+    def scale(self):
+        return self.base.scale
+
+    def _reset_counts(self):
+        self._current = []
+        self._wait = None
+        self._weight_sum = 0.0
+        self._weight_n = 0
+        self._root_err = self._root_base = 0.0
+        self._deep_err = self._deep_base = 0.0
+        self._root_n = self._deep_n = 0
+        self._pair_h, self._pair_z, self._pair_y = [], [], []
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        width = prompt_embeds.shape[-1]
+        state = {'device': prompt_embeds.device, 'dtype': torch.float32}
+        if self.mode in ('scratch', 'trajectory', 'collect'):
+            self._k0 = torch.zeros(width, **state)
+            self._p0 = torch.ones(width, **state)
+            self._r0 = torch.ones(width, **state)
+            self._q0 = torch.full((width,), 0.01, **state)
+        else:
+            for name in ('k', 'p', 'r', 'q'):
+                value = torch.as_tensor(self._given[name], dtype=torch.float32, device=prompt_embeds.device)
+                if value.shape != (width,) or not torch.isfinite(value).all():
+                    raise ValueError(f'output kalman {name} must be a finite vector of width {width}')
+                setattr(self, f'_{name}0', value)
+            if self.mode == 'hybrid':
+                boost = self._given.get('boost')
+                if isinstance(boost, bool) or not isinstance(boost, (int, float)) or float(boost) < 1.0:
+                    raise ValueError('hybrid output kalman needs boost >= 1')
+                self._boost = float(boost)
+                self._p0 = self._p0 * self._boost
+                self._q0 = self._q0 * self._boost
+        self._k = self._k0.clone()
+        self._p = self._p0.clone()
+        self._r = self._r0.clone()
+        self._q = self._q0.clone()
+        self._reset_counts()
+
+    def masks(self):
+        return self.base.masks()
+
+    def init_hidden(self, prompt_hidden):
+        self.base.init_hidden(prompt_hidden)
+
+    def observe_committed(self, hidden):
+        self.base.observe_committed(hidden)
+
+    def masks_per_owner(self, proxy_hiddens):
+        slots, observations = self.base.trajectory(proxy_hiddens)
+        corrected = slots
+        if self.mode in ('hybrid', 'scratch', 'frozen'):
+            corrected = slots + (observations.unsqueeze(1) - slots) * self._k.view(1, 1, -1)
+        self._current = []
+        for owner in range(corrected.shape[0]):
+            self._current.append({
+                'h': slots[owner, 0].detach().clone(),
+                'z': observations[owner].detach().clone(),
+                'c': corrected[owner, 0].detach().clone(),
+                'k': self._k.detach().clone(),
+            })
+        return self.base._map_hidden_slots(corrected)
+
+    def note_block_hiddens(self, root_hidden, accepted_hiddens):
+        root = root_hidden.detach().float().reshape(-1)
+        accepted = [hidden.detach().float().reshape(-1) for hidden in accepted_hiddens]
+        if self._wait is not None:
+            kind, prediction = self._wait
+            self._wait = None
+            self._score(kind, prediction, root)
+        current = self._current
+        if not current:
+            return
+        if accepted:
+            self._score('root', current[0], accepted[0])
+        else:
+            self._wait = ('root', current[0])
+        reached = len(accepted)
+        for owner in range(1, len(current)):
+            if owner < reached:
+                self._score('deep', current[owner], accepted[owner])
+            elif owner == reached:
+                self._wait = ('deep', current[owner])
+            else:
+                break
+
+    def _score(self, kind, prediction, target):
+        if target.shape != prediction['h'].shape or not torch.isfinite(target).all():
+            raise ValueError('output hidden target must be a finite vector of the hidden width')
+        base = float((prediction['h'] - target).pow(2).mean())
+        error = float((prediction['c'] - target).pow(2).mean())
+        if kind == 'root':
+            self._root_base += base
+            self._root_err += error
+            self._root_n += 1
+            if self.mode == 'collect':
+                self._pair_h.append(prediction['h'].detach().cpu())
+                self._pair_z.append(prediction['z'].detach().cpu())
+                self._pair_y.append(target.detach().cpu())
+            if self.mode in ('hybrid', 'scratch'):
+                self._update(prediction, target)
+        else:
+            self._deep_base += base
+            self._deep_err += error
+            self._deep_n += 1
+
+    def _update(self, prediction, target):
+        gain = prediction['k']
+        regressor = prediction['z'] - prediction['h']
+        innov = (target - prediction['h']) - gain * regressor
+        predicted = self._p + self._q
+        scale = self._r + predicted * regressor * regressor
+        step = predicted * regressor / scale
+        self._weight_sum += float((step * regressor).mean())
+        self._weight_n += 1
+        self._k = gain + step * innov
+        self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * self._r
+
+    def calibration_rows(self):
+        if not self._pair_h:
+            raise ValueError('output kalman has no calibration rows')
+        return {'h': torch.stack(self._pair_h), 'z': torch.stack(self._pair_z), 'y': torch.stack(self._pair_y)}
+
+    def diagnostics(self):
+        delta = (self._k - self._k0).abs()
+        ratio = self._p / self._r.clamp_min(1e-12)
+        def mean(total, count):
+            return None if count == 0 else total / count
+        return {'mode': self.mode, 'protocol': self.protocol, 'boost': self._boost,
+                'k_mean': float(self._k.mean()), 'p_mean': float(self._p.mean()),
+                'r_mean': float(self._r.mean()), 'q_mean': float(self._q.mean()),
+                'k_abs_delta': float(delta.mean()), 'p_over_r': float(ratio.mean()),
+                'weight_mean': None if self._weight_n == 0 else self._weight_sum / self._weight_n,
+                'root_error': mean(self._root_err, self._root_n),
+                'root_base_error': mean(self._root_base, self._root_n),
+                'deep_error': mean(self._deep_err, self._deep_n),
+                'deep_base_error': mean(self._deep_base, self._deep_n),
+                'root_n': self._root_n, 'deep_n': self._deep_n}
+
+
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
     observation = spec_cfg.get('observation')
     bonus = spec_cfg.get('bonus_slot')
@@ -1244,6 +1425,7 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
     merge = spec_cfg.get('kalman_merge')
     align = spec_cfg.get('kalman_align')
     hybrid = spec_cfg.get('hybrid_gain')
+    output_kalman = spec_cfg.get('output_kalman')
     if merge is not None and align is not None:
         raise ValueError('kalman_merge does not combine with kalman_align')
     if merge is not None and (observation is not None or bonus is not None or correction is not None):
@@ -1252,6 +1434,10 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
         raise ValueError('kalman_align does not combine with observation, bonus_slot or correction')
     if hybrid is not None and (observation is not None or bonus is not None or correction is not None or merge is not None or align is not None):
         raise ValueError('hybrid_gain does not combine with the other mask corrections')
+    if output_kalman is not None and (observation is not None or bonus is not None or correction is not None or merge is not None or align is not None or hybrid is not None):
+        raise ValueError('output_kalman does not combine with the other mask corrections')
+    if output_kalman is not None and str(spec_cfg.get('method', 'esp')).lower() != 'output_hidden':
+        raise ValueError('output_kalman wraps an output hidden trajectory')
     if correction is not None:
         if not isinstance(correction, dict) or correction.get('kind') not in ('scalar', 'diagonal', 'affine', 'lowrank', 'reject_token'):
             raise ValueError('spec.correction kind must be scalar, diagonal, affine, lowrank or reject_token')
@@ -1347,7 +1533,12 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
             generator=generator,
         )
     if method == 'output_hidden':
-
-
-        return OutputHiddenMaskProvider(num_masks, embedding_table, **dict(spec_cfg.get('output', {})))
+        provider = OutputHiddenMaskProvider(num_masks, embedding_table, **dict(spec_cfg.get('output', {})))
+        if output_kalman is None:
+            return provider
+        if not isinstance(output_kalman, dict) or output_kalman.get('mode') not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'collect'):
+            raise ValueError('spec.output_kalman mode must be hybrid, scratch, frozen, trajectory or collect')
+        if not set(output_kalman) <= {'mode', 'k', 'p', 'r', 'q', 'boost'}:
+            raise ValueError('spec.output_kalman has an unknown field')
+        return OutputHiddenHybridKalman(provider, output_kalman['mode'], output_kalman)
     raise ValueError(f'Unsupported spec.method: {method}')

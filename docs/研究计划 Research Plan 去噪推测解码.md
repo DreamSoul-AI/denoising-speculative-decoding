@@ -178,6 +178,12 @@ A2 用同一批种子重跑：在线岭仿射对冻结岭仿射。在线从拟�
 
 两条都对 ESP，逐 prompt 接受数，p<0.05 且胜多于负。冻结 K 只作对照，不另设通过线。评测是 `question_id` 大于 208 的前 128 条第一轮，即 209–336，不包含 81–208。每条 64 token，`stop_on_eos` false。校准仍是句式前 128 条。4B 为主，0.6B 对照，本机缓存，CUDA。不下载。未通过则不改 64，不加 prompt。
 
+**输出 hidden 混合卡尔曼（2026年11月2日，嵌入空间混合增益收住之后，运行前写定）**：观测改到最终归一化 hidden。状态仍是 output hidden 的 anchor 加 velocity。公式、和原版以及嵌入空间混合增益的差别，写在同日开发记录，协议 `output-hidden-hybrid-kalman-v1`。这里不另写一套。
+
+主比较有两条，都要过：hybrid 对 ESP，以及 hybrid 对 output hidden 原版。逐 prompt 接受数，双侧符号检验，p<0.05 且胜多于负。冻结 K、从零在线、trajectory 同时报告，不另设通过线。trajectory 对原版应当全平；不平就是实现错了，不解释成方法差异。
+
+假设：K 逐维。修正在 FP32 里加到 hidden 上，范数缩放之后才转成 BF16。hybrid 把校准 P 和 Q 乘 64，64 等于生成长度，不在评测集上选。R 不乘。K 只按 root 的槽 0 更新；deep owner 只记误差。校准用 288 句式的前 128 条、每条 24 token，在不乘 K 的轨迹上收集 \((h,z,y)\)。\(Q=0.01P\)。主评测是 SpecBench `question_id` 209–336，128 条，每条 64 token，与校准句不重合，数据集也不同。另一组是同一 288 句式下标 128–159（第 129–160 条），32 条，每条 64 token，紧接校准之后，与校准不重合。树是 k=1、`branches` [4]、T=0、`stop_on_eos` false。4B 与 0.6B 各自校准。权重只用本机缓存：4B 为 `D:\models\Qwen3-4B`，0.6B 为 `studies/input_mask_baseline/shared/model/modelscope/Qwen/Qwen3-0.6B`。两份 config 都是 `tie_word_embeddings=true`。加载后若指针未绑但数值相同，只在内存里绑到同一存储；数值不同就停。不下载。未通过则不改 64，不加 prompt，也不回到嵌入空间那条 K。
+
 资源需求在公式和最小比较的输入规模确定前不编造预算。历史“GPU 不空闲”不能当作新的执行许可。取消时保留已写出的部分观测，不把未完成矩阵记为成功。
 
 # 七、已完成研究的有效范围

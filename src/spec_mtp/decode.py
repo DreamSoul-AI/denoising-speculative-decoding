@@ -357,6 +357,10 @@ class SpecDecoder:
                 'stopped': stop, 'cache_after': None,
             })
             if self.output_hidden:
+                note = getattr(provider, 'note_block_hiddens', None)
+                if note is not None:
+                    accepted_hiddens = [] if stop else [out.last_hidden_state[0, row] for row in accepted_nodes]
+                    note(out.last_hidden_state[0, 0], accepted_hiddens)
                 observed = [] if stop else [0] + accepted_nodes
                 for block_row in observed:
                     cast(HiddenMaskPolicy, provider).observe_committed(out.last_hidden_state[0, block_row])
