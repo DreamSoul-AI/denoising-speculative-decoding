@@ -171,6 +171,25 @@ def build_dynamic_tree(mask_probs, node_budget, root_token, pruning=True):
     return tree
 
 
+def add_depth1_branch(tree, token, pruning=True):
+    """Append one depth-1 sibling. Existing children stay.
+
+    Returns False when pruning rejects the parent token or the token is already
+    a depth-1 child. The added node's probability is unused by verification.
+    """
+    token = int(token)
+    if pruning and token == int(tree.root_token):
+        return False
+    for index, parent in enumerate(tree.parents):
+        if parent == 0 and tree.depths[index] == 1 and tree.tokens[index] == token:
+            return False
+    tree.tokens.append(token)
+    tree.depths.append(1)
+    tree.parents.append(0)
+    tree.probs.append(0.0)
+    return True
+
+
 def build_tree(spec_cfg, mask_probs, root_token):
     """Dispatch on spec.tree config; returns a DraftTree."""
     tree_cfg = spec_cfg.get('tree', {})

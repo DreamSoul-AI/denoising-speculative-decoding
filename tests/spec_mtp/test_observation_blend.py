@@ -445,6 +445,38 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     before = frozen._k.clone()
     frozen.on_token_committed(torch.tensor([0.0, 0.0]), torch.zeros(2))
     assert torch.equal(frozen._k, before)
+    opened = HybridGainKalman(ESPMaskProvider(1, torch.zeros(4, 1)), 'opened',
+                              {'k': [0.2], 'p': [0.01], 'r': [0.04], 'q': [0.0001], 'boost': 64})
+    opened.init_from_prompt(torch.zeros(2, 1))
+    assert abs(float(opened._p) - 0.64) < 1e-6 and abs(float(opened._q) - 0.0064) < 1e-6
+    opened.base._masks = torch.zeros(1, 1)
+    opened._z = torch.tensor([2.0])
+    opened.masks()
+    opened.on_token_committed(torch.tensor([1.0]), torch.zeros(1))
+    wide = 0.6464
+    wide_step = wide * 2.0 / (0.04 + wide * 4.0)
+    assert abs(float(opened._k) - (0.2 + wide_step * (1.0 - 0.4))) < 1e-5
+    assert abs(opened.diagnostics()['weight_mean'] - wide_step * 2.0) < 1e-5
+    branch = HybridGainKalman(ESPMaskProvider(1, torch.zeros(4, 1)), 'branch',
+                              {'k': [0.2], 'p': [0.01], 'r': [0.04], 'q': [0.0001]})
+    branch.init_from_prompt(torch.zeros(2, 1))
+    branch.base._masks = torch.tensor([[3.0]])
+    branch._z = torch.tensor([1.0])
+    assert torch.allclose(branch.masks(), torch.tensor([[3.0]]))
+    assert torch.allclose(branch.consume_probe(), torch.tensor([3.0 + 0.2 * (1.0 - 3.0)]))
+    from spec_mtp.tree import DraftTree, add_depth1_branch
+    tree = DraftTree(root_token=5, tokens=[1, 2], depths=[1, 1], parents=[0, 0], probs=[0.1, 0.1])
+    assert add_depth1_branch(tree, 1) is False
+    assert add_depth1_branch(tree, 5) is False
+    assert add_depth1_branch(tree, 9) is True and tree.tokens == [1, 2, 9]
+    model = _model()
+    spec = _spec('esp', 1, 'static')
+    spec['tree'] = {'mode': 'static', 'branches': [4], 'pruning': True}
+    width = model.embedding_table.shape[-1]
+    zeros = [0.0] * width
+    spec['hybrid_gain'] = {'mode': 'branch', 'k': zeros, 'p': [1.0] * width, 'r': [1.0] * width, 'q': [0.01] * width}
+    _output, stats = _decode(model, spec, PROMPTS[0], 0, 0)
+    assert stats['verification_argmax_audit']['passed']
 
 
 def test_round_split_groups_by_previous_outcome():

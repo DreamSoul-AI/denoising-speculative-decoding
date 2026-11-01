@@ -32,9 +32,8 @@ from spec_mtp.contracts import DecodeRequest, DecodeResult, MaskPolicy, HiddenMa
 
 import torch
 
-from spec_mtp.tree import build_tree, node_budget_for
-from spec_mtp.tree import (DynamicTreeAttentionCache, TreeAttentionCache,
-                                          build_block_attention, mask_indices_of)
+from spec_mtp.tree import (DynamicTreeAttentionCache, TreeAttentionCache, add_depth1_branch,
+                           build_block_attention, build_tree, mask_indices_of, node_budget_for)
 
 
 def _clock():
@@ -251,6 +250,15 @@ class SpecDecoder:
             remaining = self.max_new_tokens - len(committed)
             probs = tree_probs(mask_logits, self.temperature)
             tree = build_tree(self.spec_cfg, probs, committed[-1])
+            extra = getattr(provider, 'take_extra_branch', None)
+            if extra is not None:
+                token = extra()
+                if token is not None:
+                    added = add_depth1_branch(
+                        tree, token, pruning=bool(self.spec_cfg.get('tree', {}).get('pruning', True)))
+                    record = getattr(provider, 'record_branch', None)
+                    if record is not None:
+                        record(added)
             num_nodes = tree.num_nodes
             cache_len = model.cache_len(cache)
             root_position = t + len(committed) - 1
@@ -366,6 +374,17 @@ class SpecDecoder:
             # Cache keeps root + accepted path; masks/rejects are evicted.
             model.keep_cache(cache, cache_len, [0] + accepted_nodes)
             stats['trace'][-1]['cache_after'] = model.cache_len(cache)
+            probe = getattr(provider, 'consume_probe', None)
+            if probe is not None:
+                embed = probe()
+                if embed is not None:
+                    prefix = model.cache_len(cache)
+                    position = torch.tensor([[prefix]], device=device)
+                    probed = model(embed.reshape(1, 1, -1).to(dtype=dtype), position, past_key_values=cache)
+                    model.crop_cache(cache, prefix)
+                    note = getattr(provider, 'note_extra', None)
+                    if note is not None:
+                        note(int(probed.logits[0, 0].argmax().item()))
 
             # Next tree seeds: masks of the deepest accepted node (or root).
             n_star = accepted_nodes[-1] if accepted_nodes else 0

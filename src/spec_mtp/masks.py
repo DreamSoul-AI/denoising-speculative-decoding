@@ -1106,25 +1106,34 @@ class HybridGainKalman:
 
     `hybrid` starts from a calibrated K and from P, Q, R in residual units.
     `scratch` starts at K=0, P=R=1. `frozen` keeps the calibrated K.
-    `trajectory` emits ESP.
+    `trajectory` emits ESP. `opened` multiplies the calibrated P and Q by
+    `boost` so one prompt can move K. `branch` keeps the ESP mask and stores
+    the corrected embedding for an extra depth-1 draft.
     """
     needs_hidden = False
 
     def __init__(self, base, mode='hybrid', payload=None):
         if getattr(base, 'needs_hidden', False):
             raise ValueError('hybrid gain wraps input-embedding providers only')
-        if mode not in ('hybrid', 'scratch', 'frozen', 'trajectory'):
-            raise ValueError('hybrid gain mode must be hybrid, scratch, frozen or trajectory')
+        if mode not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch'):
+            raise ValueError('hybrid gain mode must be hybrid, scratch, frozen, trajectory, opened or branch')
         self.base = base
         self.num_masks = base.num_masks
         self.mode = mode
         self.protocol = 'hybrid-gain-kalman-v1'
         payload = dict(payload or {})
         self._given = payload
+        self._boost = 1.0
         self._k0 = self._p0 = self._r0 = self._q0 = None
         self._k = self._p = self._r = self._q = None
         self._z = None
         self._pending = None
+        self._probe = None
+        self._extra = None
+        self._weight_sum = 0.0
+        self._weight_n = 0
+        self.extra_added = 0
+        self.extra_present = 0
 
     def init_from_prompt(self, prompt_embeds, generator=None):
         self.base.init_from_prompt(prompt_embeds, generator=generator)
@@ -1144,21 +1153,37 @@ class HybridGainKalman:
                 if value.shape != (width,):
                     raise ValueError(f'hybrid gain {name} must have shape {(width,)}')
                 setattr(self, f'_{name}0', value)
+            if self.mode == 'opened':
+                boost = self._given.get('boost')
+                if isinstance(boost, bool) or not isinstance(boost, (int, float)) or float(boost) < 1.0:
+                    raise ValueError('opened hybrid gain needs boost >= 1')
+                self._boost = float(boost)
+                self._p0 = self._p0 * self._boost
+                self._q0 = self._q0 * self._boost
         self._k = self._k0.clone()
         self._p = self._p0.clone()
         self._r = self._r0.clone()
         self._q = self._q0.clone()
         self._z = None
         self._pending = None
+        self._probe = None
+        self._extra = None
+        self._weight_sum = 0.0
+        self._weight_n = 0
 
     def masks(self):
         out = self.base.masks().clone()
         prior = out[0].detach().to(dtype=torch.float32).clone()
+        self._probe = None
         if self.mode != 'trajectory' and self._z is not None:
             correction = self._k * (self._z - prior)
-            out[0] = (prior + correction).to(dtype=out.dtype)
-            if self.mode != 'frozen':
-                self._pending = (prior, self._z, self._k.clone())
+            corrected = prior + correction
+            if self.mode == 'branch':
+                self._probe = corrected.to(dtype=out.dtype)
+            else:
+                out[0] = corrected.to(dtype=out.dtype)
+                if self.mode != 'frozen':
+                    self._pending = (prior, self._z, self._k.clone())
         return out
 
     def on_token_committed(self, new_embed, prev_embed):
@@ -1171,15 +1196,41 @@ class HybridGainKalman:
             predicted = self._p + self._q
             scale = self._r + predicted * regressor * regressor
             step = predicted * regressor / scale
+            self._weight_sum += float((step * regressor).mean())
+            self._weight_n += 1
             self._k = gain + step * innov
             self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * self._r
             self._pending = None
         if self.mode != 'trajectory':
             self._z = observed.to(device=self._k.device)
 
+    def consume_probe(self):
+        embed = self._probe
+        self._probe = None
+        return embed
+
+    def note_extra(self, token):
+        self._extra = int(token)
+
+    def take_extra_branch(self):
+        token = self._extra
+        self._extra = None
+        return token
+
+    def record_branch(self, added):
+        if added:
+            self.extra_added += 1
+        else:
+            self.extra_present += 1
+
     def diagnostics(self):
+        delta = (self._k - self._k0).abs()
+        ratio = self._p / self._r.clamp_min(1e-12)
         return {'mode': self.mode, 'k_mean': float(self._k.mean()), 'p_mean': float(self._p.mean()),
-                'r_mean': float(self._r.mean()), 'q_mean': float(self._q.mean())}
+                'r_mean': float(self._r.mean()), 'q_mean': float(self._q.mean()),
+                'k_abs_delta': float(delta.mean()), 'p_over_r': float(ratio.mean()),
+                'weight_mean': None if self._weight_n == 0 else self._weight_sum / self._weight_n,
+                'extra_added': self.extra_added, 'extra_present': self.extra_present}
 
 
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
@@ -1245,9 +1296,9 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
     if hybrid is not None:
         if str(spec_cfg.get('method', 'esp')).lower() != 'esp':
             raise ValueError('hybrid_gain wraps an ESP trajectory')
-        if not isinstance(hybrid, dict) or hybrid.get('mode') not in ('hybrid', 'scratch', 'frozen', 'trajectory'):
-            raise ValueError('spec.hybrid_gain mode must be hybrid, scratch, frozen or trajectory')
-        allowed = {'mode', 'k', 'p', 'r', 'q'}
+        if not isinstance(hybrid, dict) or hybrid.get('mode') not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch'):
+            raise ValueError('spec.hybrid_gain mode must be hybrid, scratch, frozen, trajectory, opened or branch')
+        allowed = {'mode', 'k', 'p', 'r', 'q', 'boost'}
         if not set(hybrid) <= allowed:
             raise ValueError('spec.hybrid_gain has an unknown field')
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'hybrid_gain'}
