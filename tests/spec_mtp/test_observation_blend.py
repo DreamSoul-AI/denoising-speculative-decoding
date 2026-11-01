@@ -311,6 +311,17 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     reject.masks()
     reject.on_token_committed(torch.tensor([5.0, 0.0]), torch.zeros(2))
     assert torch.allclose(reject.masks()[0], torch.tensor([5.0, 0.0]))
+    affine = fit_mask_correction(mhat, observed, target, 'affine')
+    assert len(affine['A']) == 3 and len(affine['gram']) == 4
+    online = VerifyCorrectionMaskProvider(ESPMaskProvider(1, torch.zeros(4, 3)), 'affine', affine, online=True)
+    online.init_from_prompt(torch.zeros(2, 3))
+    online.base._masks = torch.zeros(1, 3)
+    online._z = observed[0].clone()
+    online._masks_calls = 1
+    online.masks()
+    before = online._A.clone()
+    online.on_token_committed(target[0].clone(), torch.zeros(3))
+    assert online._A.shape == before.shape
     spec = {**_spec('esp', 1, 'static'), 'correction': {'kind': 'scalar', 'k': 0.0, 'num': 0.0, 'den': 1.0}}
     model, prompt = _model(), PROMPTS[0]
     reference, _ = ar_generate(model, prompt, {'max_new_tokens': 20, 'temperature': 0, 'stop_on_eos': False})

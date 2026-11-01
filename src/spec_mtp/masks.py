@@ -563,11 +563,12 @@ class VerifyCorrectionMaskProvider:
         self.num_masks = base.num_masks
         self.kind = kind
         self.online = bool(online)
-        if self.online and kind != 'scalar':
-            raise ValueError('online correction is scalar only')
+        if self.online and kind not in ('scalar', 'affine'):
+            raise ValueError('online correction is scalar or affine')
         payload = dict(payload or {})
         self._k = self._num = self._den = None
         self._diag = self._A = self._b = None
+        self._gram = self._rhs = self._gram0 = self._rhs0 = self._A0 = self._b0 = None
         if kind == 'scalar':
             self._k = float(payload['k'])
             self._num = float(payload.get('num', 0.0))
@@ -577,6 +578,13 @@ class VerifyCorrectionMaskProvider:
         elif kind == 'affine':
             self._A = torch.tensor(payload['A'], dtype=torch.float32)
             self._b = torch.tensor(payload['b'], dtype=torch.float32)
+            if self.online:
+                self._gram0 = torch.tensor(payload['gram'], dtype=torch.float64)
+                self._rhs0 = torch.tensor(payload['rhs'], dtype=torch.float64)
+                self._A0 = self._A.clone()
+                self._b0 = self._b.clone()
+                self._gram = self._gram0.clone()
+                self._rhs = self._rhs0.clone()
         self._z = None
         self._round_commits = 0
         self._masks_calls = 0
@@ -588,15 +596,29 @@ class VerifyCorrectionMaskProvider:
         self._round_commits = 0
         self._masks_calls = 0
         self._pending = None
+        if self._gram0 is not None:
+            self._gram = self._gram0.clone()
+            self._rhs = self._rhs0.clone()
+            self._A = self._A0.clone()
+            self._b = self._b0.clone()
 
     def on_token_committed(self, new_embed, prev_embed):
         if self._pending is not None and self.online and self._round_commits == 0:
             mhat, zed = self._pending
             error = (new_embed - mhat).float()
             delta = (zed - mhat).float()
-            self._num += float((error * delta).sum())
-            self._den += float((delta * delta).sum())
-            self._k = self._num / max(self._den, 1e-12)
+            if self.kind == 'scalar':
+                self._num += float((error * delta).sum())
+                self._den += float((delta * delta).sum())
+                self._k = self._num / max(self._den, 1e-12)
+            else:
+                row = torch.cat([delta.double(), delta.new_ones(1).double()])
+                self._gram = self._gram + row[:, None] * row[None, :]
+                self._rhs = self._rhs + row[:, None] * error.double()[None, :]
+                eye = torch.eye(self._gram.shape[0], dtype=torch.float64)
+                solution = torch.linalg.solve(self._gram + 1e-8 * eye, self._rhs)
+                self._A = solution[:-1].T.float()
+                self._b = solution[-1].float()
             self._pending = None
         self.base.on_token_committed(new_embed, prev_embed)
         self._z = new_embed.detach()
@@ -645,7 +667,10 @@ def fit_mask_correction(m_hat, z, target, kind):
         return {'k': (num / den).tolist()}
     design = torch.cat([delta, torch.ones(delta.shape[0], 1, dtype=delta.dtype)], dim=1)
     solution = torch.linalg.lstsq(design, error).solution
-    return {'A': solution[:-1].T.tolist(), 'b': solution[-1].tolist()}
+    gram = design.T @ design
+    rhs = design.T @ error
+    return {'A': solution[:-1].T.tolist(), 'b': solution[-1].tolist(),
+            'gram': gram.tolist(), 'rhs': rhs.tolist()}
 
 
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
@@ -659,7 +684,7 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
     if correction is not None:
         if not isinstance(correction, dict) or correction.get('kind') not in ('scalar', 'diagonal', 'affine', 'reject_token'):
             raise ValueError('spec.correction kind must be scalar, diagonal, affine or reject_token')
-        if not set(correction) <= {'kind', 'online', 'k', 'num', 'den', 'A', 'b'}:
+        if not set(correction) <= {'kind', 'online', 'k', 'num', 'den', 'A', 'b', 'gram', 'rhs'}:
             raise ValueError('spec.correction has an unknown field')
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'correction'}
         base = build_mask_provider(base_cfg, embedding_table, generator)

@@ -256,6 +256,54 @@ def _correction_trees(result, session, config, prompts, references):
     return result
 
 
+def _affine_mse(m_hat, z, target, fit):
+    delta = z.double() - m_hat.double()
+    weight = torch.tensor(fit['A'], dtype=torch.float64)
+    bias = torch.tensor(fit['b'], dtype=torch.float64)
+    prediction = m_hat.double() + delta @ weight.T + bias
+    return float((prediction - target.double()).pow(2).mean())
+
+
+def _affine_trees(result, session, config, prompts, references):
+    """Frozen affine is the primary. Fit uses language A only. Online continues that Gram."""
+    pairs = {split: _fit_pairs(session, config, [references[qid] for qid, _prompt in prompts[split]], 'esp')
+             for split in ('fit', 'holdout', 'cross')}
+    fit = fit_mask_correction(*pairs['fit'], 'affine')
+    hidden = int(pairs['fit'][0].shape[1])
+    result['fit'] = {
+        'rows': int(pairs['fit'][0].shape[0]),
+        'hidden': hidden,
+        'params': hidden * hidden + hidden,
+        'params_per_output': hidden + 1,
+        'mse': {split: _affine_mse(*pairs[split], fit) for split in pairs},
+    }
+    frozen = {key: fit[key] for key in ('A', 'b', 'gram', 'rhs')}
+    frozen['kind'] = 'affine'
+    online = {**frozen, 'online': True}
+    arms = {
+        'esp_trajectory': ('esp', None),
+        'esp_affine': ('esp', frozen),
+        'esp_affine_online': ('esp', online),
+        'esp_reject_token': ('esp', {'kind': 'reject_token'}),
+    }
+    for tree in config['trees']:
+        entry = {'tree': tree, 'splits': {}}
+        for split in ('fit', 'holdout', 'cross'):
+            raw = {}
+            for name, (base, correction) in arms.items():
+                raw[name] = arm_rows(session, base, tree, 0.0, prompts[split], config, references, correction=correction)
+            entry['splits'][split] = {
+                'arms': {name: pooled(rows) for name, rows in raw.items()},
+                'rows': raw,
+                'paired_vs_esp_trajectory': {name: paired(raw[name], raw['esp_trajectory'])
+                                             for name in raw if name != 'esp_trajectory'},
+                'paired_affine_vs_reject': paired(raw['esp_affine'], raw['esp_reject_token']),
+                'paired_online_vs_frozen': paired(raw['esp_affine_online'], raw['esp_affine']),
+            }
+        result['trees'].append(entry)
+    return result
+
+
 def run_seed(config, seed):
     generator = torch.Generator().manual_seed(seed)
     content = config['content_vocab']
@@ -284,6 +332,8 @@ def run_seed(config, seed):
         return _kalman_trees(result, session, config, prompts, references)
     if config.get('correction'):
         return _correction_trees(result, session, config, prompts, references)
+    if config.get('affine'):
+        return _affine_trees(result, session, config, prompts, references)
     for tree in config['trees']:
         entry = {'tree': tree, 'fit_grid': {}, 'selected_gain': {}, 'splits': {}}
         variants = [tuple(variant) for variant in config['variants']]
@@ -425,6 +475,7 @@ def run(config, output, oracle=False):
     protocol = ({'hard': 'bonus-slot-hard-v1', 'topk': 'bonus-slot-topk-v1'}.get(bonus_mode) if bonus_mode
                 else 'kalman-mask-scalar-v1' if config.get('kalman')
                 else 'trajectory-verify-correction-v1' if config.get('correction')
+                else 'trajectory-verify-affine-v1' if config.get('affine')
                 else PROTOCOL + ('-oracle-bound' if oracle else ''))
     header = {'protocol': protocol,
               'scope': 'CPU synthetic pilot; not a real-model, speed or sampling result',
@@ -455,10 +506,14 @@ def main(argv=None):
                         help='ESP, fixed EMA, blend-v1, online Kalman and frozen-K Kalman')
     parser.add_argument('--correction', action='store_true',
                         help='trajectory, scalar Kalman, offline K and rejection-token baseline')
+    parser.add_argument('--affine', action='store_true',
+                        help='frozen affine versus ESP, plus rejection baseline and online affine')
     args = parser.parse_args(argv)
     config = json.loads(json.dumps(DEFAULT))
     if args.seeds:
         config['seeds'] = args.seeds
+    if args.affine and (args.correction or args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
+        raise ValueError('affine does not combine with the other pilot modes')
     if args.correction and (args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
         raise ValueError('correction does not combine with kalman, bonus-slot, variants or the oracle')
     if args.kalman and (args.bonus_slot or args.variants or args.oracle_bound):
@@ -474,6 +529,9 @@ def main(argv=None):
         config['variants'] = []
     elif args.correction:
         config['correction'] = True
+        config['variants'] = []
+    elif args.affine:
+        config['affine'] = True
         config['variants'] = []
     elif args.variants:
         variants = [item.split(':') for item in args.variants]
