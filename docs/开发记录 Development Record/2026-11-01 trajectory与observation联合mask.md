@@ -30,3 +30,23 @@
 同日稍后，Enmao 作废 B2：删除内嵌 `src/rpipe/` 和顶层 `tools/`。仍被测试和 Study 调用的脚本移到 `studies/_shared/structure` 或 `studies/_shared/flow`，测试入口改为 `tests/run.py`。流程实现留在 `spec_mtp.flow` 与 `spec_mtp.structure`，不再 `import rpipe`。上文“没有触及 src/rpipe”只描述联合 mask 实现当时的范围。
 
 `bonus-slot-hard-v1`（`spec.bonus_slot.mode: hard`）只替换各 owner 的槽 0 为上一轮对应行 argmax 的 token 嵌入，其余槽保持 trajectory，不增加前向，不与 observation 混用。真实模型入口仍是 `spec-mtp decode` 的本地目录与外部 SHA256 清单；极小 Llama 的 CPU 冒烟走这条路径。确认判据写在研究计划，测量写在运行记录。
+
+`bonus-slot-topk-v1`（`mode: topk`）把同一槽换成该行 logits 在草稿宽度 `branches[d]` 上重新归一化后的期望嵌入。宽度不是正整数时拒绝。不增加前向，不与 observation 混用。
+
+## 合成干预与小模型对照（论文可用）
+
+比较都是 prompt 级、三棵树接受数差相加后的双侧符号检验，192 对（3 种子 × 2 划分 × 32）。胜必须多于负且 p<0.05 才算通过。τ 是解码阶段提交数除以解码调用数。数字来自同日运行记录，这里不另算。
+
+| **干预** | **比较** | **结果** | **结论** |
+| --- | --- | --- | --- |
+| observation 联合 v1 | 确认种子 21/22/23，ESP 联合对 ESP 轨迹 | 70 胜 99 负，p=0.031 | 负结果，方向更差 |
+| observation top1·拒绝 | 确认种子 21/22/23，ESP 联合·top1·拒绝对 ESP 轨迹 | 74 胜 103 负，p=0.035 | 负结果，与探索方向相反 |
+| `bonus-slot-hard-v1` | 探索种子 11/12/13，ESP bonus 对 ESP 轨迹 | 79 胜 99 负 14 平，p=0.154 | 负结果，不跑确认 |
+| `bonus-slot-topk-v1` | 探索种子 11/12/13，同一比较 | 78 胜 96 负 18 平，p=0.197 | 负结果，不跑确认 |
+| oracle 上界 | 种子 11/12/13，全部槽真实嵌入对轨迹 | k=1/2/3 的 τ 从约 1.33/1.18/1.18 升到约 1.90/2.66/3.36 | 空间存在，接近 k+1 |
+| oracle 拆分 | 只给 bonus 之后的槽真实嵌入 | k=2/3 的 τ 与轨迹相同（约 1.19/1.17） | 收益全在 bonus 槽的真实 token |
+| Qwen3-0.6B ESP 对 AR | CPU，T=0，k=1 宽度 [4]，4 条 prompt 各 8 token | 4/4 token 相同，argmax 通过，合并 τ=1.333 | 贪心一致；不是加速，也不检验 bonus 槽 |
+
+拒绝条件化的主判据是对 EMA 轨迹，确认 102:71（p=0.022）通过，但对 ESP 轨迹是 88:94。上表的负结果都是相对 ESP 轨迹。
+
+结论：合成设置上，不增加前向的 observation 形式、top1 和两种 bonus 槽嵌入都没有超过 ESP 轨迹。oracle 说明缺的是 bonus 槽上的真实 token，草稿 argmax 和 top-w 期望嵌入都没有逼近它。再换一种同类嵌入不再做。本机最小完整缓存是 Qwen3-0.6B（不用 1.7B/4B，不下载、不用 GPU）；在这个小规模上，贪心 ESP 与独立 AR 的 token 相同，τ 只说明有接受，不能当成速度或方法收益。

@@ -120,7 +120,7 @@ oracle 按槽拆分说明接受数的空间全在 mask 槽 0：模型在 bonus �
 | `trajectory-observation-top1-rejection-v1` 确认 | 未通过。ESP 联合·top1·拒绝对 ESP 轨迹 74:103（p=0.035），方向与探索相反。停止在合成设置上更换形式 |
 | oracle 按槽拆分 | 全部槽 oracle 的 τ 接近 k+1；只给 bonus 之后的槽真实嵌入时 τ 与轨迹相同。可得空间都在槽 1（当轮 bonus token），更深 mask 不能补上 |
 | `bonus-slot-hard-v1` | 探索未通过。种子 11/12/13，ESP bonus 对 ESP 轨迹 79 胜 99 负（p=0.154），方向为更差。不跑确认 |
-| `bonus-slot-topk-v1` | 判据已写。草稿 top-w 期望嵌入，不增加前向。测量见运行记录 |
+| `bonus-slot-topk-v1` | 探索未通过。种子 11/12/13，ESP top-k 对 ESP 轨迹 78 胜 96 负（p=0.197）。不跑确认，停止再改合成 bonus 槽 |
 | 采样分布保证、独立 AR 等价、端到端速度 | 未完成，不能由 T0 推广 |
 
 # 八、和开发计划的关系
