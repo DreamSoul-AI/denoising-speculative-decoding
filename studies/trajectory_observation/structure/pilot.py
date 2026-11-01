@@ -97,7 +97,7 @@ def train_model(config, data, seed):
 
 
 def spec_for(base, tree, gain, condition='none', form='mean', bonus_slot=False, kalman=None, correction=None,
-             merge=None):
+             merge=None, align=None):
     spec = {'method': {'esp': 'esp', 'ema': 'ema_velocity', 'kalman': 'kalman'}[base],
             'num_masks': tree['num_masks'],
             'impl': 'efficient', 'tree': {'mode': 'static', 'branches': list(tree['branches']), 'pruning': True},
@@ -106,6 +106,10 @@ def spec_for(base, tree, gain, condition='none', form='mean', bonus_slot=False, 
     if merge:
         spec['method'] = 'esp'
         spec['kalman_merge'] = {'part': merge}
+        return spec
+    if align:
+        spec['method'] = 'esp'
+        spec['kalman_align'] = {'part': align}
         return spec
     if base == 'kalman':
         spec['kalman'] = {'mode': kalman or 'online', 'forget': 0.95}
@@ -153,8 +157,8 @@ def pooled(rows):
 
 
 def arm_rows(session, base, tree, gain, prompts, config, references, condition='none', form='mean', bonus_slot=False,
-             kalman=None, correction=None, merge=None, protocol=None):
-    return decode_rows(session, spec_for(base, tree, gain, condition, form, bonus_slot, kalman, correction, merge),
+             kalman=None, correction=None, merge=None, align=None, protocol=None):
+    return decode_rows(session, spec_for(base, tree, gain, condition, form, bonus_slot, kalman, correction, merge, align),
                        prompts, config['max_new_tokens'], references, protocol)
 
 
@@ -200,6 +204,27 @@ def _kalman_trees(result, session, config, prompts, references):
                 'paired_vs_esp_trajectory': {name: paired(raw[name], raw['esp_trajectory'])
                                              for name in raw if name != 'esp_trajectory'},
                 'paired_online_vs_frozen': paired(raw['kalman_online'], raw['kalman_frozen']),
+            }
+        result['trees'].append(entry)
+    return result
+
+
+def _align_trees(result, session, config, prompts, references):
+    """Aligned residual Kalman versus ESP."""
+    protocol = 'online-aligned-kalman-v1'
+    for tree in config['trees']:
+        entry = {'tree': tree, 'splits': {}}
+        for split in ('holdout', 'cross'):
+            raw = {'esp_trajectory': arm_rows(session, 'esp', tree, 0.0, prompts[split], config, references,
+                                              protocol=protocol)}
+            for part in ('full', 'trajectory', 'observation'):
+                raw[part] = arm_rows(session, 'esp', tree, 0.0, prompts[split], config, references,
+                                     align=part, protocol=protocol)
+            entry['splits'][split] = {
+                'arms': {name: pooled(rows) for name, rows in raw.items()},
+                'rows': raw,
+                'paired_vs_esp_trajectory': {name: paired(raw[name], raw['esp_trajectory'])
+                                             for name in raw if name != 'esp_trajectory'},
             }
         result['trees'].append(entry)
     return result
@@ -428,6 +453,8 @@ def run_seed(config, seed):
     result = {'seed': seed, 'train_losses': losses, 'train_seconds': train_seconds, 'trees': []}
     if config.get('bonus_slot'):
         return _bonus_trees(result, session, config, prompts, references)
+    if config.get('kalman_align'):
+        return _align_trees(result, session, config, prompts, references)
     if config.get('kalman_merge'):
         return _merge_trees(result, session, config, prompts, references)
     if config.get('kalman'):
@@ -577,6 +604,7 @@ def run(config, output, oracle=False):
     output.mkdir(parents=True, exist_ok=False)
     bonus_mode = config.get('bonus_slot')
     protocol = ({'hard': 'bonus-slot-hard-v1', 'topk': 'bonus-slot-topk-v1'}.get(bonus_mode) if bonus_mode
+                else 'online-aligned-kalman-v1' if config.get('kalman_align')
                 else 'online-trajectory-kalman-v1' if config.get('kalman_merge')
                 else 'kalman-mask-scalar-v1' if config.get('kalman')
                 else 'trajectory-verify-correction-v1' if config.get('correction')
@@ -612,6 +640,8 @@ def main(argv=None):
                         help='ESP, fixed EMA, blend-v1, online Kalman and frozen-K Kalman')
     parser.add_argument('--kalman-merge', action='store_true',
                         help='online verify Kalman versus ESP, plus trajectory and observation ablations')
+    parser.add_argument('--kalman-align', action='store_true',
+                        help='aligned residual Kalman versus ESP, plus trajectory and observation ablations')
     parser.add_argument('--correction', action='store_true',
                         help='trajectory, scalar Kalman, offline K and rejection-token baseline')
     parser.add_argument('--affine', action='store_true',
@@ -622,6 +652,8 @@ def main(argv=None):
     config = json.loads(json.dumps(DEFAULT))
     if args.seeds:
         config['seeds'] = args.seeds
+    if args.kalman_align and (args.kalman_merge or args.affine_ridge or args.affine or args.correction or args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
+        raise ValueError('kalman-align does not combine with the other pilot modes')
     if args.kalman_merge and (args.affine_ridge or args.affine or args.correction or args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
         raise ValueError('kalman-merge does not combine with the other pilot modes')
     if args.affine_ridge and (args.affine or args.correction or args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
@@ -636,6 +668,9 @@ def main(argv=None):
         if args.variants or args.oracle_bound:
             raise ValueError('bonus-slot does not combine with observation variants or the oracle')
         config['bonus_slot'] = args.bonus_slot
+        config['variants'] = []
+    elif args.kalman_align:
+        config['kalman_align'] = True
         config['variants'] = []
     elif args.kalman_merge:
         config['kalman_merge'] = True

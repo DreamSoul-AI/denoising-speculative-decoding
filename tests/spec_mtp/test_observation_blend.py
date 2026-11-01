@@ -398,6 +398,24 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     untouched.init_from_prompt(torch.zeros(2, 1))
     untouched.base._masks = torch.tensor([[7.0]])
     assert float(untouched.masks()) == 7.0
+    from spec_mtp.masks import AlignedResidualKalman
+    aligned = AlignedResidualKalman(ESPMaskProvider(1, torch.zeros(4, 2)), 'full')
+    aligned.init_from_prompt(torch.zeros(2, 2))
+    aligned.base._masks = torch.zeros(1, 2)
+    assert torch.equal(aligned.masks(), torch.zeros(1, 2))
+    aligned.on_token_committed(torch.tensor([3.0, 0.0]), torch.zeros(2))
+    assert aligned._f == 0.0 and aligned._nu is not None
+    aligned.base._masks = torch.zeros(1, 2)
+    assert torch.equal(aligned.masks(), torch.zeros(1, 2))
+    aligned.on_token_committed(torch.tensor([3.0, 0.0]), torch.zeros(2))
+    gain = 1.01 / 2.01
+    assert abs(aligned._f - gain) < 1e-5
+    assert abs(aligned._r - 1.0) < 1e-5
+    aligned.base._masks = torch.zeros(1, 2)
+    corrected = aligned.masks()
+    assert torch.allclose(corrected[0], torch.tensor([gain * 3.0, 0.0]))
+    aligned.init_from_prompt(torch.ones(2, 2))
+    assert aligned._f == 0.0 and aligned._nu is None
 
 
 def test_round_split_groups_by_previous_outcome():
