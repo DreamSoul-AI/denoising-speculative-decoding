@@ -114,7 +114,7 @@ oracle 按槽拆分说明接受数的空间全在 mask 槽 0：模型在 bonus �
 | `trajectory-observation-rejection-v1` CPU 合成 | 探索运行 EMA 联合·拒绝对 EMA 轨迹 104:68；新种子确认 102:71（p=0.022），主判据通过。但对 ESP 轨迹 88:94，ESP 上联合无益，H1 对最强基线未获支持 |
 | `trajectory-observation-top1-rejection-v1` 确认 | 未通过。ESP 联合·top1·拒绝对 ESP 轨迹 74:103（p=0.035），方向与探索相反。停止在合成设置上更换形式 |
 | oracle 按槽拆分 | 全部槽 oracle 的 τ 接近 k+1；只给 bonus 之后的槽真实嵌入时 τ 与轨迹相同。可得空间都在槽 1（当轮 bonus token），更深 mask 不能补上 |
-| `bonus-slot-hard-v1` | 默认方案已实现。槽 0 用草稿 argmax 嵌入，不增加前向。确认判据已写，测量见运行记录 |
+| `bonus-slot-hard-v1` | 探索未通过。种子 11/12/13，ESP bonus 对 ESP 轨迹 79 胜 99 负（p=0.154），方向为更差。不跑确认，停止在合成设置上再改 bonus 槽 |
 | 采样分布保证、独立 AR 等价、端到端速度 | 未完成，不能由 T0 推广 |
 
 # 八、和开发计划的关系
