@@ -126,7 +126,7 @@ oracle 按槽拆分说明接受数的空间全在 mask 槽 0：模型在 bonus �
 | oracle 按槽拆分 | 全部槽 oracle 的 τ 接近 k+1；只给 bonus 之后的槽真实嵌入时 τ 与轨迹相同。可得空间都在槽 1（当轮 bonus token），更深 mask 不能补上 |
 | `bonus-slot-hard-v1` | 探索未通过。种子 11/12/13，ESP bonus 对 ESP 轨迹 79 胜 99 负（p=0.154），方向为更差。不跑确认 |
 | `bonus-slot-topk-v1` | 探索未通过。种子 11/12/13，ESP top-k 对 ESP 轨迹 78 胜 96 负（p=0.197）。不跑确认，停止再改合成 bonus 槽 |
-| Qwen3-0.6B CPU 真实比较 | 判据已写。32 条短 prompt、每条 16 token，ESP 与 hard、topk 对 AR 的一致性，以及两条 bonus 臂对 ESP 的 τ 符号检验。测量见运行记录 |
+| Qwen3-0.6B CPU 真实比较 | 32 条 prompt 三条臂都与 AR token 相同。hard 对 ESP 的 τ 为 5 胜 20 负（p=0.004），方向更低。topk 为 5 胜 14 负（p=0.064），判据未通过，均值差区间也在 0 以下。不改树、不换模型 |
 | 采样分布保证、独立 AR 等价、端到端速度 | 未完成，不能由 T0 推广 |
 
 # 八、和开发计划的关系
