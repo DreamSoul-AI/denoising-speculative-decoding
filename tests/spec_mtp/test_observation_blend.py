@@ -372,6 +372,32 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     reference, _ = ar_generate(model, prompt, {'max_new_tokens': 20, 'temperature': 0, 'stop_on_eos': False})
     output, stats = _decode(model, spec, prompt, 0, 0)
     assert torch.equal(output, reference) and stats['verification_argmax_audit']['passed']
+    from spec_mtp.masks import OnlineVerifyKalman
+    p0, q0, r0, forget = 1.0, 0.01, 1.0, 0.95
+    p_pred = p0 + q0
+    gain = p_pred / (p_pred + r0)
+    corrected = gain * 2.0
+    innov2 = 16.0
+    posterior = (1 - gain) ** 2 * p_pred + gain ** 2 * r0
+    weight = (1 - forget) / (1 - forget ** 2)
+    expect_r = max((1 - weight) * r0 + weight * (innov2 - p_pred), 1e-6)
+    expect_q = max((1 - weight) * q0 + weight * (gain * gain * innov2), 1e-8)
+    live = OnlineVerifyKalman(ESPMaskProvider(2, torch.zeros(4, 1)), 'full')
+    live.init_from_prompt(torch.zeros(2, 1))
+    live.base._masks = torch.tensor([[0.0], [9.0]])
+    live._z = torch.tensor([2.0])
+    merged = live.masks()
+    assert torch.allclose(merged[0], torch.tensor([corrected]))
+    assert torch.allclose(merged[1], torch.tensor([9.0]))
+    live.on_token_committed(torch.tensor([4.0]), torch.zeros(1))
+    assert abs(float(live._r) - expect_r) < 1e-5 and abs(float(live._q) - expect_q) < 1e-5
+    assert abs(float(live._p) - posterior) < 1e-5
+    live.init_from_prompt(torch.ones(3, 1) * 50)
+    assert float(live._r) == 1.0 and abs(float(live._q) - 0.01) < 1e-8 and live._z is None
+    untouched = OnlineVerifyKalman(ESPMaskProvider(1, torch.zeros(2, 1)), 'trajectory')
+    untouched.init_from_prompt(torch.zeros(2, 1))
+    untouched.base._masks = torch.tensor([[7.0]])
+    assert float(untouched.masks()) == 7.0
 
 
 def test_round_split_groups_by_previous_outcome():

@@ -79,4 +79,35 @@
 
 拒绝条件化的主判据是对 EMA 轨迹，确认 102:71（p=0.022）通过，但对 ESP 轨迹是 88:94。合成负结果都是相对 ESP 轨迹。真实比较的两次符号检验没有做多重校正。
 
+## 在线卡尔曼
+
+Enmao 2026-11-01：卡尔曼是边推理边拟合，和离线校准无关。秩 4、拟合集、岭交叉验证和离线 oracle 到 `2729433` 为止，不再做。下面这条在跑之前写下。
+
+状态的先验均值是本步 ESP 轨迹的槽 0，记为 \(\hat m\)。观测 \(y\) 是本轮 verify 得到的第一个已提交 token 的输入嵌入。\(P,Q,R,K\) 都是长度 \(d\) 的向量，各维独立。每条 prompt 把它们重置为与数据无关的常数 \(P=1\)、\(Q=0.01\)、\(R=1\)，遗忘因子 \(\lambda=0.95\)，\(R\) 不低于 \(10^{-6}\)，\(Q\) 不低于 \(10^{-8}\)。不读拟合集，也不用 prompt 方差做初值。ESP 自己的 prompt 均值仍只属于轨迹先验。
+
+```text
+init: P,Q,R <- constants; z <- none; t <- 0
+each masks() call, before the forward:
+    m_hat <- ESP slot 0
+    P_minus <- P + Q
+    K <- P_minus / (P_minus + R)
+    if z exists: emit slot 0 <- m_hat + K (z - m_hat)
+    else: emit m_hat
+each round, on the first committed embedding y, after that mask was emitted:
+    nu <- y - m_hat
+    P <- (1-K)^2 P_minus + K^2 R
+    t <- t + 1
+    delta <- (1-lambda) / (1-lambda^(t+1))
+    R <- max((1-delta) R + delta (nu^2 - P_minus), 1e-6)
+    Q <- max((1-delta) Q + delta (K^2 nu^2), 1e-8)
+    z <- y
+later commits in the same round update ESP only
+```
+
+假设：只改槽 0；一轮只更新一次，用该轮第一个已提交嵌入；预填充的 root token 算第一轮观测；观测臂在第一次观测之前仍发出 ESP，避免用全零 mask 起草。
+
+和 `cda898d` 的 `kalman-mask-scalar-v1` 不是同一件事。那次没有轨迹先验：状态就是滤波水平，预测是 \(x\leftarrow x\)，观测是刚提交的嵌入本身，mask 把该水平复制到每一个槽。\(R\) 的初值取 prompt 方差，并先在 prompt token 上把滤波走完。确认是 101 胜 83 负，p=0.210。这次每一步用 ESP 换掉先验均值，只把 \(P,Q,R,K\) 留到下一步；残差是 \(y-\hat m\)；只改槽 0；初值是常数，不在 prompt 上预热。
+
+消融：trajectory 臂不乘 \(K\)，槽 0 保持 ESP，对 ESP 应当全平。observation 臂的先验均值是随机游走后验，不用 \(\hat m\)，初值相同，只改槽 0。主比较是完整递推对 ESP。
+
 结论：合成设置上，不增加前向的 observation 形式、top1 和两种 bonus 槽嵌入都没有超过 ESP 轨迹。Qwen3-0.6B 上 hard 的 τ 显著更低，topk 的均值也更低。标量卡尔曼只重写轨迹、不用本轮 verify 观测，确认未通过。按 10 月 31 日会议写下的 \(m=\hat m+K(z-\hat m)\)，对角 K 在探索种子上是 91:80（p=0.445），同样未通过。仿射是次要臂，探索 111:70，但不因此改主比较。拟合得到的对角和标量 K 都接近 0。局限：z 取最近提交 token 的输入嵌入，只改槽 0，K 在合成拟合集上估计。确认和 Qwen3-0.6B 都没有跑。此后把仿射另立为新的主比较，探索种子改为 31/32/33：101:85（p=0.271），仍未通过。holdout 与 cross 符号相反，见运行记录。看过该结果后另立混合语言岭仿射，探索种子 41/42/43 为 129:50（p=3.1e-9），确认种子 21/22/23 为 124:58（p=1.1e-6），两种语言都是胜多于负。在线对冻结在两段里都不更高。Qwen3-0.6B 上同一冻结臂是 14:8（p=0.286），未通过。同一 32 条上的 oracle 上界是 25:1，τ 到 1.526。预注册的 128 条新 prompt 是 50:40（p=0.343），τ 没有上升。拟合句上的 K 没有带到新 prompt。Qwen3-4B 上把拟合句改成和评测同一句式后，秩 4 对 ESP 仍是 15:10（p=0.424），同秩 oracle 是 16:8（p=0.152）。确认的后 128 条没有跑。

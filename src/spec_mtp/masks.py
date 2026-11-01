@@ -891,6 +891,98 @@ def _affine_residual(m_hat, z, target, fit):
     return float(error.pow(2).sum())
 
 
+class OnlineVerifyKalman:
+    """ESP prior plus one verify update per round. Protocol `online-trajectory-kalman-v1`.
+
+    Slot 0 becomes m_hat + K(z - m_hat). K, P, Q and R are per-dimension and
+    reset to fixed constants on every prompt. `trajectory` emits ESP.
+    `observation` keeps the verify update but replaces the prior with a random walk.
+    """
+    needs_hidden = False
+
+    def __init__(self, base, part='full', forget=0.95, p0=1.0, q0=0.01, r0=1.0,
+                 r_min=1e-6, q_min=1e-8):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('online kalman wraps input-embedding providers only')
+        if part not in ('full', 'trajectory', 'observation'):
+            raise ValueError('online kalman part must be full, trajectory or observation')
+        if isinstance(forget, bool) or not isinstance(forget, (int, float)) or not 0 < float(forget) <= 1:
+            raise ValueError('online kalman forget must be in (0, 1]')
+        for name, value in (('p0', p0), ('q0', q0), ('r0', r0), ('r_min', r_min), ('q_min', q_min)):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or float(value) <= 0:
+                raise ValueError(f'online kalman {name} must be a positive number')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.part = part
+        self.protocol = 'online-trajectory-kalman-v1'
+        self.forget = float(forget)
+        self.p0 = float(p0)
+        self.q0 = float(q0)
+        self.r0 = float(r0)
+        self.r_min = float(r_min)
+        self.q_min = float(q_min)
+        self._p = self._q = self._r = None
+        self._z = self._x = None
+        self._pending = None
+        self._t = 0
+        self._seen = False
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        width = prompt_embeds.shape[-1]
+        state = {'device': prompt_embeds.device, 'dtype': torch.float32}
+        self._p = torch.full((width,), self.p0, **state)
+        self._q = torch.full((width,), self.q0, **state)
+        self._r = torch.full((width,), self.r0, **state)
+        self._z = None
+        self._x = torch.zeros(width, **state)
+        self._pending = None
+        self._t = 0
+        self._seen = False
+
+    def masks(self):
+        out = self.base.masks().clone()
+        if self.part == 'trajectory':
+            self._pending = None
+            return out
+        prior = out[0].detach().to(dtype=torch.float32).clone()
+        if self.part == 'observation':
+            prior = self._x
+        p_pred = self._p + self._q
+        gain = p_pred / (p_pred + self._r)
+        if self.part == 'full' and self._z is not None:
+            out[0] = (prior + gain * (self._z - prior)).to(dtype=out.dtype)
+        elif self.part == 'observation' and self._seen:
+            out[0] = prior.to(dtype=out.dtype)
+        self._pending = (prior, p_pred, gain)
+        return out
+
+    def on_token_committed(self, new_embed, prev_embed):
+        self.base.on_token_committed(new_embed, prev_embed)
+        if self.part == 'trajectory' or self._pending is None:
+            return
+        prior, p_pred, gain = self._pending
+        observed = new_embed.detach().to(device=prior.device, dtype=torch.float32).reshape(-1)
+        innov = observed - prior
+        innov2 = innov * innov
+        self._p = (1.0 - gain) ** 2 * p_pred + gain ** 2 * self._r
+        self._t += 1
+        delta = (1.0 - self.forget) / (1.0 - self.forget ** (self._t + 1))
+        self._r = torch.clamp((1.0 - delta) * self._r + delta * (innov2 - p_pred), min=self.r_min)
+        self._q = torch.clamp((1.0 - delta) * self._q + delta * (gain * gain * innov2), min=self.q_min)
+        if self.part == 'full':
+            self._z = observed
+        else:
+            self._x = prior + gain * innov
+            self._seen = True
+        self._pending = None
+
+    def diagnostics(self):
+        return {'part': self.part, 'updates': self._t,
+                'p_mean': float(self._p.mean()), 'q_mean': float(self._q.mean()),
+                'r_mean': float(self._r.mean())}
+
+
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
     observation = spec_cfg.get('observation')
     bonus = spec_cfg.get('bonus_slot')
@@ -899,6 +991,9 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
         raise ValueError('correction does not combine with observation, bonus_slot or kalman')
     if str(spec_cfg.get('method', 'esp')).lower() == 'kalman' and (observation is not None or bonus is not None):
         raise ValueError('kalman does not combine with observation or bonus_slot')
+    merge = spec_cfg.get('kalman_merge')
+    if merge is not None and (observation is not None or bonus is not None or correction is not None):
+        raise ValueError('kalman_merge does not combine with observation, bonus_slot or correction')
     if correction is not None:
         if not isinstance(correction, dict) or correction.get('kind') not in ('scalar', 'diagonal', 'affine', 'lowrank', 'reject_token'):
             raise ValueError('spec.correction kind must be scalar, diagonal, affine, lowrank or reject_token')
@@ -918,6 +1013,17 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'bonus_slot'}
         base = build_mask_provider(base_cfg, embedding_table, generator)
         return BonusSlotMaskProvider(base, embedding_table, bonus['mode'], widths)
+    if merge is not None:
+        if str(spec_cfg.get('method', 'esp')).lower() != 'esp':
+            raise ValueError('kalman_merge wraps an ESP trajectory')
+        if not isinstance(merge, dict) or not set(merge) <= {'part', 'forget', 'p0', 'q0', 'r0', 'r_min', 'q_min'}:
+            raise ValueError('spec.kalman_merge has an unknown field')
+        base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'kalman_merge'}
+        base = build_mask_provider(base_cfg, embedding_table, generator)
+        return OnlineVerifyKalman(
+            base, part=merge.get('part', 'full'), forget=merge.get('forget', 0.95),
+            p0=merge.get('p0', 1.0), q0=merge.get('q0', 0.01), r0=merge.get('r0', 1.0),
+            r_min=merge.get('r_min', 1e-6), q_min=merge.get('q_min', 1e-8))
     if observation is not None:
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'observation'}
         if 'gain' not in observation or not set(observation) <= {'gain', 'condition', 'form'}:
