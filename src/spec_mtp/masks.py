@@ -844,9 +844,9 @@ def lowrank_replay_mse(m_hat, z, target, fit):
 
 def _lowrank_residual(m_hat, z, target, fit):
     delta = (z - m_hat).float()
-    left = torch.as_tensor(fit['V'], dtype=torch.float32)
-    right = torch.as_tensor(fit['U'], dtype=torch.float32)
-    bias = torch.as_tensor(fit['b'], dtype=torch.float32)
+    left = torch.tensor(fit['V'], dtype=torch.float32, device=delta.device)
+    right = torch.tensor(fit['U'], dtype=torch.float32, device=delta.device)
+    bias = torch.tensor(fit['b'], dtype=torch.float32, device=delta.device)
     prediction = m_hat.float() + (delta @ left) @ right.T + bias
     return float((prediction - target.float()).pow(2).sum())
 
@@ -856,7 +856,7 @@ def _als_lowrank(delta, error, rank, ridge, iters, v_init=None):
         _unused, _values, vh = torch.linalg.svd(delta, full_matrices=False)
         right = vh[:rank].T.contiguous()
     else:
-        right = v_init.float()
+        right = v_init.to(device=delta.device, dtype=delta.dtype)
     left = torch.zeros(delta.shape[1], rank, dtype=delta.dtype, device=delta.device)
     bias = torch.zeros(delta.shape[1], dtype=delta.dtype, device=delta.device)
     for _step in range(int(iters)):
