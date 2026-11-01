@@ -162,6 +162,41 @@ each round, on the first committed embedding y:
 
 和 `1ac2ba5` 的差别：那次把上一枚 token 当成当前先验的观测，并且各维 \(K\) 被错误的 \(R\) 推到 1。这次残差是 \(y_t-\hat m_t\)，和发出这个先验的是同一轮；\(F\) 只有一个，单位是余弦。和 `cda898d` 的差别：那次没有 ESP 先验，滤波水平复制到每个槽，\(R\) 取 prompt 方差。这次先验仍是 ESP，只加一个标量乘上一次对齐残差。诊断预期 \(F\) 靠近 0。不因为这个预期去改 \(Q/R\)。
 
-合成探索 94:71（p=0.086），未通过。新的 32 条上 Qwen3-4B 是 5 胜 9 负 18 平（p=0.424），\(F\) 均值 −0.036，τ 从 1.306 到 1.294。0.6B 是 5:9（p=0.424），\(F\) 均值 −0.063。trajectory 臂都与 ESP 全平。去掉 ESP 先验之后 4B 是 5:20（p=0.0041）。\(F\) 确实靠近 0，对齐之后的 verify 项不再把接受数显著拉低，也没有超过 ESP。\(Q/R\) 不改，prompt 不加。
+合成探索 94:71（p=0.086），未通过。新的 32 条上 Qwen3-4B 是 5 胜 9 负 18 平（p=0.424），\(F\) 均值 −0.036，τ 从 1.306 到 1.294。0.6B 是 5:9（p=0.424），\(F\) 均值 −0.063。trajectory 臂都与 ESP 全平。去掉 ESP 先验之后 4B 是 5:20（p=0.0041）。\(F\) 确实靠近 0，对齐之后的 verify 项不再把接受数显著拉低，也没有超过 ESP。\(Q/R\) 不改，prompt 不加。从零在线到此收住。
+
+## 混合增益
+
+Enmao 的决定：在线只拟合当前这一条，所以没有 overfit；可以先 calibrate，但每次推理仍从该先验出发，在当前 prompt 上更新。会议原话是把学习得到的 K 乘 input difference，加到最后那个猜测上，并用上 last committed token。轨迹是长程 model predict，观测是本轮 verify。10 月 31 日没有给出 K 的维度。下面这条在跑之前写下。
+
+从零在线为什么把预测推偏：`9e0b7fa` 把 \(P=R=1\) 当作嵌入协方差。Qwen3-4B 上 innovation 均方约 \(3.5\times10^{-4}\)，\(R\) 的更新减去 \(P\) 之后落到下限，掩码增益在第一轮变成 1，槽 0 被换成上一枚 token。该方向和当前残差的余弦是 0.003。`be9eca7` 改成对齐残差的相关系数，\(F\) 从 0 开始。`c532ded` 上 4B 的 \(F\) 均值是 −0.036，5 胜 9 负，没有超过 ESP。从零开始，要么把掩码推成上一枚 token，要么因为残差没有持续性而停在 0 附近。
+
+和 `2729433` 的差别：那次只冻结离线的秩 4，评测句和拟合句是同一句式，推理中不更新。和 `9e0b7fa` 的差别：这次的 \(P\) 来自校准残差，不是 1，而且 K 是修正系数，不是把槽 0 直接换成观测。
+
+假设：K 逐维，不是 \(d\times d\)。校准集是 288 句式的前 128 条，每条 24 个 token。\(Q=0.01P\)，这个比例不在评测集上选。一条 prompt 内 \(Q,R\) 保持校准值，只更新 \(K\) 和 \(P\)。4B 和 0.6B 各自校准。评测用 SpecBench `question.jsonl` 按 `question_id` 升序的前 32 条、只要第一轮，与校准句不重合。
+
+```text
+Calibrate, per dimension, on replayed ESP:
+    x <- z - m_hat
+    e <- y - m_hat
+    K <- sum(e x) / sum(x^2)
+    R <- mean (e - K x)^2
+    P <- R / sum(x^2)
+    Q <- 0.01 P
+Each prompt starts from those K, P, Q, R.
+each masks(), before the forward:
+    m_hat <- ESP slot 0
+    z <- last committed input embedding, if one exists
+    emit slot 0 <- m_hat + K (z - m_hat)
+each round, on the first committed embedding y, after that correction was emitted:
+    x <- z - m_hat
+    innov <- (y - m_hat) - K x
+    P_minus <- P + Q
+    g <- P_minus x / (R + P_minus x^2)
+    K <- K + g innov
+    P <- (1 - g x)^2 P_minus + g^2 R
+later commits in the round only refresh z
+```
+
+冻结臂只用校准 K。从零在线臂把 \(K\) 置 0、\(P=R=1\)、\(Q=0.01\)，更新式相同。trajectory 臂不乘 K。主比较是校准初值加在线更新对 ESP。
 
 结论：合成设置上，不增加前向的 observation 形式、top1 和两种 bonus 槽嵌入都没有超过 ESP 轨迹。Qwen3-0.6B 上 hard 的 τ 显著更低，topk 的均值也更低。标量卡尔曼只重写轨迹、不用本轮 verify 观测，确认未通过。按 10 月 31 日会议写下的 \(m=\hat m+K(z-\hat m)\)，对角 K 在探索种子上是 91:80（p=0.445），同样未通过。仿射是次要臂，探索 111:70，但不因此改主比较。拟合得到的对角和标量 K 都接近 0。局限：z 取最近提交 token 的输入嵌入，只改槽 0，K 在合成拟合集上估计。确认和 Qwen3-0.6B 都没有跑。此后把仿射另立为新的主比较，探索种子改为 31/32/33：101:85（p=0.271），仍未通过。holdout 与 cross 符号相反，见运行记录。看过该结果后另立混合语言岭仿射，探索种子 41/42/43 为 129:50（p=3.1e-9），确认种子 21/22/23 为 124:58（p=1.1e-6），两种语言都是胜多于负。在线对冻结在两段里都不更高。Qwen3-0.6B 上同一冻结臂是 14:8（p=0.286），未通过。同一 32 条上的 oracle 上界是 25:1，τ 到 1.526。预注册的 128 条新 prompt 是 50:40（p=0.343），τ 没有上升。拟合句上的 K 没有带到新 prompt。Qwen3-4B 上把拟合句改成和评测同一句式后，秩 4 对 ESP 仍是 15:10（p=0.424），同秩 oracle 是 16:8（p=0.152）。确认的后 128 条没有跑。

@@ -416,6 +416,35 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     assert torch.allclose(corrected[0], torch.tensor([gain * 3.0, 0.0]))
     aligned.init_from_prompt(torch.ones(2, 2))
     assert aligned._f == 0.0 and aligned._nu is None
+    from spec_mtp.masks import HybridGainKalman, calibrate_diagonal_gain
+    guessed = torch.zeros(6, 2)
+    observed = torch.tensor([[2.0, 0.0]]).repeat(6, 1)
+    target = guessed + 0.25 * (observed - guessed)
+    prior = calibrate_diagonal_gain(guessed, observed, target)
+    assert abs(prior['k'][0] - 0.25) < 1e-5 and abs(prior['k'][1]) < 1e-5
+    assert abs(prior['p'][0] - prior['r'][0] / 24.0) < 1e-6
+    assert prior['p'][0] < 1.0
+    live = HybridGainKalman(ESPMaskProvider(1, torch.zeros(4, 1)), 'hybrid',
+                            {'k': [0.2], 'p': [0.01], 'r': [0.04], 'q': [0.0001]})
+    live.init_from_prompt(torch.zeros(2, 1))
+    live.base._masks = torch.zeros(1, 1)
+    live._z = torch.tensor([2.0])
+    assert torch.allclose(live.masks()[0], torch.tensor([0.4]))
+    live.on_token_committed(torch.tensor([1.0]), torch.zeros(1))
+    predicted = 0.0101
+    step = predicted * 2.0 / (0.04 + predicted * 4.0)
+    expect = 0.2 + step * (1.0 - 0.2 * 2.0)
+    assert abs(float(live._k) - expect) < 1e-5
+    live.init_from_prompt(torch.zeros(2, 1))
+    assert abs(float(live._k) - 0.2) < 1e-6
+    frozen = HybridGainKalman(ESPMaskProvider(1, torch.zeros(4, 1)), 'frozen', prior)
+    frozen.init_from_prompt(torch.zeros(2, 2))
+    frozen.base._masks = torch.zeros(1, 2)
+    frozen._z = torch.tensor([1.0, 1.0])
+    frozen.masks()
+    before = frozen._k.clone()
+    frozen.on_token_committed(torch.tensor([0.0, 0.0]), torch.zeros(2))
+    assert torch.equal(frozen._k, before)
 
 
 def test_round_split_groups_by_previous_outcome():

@@ -1080,6 +1080,108 @@ class AlignedResidualKalman:
                 'q': self._q, 'r': self._r}
 
 
+def calibrate_diagonal_gain(m_hat, z, target, q_ratio=0.01):
+    """Diagonal K and its noise prior. P is the least-squares variance, not 1."""
+    delta = (z - m_hat).double()
+    error = (target - m_hat).double()
+    if delta.ndim != 2 or error.shape != delta.shape or delta.shape[0] < 2:
+        raise ValueError('gain calibration needs at least two rows')
+    if not torch.isfinite(delta).all() or not torch.isfinite(error).all():
+        raise ValueError('gain calibration inputs must be finite')
+    q_ratio = float(q_ratio)
+    if q_ratio <= 0.0:
+        raise ValueError('gain calibration q_ratio must be positive')
+    den = (delta * delta).sum(dim=0).clamp_min(1e-8)
+    gain = (error * delta).sum(dim=0) / den
+    residual = error - gain * delta
+    noise = residual.pow(2).mean(dim=0).clamp_min(1e-12)
+    variance = noise / den
+    return {'k': gain.float().tolist(), 'p': variance.float().tolist(),
+            'r': noise.float().tolist(), 'q': (variance * q_ratio).float().tolist(),
+            'rows': int(delta.shape[0])}
+
+
+class HybridGainKalman:
+    """m = m_hat + K(z - m_hat), with K updated from the verify residual.
+
+    `hybrid` starts from a calibrated K and from P, Q, R in residual units.
+    `scratch` starts at K=0, P=R=1. `frozen` keeps the calibrated K.
+    `trajectory` emits ESP.
+    """
+    needs_hidden = False
+
+    def __init__(self, base, mode='hybrid', payload=None):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('hybrid gain wraps input-embedding providers only')
+        if mode not in ('hybrid', 'scratch', 'frozen', 'trajectory'):
+            raise ValueError('hybrid gain mode must be hybrid, scratch, frozen or trajectory')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.mode = mode
+        self.protocol = 'hybrid-gain-kalman-v1'
+        payload = dict(payload or {})
+        self._given = payload
+        self._k0 = self._p0 = self._r0 = self._q0 = None
+        self._k = self._p = self._r = self._q = None
+        self._z = None
+        self._pending = None
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        width = prompt_embeds.shape[-1]
+        state = {'device': prompt_embeds.device, 'dtype': torch.float32}
+        if self.mode == 'scratch':
+            self._k0 = torch.zeros(width, **state)
+            self._p0 = torch.ones(width, **state)
+            self._r0 = torch.ones(width, **state)
+            self._q0 = torch.full((width,), 0.01, **state)
+        elif self.mode == 'trajectory':
+            self._k0 = torch.zeros(width, **state)
+            self._p0 = self._r0 = self._q0 = self._k0.clone()
+        else:
+            for name in ('k', 'p', 'r', 'q'):
+                value = torch.as_tensor(self._given[name], dtype=torch.float32, device=prompt_embeds.device)
+                if value.shape != (width,):
+                    raise ValueError(f'hybrid gain {name} must have shape {(width,)}')
+                setattr(self, f'_{name}0', value)
+        self._k = self._k0.clone()
+        self._p = self._p0.clone()
+        self._r = self._r0.clone()
+        self._q = self._q0.clone()
+        self._z = None
+        self._pending = None
+
+    def masks(self):
+        out = self.base.masks().clone()
+        prior = out[0].detach().to(dtype=torch.float32).clone()
+        if self.mode != 'trajectory' and self._z is not None:
+            correction = self._k * (self._z - prior)
+            out[0] = (prior + correction).to(dtype=out.dtype)
+            if self.mode != 'frozen':
+                self._pending = (prior, self._z, self._k.clone())
+        return out
+
+    def on_token_committed(self, new_embed, prev_embed):
+        self.base.on_token_committed(new_embed, prev_embed)
+        observed = new_embed.detach().to(dtype=torch.float32).reshape(-1)
+        if self._pending is not None:
+            prior, zed, gain = self._pending
+            regressor = zed - prior
+            innov = (observed - prior) - gain * regressor
+            predicted = self._p + self._q
+            scale = self._r + predicted * regressor * regressor
+            step = predicted * regressor / scale
+            self._k = gain + step * innov
+            self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * self._r
+            self._pending = None
+        if self.mode != 'trajectory':
+            self._z = observed.to(device=self._k.device)
+
+    def diagnostics(self):
+        return {'mode': self.mode, 'k_mean': float(self._k.mean()), 'p_mean': float(self._p.mean()),
+                'r_mean': float(self._r.mean()), 'q_mean': float(self._q.mean())}
+
+
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
     observation = spec_cfg.get('observation')
     bonus = spec_cfg.get('bonus_slot')
@@ -1090,12 +1192,15 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
         raise ValueError('kalman does not combine with observation or bonus_slot')
     merge = spec_cfg.get('kalman_merge')
     align = spec_cfg.get('kalman_align')
+    hybrid = spec_cfg.get('hybrid_gain')
     if merge is not None and align is not None:
         raise ValueError('kalman_merge does not combine with kalman_align')
     if merge is not None and (observation is not None or bonus is not None or correction is not None):
         raise ValueError('kalman_merge does not combine with observation, bonus_slot or correction')
     if align is not None and (observation is not None or bonus is not None or correction is not None):
         raise ValueError('kalman_align does not combine with observation, bonus_slot or correction')
+    if hybrid is not None and (observation is not None or bonus is not None or correction is not None or merge is not None or align is not None):
+        raise ValueError('hybrid_gain does not combine with the other mask corrections')
     if correction is not None:
         if not isinstance(correction, dict) or correction.get('kind') not in ('scalar', 'diagonal', 'affine', 'lowrank', 'reject_token'):
             raise ValueError('spec.correction kind must be scalar, diagonal, affine, lowrank or reject_token')
@@ -1137,6 +1242,17 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
             base, part=align.get('part', 'full'), forget=align.get('forget', 0.95),
             p0=align.get('p0', 1.0), q0=align.get('q0', 0.01), r0=align.get('r0', 1.0),
             r_min=align.get('r_min', 1e-3), q_min=align.get('q_min', 1e-6))
+    if hybrid is not None:
+        if str(spec_cfg.get('method', 'esp')).lower() != 'esp':
+            raise ValueError('hybrid_gain wraps an ESP trajectory')
+        if not isinstance(hybrid, dict) or hybrid.get('mode') not in ('hybrid', 'scratch', 'frozen', 'trajectory'):
+            raise ValueError('spec.hybrid_gain mode must be hybrid, scratch, frozen or trajectory')
+        allowed = {'mode', 'k', 'p', 'r', 'q'}
+        if not set(hybrid) <= allowed:
+            raise ValueError('spec.hybrid_gain has an unknown field')
+        base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'hybrid_gain'}
+        base = build_mask_provider(base_cfg, embedding_table, generator)
+        return HybridGainKalman(base, hybrid['mode'], hybrid)
     if observation is not None:
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'observation'}
         if 'gain' not in observation or not set(observation) <= {'gain', 'condition', 'form'}:
