@@ -557,17 +557,21 @@ class VerifyCorrectionMaskProvider:
     def __init__(self, base, kind, payload=None, online=False):
         if getattr(base, 'needs_hidden', False):
             raise ValueError('verify correction wraps input-embedding providers only')
-        if kind not in ('scalar', 'diagonal', 'affine', 'reject_token'):
-            raise ValueError('correction kind must be scalar, diagonal, affine or reject_token')
+        if kind not in ('scalar', 'diagonal', 'affine', 'lowrank', 'reject_token'):
+            raise ValueError('correction kind must be scalar, diagonal, affine, lowrank or reject_token')
         self.base = base
         self.num_masks = base.num_masks
         self.kind = kind
         self.online = bool(online)
-        if self.online and kind not in ('scalar', 'affine'):
-            raise ValueError('online correction is scalar or affine')
+        if self.online and kind not in ('scalar', 'affine', 'lowrank'):
+            raise ValueError('online correction is scalar, affine or lowrank')
         payload = dict(payload or {})
         self._k = self._num = self._den = None
         self._diag = self._A = self._b = None
+        self._U = self._V = self._U0 = self._V0 = None
+        self._delta0 = self._error0 = self._extra_delta = self._extra_error = None
+        self._rank = None
+        self._ridge = None
         self._gram = self._rhs = self._gram0 = self._rhs0 = self._A0 = self._b0 = None
         if kind == 'scalar':
             self._k = float(payload['k'])
@@ -586,6 +590,16 @@ class VerifyCorrectionMaskProvider:
                 self._b0 = self._b.clone()
                 self._gram = self._gram0.clone()
                 self._rhs = self._rhs0.clone()
+        elif kind == 'lowrank':
+            self._U = torch.as_tensor(payload['U'], dtype=torch.float32)
+            self._V = torch.as_tensor(payload['V'], dtype=torch.float32)
+            self._b = torch.as_tensor(payload['b'], dtype=torch.float32)
+            self._rank = int(payload['rank'])
+            self._ridge = float(payload['ridge'])
+            if self.online:
+                self._U0, self._V0, self._b0 = self._U.clone(), self._V.clone(), self._b.clone()
+                self._delta0 = torch.as_tensor(payload['delta'], dtype=torch.float32)
+                self._error0 = torch.as_tensor(payload['error'], dtype=torch.float32)
         self._z = None
         self._round_commits = 0
         self._masks_calls = 0
@@ -604,6 +618,9 @@ class VerifyCorrectionMaskProvider:
             self._rhs = self._rhs0.clone()
             self._A = self._A0.clone()
             self._b = self._b0.clone()
+        if self._U0 is not None:
+            self._U, self._V, self._b = self._U0.clone(), self._V0.clone(), self._b0.clone()
+            self._extra_delta = self._extra_error = None
 
     def on_token_committed(self, new_embed, prev_embed):
         if self._pending is not None and self.online and self._round_commits == 0:
@@ -614,6 +631,14 @@ class VerifyCorrectionMaskProvider:
                 self._num += float((error * delta).sum())
                 self._den += float((delta * delta).sum())
                 self._k = self._num / max(self._den, 1e-12)
+            elif self.kind == 'lowrank':
+                row_d = delta.float().reshape(1, -1)
+                row_e = error.float().reshape(1, -1)
+                self._extra_delta = row_d if self._extra_delta is None else torch.cat([self._extra_delta, row_d])
+                self._extra_error = row_e if self._extra_error is None else torch.cat([self._extra_error, row_e])
+                delta_fit = self._delta0 if self._extra_delta is None else torch.cat([self._delta0, self._extra_delta])
+                error_fit = self._error0 if self._extra_error is None else torch.cat([self._error0, self._extra_error])
+                self._U, self._V, self._b = _als_lowrank(delta_fit, error_fit, self._rank, self._ridge, iters=1, v_init=self._V)
             else:
                 row = torch.cat([delta.double(), delta.new_ones(1).double()])
                 self._gram = self._gram + row[:, None] * row[None, :]
@@ -639,6 +664,11 @@ class VerifyCorrectionMaskProvider:
             return mhat + delta * mhat.new_tensor(self._k)
         if self.kind == 'diagonal':
             return mhat + delta * self._diag.to(device=mhat.device, dtype=mhat.dtype)
+        if self.kind == 'lowrank':
+            left = self._V.to(device=mhat.device, dtype=mhat.dtype)
+            right = self._U.to(device=mhat.device, dtype=mhat.dtype)
+            bias = self._b.to(device=mhat.device, dtype=mhat.dtype)
+            return mhat + (delta @ left) @ right.T + bias
         return mhat + delta @ self._A.to(device=mhat.device, dtype=mhat.dtype).T + self._b.to(device=mhat.device, dtype=mhat.dtype)
 
     def masks(self):
@@ -659,6 +689,8 @@ class VerifyCorrectionMaskProvider:
         report = {'online_updates': self._online_updates}
         if self._A0 is not None:
             report['A_drift'] = float((self._A.double() - self._A0.double()).pow(2).sum().sqrt())
+        if self._U0 is not None:
+            report['factor_drift'] = float((self._U - self._U0).pow(2).sum().sqrt() + (self._V - self._V0).pow(2).sum().sqrt())
         return report
 
 
@@ -747,6 +779,110 @@ def _stack_blocks(blocks):
     return tuple(torch.cat([block[axis] for block in blocks], dim=0) for axis in range(3))
 
 
+def fit_lowrank_ridge(m_hat, z, target, rank, ridge, iters=8):
+    """Low-rank map m = m_hat + U V^T (z - m_hat) + b. Ridge penalizes U and V, not b."""
+    delta = (z - m_hat).float()
+    error = (target - m_hat).float()
+    rank = int(rank)
+    ridge = float(ridge)
+    if delta.ndim != 2 or error.shape != delta.shape or delta.shape[0] < 2:
+        raise ValueError('correction fit needs at least two rows')
+    if rank < 1 or rank >= delta.shape[1] or ridge <= 0.0 or int(iters) < 1:
+        raise ValueError('low-rank fit needs a positive rank below the hidden size and a positive ridge')
+    if not torch.isfinite(delta).all() or not torch.isfinite(error).all():
+        raise ValueError('correction fit inputs must be finite')
+    left, right, bias = _als_lowrank(delta, error, rank, ridge, int(iters))
+    return {'U': left.cpu().tolist(), 'V': right.cpu().tolist(), 'b': bias.cpu().tolist(),
+            'rank': rank, 'ridge': ridge, 'delta': delta.cpu(), 'error': error.cpu()}
+
+
+def select_lowrank_ridge(blocks, rank, seed, folds=5, iters=8, insample=False):
+    """Pick the ridge on prompt blocks. Eval blocks are not an argument."""
+    if insample:
+        scores = []
+        for ridge in RIDGE_GRID:
+            fit = fit_lowrank_ridge(*_stack_blocks(blocks), rank, ridge, iters)
+            scores.append({'ridge': ridge, 'mse': lowrank_replay_mse(*_stack_blocks(blocks), fit)})
+        chosen = min(scores, key=lambda item: (item['mse'], -item['ridge']))
+        fit = fit_lowrank_ridge(*_stack_blocks(blocks), rank, chosen['ridge'], iters)
+        fit['cv'] = scores
+        fit['rows'] = int(sum(block[0].shape[0] for block in blocks))
+        fit['prompts'] = len(blocks)
+        return fit
+    count = len(blocks)
+    if count < folds or folds < 2:
+        raise ValueError('ridge selection needs at least one prompt per fold')
+    order = torch.randperm(count, generator=torch.Generator().manual_seed(int(seed))).tolist()
+    sizes = [count // folds] * folds
+    for index in range(count % folds):
+        sizes[index] += 1
+    chunks, cursor = [], 0
+    for size in sizes:
+        chunks.append(order[cursor:cursor + size])
+        cursor += size
+    cv = []
+    for ridge in RIDGE_GRID:
+        squared = rows = 0.0
+        for held in chunks:
+            train = [blocks[index] for index in range(count) if index not in held]
+            val = [blocks[index] for index in held]
+            fit = fit_lowrank_ridge(*_stack_blocks(train), rank, ridge, iters)
+            squared += _lowrank_residual(*_stack_blocks(val), fit)
+            rows += sum(block[0].shape[0] for block in val)
+        cv.append({'ridge': ridge, 'mse': squared / rows})
+    chosen = min(cv, key=lambda item: (item['mse'], -item['ridge']))
+    fit = fit_lowrank_ridge(*_stack_blocks(blocks), rank, chosen['ridge'], iters)
+    fit['cv'] = cv
+    fit['rows'] = int(sum(block[0].shape[0] for block in blocks))
+    fit['prompts'] = count
+    return fit
+
+
+def lowrank_replay_mse(m_hat, z, target, fit):
+    return _lowrank_residual(m_hat, z, target, fit) / max(int(target.numel()), 1)
+
+
+def _lowrank_residual(m_hat, z, target, fit):
+    delta = (z - m_hat).float()
+    left = torch.as_tensor(fit['V'], dtype=torch.float32)
+    right = torch.as_tensor(fit['U'], dtype=torch.float32)
+    bias = torch.as_tensor(fit['b'], dtype=torch.float32)
+    prediction = m_hat.float() + (delta @ left) @ right.T + bias
+    return float((prediction - target.float()).pow(2).sum())
+
+
+def _als_lowrank(delta, error, rank, ridge, iters, v_init=None):
+    if v_init is None:
+        _unused, _values, vh = torch.linalg.svd(delta, full_matrices=False)
+        right = vh[:rank].T.contiguous()
+    else:
+        right = v_init.float()
+    left = torch.zeros(delta.shape[1], rank, dtype=delta.dtype, device=delta.device)
+    bias = torch.zeros(delta.shape[1], dtype=delta.dtype, device=delta.device)
+    for _step in range(int(iters)):
+        left, bias = _solve_lowrank_output(delta, error, right, ridge)
+        right = _solve_lowrank_input(delta, error, left, bias, ridge)
+    return left, right, bias
+
+
+def _solve_lowrank_output(delta, error, right, ridge):
+    features = torch.cat([delta @ right, torch.ones(delta.shape[0], 1, dtype=delta.dtype, device=delta.device)], dim=1)
+    gram = features.T @ features
+    penalty = torch.eye(gram.shape[0], dtype=gram.dtype, device=gram.device)
+    penalty[-1, -1] = 0.0
+    solution = torch.linalg.solve(gram + float(ridge) * penalty, features.T @ error)
+    return solution[:-1].T.contiguous(), solution[-1]
+
+
+def _solve_lowrank_input(delta, error, left, bias, ridge):
+    target = (error - bias) @ left
+    gram_u = left.T @ left
+    target = target @ torch.linalg.inv(gram_u + 1e-8 * torch.eye(left.shape[1], dtype=gram_u.dtype, device=gram_u.device))
+    gram = delta.T @ delta
+    penalty = float(ridge) * torch.eye(gram.shape[0], dtype=gram.dtype, device=gram.device)
+    return torch.linalg.solve(gram + penalty, delta.T @ target)
+
+
 def _affine_residual(m_hat, z, target, fit):
     delta = z.double() - m_hat.double()
     weight = torch.tensor(fit['A'], dtype=torch.float64)
@@ -764,9 +900,9 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
     if str(spec_cfg.get('method', 'esp')).lower() == 'kalman' and (observation is not None or bonus is not None):
         raise ValueError('kalman does not combine with observation or bonus_slot')
     if correction is not None:
-        if not isinstance(correction, dict) or correction.get('kind') not in ('scalar', 'diagonal', 'affine', 'reject_token'):
-            raise ValueError('spec.correction kind must be scalar, diagonal, affine or reject_token')
-        if not set(correction) <= {'kind', 'online', 'k', 'num', 'den', 'A', 'b', 'gram', 'rhs', 'ridge'}:
+        if not isinstance(correction, dict) or correction.get('kind') not in ('scalar', 'diagonal', 'affine', 'lowrank', 'reject_token'):
+            raise ValueError('spec.correction kind must be scalar, diagonal, affine, lowrank or reject_token')
+        if not set(correction) <= {'kind', 'online', 'k', 'num', 'den', 'A', 'b', 'gram', 'rhs', 'ridge', 'U', 'V', 'rank', 'delta', 'error'}:
             raise ValueError('spec.correction has an unknown field')
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'correction'}
         base = build_mask_provider(base_cfg, embedding_table, generator)

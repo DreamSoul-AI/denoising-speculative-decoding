@@ -344,6 +344,29 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     ridge_online.on_token_committed(truth[0].clone(), torch.zeros(4))
     ridge_online.init_from_prompt(torch.zeros(2, 4))
     assert torch.equal(ridge_online._A, frozen_A) and ridge_online.diagnostics()['online_updates'] == 0
+    from spec_mtp.masks import fit_lowrank_ridge, lowrank_replay_mse, select_lowrank_ridge
+    gen = torch.Generator().manual_seed(1)
+    raw = torch.randn(48, 6, generator=gen)
+    guess_l = torch.randn(48, 6, generator=gen)
+    zed_l = guess_l + raw
+    truth_l = guess_l + (raw @ torch.randn(6, 2, generator=gen)) @ torch.randn(2, 6, generator=gen)
+    low = fit_lowrank_ridge(guess_l, zed_l, truth_l, 2, 1e-6, iters=8)
+    assert lowrank_replay_mse(guess_l, zed_l, truth_l, low) < 1e-3
+    pieces = [(guess_l[start:start + 8], zed_l[start:start + 8], truth_l[start:start + 8]) for start in range(0, 48, 8)]
+    picked = select_lowrank_ridge(pieces, 2, 0, iters=3)
+    assert picked['rank'] == 2 and picked['prompts'] == 6 and picked['ridge'] > 0
+    holder = VerifyCorrectionMaskProvider(ESPMaskProvider(1, torch.zeros(4, 6)), 'lowrank', picked, online=True)
+    holder.init_from_prompt(torch.zeros(2, 6))
+    holder.base._masks = guess_l[:1]
+    holder._z = zed_l[0].clone()
+    holder._masks_calls = 1
+    frozen_u = holder._U.clone()
+    holder.masks()
+    assert torch.equal(holder._U, frozen_u) and holder.diagnostics()['online_updates'] == 0
+    holder.on_token_committed(truth_l[0].clone(), torch.zeros(6))
+    assert holder.diagnostics()['online_updates'] == 1
+    holder.init_from_prompt(torch.zeros(2, 6))
+    assert torch.equal(holder._U, frozen_u) and holder.diagnostics()['online_updates'] == 0
     spec = {**_spec('esp', 1, 'static'), 'correction': {'kind': 'scalar', 'k': 0.0, 'num': 0.0, 'den': 1.0}}
     model, prompt = _model(), PROMPTS[0]
     reference, _ = ar_generate(model, prompt, {'max_new_tokens': 20, 'temperature': 0, 'stop_on_eos': False})

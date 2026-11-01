@@ -154,6 +154,12 @@ A2 用同一批种子重跑：在线岭仿射对冻结岭仿射。在线从拟�
 
 句首：Name the color of；A compiler turns；The Pacific Ocean is；After the rain；Please sort these；An electron has；The word for cat in；When the loop ends；A rectangle with sides；The train leaves at；Binary 1010 equals；Salt dissolves in；The author of Hamlet is；Click the button to；Gravity pulls objects；A dictionary maps。句尾：a common example；the next word；two equal parts；the empty page；one short line；the left side；three small items；the final step。
 
+**Qwen3-4B 低秩 K（2026年11月2日，0.6B 收尾之后，运行前写定）**：0.6B 不再加 prompt。模型实验改在本机 CUDA 上跑，CPU 只留单元测试和合成 pilot。本机已缓存 `D:\models\Qwen3-4B`（Qwen3ForCausalLM，36 层，hidden 2560，词表 151936，BF16，safetensors 合计 8044936192 字节，三份分片都在），不下载。加载用 BF16、eager attention，device 必须是 cuda。
+
+假设：主比较用低秩而不是对角加偏置。合成对角主比较已经失败；0.6B 的全矩阵 oracle 又说明跨维项有余量。形式是 \(m=\hat m+UV^\top(z-\hat m)+b\)，\(U,V\) 为 \(d\times 4\)。秩固定为 4，不在评测集上选。参数量 \(2dr+d=23040\)。岭只罚 \(U,V\)，不罚 \(b\)，网格仍是 \(10^{-4}\) 到 \(10^{4}\)，5 折按 prompt，只在拟合集内，平局取更大的 \(\lambda\)。拟合用交替最小二乘 8 步，\(V\) 的初值是 delta 的前 4 个右奇异向量。在线臂每来一个已提交 token 只再交替 1 步，每条 prompt 开始时回到拟合因子。
+
+拟合句和评测句用同一套句首、句尾拼接，句首外层、句尾内层，全文不重合。句首沿用上面 16 个。句尾在上面 8 个之后再加：a closed door；the first row；four quiet notes；the open window；a single page；the right margin；two fresh copies；the last stop；one plain box；the middle line。共 16×18=288 条。前 128 条做拟合，每条 AR 24 个 token。接下来 32 条做探索评测，每条 16 个 token。后 128 条只有探索通过才做确认，拟合和岭都不重选。树仍是 k=1、`branches` [4]、T=0、`stop_on_eos` false。主比较是冻结低秩对 ESP，逐 prompt 接受数，p<0.05 且胜多于负。同一批探索 prompt 上同时报 A1（拒绝轮基线）、A2（在线对冻结）和 oracle 上界。oracle 用评测句自己做样本内岭选择，不能当成通过。
+
 资源需求在公式和最小比较的输入规模确定前不编造预算。历史“GPU 不空闲”不能当作新的执行许可。取消时保留已写出的部分观测，不把未完成矩阵记为成功。
 
 # 七、已完成研究的有效范围
@@ -175,7 +181,8 @@ A2 用同一批种子重跑：在线岭仿射对冻结岭仿射。在线从拟�
 | `kalman-mask-scalar-v1` | 确认未通过。探索 117:59（p=1.5e-5），新种子 21/22/23 为 101 胜 83 负（p=0.210）。这只是 trajectory、不加本轮 verify 观测的一档，不代表否定 10 月 31 日的合并方案。不上 Qwen3-0.6B |
 | 轨迹加 verify 观测修正 | 探索未通过。种子 11/12/13，对角 K 对 ESP 轨迹 91 胜 80 负（p=0.445）。不跑确认，不上 Qwen3-0.6B。仿射是预先写下的次要臂，111:70（p=0.003），不因看到结果改当时的主比较 |
 | 仿射 K 主比较 | 看过 11/12/13 次要臂后升级，探索改用 31/32/33。冻结仿射对 ESP 轨迹 101 胜 85 负 6 平，p=0.271。未通过。不跑确认，不上 Qwen3-0.6B |
-| 混合语言岭仿射 | 合成探索 129:50、确认 124:58 都通过。Qwen3-0.6B 上 32 条是 14:8（p=0.286），预注册的 128 条是 50 胜 40 负 38 平（p=0.343），未通过。oracle 上界 25:1 只说明函数类在被拟合的句子上还有余量 |
+| 混合语言岭仿射 | 合成探索 129:50、确认 124:58 都通过。Qwen3-0.6B 上 32 条是 14:8（p=0.286），预注册的 128 条是 50 胜 40 负 38 平（p=0.343），未通过。0.6B 不再扩展。oracle 上界 25:1 只说明函数类在被拟合的句子上还有余量 |
+| Qwen3-4B 低秩 K | 0.6B 收尾后的主比较。秩固定为 4，拟合句与评测句同一句式、全文不重合。探索 32 条，通过才用后 128 条确认。测量见运行记录 |
 | 采样分布保证、独立 AR 等价、端到端速度 | 未完成，不能由 T0 推广 |
 
 # 八、和开发计划的关系
