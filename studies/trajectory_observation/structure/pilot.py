@@ -96,12 +96,14 @@ def train_model(config, data, seed):
     return session, losses
 
 
-def spec_for(base, tree, gain, condition='none', form='mean'):
+def spec_for(base, tree, gain, condition='none', form='mean', bonus_slot=False):
     spec = {'method': 'esp' if base == 'esp' else 'ema_velocity', 'num_masks': tree['num_masks'],
             'impl': 'efficient', 'tree': {'mode': 'static', 'branches': list(tree['branches']), 'pruning': True},
             'mask': {'init': 'mean_prompt', 'lam': 0.1, 'update': True},
             'ema': {'beta': 0.9, 'step_scale': 1.0, 'normalize': False, 'update': True, 'level': 'last'}}
-    if gain:
+    if bonus_slot:
+        spec['bonus_slot'] = {'mode': 'hard'}
+    elif gain:
         spec['observation'] = {'gain': gain, 'condition': condition, 'form': form}
     return spec
 
@@ -135,13 +137,32 @@ def pooled(rows):
             'ar_equal_all': all(row['ar_equal'] for row in rows), 'rounds': groups}
 
 
-def arm_rows(session, base, tree, gain, prompts, config, references, condition='none', form='mean'):
-    return decode_rows(session, spec_for(base, tree, gain, condition, form), prompts, config['max_new_tokens'],
-                       references)
+def arm_rows(session, base, tree, gain, prompts, config, references, condition='none', form='mean', bonus_slot=False):
+    return decode_rows(session, spec_for(base, tree, gain, condition, form, bonus_slot), prompts,
+                       config['max_new_tokens'], references)
 
 
 def paired(rows, reference):
     return {key: value for key, value in compare(rows, reference, {}).items() if key != 'pairs'}
+
+
+def _bonus_trees(result, session, config, prompts, references):
+    """ESP trajectory versus bonus-slot-hard-v1. No gain grid."""
+    for tree in config['trees']:
+        entry = {'tree': tree, 'splits': {}}
+        for split in ('holdout', 'cross'):
+            raw = {
+                'esp_trajectory': arm_rows(session, 'esp', tree, 0.0, prompts[split], config, references),
+                'esp_bonus_slot': arm_rows(session, 'esp', tree, 0.0, prompts[split], config, references,
+                                           bonus_slot=True),
+            }
+            entry['splits'][split] = {
+                'arms': {name: {**pooled(rows), 'bonus_slot': name.endswith('bonus_slot')} for name, rows in raw.items()},
+                'rows': raw,
+                'paired_vs_esp_trajectory': {'esp_bonus_slot': paired(raw['esp_bonus_slot'], raw['esp_trajectory'])},
+            }
+        result['trees'].append(entry)
+    return result
 
 
 def run_seed(config, seed):
@@ -166,6 +187,8 @@ def run_seed(config, seed):
     references = {qid: ar_generate(session, prompt, eval_cfg)[0]
                   for split in prompts.values() for qid, prompt in split}
     result = {'seed': seed, 'train_losses': losses, 'train_seconds': train_seconds, 'trees': []}
+    if config.get('bonus_slot'):
+        return _bonus_trees(result, session, config, prompts, references)
     for tree in config['trees']:
         entry = {'tree': tree, 'fit_grid': {}, 'selected_gain': {}, 'splits': {}}
         variants = [tuple(variant) for variant in config['variants']]
@@ -303,7 +326,8 @@ def run(config, output, oracle=False):
     if output.resolve().is_relative_to(root):
         raise ValueError('pilot output must stay outside the source tree')
     output.mkdir(parents=True, exist_ok=False)
-    header = {'protocol': PROTOCOL + ('-oracle-bound' if oracle else ''),
+    header = {'protocol': ('bonus-slot-hard-v1' if config.get('bonus_slot') else
+                           PROTOCOL + ('-oracle-bound' if oracle else '')),
               'scope': 'CPU synthetic pilot; not a real-model, speed or sampling result',
               'config': config, 'config_sha256': hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest(),
               'source': source_identity(), 'torch': torch.__version__, 'python': platform.python_version(),
@@ -326,11 +350,18 @@ def main(argv=None):
     parser.add_argument('--oracle-bound', action='store_true',
                         help='trajectory versus future-token oracle masks; an upper bound, not a method')
     parser.add_argument('--variants', nargs='*', help='observation variants as form:condition, e.g. top1:rejection')
+    parser.add_argument('--bonus-slot', action='store_true',
+                        help='ESP trajectory versus bonus-slot-hard-v1; not an observation form')
     args = parser.parse_args(argv)
     config = json.loads(json.dumps(DEFAULT))
     if args.seeds:
         config['seeds'] = args.seeds
-    if args.variants:
+    if args.bonus_slot:
+        if args.variants or args.oracle_bound:
+            raise ValueError('bonus-slot does not combine with observation variants or the oracle')
+        config['bonus_slot'] = True
+        config['variants'] = []
+    elif args.variants:
         variants = [item.split(':') for item in args.variants]
         if any(tuple(variant) not in SUFFIX for variant in variants) or len(set(map(tuple, variants))) != len(variants):
             raise ValueError('variants must be unique form:condition pairs from ' + repr(sorted(SUFFIX)))

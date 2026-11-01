@@ -5,7 +5,8 @@ import torch
 
 from spec_mtp.analysis import round_split
 from spec_mtp.decode import SpecDecoder, ar_generate
-from spec_mtp.masks import ESPMaskProvider, ObservationBlendMaskProvider, OutputHiddenMaskProvider, build_mask_provider
+from spec_mtp.masks import (BonusSlotMaskProvider, ESPMaskProvider, ObservationBlendMaskProvider,
+                            OutputHiddenMaskProvider, build_mask_provider)
 from spec_mtp.model import HFCausalLM
 from spec_mtp.tree import DraftTree
 
@@ -152,6 +153,37 @@ def test_rejection_condition_falls_back_when_children_hold_all_mass():
     assert torch.equal(owners[0, 0], blend.base.masks()[0])
     with pytest.raises(ValueError, match='condition'):
         ObservationBlendMaskProvider(ESPMaskProvider(1, table), table, 0.5, condition='kalman')
+
+
+def test_bonus_slot_replaces_only_the_immediate_token_and_stays_lossless():
+    torch.manual_seed(6)
+    table = torch.randn(10, 4)
+    logits = torch.randn(2, 10)
+    logits[0, 4] = 9.0
+    logits[1, 8] = 9.0
+    base = ESPMaskProvider(2, table)
+    slot = BonusSlotMaskProvider(base, table)
+    slot.init_from_prompt(torch.randn(5, 4))
+    before = base.masks().clone()
+    slot.observe_mask_logits(logits)
+    tree = DraftTree(root_token=0, tokens=[1, 2], depths=[1, 2], parents=[0, 1])
+    owners = slot.masks_for_tree(tree)
+    assert slot.protocol == 'bonus-slot-hard-v1'
+    assert torch.equal(owners[0, 0], table[4]) and torch.equal(owners[1, 0], table[8])
+    assert torch.equal(owners[2, 0], before[0])
+    assert torch.equal(owners[0, 1], before[1]) and torch.equal(owners[1, 1], before[1])
+    assert torch.equal(base.masks(), before)
+    spec = {**_spec('esp', 2, 'static'), 'bonus_slot': {'mode': 'hard'}}
+    model = _model()
+    prompt = torch.randint(0, 199, (1, 6))
+    reference = ar_generate(model, prompt, {'max_new_tokens': 8, 'temperature': 0, 'stop_on_eos': False})[0]
+    output, stats = SpecDecoder(model, spec, {'max_new_tokens': 8, 'temperature': 0, 'stop_on_eos': False},
+                                mask_policy=build_mask_provider(spec, model.embedding_table)).generate(prompt)
+    assert torch.equal(output, reference) and stats['verification_argmax_audit']['passed']
+    with pytest.raises(ValueError, match='mode'):
+        build_mask_provider({**spec, 'bonus_slot': {'mode': 'soft'}}, table)
+    with pytest.raises(ValueError, match='combine'):
+        build_mask_provider({**spec, 'observation': {'gain': 1}}, table)
 
 
 def test_top1_form_uses_the_most_likely_allowed_token():

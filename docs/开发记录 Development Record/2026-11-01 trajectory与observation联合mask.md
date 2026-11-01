@@ -28,3 +28,5 @@
 `studies/trajectory_observation/structure/pilot.py` 在 CPU 上训练 tiny tied LLaMA 学两种合成二阶马尔可夫语言，只在语言 A 拟合 prompt 上选联合增益，冻结后报告语言 A 隔离 prompt 与语言 B 的 τ、`round_split`、AR 一致和 argmax 审计。输出必须在源码树外，已存在的文件不覆盖。它还没有包装成 Study。结果见 [联合 mask 检查](<../运行记录 Run Record/2026-11-01 联合mask检查.md>)。
 
 同日稍后，Enmao 作废 B2：删除内嵌 `src/rpipe/` 和顶层 `tools/`。仍被测试和 Study 调用的脚本移到 `studies/_shared/structure` 或 `studies/_shared/flow`，测试入口改为 `tests/run.py`。流程实现留在 `spec_mtp.flow` 与 `spec_mtp.structure`，不再 `import rpipe`。上文“没有触及 src/rpipe”只描述联合 mask 实现当时的范围。
+
+`bonus-slot-hard-v1`（`spec.bonus_slot.mode: hard`）只替换各 owner 的槽 0 为上一轮对应行 argmax 的 token 嵌入，其余槽保持 trajectory，不增加前向，不与 observation 混用。真实模型入口仍是 `spec-mtp decode` 的本地目录与外部 SHA256 清单；极小 Llama 的 CPU 冒烟走这条路径。确认判据写在研究计划，测量写在运行记录。

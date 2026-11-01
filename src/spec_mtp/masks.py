@@ -385,8 +385,71 @@ class ObservationBlendMaskProvider:
         self.base.on_token_committed(new_embed, prev_embed)
 
 
+class BonusSlotMaskProvider:
+    """Protocol `bonus-slot-hard-v1`.
+
+    Oracle splits put the whole acceptance gap in mask slot 0: the embedding
+    the model reads at the bonus position. This replaces only that slot, for
+    an owner at depth d, with the embedding of argmax of the previous verify
+    forward's mask-logit row d (the draft's own prediction of that token).
+    Deeper slots stay on the wrapped trajectory. No extra forward.
+    """
+    needs_hidden = False
+    protocol = 'bonus-slot-hard-v1'
+
+    def __init__(self, base, embedding_table):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('bonus slot wraps input-embedding providers only')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.embedding_table = embedding_table
+        self._tokens = None
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        self._tokens = None
+
+    def observe_mask_logits(self, mask_logits):
+        if mask_logits.shape[0] != self.num_masks:
+            raise ValueError('bonus slot needs one logit row per mask slot')
+        if not torch.isfinite(mask_logits).any(dim=-1).all() or torch.isnan(mask_logits).any():
+            raise ValueError('bonus slot logits need a finite candidate per row')
+        self._tokens = mask_logits.argmax(dim=-1).detach()
+
+    def masks_for_tree(self, tree):
+        trajectory = self.base.masks()
+        owners = trajectory.unsqueeze(0).repeat(1 + tree.num_nodes, 1, 1)
+        if self._tokens is None:
+            return owners
+        table = self.embedding_table
+        for owner, depth in enumerate([0] + list(tree.depths)):
+            if depth < self.num_masks:
+                token = int(self._tokens[depth])
+                owners[owner, 0] = table[token].to(device=trajectory.device, dtype=trajectory.dtype)
+        return owners
+
+    def masks(self):
+        out = self.base.masks().clone()
+        if self._tokens is not None:
+            token = int(self._tokens[0])
+            out[0] = self.embedding_table[token].to(device=out.device, dtype=out.dtype)
+        return out
+
+    def on_token_committed(self, new_embed, prev_embed):
+        self.base.on_token_committed(new_embed, prev_embed)
+
+
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
     observation = spec_cfg.get('observation')
+    bonus = spec_cfg.get('bonus_slot')
+    if observation is not None and bonus is not None:
+        raise ValueError('bonus_slot does not combine with observation')
+    if bonus is not None:
+        if bonus != {'mode': 'hard'}:
+            raise ValueError('bonus_slot accepts only mode hard')
+        base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'bonus_slot'}
+        base = build_mask_provider(base_cfg, embedding_table, generator)
+        return BonusSlotMaskProvider(base, embedding_table)
     if observation is not None:
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'observation'}
         if 'gain' not in observation or not set(observation) <= {'gain', 'condition', 'form'}:
