@@ -258,6 +258,36 @@ def test_observation_rejects_hidden_providers_and_bad_logits():
         blend.observe_mask_logits(torch.full((2, 10), float('nan')))
 
 
+def test_scalar_kalman_step_steady_gain_and_lossless_decode():
+    from spec_mtp.masks import KalmanMaskProvider
+
+    provider = KalmanMaskProvider(2, torch.zeros(4, 3), mode='online', forget=1.0, r_min=1e-8, q_min=1e-12)
+    provider.init_from_prompt(torch.zeros(2, 3))
+    provider._level = torch.zeros(3)
+    provider._p, provider._q, provider._r = 1.0, 0.25, 1.0
+    provider._step(torch.tensor([2.0, 0.0, 0.0]))
+    gain = 1.25 / 2.25
+    assert torch.allclose(provider._level, torch.tensor([2.0, 0.0, 0.0]) * gain)
+    assert abs(provider._p - ((1 - gain) ** 2 * 1.25 + gain ** 2)) < 1e-6
+    phi = provider._q / provider._r
+    k_star = (-phi + (phi * phi + 4 * phi) ** 0.5) / 2
+    for _ in range(50):
+        provider._step(provider._level.detach().clone())
+    assert abs(provider.diagnostics()['k'] - k_star) < 1e-4
+    frozen = KalmanMaskProvider(1, torch.zeros(4, 3), mode='frozen')
+    frozen.init_from_prompt(torch.randn(6, 3))
+    held = frozen.diagnostics()['k']
+    frozen.on_token_committed(torch.randn(3), torch.zeros(3))
+    assert frozen.diagnostics()['k'] == held
+    spec = {**_spec('kalman', 1, 'static'), 'kalman': {'mode': 'online'}}
+    model, prompt = _model(), PROMPTS[0]
+    reference, _ = ar_generate(model, prompt, {'max_new_tokens': 20, 'temperature': 0, 'stop_on_eos': False})
+    output, stats = _decode(model, spec, prompt, 0, 0)
+    assert torch.equal(output, reference) and stats['verification_argmax_audit']['passed']
+    with pytest.raises(ValueError, match='online or frozen'):
+        KalmanMaskProvider(1, torch.zeros(4, 3), mode='soft')
+
+
 def test_round_split_groups_by_previous_outcome():
     trace = [{'accepted_nodes': [1, 2], 'committed_tokens': [5, 6, 7]},
              {'accepted_nodes': [], 'committed_tokens': [8]},

@@ -96,11 +96,15 @@ def train_model(config, data, seed):
     return session, losses
 
 
-def spec_for(base, tree, gain, condition='none', form='mean', bonus_slot=False):
-    spec = {'method': 'esp' if base == 'esp' else 'ema_velocity', 'num_masks': tree['num_masks'],
+def spec_for(base, tree, gain, condition='none', form='mean', bonus_slot=False, kalman=None):
+    spec = {'method': {'esp': 'esp', 'ema': 'ema_velocity', 'kalman': 'kalman'}[base],
+            'num_masks': tree['num_masks'],
             'impl': 'efficient', 'tree': {'mode': 'static', 'branches': list(tree['branches']), 'pruning': True},
             'mask': {'init': 'mean_prompt', 'lam': 0.1, 'update': True},
             'ema': {'beta': 0.9, 'step_scale': 1.0, 'normalize': False, 'update': True, 'level': 'last'}}
+    if base == 'kalman':
+        spec['kalman'] = {'mode': kalman or 'online', 'forget': 0.95}
+        return spec
     if bonus_slot:
         spec['bonus_slot'] = {'mode': bonus_slot if isinstance(bonus_slot, str) else 'hard'}
     elif gain:
@@ -112,16 +116,20 @@ def decode_rows(session, spec, prompts, max_new_tokens, references):
     rows = []
     eval_cfg = {'max_new_tokens': max_new_tokens, 'temperature': 0.0, 'stop_on_eos': False}
     for qid, prompt in prompts:
+        policy = build_mask_provider(spec, session.embedding_table)
         decoder = SpecDecoder(session, spec, eval_cfg, generator=torch.Generator().manual_seed(0),
-                              mask_policy=build_mask_provider(spec, session.embedding_table))
+                              mask_policy=policy)
         output, stats = decoder.generate(prompt)
-        rows.append({'qid': qid, 'input_sha256': stats['verification_argmax_audit']['input_sha256'],
-                     'protocol': PROTOCOL, 'evidence_complete': True,
-                     'accepted': stats['accepted'], 'committed': stats['committed'],
-                     'decode_calls': stats['decode_calls'], 'new_tokens': stats['new_tokens'],
-                     'argmax_passed': stats['verification_argmax_audit']['passed'],
-                     'ar_equal': bool(torch.equal(output, references[qid])),
-                     'rounds': round_split(stats['trace'])})
+        row = {'qid': qid, 'input_sha256': stats['verification_argmax_audit']['input_sha256'],
+               'protocol': PROTOCOL, 'evidence_complete': True,
+               'accepted': stats['accepted'], 'committed': stats['committed'],
+               'decode_calls': stats['decode_calls'], 'new_tokens': stats['new_tokens'],
+               'argmax_passed': stats['verification_argmax_audit']['passed'],
+               'ar_equal': bool(torch.equal(output, references[qid])),
+               'rounds': round_split(stats['trace'])}
+        if hasattr(policy, 'diagnostics'):
+            row['kalman'] = policy.diagnostics()
+        rows.append(row)
     return rows
 
 
@@ -137,8 +145,9 @@ def pooled(rows):
             'ar_equal_all': all(row['ar_equal'] for row in rows), 'rounds': groups}
 
 
-def arm_rows(session, base, tree, gain, prompts, config, references, condition='none', form='mean', bonus_slot=False):
-    return decode_rows(session, spec_for(base, tree, gain, condition, form, bonus_slot), prompts,
+def arm_rows(session, base, tree, gain, prompts, config, references, condition='none', form='mean', bonus_slot=False,
+             kalman=None):
+    return decode_rows(session, spec_for(base, tree, gain, condition, form, bonus_slot, kalman), prompts,
                        config['max_new_tokens'], references)
 
 
@@ -160,6 +169,30 @@ def _bonus_trees(result, session, config, prompts, references):
                 'arms': {name: {**pooled(rows), 'bonus_slot': name.endswith('bonus_slot')} for name, rows in raw.items()},
                 'rows': raw,
                 'paired_vs_esp_trajectory': {'esp_bonus_slot': paired(raw['esp_bonus_slot'], raw['esp_trajectory'])},
+            }
+        result['trees'].append(entry)
+    return result
+
+
+def _kalman_trees(result, session, config, prompts, references):
+    """ESP trajectory, fixed EMA, blend-v1 at a frozen gain, online and frozen-K Kalman."""
+    gain = float(config.get('blend_gain', 0.5))
+    for tree in config['trees']:
+        entry = {'tree': tree, 'splits': {}}
+        for split in ('holdout', 'cross'):
+            raw = {
+                'esp_trajectory': arm_rows(session, 'esp', tree, 0.0, prompts[split], config, references),
+                'ema_trajectory': arm_rows(session, 'ema', tree, 0.0, prompts[split], config, references),
+                'esp_blend_v1': arm_rows(session, 'esp', tree, gain, prompts[split], config, references),
+                'kalman_online': arm_rows(session, 'kalman', tree, 0.0, prompts[split], config, references, kalman='online'),
+                'kalman_frozen': arm_rows(session, 'kalman', tree, 0.0, prompts[split], config, references, kalman='frozen'),
+            }
+            entry['splits'][split] = {
+                'arms': {name: pooled(rows) for name, rows in raw.items()},
+                'rows': raw,
+                'paired_vs_esp_trajectory': {name: paired(raw[name], raw['esp_trajectory'])
+                                             for name in raw if name != 'esp_trajectory'},
+                'paired_online_vs_frozen': paired(raw['kalman_online'], raw['kalman_frozen']),
             }
         result['trees'].append(entry)
     return result
@@ -189,6 +222,8 @@ def run_seed(config, seed):
     result = {'seed': seed, 'train_losses': losses, 'train_seconds': train_seconds, 'trees': []}
     if config.get('bonus_slot'):
         return _bonus_trees(result, session, config, prompts, references)
+    if config.get('kalman'):
+        return _kalman_trees(result, session, config, prompts, references)
     for tree in config['trees']:
         entry = {'tree': tree, 'fit_grid': {}, 'selected_gain': {}, 'splits': {}}
         variants = [tuple(variant) for variant in config['variants']]
@@ -327,8 +362,9 @@ def run(config, output, oracle=False):
         raise ValueError('pilot output must stay outside the source tree')
     output.mkdir(parents=True, exist_ok=False)
     bonus_mode = config.get('bonus_slot')
-    header = {'protocol': ({'hard': 'bonus-slot-hard-v1', 'topk': 'bonus-slot-topk-v1'}.get(bonus_mode)
-                           if bonus_mode else PROTOCOL + ('-oracle-bound' if oracle else '')),
+    protocol = ({'hard': 'bonus-slot-hard-v1', 'topk': 'bonus-slot-topk-v1'}.get(bonus_mode) if bonus_mode
+                else 'kalman-mask-scalar-v1' if config.get('kalman') else PROTOCOL + ('-oracle-bound' if oracle else ''))
+    header = {'protocol': protocol,
               'scope': 'CPU synthetic pilot; not a real-model, speed or sampling result',
               'config': config, 'config_sha256': hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest(),
               'source': source_identity(), 'torch': torch.__version__, 'python': platform.python_version(),
@@ -353,14 +389,22 @@ def main(argv=None):
     parser.add_argument('--variants', nargs='*', help='observation variants as form:condition, e.g. top1:rejection')
     parser.add_argument('--bonus-slot', nargs='?', const='hard', default=None, choices=('hard', 'topk'),
                         help='ESP trajectory versus bonus-slot-hard-v1 or bonus-slot-topk-v1')
+    parser.add_argument('--kalman', action='store_true',
+                        help='ESP, fixed EMA, blend-v1, online Kalman and frozen-K Kalman')
     args = parser.parse_args(argv)
     config = json.loads(json.dumps(DEFAULT))
     if args.seeds:
         config['seeds'] = args.seeds
+    if args.kalman and (args.bonus_slot or args.variants or args.oracle_bound):
+        raise ValueError('kalman does not combine with bonus-slot, observation variants or the oracle')
     if args.bonus_slot:
         if args.variants or args.oracle_bound:
             raise ValueError('bonus-slot does not combine with observation variants or the oracle')
         config['bonus_slot'] = args.bonus_slot
+        config['variants'] = []
+    elif args.kalman:
+        config['kalman'] = True
+        config['blend_gain'] = 0.5
         config['variants'] = []
     elif args.variants:
         variants = [item.split(':') for item in args.variants]

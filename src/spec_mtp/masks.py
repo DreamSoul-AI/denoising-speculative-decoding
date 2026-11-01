@@ -460,9 +460,96 @@ class BonusSlotMaskProvider:
         self.base.on_token_committed(new_embed, prev_embed)
 
 
+class KalmanMaskProvider:
+    """Scalar random-walk Kalman update of the mask level. Protocol `kalman-mask-scalar-v1`.
+
+    One shared variance, not a per-dimension or higher-order covariance:
+    predict m, P+q; correct with K = P-/(P-+R) on the committed embedding.
+    `online` reestimates scalar q, r from the innovation (Sage-Husa). `frozen`
+    keeps the gain from the end of the prompt. This is not the affine residual.
+    """
+    needs_hidden = False
+    PROTOCOLS = {'online': 'kalman-mask-scalar-v1', 'frozen': 'kalman-mask-frozen-k-v1'}
+
+    def __init__(self, num_masks, embedding_table, mode='online', forget=0.95,
+                 r_min=1e-6, q_min=1e-8, q_scale=0.01, generator=None):
+        if mode not in self.PROTOCOLS:
+            raise ValueError('kalman mode must be online or frozen')
+        if isinstance(forget, bool) or not isinstance(forget, (int, float)) or not 0 < float(forget) <= 1:
+            raise ValueError('kalman forget must be in (0, 1]')
+        for name, value in (('r_min', r_min), ('q_min', q_min), ('q_scale', q_scale)):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or float(value) <= 0:
+                raise ValueError(f'kalman {name} must be a positive number')
+        self.num_masks = int(num_masks)
+        self.embedding_table = embedding_table
+        self.mode = mode
+        self.protocol = self.PROTOCOLS[mode]
+        self.forget = float(forget)
+        self.r_min = float(r_min)
+        self.q_min = float(q_min)
+        self.q_scale = float(q_scale)
+        self.generator = generator
+        self._level = None
+        self._p = self._q = self._r = self._k = 0.0
+        self._t = 0
+        self._locked = False
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        if generator is not None:
+            self.generator = generator
+        if prompt_embeds.size(0) < 1:
+            raise ValueError('kalman mask needs a prompt embedding')
+        level = prompt_embeds.mean(dim=0).clone()
+        variance = float((prompt_embeds - level).float().pow(2).mean().clamp_min(self.r_min))
+        self._level = level
+        self._r = variance
+        self._q = max(variance * self.q_scale, self.q_min)
+        self._p = variance
+        self._t = 0
+        self._locked = False
+        self._k = 0.0
+        for index in range(prompt_embeds.size(0)):
+            self._step(prompt_embeds[index])
+        if self.mode == 'frozen':
+            self._locked = True
+
+    def _step(self, observation):
+        predicted = self._p + self._q
+        error = observation - self._level
+        innov = float(error.float().pow(2).mean())
+        gain = predicted / (predicted + self._r)
+        if self._locked:
+            gain = self._k
+        self._level = self._level + error * gain
+        if self._locked:
+            return
+        self._k = gain
+        self._p = (1.0 - gain) ** 2 * predicted + gain ** 2 * self._r
+        if self.mode == 'online' and self.forget < 1.0:
+            self._t += 1
+            delta = (1.0 - self.forget) / (1.0 - self.forget ** (self._t + 1))
+            self._r = max((1.0 - delta) * self._r + delta * (innov - predicted), self.r_min)
+            self._q = max((1.0 - delta) * self._q + delta * (gain * gain * innov), self.q_min)
+
+    def on_token_committed(self, new_embed, prev_embed):
+        del prev_embed
+        self._step(new_embed)
+
+    def masks(self):
+        return self._level.unsqueeze(0).expand(self.num_masks, self._level.shape[-1]).clone()
+
+    def diagnostics(self):
+        phi = self._q / self._r
+        root = (phi + (phi * phi + 4.0 * phi) ** 0.5) / 2.0
+        return {'k': self._k, 'q': self._q, 'r': self._r, 'p': self._p,
+                'phi': phi, 'prop8_beta_star': 1.0 / (1.0 + root)}
+
+
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
     observation = spec_cfg.get('observation')
     bonus = spec_cfg.get('bonus_slot')
+    if str(spec_cfg.get('method', 'esp')).lower() == 'kalman' and (observation is not None or bonus is not None):
+        raise ValueError('kalman does not combine with observation or bonus_slot')
     if observation is not None and bonus is not None:
         raise ValueError('bonus_slot does not combine with observation')
     if bonus is not None:
@@ -494,6 +581,14 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
             offset_scale=mask_cfg.get('offset_scale', 5.0),
             generator=generator,
         )
+    if method == 'kalman':
+        cfg = dict(spec_cfg.get('kalman') or {})
+        if not set(cfg) <= {'mode', 'forget', 'r_min', 'q_min', 'q_scale'}:
+            raise ValueError('spec.kalman accepts only mode, forget, r_min, q_min and q_scale')
+        return KalmanMaskProvider(
+            num_masks=num_masks, embedding_table=embedding_table, generator=generator,
+            mode=cfg.get('mode', 'online'), forget=cfg.get('forget', 0.95),
+            r_min=cfg.get('r_min', 1e-6), q_min=cfg.get('q_min', 1e-8), q_scale=cfg.get('q_scale', 0.01))
     if method == 'ema_velocity':
         ema_cfg = spec_cfg.get('ema', {})
         return EMAVelocityMaskProvider(

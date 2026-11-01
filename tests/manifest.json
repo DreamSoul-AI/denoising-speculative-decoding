@@ -17,6 +17,13 @@
       ]
     },
     {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_scalar_kalman_step_steady_gain_and_lossless_decode",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
       "test_id": "tests/spec_mtp/test_observation_blend.py::test_top1_form_uses_the_most_likely_allowed_token",
       "target": "spec_mtp",
       "tags": [
