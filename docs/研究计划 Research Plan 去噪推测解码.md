@@ -97,7 +97,12 @@ K 的拟合只使用拟合划分。评测划分、同模型的另一数据集、
 ### 默认干预 `bonus-slot-hard-v1`
 oracle 按槽拆分说明接受数的空间全在 mask 槽 0：模型在 bonus 位置读到的输入嵌入。真实 token 嵌入能把 τ 抬到接近 k+1；只替换更深层则与 trajectory 相同。默认方案不增加前向：深度 d 的 owner 的槽 0 换成上一轮验证前向第 d 行 mask logits 的 argmax token 嵌入（草稿自己对这个 bonus 位置的预测），其余槽保持 trajectory。协议名 `bonus-slot-hard-v1`，配置 `spec.bonus_slot.mode: hard`。它不与 `spec.observation` 混用。假设：这个硬 token 足够接近 oracle 所用的真实 token，使下一棵树第 1 层更常被接受。若 top-1 经常错误，硬嵌入会差于轨迹均值，接受数下降。
 
-**第三个合成确认判据（2026年11月1日，运行前写定）**：同一 pilot，`--bonus-slot`，训练种子 21/22/23。主比较为 ESP `bonus-slot-hard-v1` 对 ESP 轨迹，判定方式与 top1 相同（prompt 级三树接受数差，双侧符号检验 p<0.05 且胜多于负）。探索先用种子 11/12/13。探索若胜不多于负，不跑确认，并停止在合成设置上再改 bonus 槽的做法。确认不通过同样停止。通过也只是真实模型候选，仍需另行批准。
+**第三个合成确认判据（2026年11月1日，运行前写定）**：同一 pilot，`--bonus-slot`，训练种子 21/22/23。主比较为 ESP `bonus-slot-hard-v1` 对 ESP 轨迹，判定方式与 top1 相同（prompt 级三树接受数差，双侧符号检验 p<0.05 且胜多于负）。探索先用种子 11/12/13。探索若胜不多于负，不跑确认，并停止在合成设置上再改 bonus 槽的做法。确认不通过同样停止。通过也只是真实模型候选，仍需另行批准。该探索已失败（79:99），确认未跑。
+
+### 候选 `bonus-slot-topk-v1`
+硬 argmax 失败后，按新指令只再试一个不增加前向、针对同一槽的候选。槽 0 改为上一轮该行 logits 在草稿宽度 w（该层 `branches`）上重新归一化后的期望嵌入，其余槽仍是 trajectory。假设：真 token 若常落在草稿 top-w 内，这个期望比单词嵌入更不怕 top-1 选错，又比全词表均值更靠近 token 流形，从而更接近 oracle 所用的真实嵌入。协议名 `bonus-slot-topk-v1`，配置 `spec.bonus_slot.mode: topk`。
+
+**第四个合成确认判据（2026年11月1日，运行前写定）**：同一 pilot，`--bonus-slot topk`，种子 21/22/23。主比较为 ESP `bonus-slot-topk-v1` 对 ESP 轨迹，判定方式与 top1 相同。探索用种子 11/12/13。探索若胜不多于负，不跑确认，并停止再改合成 bonus 槽。确认不通过同样停止。这是 hard 失败之后的单独一次候选，不把已关闭的 observation 形式重新打开。
 
 资源需求在公式和最小比较的输入规模确定前不编造预算。历史“GPU 不空闲”不能当作新的执行许可。取消时保留已写出的部分观测，不把未完成矩阵记为成功。
 
@@ -114,7 +119,8 @@ oracle 按槽拆分说明接受数的空间全在 mask 槽 0：模型在 bonus �
 | `trajectory-observation-rejection-v1` CPU 合成 | 探索运行 EMA 联合·拒绝对 EMA 轨迹 104:68；新种子确认 102:71（p=0.022），主判据通过。但对 ESP 轨迹 88:94，ESP 上联合无益，H1 对最强基线未获支持 |
 | `trajectory-observation-top1-rejection-v1` 确认 | 未通过。ESP 联合·top1·拒绝对 ESP 轨迹 74:103（p=0.035），方向与探索相反。停止在合成设置上更换形式 |
 | oracle 按槽拆分 | 全部槽 oracle 的 τ 接近 k+1；只给 bonus 之后的槽真实嵌入时 τ 与轨迹相同。可得空间都在槽 1（当轮 bonus token），更深 mask 不能补上 |
-| `bonus-slot-hard-v1` | 探索未通过。种子 11/12/13，ESP bonus 对 ESP 轨迹 79 胜 99 负（p=0.154），方向为更差。不跑确认，停止在合成设置上再改 bonus 槽 |
+| `bonus-slot-hard-v1` | 探索未通过。种子 11/12/13，ESP bonus 对 ESP 轨迹 79 胜 99 负（p=0.154），方向为更差。不跑确认 |
+| `bonus-slot-topk-v1` | 判据已写。草稿 top-w 期望嵌入，不增加前向。测量见运行记录 |
 | 采样分布保证、独立 AR 等价、端到端速度 | 未完成，不能由 T0 推广 |
 
 # 八、和开发计划的关系

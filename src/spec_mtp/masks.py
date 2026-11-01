@@ -386,53 +386,74 @@ class ObservationBlendMaskProvider:
 
 
 class BonusSlotMaskProvider:
-    """Protocol `bonus-slot-hard-v1`.
+    """Bonus-slot input, no extra forward.
 
-    Oracle splits put the whole acceptance gap in mask slot 0: the embedding
-    the model reads at the bonus position. This replaces only that slot, for
-    an owner at depth d, with the embedding of argmax of the previous verify
-    forward's mask-logit row d (the draft's own prediction of that token).
-    Deeper slots stay on the wrapped trajectory. No extra forward.
+    `hard` (`bonus-slot-hard-v1`): slot 0 of a depth-d owner is the embedding
+    of argmax on the previous mask-logit row d.
+    `topk` (`bonus-slot-topk-v1`): the same slot is the expected embedding of
+    that row restricted to the draft's top-w tokens, w = tree branch width at
+    that depth, renormalized. Deeper slots stay on the trajectory.
     """
     needs_hidden = False
-    protocol = 'bonus-slot-hard-v1'
+    PROTOCOLS = {'hard': 'bonus-slot-hard-v1', 'topk': 'bonus-slot-topk-v1'}
 
-    def __init__(self, base, embedding_table):
+    def __init__(self, base, embedding_table, mode='hard', widths=()):
         if getattr(base, 'needs_hidden', False):
             raise ValueError('bonus slot wraps input-embedding providers only')
+        if mode not in self.PROTOCOLS:
+            raise ValueError('bonus slot mode must be hard or topk')
         self.base = base
         self.num_masks = base.num_masks
         self.embedding_table = embedding_table
-        self._tokens = None
+        self.mode = mode
+        self.protocol = self.PROTOCOLS[mode]
+        self.widths = [int(w) for w in widths]
+        self._logits = None
 
     def init_from_prompt(self, prompt_embeds, generator=None):
         self.base.init_from_prompt(prompt_embeds, generator=generator)
-        self._tokens = None
+        self._logits = None
 
     def observe_mask_logits(self, mask_logits):
         if mask_logits.shape[0] != self.num_masks:
             raise ValueError('bonus slot needs one logit row per mask slot')
         if not torch.isfinite(mask_logits).any(dim=-1).all() or torch.isnan(mask_logits).any():
             raise ValueError('bonus slot logits need a finite candidate per row')
-        self._tokens = mask_logits.argmax(dim=-1).detach()
+        self._logits = mask_logits.detach()
+
+    def _slot_embedding(self, depth, trajectory):
+        row = self._logits[depth]
+        table = self.embedding_table
+        if self.mode == 'hard':
+            token = int(row.argmax())
+            return table[token].to(device=trajectory.device, dtype=trajectory.dtype)
+        width = self.widths[depth] if depth < len(self.widths) else 0
+        if width <= 0:
+            return None
+        k = min(width, row.numel())
+        vals, idx = torch.topk(row, k)
+        weights = torch.softmax(vals.float(), dim=0).to(dtype=table.dtype)
+        picked = table[idx].to(device=trajectory.device, dtype=trajectory.dtype)
+        return weights.to(device=trajectory.device) @ picked
 
     def masks_for_tree(self, tree):
         trajectory = self.base.masks()
         owners = trajectory.unsqueeze(0).repeat(1 + tree.num_nodes, 1, 1)
-        if self._tokens is None:
+        if self._logits is None:
             return owners
-        table = self.embedding_table
         for owner, depth in enumerate([0] + list(tree.depths)):
             if depth < self.num_masks:
-                token = int(self._tokens[depth])
-                owners[owner, 0] = table[token].to(device=trajectory.device, dtype=trajectory.dtype)
+                embed = self._slot_embedding(depth, trajectory)
+                if embed is not None:
+                    owners[owner, 0] = embed
         return owners
 
     def masks(self):
         out = self.base.masks().clone()
-        if self._tokens is not None:
-            token = int(self._tokens[0])
-            out[0] = self.embedding_table[token].to(device=out.device, dtype=out.dtype)
+        if self._logits is not None and self.num_masks > 0:
+            embed = self._slot_embedding(0, out)
+            if embed is not None:
+                out[0] = embed
         return out
 
     def on_token_committed(self, new_embed, prev_embed):
@@ -445,11 +466,14 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
     if observation is not None and bonus is not None:
         raise ValueError('bonus_slot does not combine with observation')
     if bonus is not None:
-        if bonus != {'mode': 'hard'}:
-            raise ValueError('bonus_slot accepts only mode hard')
+        if not isinstance(bonus, dict) or set(bonus) != {'mode'} or bonus.get('mode') not in ('hard', 'topk'):
+            raise ValueError('bonus_slot accepts only mode hard or topk')
+        widths = list((spec_cfg.get('tree') or {}).get('branches') or [])
+        if bonus['mode'] == 'topk' and (not widths or any(not isinstance(w, int) or isinstance(w, bool) or w <= 0 for w in widths)):
+            raise ValueError('topk bonus slot needs positive integer tree branch widths')
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'bonus_slot'}
         base = build_mask_provider(base_cfg, embedding_table, generator)
-        return BonusSlotMaskProvider(base, embedding_table)
+        return BonusSlotMaskProvider(base, embedding_table, bonus['mode'], widths)
     if observation is not None:
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'observation'}
         if 'gain' not in observation or not set(observation) <= {'gain', 'condition', 'form'}:

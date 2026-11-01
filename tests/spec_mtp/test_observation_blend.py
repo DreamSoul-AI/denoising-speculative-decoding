@@ -180,6 +180,18 @@ def test_bonus_slot_replaces_only_the_immediate_token_and_stays_lossless():
     output, stats = SpecDecoder(model, spec, {'max_new_tokens': 8, 'temperature': 0, 'stop_on_eos': False},
                                 mask_policy=build_mask_provider(spec, model.embedding_table)).generate(prompt)
     assert torch.equal(output, reference) and stats['verification_argmax_audit']['passed']
+    topk = BonusSlotMaskProvider(ESPMaskProvider(2, table), table, mode='topk', widths=[2, 2])
+    topk.init_from_prompt(torch.randn(5, 4))
+    topk.observe_mask_logits(logits)
+    vals, idx = torch.topk(logits[0], 2)
+    expect = torch.softmax(vals.float(), dim=0).to(table.dtype) @ table[idx]
+    assert topk.protocol == 'bonus-slot-topk-v1'
+    assert torch.allclose(topk.masks_for_tree(tree)[0, 0], expect)
+    assert torch.equal(topk.masks_for_tree(tree)[0, 1], topk.base.masks()[1])
+    spec_k = {**_spec('esp', 2, 'static'), 'bonus_slot': {'mode': 'topk'}}
+    output_k, stats_k = SpecDecoder(model, spec_k, {'max_new_tokens': 8, 'temperature': 0, 'stop_on_eos': False},
+                                    mask_policy=build_mask_provider(spec_k, model.embedding_table)).generate(prompt)
+    assert torch.equal(output_k, reference) and stats_k['verification_argmax_audit']['passed']
     with pytest.raises(ValueError, match='mode'):
         build_mask_provider({**spec, 'bonus_slot': {'mode': 'soft'}}, table)
     with pytest.raises(ValueError, match='combine'):
