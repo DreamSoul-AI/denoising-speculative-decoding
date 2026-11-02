@@ -25,7 +25,7 @@ EVAL_SHA256 = 'f4c5423ce250ae517abfe8ae04b3356f7bf725f66766d4f9ce323b30554766f4'
 EVAL_QIDS = (
     tuple(range(257, 289)) + tuple(range(290, 304)) + tuple(range(305, 365)) + tuple(range(366, 388))
 )
-QWEN3_8B = Path('D:') / 'models' / 'Qwen3-8B'
+QWEN3_8B = Path('D' + ':' + '\\') / 'models' / 'Qwen3-8B'
 MODELS = {'8b': QWEN3_8B}
 HEADS = (
     'Name the color of', 'A compiler turns', 'The Pacific Ocean is', 'After the rain',

@@ -37,9 +37,10 @@ def test_registered_qid_span_skips_the_three_duplicates():
 
 
 def test_8b_table_points_at_the_local_qwen3_directory():
-    assert MODELS['8b'] == Path('D:') / 'models' / 'Qwen3-8B'
+    assert MODELS['8b'] == Path('D' + ':' + '\\') / 'models' / 'Qwen3-8B'
+    assert MODELS['8b'].is_absolute()
     source = Path('studies/trajectory_observation/structure/fair_branch.py').read_text(encoding='utf-8')
-    assert "'8b': Path('D:') / 'models' / 'Qwen3-8B'" in source
+    assert "'8b': Path('D' + ':' + '\\\\') / 'models' / 'Qwen3-8B'" in source
 
 
 def test_replace_keeps_the_esp_tree_and_kalman_is_frozen_last():
