@@ -791,6 +791,41 @@ def _stack_blocks(blocks):
     return tuple(torch.cat([block[axis] for block in blocks], dim=0) for axis in range(3))
 
 
+def centered_r2(error, prediction, center):
+    """1 - ||e - pred||^2 / ||e - center||^2. `center` is the training mean."""
+    error = error.float()
+    prediction = prediction.float()
+    center = center.float().reshape(1, -1)
+    total = (error - center).pow(2).sum()
+    if float(total) <= 0.0:
+        raise ValueError('centered R^2 needs nonzero target energy')
+    return float(1.0 - (error - prediction).pow(2).sum() / total)
+
+
+def fit_lowrank_delta(delta, error, rank, ridge, iters=8):
+    """Low-rank map error ≈ (delta @ V) @ U^T + b. Ridge penalizes U and V, not b."""
+    delta = delta.float().contiguous()
+    error = error.float().contiguous()
+    rank = int(rank)
+    ridge = float(ridge)
+    if delta.ndim != 2 or error.shape != delta.shape or delta.shape[0] < 2:
+        raise ValueError('low-rank delta fit needs at least two aligned rows')
+    if rank < 1 or rank >= delta.shape[1] or ridge <= 0.0 or int(iters) < 1:
+        raise ValueError('low-rank delta fit needs a positive rank below the width and a positive ridge')
+    if not torch.isfinite(delta).all() or not torch.isfinite(error).all():
+        raise ValueError('low-rank delta fit inputs must be finite')
+    left, right, bias = _als_lowrank(delta, error, rank, ridge, int(iters))
+    return {'U': left, 'V': right, 'b': bias, 'rank': rank, 'ridge': float(ridge)}
+
+
+def apply_lowrank_delta(delta, fit):
+    delta = delta.float()
+    factor_in = fit['V'].to(device=delta.device, dtype=torch.float32)
+    factor_out = fit['U'].to(device=delta.device, dtype=torch.float32)
+    bias = fit['b'].to(device=delta.device, dtype=torch.float32)
+    return (delta @ factor_in) @ factor_out.T + bias
+
+
 def fit_lowrank_ridge(m_hat, z, target, rank, ridge, iters=8):
     """Low-rank map m = m_hat + U V^T (z - m_hat) + b. Ridge penalizes U and V, not b."""
     delta = (z - m_hat).float()
@@ -1459,6 +1494,118 @@ class OutputHiddenHybridKalman:
                 'deep_error': mean(self._deep_err, self._deep_n),
                 'deep_base_error': mean(self._deep_base, self._deep_n),
                 'root_n': self._root_n, 'deep_n': self._deep_n}
+
+
+class PreforwardSignalCollector:
+    """Record a before-forward bundle and the bonus embedding. Masks stay ESP.
+
+    The bundle is the previous forward's single mask slot: full-softmax expected
+    embedding, top-4 renormalized expected embedding, final-norm hidden, entropy
+    and top-4 mass. `finish_round` pairs it with this round's first and last
+    committed embeddings. Slot 0 is not modified.
+    """
+    needs_hidden = False
+    TOPK = 4
+
+    def __init__(self, base, embedding_table):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('preforward signal wraps input-embedding providers only')
+        if int(base.num_masks) != 1:
+            raise ValueError('preforward signal is specified for one mask slot')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.embedding_table = embedding_table
+        self._bundle = None
+        self._pending = None
+        self._z = None
+        self._first = None
+        self._commits = 0
+        self._prev_accepted = None
+        self._rows = []
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        self._bundle = None
+        self._pending = None
+        self._z = None
+        self._first = None
+        self._commits = 0
+        self._prev_accepted = None
+        self._rows = []
+
+    def masks(self):
+        out = self.base.masks().clone()
+        self._pending = None
+        self._first = None
+        self._commits = 0
+        if self._bundle is None or self._z is None:
+            return out
+        if self._bundle.get('hidden') is None:
+            raise RuntimeError('preforward signal is missing the mask hidden')
+        prior = out[0].detach().to(dtype=torch.float32)
+        self._pending = {
+            'm': prior.cpu(),
+            'z': self._z.detach().to(dtype=torch.float32).cpu(),
+            'expected': self._bundle['expected'].detach().to(dtype=torch.float32).cpu(),
+            'topk': self._bundle['topk'].detach().to(dtype=torch.float32).cpu(),
+            'hidden': self._bundle['hidden'].detach().to(dtype=torch.float32).cpu(),
+            'entropy': self._bundle['entropy'],
+            'top_mass': self._bundle['top_mass'],
+            'prev_accepted': -1 if self._prev_accepted is None else int(self._prev_accepted),
+        }
+        return out
+
+    def observe_mask_logits(self, mask_logits):
+        if mask_logits.shape[0] != 1:
+            raise ValueError('preforward signal needs one logit row')
+        row = mask_logits[0].float()
+        if row.shape[0] != self.embedding_table.shape[0]:
+            raise ValueError('preforward signal logits and the embedding table disagree on vocab size')
+        if not torch.isfinite(row).any() or torch.isnan(row).any():
+            raise ValueError('preforward signal logits need a finite candidate')
+        probs = torch.softmax(row, dim=-1)
+        table = self.embedding_table.detach().float()
+        mass, index = torch.topk(probs, self.TOPK)
+        self._bundle = {
+            'expected': probs @ table,
+            'topk': (mass / mass.sum().clamp_min(1e-12)) @ table[index],
+            'hidden': None,
+            'entropy': float(-(probs * probs.clamp_min(1e-12).log()).sum()),
+            'top_mass': float(mass.sum()),
+        }
+
+    def observe_mask_hidden(self, hidden):
+        if self._bundle is None:
+            raise ValueError('preforward signal hidden arrived before logits')
+        row = hidden[0].detach().float().reshape(-1)
+        if row.shape[0] != self.embedding_table.shape[1] or not torch.isfinite(row).all():
+            raise ValueError('preforward signal hidden must be one finite vector of embedding width')
+        self._bundle['hidden'] = row
+
+    def on_token_committed(self, new_embed, prev_embed):
+        self.base.on_token_committed(new_embed, prev_embed)
+        observed = new_embed.detach().to(dtype=torch.float32).reshape(-1)
+        if self._pending is not None and self._first is None:
+            self._first = observed.clone()
+        self._commits += 1
+        self._z = observed
+
+    def finish_round(self):
+        accepted = None if self._commits < 1 else self._commits - 1
+        if self._pending is not None:
+            if self._first is None or self._z is None or accepted is None:
+                raise RuntimeError('preforward signal closed a round without a commit')
+            row = dict(self._pending)
+            row['first'] = self._first.detach().to(dtype=torch.float32).cpu()
+            row['last'] = self._z.detach().to(dtype=torch.float32).cpu()
+            row['accepted'] = int(accepted)
+            self._rows.append(row)
+        self._prev_accepted = accepted
+        self._pending = None
+        self._first = None
+
+    def rows(self):
+        return list(self._rows)
 
 
 def build_mask_provider(spec_cfg, embedding_table, generator=None):

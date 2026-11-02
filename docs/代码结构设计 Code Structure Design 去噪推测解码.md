@@ -100,8 +100,8 @@ denoising-speculative-decoding/
 | `src/spec_mtp/contracts.py` | DecodeRequest/Result、AuditResult、Prompt、Observation 和最小 ModelSession/MaskPolicy/Sink 合同 | 无其它项目模块，不含 RPipe context、HF 对象或全局当前 Run |
 | `src/spec_mtp/data.py` | 读取本地输入、qid/顺序/大小校验、使用显式 tokenizer 渲染和编码、EOS/context 元信息 | `contracts`，不创建模型或自动下载/更换数据，不决定 Study 因素 |
 | `src/spec_mtp/model.py` | 打开明确本地模型/tokenizer 或借用已构造模型、能力与 tied-storage 核对、forward/cache 操作、实际摘要及 close | `contracts`，具体 torch/transformers 只在接入使用；不调用 decode/Study 或决定终态，借用资源不擅自销毁 |
-| `src/spec_mtp/decode.py` | prefill、树块循环、验证/bonus、预算/EOS、mask 提交与 KV 保留、取消边界和观测投递 | `contracts/tree`，仅调用注入模型/策略/sink，不导入具体 model/CLI/RPipe，不拥有 Run 队列 |
-| `src/spec_mtp/masks.py` | ESP 输入均值、输入速度、输出 hidden 零/一阶的初始化、块内预测与提交更新 | `contracts` 及必要 torch 数值操作，不读文件/注册/载模，块内预测不得污染 committed 状态 |
+| `src/spec_mtp/decode.py` | prefill、树块循环、验证/bonus、预算/EOS、mask 提交与 KV 保留、取消边界和观测投递；策略索要时交出本轮 mask 行的最终 hidden | `contracts/tree`，仅调用注入模型/策略/sink，不导入具体 model/CLI/RPipe，不拥有 Run 队列 |
+| `src/spec_mtp/masks.py` | ESP 输入均值、输入速度、输出 hidden 零/一阶的初始化、块内预测与提交更新；前向前信号只记录、不改槽 | `contracts` 及必要 torch 数值操作，不读文件/注册/载模，块内预测不得污染 committed 状态 |
 | `src/spec_mtp/tree.py` | static/dynamic 树、预算节点数、parent/depth/owner、attention/position 映射和接受路径索引 | `contracts` 及必要数值操作，不持有模型或跨 prompt cache，不执行 forward |
 | `src/spec_mtp/audit.py` | ObservationSink 的版本化 JSONL 读写与完整性、来源/输入摘要、token/argmax/owner/计数核验 | `contracts`，标准库 IO/哈希，模型实际摘要由接入提供，不 import/加载模型，不写 RPipe result/process |
 | `src/spec_mtp/analysis.py` | 固定口径汇总、paired accepted/calls/τ/AR 与长度诊断、缺口和不可比原因 | `contracts`，纯计算，不执行模型、读日志或改变质量/Run 状态 |
