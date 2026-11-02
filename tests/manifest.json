@@ -3295,6 +3295,62 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_structure_flow_gates.py::test_legacy_allowlist_rejects_a_new_violation",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_structure_flow_gates.py::test_legacy_allowlist_rejects_a_stale_entry",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_structure_flow_gates.py::test_legacy_allowlist_rejects_growth_against_dev",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_structure_flow_gates.py::test_structure_flow_file_inventory_matches_legacy_allowlist",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_structure_flow_gates.py::test_layer_import_direction_matches_legacy_allowlist",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_structure_flow_gates.py::test_structure_has_no_unlisted_main_or_argparse",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_structure_flow_gates.py::test_structure_flow_has_no_unlisted_drive_letter_paths",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_structure_flow_gates.py::test_structure_flow_has_no_unlisted_import_time_environ_mutation",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {
