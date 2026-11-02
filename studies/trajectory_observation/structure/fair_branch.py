@@ -83,10 +83,24 @@ def specbench_prompts():
     return prompts
 
 
-def dolly_prompts():
-    from datasets import load_dataset
+def load_dolly():
+    """Import the installed datasets package. The repo data directory has the same name."""
+    import sys
+    from importlib import import_module
 
-    data = load_dataset('databricks/databricks-dolly-15k', split='train')
+    sys.modules.pop('datasets', None)
+    root = ROOT.resolve()
+    kept = [entry for entry in sys.path if Path(entry or '.').resolve() != root]
+    saved = sys.path[:]
+    sys.path[:] = kept
+    try:
+        return import_module('datasets').load_dataset('databricks/databricks-dolly-15k', split='train')
+    finally:
+        sys.path[:] = saved
+
+
+def dolly_prompts():
+    data = load_dolly()
     prompts = []
     for item in data:
         if item['category'] != 'creative_writing':
