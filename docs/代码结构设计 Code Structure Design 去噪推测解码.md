@@ -105,7 +105,7 @@ denoising-speculative-decoding/
 
 不在 Study、tests 或 datasets 下规划 README、PLAN、NUMBERS 或报告。排除项与测试说明在本文和架构设计，研究安排只在唯一中文计划，运行证据放外部运行根。
 
-每个 Study 的目标是具备 `study.yaml`、`experiment_config.yaml`、`structure/`（仅该 Study 专属的配置与适配）和 `flow/<phase>/run.py`。顶层 `.py` 只允许 `recipe.py` 与 `__init__.py`，以 `studies/_template` 为准。`trajectory_observation` 目前没有 `study.yaml` 和 `flow/`，四个测量脚本还在 `structure/` 里并自带 `main()`。补齐属于后续步骤，本步不补。
+每个 Study 的目标是具备 `study.yaml`、`experiment_config.yaml`、`structure/`（仅该 Study 专属的配置与适配）和 `flow/<phase>/run.py`。顶层 `.py` 只允许 `recipe.py` 与 `__init__.py`，以 `studies/_template` 为准。`trajectory_observation` 仍然没有 `study.yaml`。仍带 `main()` 的旧测量脚本继续留在 legacy 清单里。`fresh_replace.py` 的 `main` 不在这份清单上，命令改到 `flow/execute/fresh_replace.py`，选句和汇总留在 structure。Qwen3-8B 这一轮的选句、拟合和比较在 `structure/office_qwen8b.py`，命令在 `flow/execute/office_qwen8b.py`。这些新增文件不带新的 legacy 条目。四个旧脚本的拆分仍未做。
 
 # 三、structure 与 flow 各装什么
 **structure（组成一次 Run）**
@@ -162,7 +162,7 @@ CPU 门禁在 `tests/spec_mtp/test_structure_flow_gates.py`。清单在 `tests/s
 | 3 | `masks.py` 拆到 `structure/algorithm/mask/`；注册表与配置 schema 分开 | 未做 |
 | 4 | `decode.py` → `structure/algorithm/decode/loop.py` | 未做 |
 | 5 | `data.py`、`model.py`、`audit.py`、`analysis.py` 进入对应子层，并消除与 `structure.data` / `structure.model` 的重名 | 未做 |
-| 6 | `trajectory_observation` 补齐 Study 声明和 `flow/`，拆开四个测量脚本 | 未做 |
+| 6 | `trajectory_observation` 补齐 Study 声明，并拆开四个旧测量脚本。8B 命令已经放在 `flow/execute/`，不代替这一步 | 未做 |
 | 7 | `cli.py` → `flow/cli.py`；`python -m spec_mtp` 保留薄入口 | 未做 |
 | 8 | 删除 shim，测试镜像改路径，`.importlinter` 按两柱重写 | 未做 |
 
