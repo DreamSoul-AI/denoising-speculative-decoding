@@ -1120,20 +1120,30 @@ class HybridGainKalman:
     `scratch` starts at K=0, P=R=1. `frozen` keeps the calibrated K.
     `trajectory` emits ESP. `opened` multiplies the calibrated P and Q by
     `boost` so one prompt can move K. `branch` keeps the ESP mask and stores
-    the corrected embedding for an extra depth-1 draft.
+    the corrected embedding for an extra depth-1 draft. `collect` emits ESP
+    and records the slot-0 prior, z, and both commit targets.
+
+    `observe='first'` updates K on the first committed token of the round
+    (`hybrid-gain-kalman-v1`). `observe='last'` waits until the round's last
+    committed token, the bonus the next-tree mask stands in for
+    (`hybrid-gain-bonus-aligned-v1`).
     """
     needs_hidden = False
 
     def __init__(self, base, mode='hybrid', payload=None):
         if getattr(base, 'needs_hidden', False):
             raise ValueError('hybrid gain wraps input-embedding providers only')
-        if mode not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch'):
-            raise ValueError('hybrid gain mode must be hybrid, scratch, frozen, trajectory, opened or branch')
+        if mode not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch', 'collect'):
+            raise ValueError('hybrid gain mode must be hybrid, scratch, frozen, trajectory, opened, branch or collect')
         self.base = base
         self.num_masks = base.num_masks
         self.mode = mode
-        self.protocol = 'hybrid-gain-kalman-v1'
         payload = dict(payload or {})
+        observe = payload.get('observe', 'first')
+        if observe not in ('first', 'last'):
+            raise ValueError('hybrid gain observe must be first or last')
+        self.observe = observe
+        self.protocol = 'hybrid-gain-bonus-aligned-v1' if observe == 'last' else 'hybrid-gain-kalman-v1'
         self._given = payload
         self._boost = 1.0
         self._k0 = self._p0 = self._r0 = self._q0 = None
@@ -1156,7 +1166,7 @@ class HybridGainKalman:
             self._p0 = torch.ones(width, **state)
             self._r0 = torch.ones(width, **state)
             self._q0 = torch.full((width,), 0.01, **state)
-        elif self.mode == 'trajectory':
+        elif self.mode in ('trajectory', 'collect'):
             self._k0 = torch.zeros(width, **state)
             self._p0 = self._r0 = self._q0 = self._k0.clone()
         else:
@@ -1178,15 +1188,21 @@ class HybridGainKalman:
         self._q = self._q0.clone()
         self._z = None
         self._pending = None
+        self._first = None
         self._probe = None
         self._extra = None
         self._weight_sum = 0.0
         self._weight_n = 0
+        self._pair_m, self._pair_z, self._pair_first, self._pair_last = [], [], [], []
 
     def masks(self):
         out = self.base.masks().clone()
         prior = out[0].detach().to(dtype=torch.float32).clone()
         self._probe = None
+        if self.mode == 'collect':
+            self._first = None
+            self._pending = None if self._z is None else (prior, self._z.detach().clone(), self._k.clone())
+            return out
         if self.mode != 'trajectory' and self._z is not None:
             correction = self._k * (self._z - prior)
             corrected = prior + correction
@@ -1195,26 +1211,56 @@ class HybridGainKalman:
             else:
                 out[0] = corrected.to(dtype=out.dtype)
                 if self.mode != 'frozen':
-                    self._pending = (prior, self._z, self._k.clone())
+                    self._pending = (prior, self._z.detach().clone(), self._k.clone())
         return out
+
+    def _apply(self, observed):
+        prior, zed, gain = self._pending
+        observed = observed.detach().to(dtype=torch.float32, device=gain.device).reshape(-1)
+        regressor = zed - prior
+        innov = (observed - prior) - gain * regressor
+        predicted = self._p + self._q
+        scale = self._r + predicted * regressor * regressor
+        step = predicted * regressor / scale
+        self._weight_sum += float((step * regressor).mean())
+        self._weight_n += 1
+        self._k = gain + step * innov
+        self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * self._r
+        self._pending = None
 
     def on_token_committed(self, new_embed, prev_embed):
         self.base.on_token_committed(new_embed, prev_embed)
         observed = new_embed.detach().to(dtype=torch.float32).reshape(-1)
-        if self._pending is not None:
-            prior, zed, gain = self._pending
-            regressor = zed - prior
-            innov = (observed - prior) - gain * regressor
-            predicted = self._p + self._q
-            scale = self._r + predicted * regressor * regressor
-            step = predicted * regressor / scale
-            self._weight_sum += float((step * regressor).mean())
-            self._weight_n += 1
-            self._k = gain + step * innov
-            self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * self._r
-            self._pending = None
+        if self._pending is not None and self.mode == 'collect' and self._first is None:
+            self._first = observed.clone()
+        elif self._pending is not None and self.observe == 'first' and self.mode not in ('frozen', 'trajectory', 'branch', 'collect'):
+            self._apply(observed)
         if self.mode != 'trajectory':
             self._z = observed.to(device=self._k.device)
+
+    def finish_round(self):
+        """Close the round. `observe='last'` learns from the bonus token."""
+        if self._pending is None:
+            return
+        if self.mode == 'collect':
+            if self._first is None or self._z is None:
+                return
+            prior, zed, _gain = self._pending
+            self._pair_m.append(prior.detach().cpu())
+            self._pair_z.append(zed.detach().cpu())
+            self._pair_first.append(self._first.detach().cpu())
+            self._pair_last.append(self._z.detach().to(dtype=torch.float32).cpu())
+            self._pending = None
+            self._first = None
+            return
+        if self.observe == 'last' and self.mode not in ('frozen', 'trajectory', 'branch'):
+            self._apply(self._z)
+
+    def calibration_rows(self):
+        if not self._pair_m:
+            raise ValueError('hybrid gain has no calibration rows')
+        return {'m': torch.stack(self._pair_m), 'z': torch.stack(self._pair_z),
+                'first': torch.stack(self._pair_first), 'last': torch.stack(self._pair_last)}
 
     def consume_probe(self):
         embed = self._probe
@@ -1238,7 +1284,8 @@ class HybridGainKalman:
     def diagnostics(self):
         delta = (self._k - self._k0).abs()
         ratio = self._p / self._r.clamp_min(1e-12)
-        return {'mode': self.mode, 'k_mean': float(self._k.mean()), 'p_mean': float(self._p.mean()),
+        return {'mode': self.mode, 'observe': self.observe, 'protocol': self.protocol,
+                'k_mean': float(self._k.mean()), 'p_mean': float(self._p.mean()),
                 'r_mean': float(self._r.mean()), 'q_mean': float(self._q.mean()),
                 'k_abs_delta': float(delta.mean()), 'p_over_r': float(ratio.mean()),
                 'weight_mean': None if self._weight_n == 0 else self._weight_sum / self._weight_n,
@@ -1482,11 +1529,13 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
     if hybrid is not None:
         if str(spec_cfg.get('method', 'esp')).lower() != 'esp':
             raise ValueError('hybrid_gain wraps an ESP trajectory')
-        if not isinstance(hybrid, dict) or hybrid.get('mode') not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch'):
-            raise ValueError('spec.hybrid_gain mode must be hybrid, scratch, frozen, trajectory, opened or branch')
-        allowed = {'mode', 'k', 'p', 'r', 'q', 'boost'}
+        if not isinstance(hybrid, dict) or hybrid.get('mode') not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch', 'collect'):
+            raise ValueError('spec.hybrid_gain mode must be hybrid, scratch, frozen, trajectory, opened, branch or collect')
+        allowed = {'mode', 'k', 'p', 'r', 'q', 'boost', 'observe'}
         if not set(hybrid) <= allowed:
             raise ValueError('spec.hybrid_gain has an unknown field')
+        if hybrid.get('observe', 'first') not in ('first', 'last'):
+            raise ValueError('spec.hybrid_gain observe must be first or last')
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'hybrid_gain'}
         base = build_mask_provider(base_cfg, embedding_table, generator)
         return HybridGainKalman(base, hybrid['mode'], hybrid)

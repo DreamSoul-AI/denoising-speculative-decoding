@@ -351,6 +351,10 @@ class SpecDecoder:
                             'token': token, 'forward': record['forward'],
                             'row': record['row'], 'argmax': record['argmax']})
 
+            finish_round = getattr(provider, 'finish_round', None)
+            if finish_round is not None:
+                finish_round()
+
             stats['trace'].append({
                 'root_position': root_position, 'cache_before': cache_len,
                 'accepted_nodes': list(accepted_nodes), 'committed_tokens': list(committed_now),

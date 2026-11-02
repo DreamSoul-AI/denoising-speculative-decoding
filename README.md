@@ -16,7 +16,7 @@
 | [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 研究问题、假设、对照和停止规则 |
 | [开发计划 Development Plan 去噪推测解码](<docs/开发计划 Development Plan 去噪推测解码.md>) | 剩余工程、验收和待确认的来源策略 |
 | [缺陷记录 Bug Report 去噪推测解码](<docs/缺陷记录 Bug Report 去噪推测解码.md>) | 尚未关闭的问题 |
-| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>) | 最近的联合 mask 实现；计时分离见 [2026-11-01 计时失败不再改写计数](<docs/开发记录 Development Record/2026-11-01 计时失败不再改写计数.md>)，此前的重整从该记录回溯 |
+| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-03 bonus对齐混合增益.md>) | 当前的 bonus 对齐混合增益。联合 mask 的实现经过在 [2026-11-01 trajectory与observation联合mask](<docs/开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>) |
 | [运行记录 Run Record](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>) | 历史测量。最近的离线计划在 [2026-11-01 离线 CPU 计划](<docs/运行记录 Run Record/2026-11-01 离线CPU计划.md>) |
 
 # 二、当前实现与使用边界
