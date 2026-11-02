@@ -1,0 +1,6 @@
+[
+  "studies/esp_table1_bf16_numerics/recipe.py os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'",
+  "studies/esp_table1_bf16_reduction_check/recipe.py os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'",
+  "studies/esp_table1_bf16_shape_check/recipe.py os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'",
+  "studies/trajectory_observation/structure/fair_branch.py os.environ[_key] = str(_path)"
+]

@@ -1,0 +1,12 @@
+[
+  "studies/_shared/structure/audit_esp_third_party.py D:/models/Qwen3-8B",
+  "studies/_shared/structure/capture_4b_geometry.py D:/GitHub/DreamSoul/quantization/.tmp/paroquant-reference",
+  "studies/_shared/structure/reconcile_esp_table1_contract.py D:/models/Qwen3-8B",
+  "studies/trajectory_observation/structure/bonus_aligned_gain.py D:\\models\\Qwen3-4B",
+  "studies/trajectory_observation/structure/fair_branch.py D:\\360安全浏览器下载\\Agent\\DreamSoul\\temp",
+  "studies/trajectory_observation/structure/fair_branch.py D:\\models\\Qwen3-0.6B",
+  "studies/trajectory_observation/structure/fair_branch.py D:\\models\\Qwen3-4B",
+  "studies/trajectory_observation/structure/output_hidden_kalman.py D:\\models\\Qwen3-4B",
+  "studies/trajectory_observation/structure/preforward_signal.py D:\\360安全浏览器下载\\Agent\\DreamSoul\\temp",
+  "studies/trajectory_observation/structure/preforward_signal.py D:\\models\\Qwen3-4B"
+]

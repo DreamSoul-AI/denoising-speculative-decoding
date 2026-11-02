@@ -1,5 +1,5 @@
 **去噪推测解码 架构设计**
-更新日期：2026年10月31日。状态：当前选定设计。科学包与 Study 薄适配已落在源码中；实现差距和验收顺序见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。机制见 [通用调研 General Research](<通用调研 General Research 去噪推测解码.md>)，历史数字见 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，文件职责见 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，实验问题见 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。
+更新日期：2026年11月3日。状态：当前选定设计。科学职责保持；源码组织的目标是 `structure` / `flow` 两柱，模块尚未按该目标搬迁。实现差距和验收顺序见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)。机制见 [通用调研 General Research](<通用调研 General Research 去噪推测解码.md>)，历史数字见 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，文件职责见 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，实验问题见 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。
 
 # 一、从研究目标推导架构
 ## （一）目标、上下文与约束
@@ -16,7 +16,7 @@ flowchart LR
     Pipeline -->|生命周期与终态| RunData
 ```
 
-这是目标上下文/交互图，箭头表示使用或数据写入，不表示 import。科学包独立于执行框架，Study 适配向 RPipe 提交科学事实，执行终态由 RPipe 协调者决定。源码目录、逻辑模块和进程分别描述。
+这是目标上下文/交互图，箭头表示使用或数据写入，不表示 import。科学包独立于执行框架，Study 适配向阶段链提交科学事实，执行终态由阶段协调者决定。源码目录、逻辑模块和进程分别描述。`spec_mtp` 与每个 Study 的目录都是 `structure/` 加 `flow/`：前者组成一次 Run，后者跑阶段链。顶层只留薄入口。这条目录规则以代码结构设计为准；要改它，先改那份文档。当前扁平模块是冻结遗留。
 
 当前授权为隔离分支架构重构与本地有界 CPU 验证。两处第三方原树、来源及原始数据保留，真实模型实验、下载和 GPU 长跑不在本轮范围。
 ## （二）具体质量场景
@@ -45,10 +45,10 @@ flowchart LR
 | 解码 `decode`、`masks`、`tree` | `generate`，借用模型会话、mask 策略、审计 sink、取消标记 | 一条 prompt 会话独占 committed 前缀、KV 逻辑长度、RNG、mask 长期状态与块内 proxy |
 | 科学审计 `audit` | `audit_run`，原始提交观测、来源声明与实际摘要 → 分维度 verdict | 定义提交覆盖、owner/row、计数和来源一致性规则；不改 Run 终态，不补造缺失 raw |
 | 分析 `analysis` | `summarize`、`compare`，已准入科学记录 → 指标与逐 prompt 对照 | 无活动执行状态，固定统计口径和缺口，不读取日志推断成功，不发起模型 |
-| Study `structure/flow` | 将 RPipe 载荷/阶段上下文转换到上述公共入口 | 只保存本研究特有因素与格式映射，不拥有第二套队列/Run 状态 |
+| 宿主与 Study 的 `structure` / `flow` | structure 放契约、数据、模型、算法、系统、产物和注册；flow 把阶段跑起来并转调这些入口 | 宿主不导入 `rpipe` / `studies`；flow 可以导入 structure；structure 不导入 flow。当前扁平模块是冻结遗留 |
 | 固定 RPipe | 计划、执行权、六阶段、取消、记录终态与读取 | 唯一拥有 Run 生命周期、进程句柄、运行目录和整体执行结果，文档目标不表示当前 pin 已实现全部语义 |
 
-共享数据和模型最小接口在 `contracts.py`，不创建每个函数一层抽象。一次 decode 会话拥有科学可变状态，模型具体 cache 句柄由其接入管理，解码器决定只保留哪些语义位置。`audit` 返回质量事实，Study 映射到 RPipe，双方不各维护最终 success。
+共享数据和模型最小接口的目标位置是 `structure/api`。一次 decode 会话拥有科学可变状态，模型具体 cache 句柄由其接入管理，解码器决定只保留哪些语义位置。`audit` 返回质量事实，Study 的 flow 映射到阶段结果，双方不各维护最终 success。这些责任现在仍由扁平模块实现，文件对照见代码结构设计第五节。
 ## （二）公共数据与入口
 | **合同** | **输入 → 输出** | **前置、后置与副作用** |
 | --- | --- | --- |
@@ -77,31 +77,21 @@ flowchart LR
 ## （一）目标 import 方向
 ```mermaid
 flowchart TB
-    Boot[科学 CLI 装配] --> Data[data]
-    Boot --> Decode[decode]
-    Boot --> Masks[masks]
-    Boot --> Model[model]
-    Boot --> Audit[audit]
-    Boot --> Analysis[analysis]
-    Decode --> Tree[tree]
-    Decode --> Types[contracts]
-    Data --> Types
-    Model --> Types
-    Audit --> Types
-    Analysis --> Types
-    Masks --> Types
-    Tree --> Types
-    Study[Study 薄适配] -->|公共入口| Decode
-    Study --> Data
-    Study --> Model
-    Study --> Audit
-    Study --> Analysis
-    Study --> RPipe[固定 RPipe 合同]
+    Thin[薄入口 __main__] --> Flow[flow 阶段链与 cli]
+    Flow --> Algorithm[structure/algorithm]
+    Flow --> Data[structure/data]
+    Flow --> Model[structure/model]
+    Flow --> Artifact[structure/artifact]
+    Algorithm --> Api[structure/api]
+    Data --> Api
+    Model --> Api
+    Artifact --> Api
+    Host[spec_mtp] -.-> Outside[rpipe 与 studies]
 ```
 
-箭头仅表示 import/类型引用。解码通过注入模型会话进入具体接入，源码不导入 HF 接入。科学包不导入 `rpipe`、`studies` 或 `tools`。数据与模型不导入解码，审计/分析不导入模型，科学模块不写 Study 的 process/result。跨研究复用进入宿主公共入口，Study 内部私有函数不被宿主反向导入。
+箭头仅表示目标 import。`flow` 可以导入 `structure`。`structure` 不导入 `flow`。`api` 不导入其他 structure 子层。解码通过注入模型会话进入具体接入，源码不导入 HF 接入。`spec_mtp` 不导入 `rpipe` 或 `studies`。数据与模型不导入解码，审计与分析不导入模型。跨研究复用进入宿主公共入口，Study 内部私有函数不被宿主反向导入。
 
-目标具体文件与允许依赖只在 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>) 维护。Import Linter 草案用于静态边界，不证明动态导入、数据泄漏、状态或数值合同正确，当前未安装/配置。
+这张图是搬迁完成后的方向。当前代码仍是扁平模块，`structure/api` 还会再导出 algorithm、data、model、system。那些边冻结在代码结构设计的 legacy 清单里。具体文件只在 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>) 维护。静态检查不证明动态导入、数据泄漏、状态或数值合同正确。`.importlinter` 在步骤 8 之前仍是扁平模块合同。
 ## （二）一次完整研究运行
 ```mermaid
 sequenceDiagram
@@ -193,7 +183,7 @@ CLI、YAML/JSON、token 数据、Hub 文件和旧运行记录都校验形状、�
 | 读端损坏/版本未知 | 明确不可比较或不完整，零模型/排程调用，不按新默认悄悄修数据 |
 
 # 六、Study、科学包与固定副本
-Study 的 `study.yaml` 说明因素、seed、扩展及冻结声明，`experiment_config.yaml` 提供基础配置。`structure/` 只放该研究确需的载荷接入/纯计算，`flow/` 只覆盖实际特有阶段。prepare/execute/collect/summarize/write/process 六阶段继续复用，缺职责不创建空文件或复制全库。
+宿主和每个 Study 都按 `structure/`、`flow/` 组织。`study.yaml` 说明因素、seed、扩展及冻结声明，`experiment_config.yaml` 提供基础配置。`structure/` 放该研究确需的组成与纯计算，`flow/` 只覆盖实际特有阶段，并包含命令实现。顶层不放独立脚本。prepare/execute/collect/summarize/write/process 六阶段继续复用，缺职责不创建空文件或复制全库。`trajectory_observation` 的声明和 `flow/` 尚未补齐，现有脚本保持原样并列入 legacy 清单。
 
 研究问题和实验安排只在唯一中文研究计划按 Study 分章，结果只在通用调研保留必要摘要与固定原件定位，执行 raw 和可重建报告在外部运行根。Study、测试和工具不再规划 README、PLAN、NUMBERS 或逐事报告。测试排除项和入口说明留本文与代码结构设计。
 
