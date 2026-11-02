@@ -45,7 +45,7 @@
 - 仓库不再内嵌 `src/rpipe/`，也不设顶层 `tools/`。Study 流程在 `spec_mtp` 内自有实现，目录以 RPipe 为结构模板持续对齐。通用流程缺陷改本仓实现，并对照该模板；第三方 ESP 来源树及 `ORIGIN.json` 保持字节
 - `src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/upstream/` 的 README、code、results 整体及旁侧 `ORIGIN.json` 保持字节，所有版权许可证保留。第三方原码不能称作者官方实现
 - 原始 `datasets/spec_bench/` 保留，已渲染输入、日志、trace、图和运行源码快照按制品管理，不能据生成物清理授权扩展删除其它源码或正式数据
-- 科学宿主的目标为标准 Python 包，只有 Study 使用 RPipe 声明和实际需要的 `structure/flow` 薄适配。保留默认六阶段，不复制整套库或无职责空壳
+- 科学宿主 `spec_mtp` 与每个 `studies/<name>/` 按 `structure/`、`flow/` 两柱组织。新增机制、函数、类和脚本必须位于这两柱之内；顶层只有 `__init__.py`、`__main__.py` 和薄入口。要改这条规则，先改代码结构设计，再改代码。现有违反冻结在 CPU 门禁的 legacy 清单，清单只减不增。保留默认六阶段，不复制整套库或无职责空壳
 - 新执行先确认研究范围并更新唯一计划，以新 version/Run 冻结实际源码、输入、配置和模型。旧 Run 不覆盖、不重签，来源不明保留未知
 - T0 正确性门为完整提交链的验证前向 argmax 审计，独立 AR 一致率只诊断。接受数/τ、数值自检和速度收益分别报告。采样分布保证未完成验证，不能由 T0 推广
 - ESP 旧长矩阵暂停，七格范数与11格独立配对不自动接卡。BF16 相对独立 AR 的算子数值机理排查永久停止。2026年10月20日确认的 K=[A,b] 仿射残差校正作为独立 Study，先 CPU 小规模、再冻结 K 跨数据集，无校正/仅 bias/完整 K 三臂；它不是已实现 Kalman 或已证泛化。代码重构只做有界离线 CPU 工程验证，历史命令、计划、登录态不构成新 GPU、下载或测速授权
