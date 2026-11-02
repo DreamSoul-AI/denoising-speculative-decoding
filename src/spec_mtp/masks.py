@@ -1120,15 +1120,17 @@ class HybridGainKalman:
     `scratch` starts at K=0, P=R=1. `frozen` keeps the calibrated K.
     `trajectory` emits ESP. `opened` multiplies the calibrated P and Q by
     `boost` so one prompt can move K. `branch` keeps the ESP mask and stores
-    the corrected embedding for an extra depth-1 draft.
+    the corrected embedding for an extra depth-1 draft. `replace` uses that
+    same embedding, then swaps it into the weakest depth-1 leaf so the node
+    count stays equal to the ESP tree.
     """
     needs_hidden = False
 
     def __init__(self, base, mode='hybrid', payload=None):
         if getattr(base, 'needs_hidden', False):
             raise ValueError('hybrid gain wraps input-embedding providers only')
-        if mode not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch'):
-            raise ValueError('hybrid gain mode must be hybrid, scratch, frozen, trajectory, opened or branch')
+        if mode not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch', 'replace'):
+            raise ValueError('hybrid gain mode must be hybrid, scratch, frozen, trajectory, opened, branch or replace')
         self.base = base
         self.num_masks = base.num_masks
         self.mode = mode
@@ -1146,6 +1148,7 @@ class HybridGainKalman:
         self._weight_n = 0
         self.extra_added = 0
         self.extra_present = 0
+        self.max_nodes = 0
 
     def init_from_prompt(self, prompt_embeds, generator=None):
         self.base.init_from_prompt(prompt_embeds, generator=generator)
@@ -1190,7 +1193,7 @@ class HybridGainKalman:
         if self.mode != 'trajectory' and self._z is not None:
             correction = self._k * (self._z - prior)
             corrected = prior + correction
-            if self.mode == 'branch':
+            if self.mode in ('branch', 'replace'):
                 self._probe = corrected.to(dtype=out.dtype)
             else:
                 out[0] = corrected.to(dtype=out.dtype)
@@ -1229,11 +1232,17 @@ class HybridGainKalman:
         self._extra = None
         return token
 
-    def record_branch(self, added):
+    @property
+    def extra_edit(self):
+        return 'replace' if self.mode == 'replace' else 'append'
+
+    def record_branch(self, added, num_nodes=None):
         if added:
             self.extra_added += 1
         else:
             self.extra_present += 1
+        if num_nodes is not None:
+            self.max_nodes = max(self.max_nodes, int(num_nodes))
 
     def diagnostics(self):
         delta = (self._k - self._k0).abs()
@@ -1242,7 +1251,8 @@ class HybridGainKalman:
                 'r_mean': float(self._r.mean()), 'q_mean': float(self._q.mean()),
                 'k_abs_delta': float(delta.mean()), 'p_over_r': float(ratio.mean()),
                 'weight_mean': None if self._weight_n == 0 else self._weight_sum / self._weight_n,
-                'extra_added': self.extra_added, 'extra_present': self.extra_present}
+                'extra_added': self.extra_added, 'extra_present': self.extra_present,
+                'max_nodes': self.max_nodes}
 
 
 class OutputHiddenHybridKalman:
@@ -1482,8 +1492,8 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
     if hybrid is not None:
         if str(spec_cfg.get('method', 'esp')).lower() != 'esp':
             raise ValueError('hybrid_gain wraps an ESP trajectory')
-        if not isinstance(hybrid, dict) or hybrid.get('mode') not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch'):
-            raise ValueError('spec.hybrid_gain mode must be hybrid, scratch, frozen, trajectory, opened or branch')
+        if not isinstance(hybrid, dict) or hybrid.get('mode') not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch', 'replace'):
+            raise ValueError('spec.hybrid_gain mode must be hybrid, scratch, frozen, trajectory, opened, branch or replace')
         allowed = {'mode', 'k', 'p', 'r', 'q', 'boost'}
         if not set(hybrid) <= allowed:
             raise ValueError('spec.hybrid_gain has an unknown field')

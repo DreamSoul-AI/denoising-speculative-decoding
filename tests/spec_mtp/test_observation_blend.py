@@ -464,17 +464,34 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     branch._z = torch.tensor([1.0])
     assert torch.allclose(branch.masks(), torch.tensor([[3.0]]))
     assert torch.allclose(branch.consume_probe(), torch.tensor([3.0 + 0.2 * (1.0 - 3.0)]))
-    from spec_mtp.tree import DraftTree, add_depth1_branch
+    from spec_mtp.tree import DraftTree, add_depth1_branch, replace_weakest_depth1
     tree = DraftTree(root_token=5, tokens=[1, 2], depths=[1, 1], parents=[0, 0], probs=[0.1, 0.1])
     assert add_depth1_branch(tree, 1) is False
     assert add_depth1_branch(tree, 5) is False
     assert add_depth1_branch(tree, 9) is True and tree.tokens == [1, 2, 9]
+    same = DraftTree(root_token=5, tokens=[1, 2, 3], depths=[1, 1, 1], parents=[0, 0, 0], probs=[0.5, 0.2, 0.2])
+    assert replace_weakest_depth1(same, 1) is False and same.tokens == [1, 2, 3]
+    assert replace_weakest_depth1(same, 5) is False and same.tokens == [1, 2, 3]
+    assert replace_weakest_depth1(same, 9) is True and same.tokens == [1, 2, 9] and len(same.tokens) == 3
+    parented = DraftTree(root_token=0, tokens=[1, 8], depths=[1, 2], parents=[0, 1], probs=[0.2, 0.1])
+    assert replace_weakest_depth1(parented, 9) is False and parented.tokens == [1, 8]
+    mixed = DraftTree(root_token=0, tokens=[1, 7, 8], depths=[1, 1, 2], parents=[0, 0, 1], probs=[0.1, 0.4, 0.05])
+    assert replace_weakest_depth1(mixed, 9) is True and mixed.tokens == [1, 9, 8]
     model = _model()
     spec = _spec('esp', 1, 'static')
     spec['tree'] = {'mode': 'static', 'branches': [4], 'pruning': True}
     width = model.embedding_table.shape[-1]
     zeros = [0.0] * width
     spec['hybrid_gain'] = {'mode': 'branch', 'k': zeros, 'p': [1.0] * width, 'r': [1.0] * width, 'q': [0.01] * width}
+    _output, stats = _decode(model, spec, PROMPTS[0], 0, 0)
+    assert stats['verification_argmax_audit']['passed']
+    spec['hybrid_gain'] = {'mode': 'replace', 'k': zeros, 'p': [1.0] * width, 'r': [1.0] * width, 'q': [0.01] * width}
+    replaced = build_mask_provider(spec, model.embedding_table)
+    replaced.init_from_prompt(torch.zeros(2, width))
+    assert replaced.extra_edit == 'replace'
+    replaced.record_branch(True, 4)
+    replaced.record_branch(False, 3)
+    assert replaced.diagnostics()['max_nodes'] == 4 and replaced.extra_added == 1
     _output, stats = _decode(model, spec, PROMPTS[0], 0, 0)
     assert stats['verification_argmax_audit']['passed']
 

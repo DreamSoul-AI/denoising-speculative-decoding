@@ -184,6 +184,16 @@ A2 用同一批种子重跑：在线岭仿射对冻结岭仿射。在线从拟�
 
 假设：K 逐维。修正在 FP32 里加到 hidden 上，范数缩放之后才转成 BF16。hybrid 把校准 P 和 Q 乘 64，64 等于生成长度，不在评测集上选。R 不乘。K 只按 root 的槽 0 更新；deep owner 只记误差。校准用 288 句式的前 128 条、每条 24 token，在不乘 K 的轨迹上收集 \((h,z,y)\)。\(Q=0.01P\)。主评测是 SpecBench `question_id` 209–336，128 条，每条 64 token，与校准句不重合，数据集也不同。另一组是同一 288 句式下标 128–159（第 129–160 条），32 条，每条 64 token，紧接校准之后，与校准不重合。树是 k=1、`branches` [4]、T=0、`stop_on_eos` false。4B 与 0.6B 各自校准。权重只用本机缓存：4B 为 `D:\models\Qwen3-4B`，0.6B 为 `studies/input_mask_baseline/shared/model/modelscope/Qwen/Qwen3-0.6B`。两份 config 都是 `tie_word_embeddings=true`。加载后若指针未绑但数值相同，只在内存里绑到同一存储；数值不同就停。不下载。未通过则不改 64，不加 prompt，也不回到嵌入空间那条 K。
 
+**同节点预算的额外分支（2026年11月3日，运行前写定）**：协议 `extra-branch-replace-v1`。2026年11月2日的额外分支在 SpecBench 209–336、每条 64 token 上，4B 为 35:11（p=5.4e-4），0.6B 为 38:10（p=6.2e-5）。那次 ESP 保持 `branches` [4]，修正 token 是追加的深度 1 节点。节点数多出来的轮次上，接受数上升不能单独归到候选本身。
+
+这次主比较是替换臂对 ESP。两边都是 k=1、`branches` [4]、剪枝开、T=0、`impl` efficient。替换臂沿用冻结的校准 K，槽 0 仍是 ESP mask。修正后的嵌入做一次单 token 前向，它的 top-1 若还不是深度 1 子节点、也不是根 token，就换掉累计概率最低的那个无子节点的深度 1 叶；概率相同则换更靠后的叶。节点数保持这次 `build_static_tree` 给出的数量。解码若发现替换改变了节点数，直接中止，这次比较不能记为通过。已经在树里或等于根 token 时不换。给 ESP 改成 `branches` [5] 会在修正 token 已经落在前四名时让两边节点数再次不等，所以不作为主比较。修正嵌入那一次前向仍在，它不计入节点预算。
+
+K 的校准与 11 月 2 日额外分支相同：288 句式的前 128 条，每条自回归 24 token，在不乘 K 的 ESP 轨迹上收集 \((\hat m,z,y)\)，对角最小二乘，\(Q=0.01P\)。评测不重拟合。4B 权重是 `D:\models\Qwen3-4B`，0.6B 是 `D:\models\Qwen3-0.6B`，BF16，CUDA，eager，只读本地文件。分词与那次额外分支相同，直接 `tokenizer(text)`，不用 chat template。
+
+主评测是 SpecBench `question_id` 337–464，128 条第一轮原文，含 qa 337–400 与 math_reasoning 401–464。它不包含 81–336，因此不包含额外分支用过的 209–336，也与校准句逐字不重合。每条生成 64 token，`stop_on_eos` false。跨数据集复验用本仓已支持的 Dolly `databricks/databricks-dolly-15k` train split、类别 `creative_writing`，按库的迭代顺序取前 128 条非空文本；有 context 时拼在 instruction 前面，中间空一行。K 不在 Dolly 上重估。两个数据集分开下结论。
+
+判据：逐 prompt 接受数，双侧符号检验，p<0.05 且胜多于负。4B 和 0.6B 都要过，该数据集上的同预算主张才算通过。只过一个模型就只报告该模型，不把联合主张写成通过。τ 报告每条 prompt 的均值，以及提交数除以解码调用数的合计；两者都不是通过线。独立 AR 不一致只诊断。argmax 自检必须通过。未通过则不改树宽、不改 K、不加 prompt，也不把 ESP 改成五条分支后再测。
+
 资源需求在公式和最小比较的输入规模确定前不编造预算。历史“GPU 不空闲”不能当作新的执行许可。取消时保留已写出的部分观测，不把未完成矩阵记为成功。
 
 # 七、已完成研究的有效范围

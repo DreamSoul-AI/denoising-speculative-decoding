@@ -33,7 +33,8 @@ from spec_mtp.contracts import DecodeRequest, DecodeResult, MaskPolicy, HiddenMa
 import torch
 
 from spec_mtp.tree import (DynamicTreeAttentionCache, TreeAttentionCache, add_depth1_branch,
-                           build_block_attention, build_tree, mask_indices_of, node_budget_for)
+                           build_block_attention, build_tree, mask_indices_of, node_budget_for,
+                           replace_weakest_depth1)
 
 
 def _clock():
@@ -254,11 +255,20 @@ class SpecDecoder:
             if extra is not None:
                 token = extra()
                 if token is not None:
-                    added = add_depth1_branch(
-                        tree, token, pruning=bool(self.spec_cfg.get('tree', {}).get('pruning', True)))
+                    pruning = bool(self.spec_cfg.get('tree', {}).get('pruning', True))
+                    edit = getattr(provider, 'extra_edit', 'append')
+                    before_nodes = tree.num_nodes
+                    if edit == 'replace':
+                        added = replace_weakest_depth1(tree, token, pruning=pruning)
+                        if tree.num_nodes != before_nodes:
+                            raise RuntimeError('equal-budget replacement changed the draft node count')
+                    elif edit == 'append':
+                        added = add_depth1_branch(tree, token, pruning=pruning)
+                    else:
+                        raise ValueError(f'unsupported extra branch edit: {edit}')
                     record = getattr(provider, 'record_branch', None)
                     if record is not None:
-                        record(added)
+                        record(added, tree.num_nodes)
             num_nodes = tree.num_nodes
             cache_len = model.cache_len(cache)
             root_position = t + len(committed) - 1
