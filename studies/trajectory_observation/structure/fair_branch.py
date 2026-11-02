@@ -269,11 +269,10 @@ def run_split(model, tokenizer, prompts, prior, output, split):
             replace_stream.flush()
             print(f"{split} {prompt['qid']} esp={esp['accepted']} replace={replaced['accepted']} "
                   f"nodes={replaced['max_nodes']} {time.perf_counter() - started:.1f}s", flush=True)
-    summarize(output, split)
+    summarize(output, split, len(prompts))
 
 
-def summarize(output, split):
-    expected = len(prompts_for(split))
+def summarize(output, split, expected):
     esp = read_rows(output / f'{split}-esp.jsonl')
     replaced = read_rows(output / f'{split}-replace.jsonl')
     if len(esp) != expected or len(replaced) != expected:
