@@ -16,8 +16,8 @@
 | [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 研究问题、假设、对照和停止规则 |
 | [开发计划 Development Plan 去噪推测解码](<docs/开发计划 Development Plan 去噪推测解码.md>) | 剩余工程、验收和待确认的来源策略 |
 | [缺陷记录 Bug Report 去噪推测解码](<docs/缺陷记录 Bug Report 去噪推测解码.md>) | 尚未关闭的问题 |
-| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-03 同预算替换复现.md>) | 当前的同预算替换独立复现，运行前写定。上一轮在 [2026-11-03 前向前信号](<docs/开发记录 Development Record/2026-11-03 前向前信号.md>)。同节点额外分支见 [2026-11-03 同节点额外分支](<docs/开发记录 Development Record/2026-11-03 同节点额外分支.md>)；bonus 对齐见 [2026-11-03 bonus对齐混合增益](<docs/开发记录 Development Record/2026-11-03 bonus对齐混合增益.md>) |
-| [运行记录 Run Record](<docs/运行记录 Run Record/2026-11-03 前向前信号.md>) | 最近一次测量。上一轮在 [2026-11-03 bonus对齐混合增益](<docs/运行记录 Run Record/2026-11-03 bonus对齐混合增益.md>)。同节点额外分支测量在 [2026-11-03 同节点额外分支](<docs/运行记录 Run Record/2026-11-03 同节点额外分支.md>)。历史测量在 [2026-10-31 历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>) |
+| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-03 同预算替换复现.md>) | 当前的同预算替换独立复现。上一轮在 [2026-11-03 前向前信号](<docs/开发记录 Development Record/2026-11-03 前向前信号.md>)。同节点额外分支见 [2026-11-03 同节点额外分支](<docs/开发记录 Development Record/2026-11-03 同节点额外分支.md>)；bonus 对齐见 [2026-11-03 bonus对齐混合增益](<docs/开发记录 Development Record/2026-11-03 bonus对齐混合增益.md>) |
+| [运行记录 Run Record](<docs/运行记录 Run Record/2026-11-03 同预算替换复现.md>) | 最近一次测量：未见过的 Dolly 上同预算替换对 ESP。上一轮在 [2026-11-03 前向前信号](<docs/运行记录 Run Record/2026-11-03 前向前信号.md>)。同节点额外分支测量在 [2026-11-03 同节点额外分支](<docs/运行记录 Run Record/2026-11-03 同节点额外分支.md>) |
 
 # 二、当前实现与使用边界
 当前安装包为 `denoise-spec-mtp`，科学包 `spec_mtp` 按 `contracts/data/model/decode/masks/tree/audit/analysis/cli` 分工。Study 的 prepare/execute/collect 流程也在 `spec_mtp.flow` 与 `spec_mtp.structure`，本项目以 [RPipe](https://github.com/DreamSoul-AI/RPipe) 为结构模板持续对齐，不再内嵌 `src/rpipe/` 副本，也不再 `import rpipe`。`python -m spec_mtp` / `spec-mtp` 提供 `decode/audit/compare`；旧 make/launch/process 研究命令明确拒绝并提示使用 `python -m studies._shared.flow.cli`。
