@@ -206,6 +206,18 @@ K 的校准与 11 月 2 日额外分支相同：288 句式的前 128 条，每�
 
 本地 `question.jsonl` 的 `question_id` 只有 81–560。本轮评测用 81–208 的第一轮，128 条，每条 64 token。这段不在 209–560 里。它在 2026-11-02 以 16 token 解码过，旧接受数不参与本轮判据，也不用来选信号、秩或 ridge。拟合只用 288 句式的前 128 条、每条 24 token。树仍是 k=1、`branches` [4]、T=0、`stop_on_eos` false。先跑 0.6B。门不过就不跑 4B，也不接 Kalman，不改 64，不加节点。0.6B 已跑完：四个低秩留出 \(R^2\) 都是负的，门没有开。
 
+**同预算替换的独立复现（2026年11月3日，前向前信号留出 \(R^2\) 为负之后，运行前写定）**：协议 `extra-branch-replace-fresh-v1`。要复现的是家里 PC 的同节点替换，不是再拟合一个 K。比较代码用 `dev` 上 PR #61 的 `fair_branch.run_split`：两边都是 k=1、`branches` [4]、剪枝开、T=0、`impl` efficient；替换臂冻结校准 K，槽 0 仍是 ESP mask，修正嵌入的 top-1 换掉累计概率最低的无子节点深度 1 叶。不改 boost，不改 token 下标的取法，不把 ESP 改成五条分支。入口是 `studies/trajectory_observation/structure/fresh_replace.py`，只负责选句和效应量。公式不另写。
+
+假设：在从未用于这条替换的 prompt 上，同预算替换相对 ESP 提高每条 prompt 的接受 token 数，方向为正。τ 与“每轮接受的草稿 token 数”一起报告。
+
+本地 SpecBench `question_id` 是 81–560 共 480 条，没有缺号。81–208、209–336、337–464、465–560 都已经用过，没有剩余 id。改用本机重新装入缓存的 Dolly `databricks/databricks-dolly-15k` train split。`datasets` 5.0.0。类别 `creative_writing` 的非空文本按库迭代顺序有 709 条。前 128 条就是 `extra-branch-replace-v1` 已经测过的样本，qid 0–127，文本互不重复，这次整段排除。其后按同一顺序取下 128 条，文本若与已用前缀或已选新句重复就跳过。这样跳过下标 144。留下的 qid 是 128–143 与 145–256。128 条文本以换行拼接后的 SHA256 是 `e37e3be985b5356acedeffc22a83b00a0484b1983d44ef6e67eebfe0c3f36a20`。运行时哈希或 qid 序列对不上就中止，不另选句子。校准句仍是 288 句式的前 128 条、每条 24 token，与这 128 条逐字不重合才开跑。K 不在新句子上重估。
+
+主评测是 Qwen3-4B，权重 `D:\models\Qwen3-4B`，与 `fair_branch.MODELS` 相同。BF16，CUDA，eager，`local_files_only`。分词 `tokenizer(text)`，不用 chat template。每条 64 token，`stop_on_eos` false。0.6B 是次要复现：本机没有 `D:\models\Qwen3-0.6B`，若时间允许就用仓库里的 `studies/input_mask_baseline/shared/model/modelscope/Qwen/Qwen3-0.6B`，同一批 prompt，不重拟合。0.6B 不改变 4B 的结论。
+
+主指标是逐 prompt 的 `accepted`（与原先符号检验同一字段）。胜负平来自替换减 ESP，双侧符号检验的 p 照报，p<0.05 不是门槛。效应量是这条差的均值，以及 bootstrap 95% 区间：百分位，种子 0，10000 次。τ（提交数除以解码调用数）和 `accepted/decode_calls`（每轮接受的草稿 token）用同一组 bootstrap。独立 AR 不一致只诊断。argmax 必须通过。草稿节点数必须保持 4，变了就由原入口中止，不能记成正向。
+
+4B 的判读：胜多于负且接受数差均值大于 0，记为正趋势。这时区间若不包含 0，再记为拉开了零；区间包含 0 仍是正趋势，只是没有拉开零。胜少于负且均值小于 0，复现失败。一正一负或全平，记为 mixed 或 flat，不支持这条主张。不按这次结果改 K、改树、改 64，也不重选这 128 条。树分配的探索只在主结果提交之后、换一批句子再做，并标明探索。
+
 资源需求在公式和最小比较的输入规模确定前不编造预算。历史“GPU 不空闲”不能当作新的执行许可。取消时保留已写出的部分观测，不把未完成矩阵记为成功。
 
 # 七、已完成研究的有效范围
