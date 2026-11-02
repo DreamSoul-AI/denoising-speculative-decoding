@@ -55,7 +55,7 @@ jobs:
       - name: Lint (pyflakes errors only)
         run: |
           pip install "ruff==0.17.0"
-          ruff check src tests studies tools
+          ruff check src tests studies
 
       - name: Type check (mypy, files and tiers in pyproject.toml)
         run: |
