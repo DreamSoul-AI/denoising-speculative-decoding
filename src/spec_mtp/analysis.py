@@ -5,6 +5,8 @@ Zero decode calls have no ratio. Wall-clock ratios are observations, not a
 claim that the run is faster.
 """
 
+from typing import Any
+
 def prompt_tau(committed, decode_calls):
     """Single tau formula. Zero decode calls are missing, not zero."""
     if type(committed) is not int or committed < 0 or type(decode_calls) is not int or decode_calls < 0:
@@ -129,10 +131,11 @@ def _timing_summary(group):
     complete_spec = all(_real_number(value) and value >= 0 for value in times)
     spec_time = sum(times) if complete_spec else None
     new_tokens = sum(r['new_tokens'] for r in group)
-    if not complete_spec:
-        summary = {'tokens_per_s': None}
+    summary: dict[str, Any] = {}
+    if spec_time is None:
+        summary['tokens_per_s'] = None
     else:
-        summary = {'tokens_per_s': new_tokens / spec_time if spec_time > 0 else 0.0}
+        summary['tokens_per_s'] = new_tokens / spec_time if spec_time > 0 else 0.0
     if any('ar_time' in r for r in group):
         complete_ar = all(
             _real_number(r.get('ar_time')) and r.get('ar_time') >= 0 and _real_number(r.get('exact_match'))
@@ -141,7 +144,11 @@ def _timing_summary(group):
             _real_number(r.get('ar_time')) and _real_number(r.get('exact_match')) for r in group)
         summary['AR_complete'] = complete_ar
         ar_time = sum(r['ar_time'] for r in group) if complete_ar else None
-        summary['speedup'] = ar_time / spec_time if complete_ar and spec_time else None
+        if complete_ar and spec_time:
+            assert ar_time is not None
+            summary['speedup'] = ar_time / spec_time
+        else:
+            summary['speedup'] = None
         summary['exact_match_rate'] = sum(r['exact_match'] for r in group) / len(group) if complete_ar else None
     return summary
 
