@@ -226,8 +226,6 @@ def prior_from_triples(predicted, observed, target, prompts):
 
 def collect_last_pairs(model, tokenizer, text, tokens):
     """ESP rounds on one calibration sentence. y is the last committed token."""
-    import torch
-
     from spec_mtp.decode import SpecDecoder
     from spec_mtp.masks import build_mask_provider
 
