@@ -1,12 +1,19 @@
 """Protocol arithmetic keeps missing prompts and negative pairs."""
 import pytest
 
-from spec_mtp.analysis import compare, summarize
+from spec_mtp.analysis import compare, prompt_tau, summarize
 
 
 def row(qid='q', accepted=2, **updates):
     return dict(qid=qid, accepted=accepted, committed=3, decode_calls=2, new_tokens=4,
                 input_sha256='input', protocol='v1', evidence_complete=True, **updates)
+
+
+def test_zero_decode_calls_have_no_tau():
+    assert prompt_tau(0, 0) is None
+    assert prompt_tau(3, 2) == 1.5
+    with pytest.raises(ValueError):
+        prompt_tau(True, 1)
 
 
 def test_pooled_tau_and_missing_prompts_are_explicit():

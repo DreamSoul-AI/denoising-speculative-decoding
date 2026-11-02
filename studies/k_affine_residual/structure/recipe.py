@@ -8,7 +8,7 @@ from pathlib import Path
 
 import torch
 
-from studies.k_affine_residual.structure.correction import ARMS, PROTOCOL, digest, fit_correction
+from studies.k_affine_residual.structure.correction import ARMS, PROTOCOL, digest, fit_correction, require_implemented_protocol
 from studies.k_affine_residual.structure.evaluation import aligned_arrays, validate_documents
 
 SOURCE = 'k_affine_residual'
@@ -57,6 +57,7 @@ def extract_pairs(session, documents, positions, model_space):
 
 
 def run_pilot(session, documents, positions, assets_dir, *, seed, extract=extract_pairs):
+    require_implemented_protocol(PROTOCOL)
     if type(seed) is not int:
         raise ValueError('seed must be an integer')
     docs = validate_documents(documents, positions)
@@ -102,7 +103,7 @@ def run_pilot(session, documents, positions, assets_dir, *, seed, extract=extrac
 
 
 def _data_builder(config, assets_dir, seed=None):
-    from rpipe.structure.api.data_api import Data
+    from spec_mtp.structure.api.data_api import Data
 
     del assets_dir
     docs = config.config['documents']
@@ -110,7 +111,7 @@ def _data_builder(config, assets_dir, seed=None):
 
 
 def _model_builder(config, assets_dir, data_meta=None):
-    from rpipe.structure.api.model_api import Model
+    from spec_mtp.structure.api.model_api import Model
     from spec_mtp.model import HFCausalLM
     from transformers import LlamaConfig, LlamaForCausalLM
 
@@ -125,9 +126,9 @@ def _model_builder(config, assets_dir, data_meta=None):
 
 
 def register(ctx):
-    from rpipe.structure.api.algorithm_api import Algorithm, AlgorithmRegistry
-    from rpipe.structure.api.data_api import DataRegistry
-    from rpipe.structure.api.model_api import ModelRegistry
+    from spec_mtp.structure.api.algorithm_api import Algorithm, AlgorithmRegistry
+    from spec_mtp.structure.api.data_api import DataRegistry
+    from spec_mtp.structure.api.model_api import ModelRegistry
 
     cfg = ctx.config
     if cfg['algorithm'].get('mode') != 'eval' or cfg['algorithm'].get('source') != SOURCE:

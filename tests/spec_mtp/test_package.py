@@ -1,12 +1,10 @@
-"""Packaging and entry: RPipe lives in src/rpipe; spec_mtp is a thin entry over it."""
+"""Packaging and entry: spec_mtp owns the study flow; no embedded RPipe package."""
 
 import importlib.metadata as metadata
 import json
-import re
 from pathlib import Path
 
 import pytest
-import rpipe
 
 from studies._shared.flow import cli
 from studies._shared.structure import sources
@@ -17,32 +15,21 @@ ROOT = Path(__file__).resolve().parents[2]
 PYPROJECT = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
 
 
-def _vendored_commit():
-    text = (ROOT / 'src' / 'rpipe' / 'ORIGIN').read_text(encoding='utf-8').splitlines()[0]
-    match = re.match(r'[0-9a-f]{40}$', text)
-    if not match:
-        raise AssertionError('src/rpipe/ORIGIN must be the full upstream commit')
-    return text
-
-
-def test_rpipe_is_vendored_from_the_recorded_commit():
-    commit = _vendored_commit()
-    assert (ROOT / 'src' / 'rpipe' / '__init__.py').is_file()
-    assert 'rpipe*' in PYPROJECT['tool']['setuptools']['packages']['find']['include']
-    assert Path(rpipe.__file__).resolve().parent == (ROOT / 'src' / 'rpipe').resolve()
+def test_rpipe_copy_is_gone_and_the_template_is_recorded():
+    assert not (ROOT / 'src' / 'rpipe').exists()
+    assert not (ROOT / 'tools').exists()
+    include = PYPROJECT['tool']['setuptools']['packages']['find']['include']
+    assert 'rpipe*' not in include and 'spec_mtp*' in include
     origin = sources.rpipe_origin()
-    assert origin.get('vendored') is True
-    assert origin.get('commit') == commit
+    assert origin == {'vendored': False, 'template': 'https://github.com/DreamSoul-AI/RPipe'}
+    with pytest.raises(ModuleNotFoundError):
+        import rpipe  # noqa: F401
 
 
-def test_console_scripts_expose_vendored_rpipe_and_spec_mtp():
-    assert PYPROJECT['project']['scripts'] == {
-        'rpipe': 'rpipe.flow.cli:main',
-        'spec-mtp': 'spec_mtp.cli:main',
-    }
+def test_console_scripts_expose_spec_mtp():
+    assert PYPROJECT['project']['scripts'] == {'spec-mtp': 'spec_mtp.cli:main'}
     dist = metadata.distribution('denoise-spec-mtp')
     assert {ep.name: ep.value for ep in dist.entry_points if ep.group == 'console_scripts'} == {
-        'rpipe': 'rpipe.flow.cli:main',
         'spec-mtp': 'spec_mtp.cli:main',
     }
 
@@ -108,6 +95,9 @@ def test_package_initializers_do_not_define_business_functions():
     package = ROOT / 'src/spec_mtp'
     violations = []
     for path in package.rglob('__init__.py'):
+        rel = path.relative_to(package).as_posix()
+        if rel.startswith(('flow/', 'structure/')):
+            continue
         body = ast.parse(path.read_text(encoding='utf-8'))
         if any(isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) for node in body.body):
             violations.append(path.relative_to(package).as_posix())

@@ -2,8 +2,8 @@
 import json
 from pathlib import Path
 
-from rpipe.structure.artifact.index import load_index
-from rpipe.structure.make.expand import expand_patches, load_study_yaml
+from spec_mtp.structure.artifact.index import load_index
+from spec_mtp.structure.make.expand import expand_patches, load_study_yaml
 from studies.k_affine_residual.structure.evaluation import check_matrix
 
 

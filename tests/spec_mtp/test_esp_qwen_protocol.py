@@ -35,11 +35,11 @@ def test_protocol_primary_cannot_be_selected_from_tau():
 
 @pytest.mark.parametrize('failure',[False,True])
 def test_launch_once_restores_native_scheduler(monkeypatch,failure):
-    launch = load('launch_once_test',ROOT/'tools/launch_once.py')
-    original = launch.rpipe.flow.cli.launch_jobs
+    launch = load('launch_once_test',ROOT/'studies/_shared/flow/launch_once.py')
+    original = launch.spec_mtp.flow.cli.launch_jobs
     def native(argv):
         assert argv==['launch','study']
-        patched=launch.rpipe.flow.cli.launch_jobs
+        patched=launch.spec_mtp.flow.cli.launch_jobs
         assert patched.func is original and patched.keywords=={'retry_failed':False}
         if failure:
             raise RuntimeError('injected launcher failure')
@@ -50,7 +50,7 @@ def test_launch_once_restores_native_scheduler(monkeypatch,failure):
             launch.main(['launch','study'])
     else:
         assert launch.main(['launch','study'])==7
-    assert launch.rpipe.flow.cli.launch_jobs is original
+    assert launch.spec_mtp.flow.cli.launch_jobs is original
 
 
 def test_corrected_studies_keep_full_coverage_and_mask_update():

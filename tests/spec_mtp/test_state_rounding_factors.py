@@ -8,7 +8,7 @@ from test_window_observer import ROOT, model as model, spec
 
 
 def test_phi_native_endpoint_and_scope(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_rounding_factors import phi_factors
     slots = torch.tensor([[.1, 2., -.3], [.9, -.5, 1.7]])
     scale = torch.tensor(.925)
@@ -21,7 +21,7 @@ def test_phi_native_endpoint_and_scope(monkeypatch):
 
 
 def test_rms_native_endpoint_and_inputs_held(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_rounding_factors import rms_factors
     inputs = torch.arange(27, dtype=torch.float32).reshape(1, 9, 3) / 7
     weight = torch.tensor([.7, 1., 1.5])
@@ -37,7 +37,7 @@ def test_rms_native_endpoint_and_inputs_held(monkeypatch):
 
 @pytest.mark.parametrize('coordinate', ['anchor', 'velocity'])
 def test_selective_state_real_cache_and_cleanup(model, monkeypatch, coordinate):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_numerics import canonical_states
     from diagnose_q241_state_factors import selective_transfer
     prompt, cfg, reference, targets, root, masks = baseline(model)
@@ -56,7 +56,7 @@ def test_selective_state_real_cache_and_cleanup(model, monkeypatch, coordinate):
 
 
 def test_selective_cleanup_on_failure(model, monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q241_state_factors import selective_transfer
     from spec_mtp.masks import OutputHiddenMaskProvider
     prompt, cfg, reference, targets, root, masks = baseline(model)

@@ -8,7 +8,7 @@ import sys
 
 import yaml
 from paired_repeat import BASE, STUDY, ROOT, check_refs
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 import analyze_4b_full_directions as directions  # noqa: E402
 spec = importlib.util.spec_from_file_location('paired_repeat_original_reader', BASE / 'analyze_results.py')
 original = importlib.util.module_from_spec(spec)
@@ -26,7 +26,7 @@ def check_index(entries, expected=None):
 
 
 def readout(output_dir):
-    from rpipe.structure.artifact.provenance import check_frozen as pcheck
+    from spec_mtp.structure.artifact.provenance import check_frozen as pcheck
     from studies._shared.structure.sources import check_frozen, manifest
     configs = check_refs()
     cells = {name: {'native_status': 'pending'} for name in original.CASES}

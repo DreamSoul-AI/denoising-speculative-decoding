@@ -2,7 +2,7 @@
 import csv
 import json
 from pathlib import Path
-import studies._shared.structure.evaluate as esp_mtp
+from spec_mtp.analysis import _aggregate, totals
 
 def run(ctx):
     """Study collect hook: derive CSV and Tracker metrics from execute evidence."""
@@ -10,7 +10,7 @@ def run(ctx):
     raw = json.loads((assets / 'decode_observations.json').read_text(encoding='utf-8'))
     task, out = raw['task'], raw['out']
     if task == 'esp_mtp':
-        out['summaries'] = esp_mtp._aggregate(out['rows'])
+        out['summaries'] = _aggregate(out['rows'])
     elif task == 'ar_baseline':
         rows = out['rows']
         total_time = sum(row['ar_time'] for row in rows)
@@ -43,13 +43,13 @@ def _tracker_metrics(task, out):
         summary = out.get('summary') or {}
         return {'TokensPerS': float(summary.get('tokens_per_s', 0.0))}
     rows = out.get('rows') or []
-    totals = esp_mtp.totals(rows)
+    pooled = totals(rows)
     summaries = out.get('summaries') or {}
     overall = summaries.get('overall', {})
     metrics = {
-        'Accepted': float(totals['accepted']),
-        'Committed': float(totals['committed']),
-        'DecodeCalls': float(totals['decode_calls']),
+        'Accepted': float(pooled['accepted']),
+        'Committed': float(pooled['committed']),
+        'DecodeCalls': float(pooled['decode_calls']),
     }
     for label, key in (('Tau', 'tau'), ('ExactMatchRate', 'exact_match_rate')):
         if overall.get(key) is not None:

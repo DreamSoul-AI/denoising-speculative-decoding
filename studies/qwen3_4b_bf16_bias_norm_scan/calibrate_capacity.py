@@ -12,8 +12,8 @@ import spec_mtp.decode as decoding
 from studies._shared.structure.config import _convert
 from studies._shared.structure.validation import _check_argmax
 from transformers import AutoModelForCausalLM
-from rpipe.structure.system.runtime import apply_runtime
-from rpipe.structure.system.config import SystemConfig
+from spec_mtp.structure.system.runtime import apply_runtime
+from spec_mtp.structure.system.config import SystemConfig
 out=ROOT/'.tmp/sd-memory-20261016'
 manifest=json.loads((ROOT/'studies/qwen3_4b_bf16_five_methods/docs/prompts_manifest.json').read_text())
 prompt=max(manifest['rendered_prompts'],key=lambda p:len(p['input_ids']))

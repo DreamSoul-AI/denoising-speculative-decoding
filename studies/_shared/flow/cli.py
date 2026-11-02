@@ -1,10 +1,10 @@
-"""Thin entry over ``rpipe.flow.cli``.
+"""Thin entry over ``spec_mtp.flow.cli``.
 
 ``make`` and ``launch --remake`` write the SpecMTP source lock. ``run`` and a
 plain ``launch`` keep an existing lock so ``freeze: true`` can see source drift
 after make. A first ``run`` without a lock still writes one, unless the Study
 sets ``freeze: true`` (then recipe reports the missing lock). Everything else
-goes to RPipe unchanged.
+goes to spec_mtp.flow unchanged.
 """
 
 from __future__ import annotations
@@ -73,24 +73,24 @@ def main(argv: list[str] | None = None) -> int:
     if _command(argv) in ('run', 'launch', 'run-one', 'process', 'report'):
         study = _study_arg(argv)
         if study is not None:
-            from rpipe.structure.make.expand import load_study_yaml
-            from rpipe.structure.artifact.provenance import check_frozen as check_rpipe
+            from spec_mtp.structure.make.expand import load_study_yaml
+            from spec_mtp.structure.artifact.provenance import check_frozen as check_rpipe
             from studies._shared.structure.sources import check_frozen, manifest
 
             declared = load_study_yaml(study)
             check_frozen(study, declared, manifest())
             check_rpipe(study, declared)
             if _command(argv) == 'report':
-                from rpipe.flow.context import StudyProcessContext
-                from rpipe.structure.artifact.readout.report import render_numbers
-                from rpipe.structure.artifact.result import load_result
+                from spec_mtp.flow.context import StudyProcessContext
+                from spec_mtp.structure.artifact.readout.report import render_numbers
+                from spec_mtp.structure.artifact.result import load_result
                 from studies._shared.flow.process.run import study_gate
 
                 # Reject stale identity before the quality gate can update the envelope.
                 render_numbers(study)
                 context = StudyProcessContext(study, state={'process': load_result(study / 'process.json')})
                 study_gate(context)
-    from rpipe.flow.cli import main as rpipe_main
+    from spec_mtp.flow.cli import main as rpipe_main
 
     return int(rpipe_main(argv) or 0)
 

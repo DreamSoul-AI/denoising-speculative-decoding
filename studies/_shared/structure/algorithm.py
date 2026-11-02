@@ -9,9 +9,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from rpipe.structure.algorithm.base import Algorithm
-from rpipe.structure.algorithm.factory import AlgorithmRegistry
-from rpipe.structure.algorithm.tracker import AlgorithmTracker
+from spec_mtp.structure.algorithm.base import Algorithm
+from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+from spec_mtp.structure.algorithm.tracker import AlgorithmTracker
 
 from studies._shared.structure import alignment_probe, ar_baseline, evaluate as esp_mtp
 from studies._shared.structure.inputs import place_model, select_prompts

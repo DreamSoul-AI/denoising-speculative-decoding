@@ -253,6 +253,9 @@ def test_cli_real_local_model_sources_and_read_only_audit(tmp_path, capsys):
     declared = {p.relative_to(args.model).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
                 for p in args.model.rglob('*') if p.is_file()}
     args.model_sources.write_text(json.dumps(declared), encoding='utf-8')
+    body = json.loads(args.request.read_text(encoding='utf-8'))
+    body['spec']['bonus_slot'] = {'mode': 'hard'}
+    args.request.write_text(json.dumps(body), encoding='utf-8')
     assert main(['decode', '--request', str(args.request), '--model', str(args.model),
                  '--model-sources', str(args.model_sources), '--output', str(args.output)]) == 0
     assert json.loads(capsys.readouterr().out)['evidence_complete']

@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @pytest.fixture
 def setup(monkeypatch, tmp_path):
-    spec = importlib.util.spec_from_file_location('norm_queue_audit_test', ROOT / 'tools/audit_4b_norm_queue.py')
+    spec = importlib.util.spec_from_file_location('norm_queue_audit_test', ROOT / 'studies/_shared/structure/audit_4b_norm_queue.py')
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     study = tmp_path / 'study'

@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 from diagnose_output_windows import file_hash, TRACE_KEYS
 from diagnose_rare_stress import event_summary
 from studies.output_space_cross_task.analyze_sampling_expansion import summarize_unit
@@ -40,7 +40,7 @@ def main():
     assert manifest()['digest'] == expansion['source_digest'] == rare['source_digest'] == '670c744e0535dcad'
     assert file_hash(args.expansion / 'selected_tensors.pt') == expansion['raw_tensor_sha256']
     for report, tool in ((expansion, 'diagnose_sampling_continuation.py'), (rare, 'diagnose_rare_stress.py')):
-        assert file_hash(ROOT / 'tools' / tool) == report['source_binding']['tool']
+        assert file_hash(ROOT / 'studies' / '_shared' / 'structure' / tool) == report['source_binding']['tool']
         assert file_hash(study / 'docs/SAMPLING_CONTINUATION_PLAN.md') == report['source_binding']['plan']
     assert file_hash(study / 'docs/sampling_continuation_inputs_v1.json') == expansion['source_binding']['input_manifest']
     assert file_hash(ROOT / 'datasets/spec_bench/question.jsonl') == expansion['source_binding']['dataset']

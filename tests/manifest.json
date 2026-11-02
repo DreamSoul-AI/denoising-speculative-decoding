@@ -10,6 +10,132 @@
   },
   "tests": [
     {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_bonus_slot_replaces_only_the_immediate_token_and_stays_lossless",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_scalar_kalman_step_steady_gain_and_lossless_decode",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_verify_correction_recovers_scalar_and_edits_only_slot_zero",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_top1_form_uses_the_most_likely_allowed_token",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_oracle_masks_accept_full_depth_after_prefill",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_rejection_condition_falls_back_when_children_hold_all_mass",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_language_rows_are_distributions_over_branching_successors",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_output_inside_source_tree_is_rejected",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_zero_gain_is_the_trajectory_provider_token_for_token",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_blended_masks_keep_ar_output_and_argmax_audit",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_masks_follow_the_blend_and_never_write_back",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_owner_depth_shifts_the_observation_and_falls_back_past_k",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_decoder_observes_prefill_and_every_continuing_round",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_invalid_observation_settings_are_rejected",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_observation_rejects_hidden_providers_and_bad_logits",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_round_split_groups_by_previous_outcome",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
       "test_id": "tests/spec_mtp/test_4b_bf16_plot.py::test_row_vs_column_preserves_all_wins_ties_losses_without_double_inverting_calls",
       "target": "spec_mtp",
       "tags": [
@@ -319,6 +445,13 @@
     },
     {
       "test_id": "tests/spec_mtp/test_4b_untimed.py::test_direct_cuda_materialization_preserves_dtype_kwargs_and_restores_loader",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_analysis.py::test_zero_decode_calls_have_no_tau",
       "target": "spec_mtp",
       "tags": [
         "offline_cpu"
@@ -869,6 +1002,20 @@
     },
     {
       "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_aggregate_categories_and_zero_decode_calls_guard",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_clock_failure_returns_counts_without_inventing_zero_time",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_evaluate_keeps_counts_when_sync_and_clock_fail",
       "target": "spec_mtp",
       "tags": [
         "offline_cpu"
@@ -1547,14 +1694,35 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_package.py::test_rpipe_is_vendored_from_the_recorded_commit",
+      "test_id": "tests/spec_mtp/test_output_hidden_kalman.py::test_trajectory_matches_output_hidden_and_correction_stays_fp32",
       "target": "spec_mtp",
       "tags": [
         "offline_cpu"
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_package.py::test_console_scripts_expose_vendored_rpipe_and_spec_mtp",
+      "test_id": "tests/spec_mtp/test_output_hidden_kalman.py::test_root_update_is_delayed_and_deep_error_is_separate",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_output_hidden_kalman.py::test_zero_gain_matches_output_hidden_and_nonzero_stays_lossless",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_package.py::test_rpipe_copy_is_gone_and_the_template_is_recorded",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_package.py::test_console_scripts_expose_spec_mtp",
       "target": "spec_mtp",
       "tags": [
         "offline_cpu"
@@ -2164,6 +2332,13 @@
     },
     {
       "test_id": "tests/studies/k_affine_residual/structure/test_correction.py::test_invalid_fit_inputs_rejected",
+      "target": "studies/k_affine_residual/structure",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/k_affine_residual/structure/test_correction.py::test_only_committed_token_affine_protocol_is_implemented",
       "target": "studies/k_affine_residual/structure",
       "tags": [
         "offline_cpu"

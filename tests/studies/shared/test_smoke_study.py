@@ -52,7 +52,7 @@ def test_smoke_study_matches_plain_generation(study_copy):
 
 def test_rpipe_entry_runs_the_same_chain(study_copy):
     study = study_copy()
-    cli('run', study, entry='rpipe', check=True)
+    cli('run', study, entry='spec_mtp.flow.cli', check=True)
     _check_smoke(study)
 
 

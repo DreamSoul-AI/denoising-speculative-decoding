@@ -9,7 +9,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 from diagnose_output_windows import file_hash
 from analyze_results import slots
 
@@ -32,7 +32,7 @@ def main():
         assert raw['quality_passed'] and len(raw['cases']) == count
         assert raw['source_digest'] == native['source_digest'] == '670c744e0535dcad'
         assert file_hash(old_path) == raw['source_binding']['previous_tensor']
-        tool = ROOT / 'tools' / ('diagnose_q178_norm_kernel.py' if kind == 'norm' else 'diagnose_q178_qproj.py')
+        tool = ROOT / 'studies' / '_shared' / 'structure' / ('diagnose_q178_norm_kernel.py' if kind == 'norm' else 'diagnose_q178_qproj.py')
         assert file_hash(tool) == raw['source_binding']['tool']
         assert file_hash(study / 'kernel_common.py') == raw['source_binding']['common']
         plan = study / 'docs/NORM_KERNEL_PLAN.md' if kind == 'norm' else ROOT / 'studies/output_space_cross_task/docs/KERNEL_EXECUTION_PLAN.md'

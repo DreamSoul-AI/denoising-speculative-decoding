@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from rpipe.structure.data.factory import Data, DataRegistry
+from spec_mtp.structure.data.factory import Data, DataRegistry
 
 from spec_mtp.data import encode_prompts, load_records, needs_tokenizer
 

@@ -7,7 +7,7 @@ from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
 
 def test_phi64_uses_native_slot_and_scale_without_state_mutation(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_phi_rms import phi64
     for order in (0, 1):
         p = OutputHiddenMaskProvider(2, torch.randn(9, 7), order=order)
@@ -24,7 +24,7 @@ def test_phi64_uses_native_slot_and_scale_without_state_mutation(monkeypatch):
 
 
 def test_rms_singleton_and_high_precision_keep_input_and_shape(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_phi_rms import norm_row
     module = LlamaRMSNorm(7, eps=1e-6)
     inputs = torch.randn(1, 9, 7)

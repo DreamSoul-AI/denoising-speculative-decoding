@@ -129,8 +129,8 @@ def load_cell(study, folder, cfg, prompts, manifest, snapshot, reference):
 def main():
     import torch  # noqa: F401 - Windows torch-first
     import yaml
-    from rpipe.structure.artifact.provenance import check_frozen as pcheck
-    from rpipe.structure.make.expand import load_study_yaml
+    from spec_mtp.structure.artifact.provenance import check_frozen as pcheck
+    from spec_mtp.structure.make.expand import load_study_yaml
     from studies._shared.structure.sources import manifest as sources, check_frozen
     from studies._shared.structure.evidence import file_hash
     study = Path(__file__).resolve().parent

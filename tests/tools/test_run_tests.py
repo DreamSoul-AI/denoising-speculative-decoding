@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 ROOT=Path(__file__).resolve().parents[2]
-spec=importlib.util.spec_from_file_location('sd_test_runner',ROOT/'tools/run_tests.py')
+spec=importlib.util.spec_from_file_location('sd_test_runner',ROOT / 'tests' / 'run.py')
 runner=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
 

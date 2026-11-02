@@ -98,15 +98,15 @@ def declared_factors(study: dict[str, Any], base_config: dict[str, Any] | None =
     compatibility form exposes raw axes only; Study verification always supplies
     its base so inherited fields inside mapping-valued axes are checked too.
     """
-    from rpipe.structure.make.expand import cartesian
+    from spec_mtp.structure.make.expand import cartesian
 
     axes = dict(study.get('axes') or {})
     axes.pop('seed', None)
     if base_config is None:
         return cartesian(axes)
-    from rpipe.structure.artifact.index import experiment_entries
-    from rpipe.structure.control import experiment_config_from_mapping, run_config_from_merge
-    from rpipe.structure.make.expand import axis_keys_from_study, expand_patches
+    from spec_mtp.structure.artifact.index import experiment_entries
+    from spec_mtp.structure.control import experiment_config_from_mapping, run_config_from_merge
+    from spec_mtp.structure.make.expand import axis_keys_from_study, expand_patches
 
     base = experiment_config_from_mapping(base_config)
     runs = [run_config_from_merge(base, patch) for patch in expand_patches(study)]
@@ -134,15 +134,15 @@ def verify_evidence(config: dict[str, Any], assets: Path) -> None:
     check_inputs(inputs)
     study_dir = assets.parents[2]
     if (study_dir / 'study.yaml').is_file():
-        from rpipe.structure.artifact.provenance import source_files
-        from rpipe.structure.make.expand import load_study_yaml
+        from spec_mtp.structure.artifact.provenance import source_files
+        from spec_mtp.structure.make.expand import load_study_yaml
         if saved.get('study_files') != source_files(study_dir, load_study_yaml(study_dir)):
             raise SpecMtpGateError('Study sources changed since prepare')
     settings = inputs['settings']
     if str(settings['run']['seed']) != str(config.get('seed', settings['run']['seed'])):
         raise SpecMtpGateError('decode seed changed')
     algorithm = config.get('algorithm') or {}
-    from rpipe.structure.control.layers import AlgorithmConfig
+    from spec_mtp.structure.control.layers import AlgorithmConfig
     from studies._shared.structure.algorithm import effective_spec, task_name
     from studies._shared.structure.algorithm import legacy_cfg
     from types import SimpleNamespace
@@ -209,7 +209,7 @@ def verify_evidence(config: dict[str, Any], assets: Path) -> None:
             for key in ('accepted', 'committed', 'decode_calls', 'new_tokens'):
                 if row[key] != stats[key]:
                     raise SpecMtpGateError(f'{key} evidence mismatch')
-        from studies._shared.structure.evaluate import _aggregate
+        from spec_mtp.analysis import _aggregate
         expected_summary = _aggregate(rows)['overall']
         actual = _overall(assets)
         def same_value(key, value):

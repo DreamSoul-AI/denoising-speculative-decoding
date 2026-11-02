@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-_spec = importlib.util.spec_from_file_location('esp_contract', Path(__file__).resolve().parents[2] / 'tools/reconcile_esp_table1_contract.py')
+_spec = importlib.util.spec_from_file_location('esp_contract', Path(__file__).resolve().parents[2] / 'studies/_shared/structure/reconcile_esp_table1_contract.py')
 contract = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(contract)
 

@@ -13,6 +13,7 @@ import pytest
 import torch
 
 from spec_mtp import decode as decoding
+from spec_mtp.analysis import _aggregate, totals
 from studies._shared.structure import evaluate as esp_mtp
 from studies._shared.structure.config import apply_variant
 from spec_mtp.decode import SpecDecoder, ar_generate, select_token, tree_probs
@@ -169,10 +170,10 @@ def test_totals_sums_pooled_counts():
         {'accepted': 2, 'committed': 5, 'decode_calls': 3, 'new_tokens': 6},
         {'accepted': 1, 'committed': 4, 'decode_calls': 2, 'new_tokens': 4},
     ]
-    assert esp_mtp.totals(rows) == {
+    assert totals(rows) == {
         'accepted': 3, 'committed': 9, 'decode_calls': 5, 'new_tokens': 10,
     }
-    assert esp_mtp.totals([]) == {
+    assert totals([]) == {
         'accepted': 0, 'committed': 0, 'decode_calls': 0, 'new_tokens': 0,
     }
 
@@ -187,9 +188,8 @@ def test_aggregate_categories_and_zero_decode_calls_guard():
          'attempt_d1': 2, 'accept_d1': 1,
          'attempt_d2': 1, 'accept_d2': 0, 'attempt_d3': 0, 'accept_d3': 0},
     ]
-    summaries = esp_mtp._aggregate(rows)
+    summaries = _aggregate(rows)
     assert set(summaries) == {'a', 'b', 'overall'}
-    # decode_calls=0 → max(..., 1) so tau = committed/1 = 0 for category a
     assert summaries['a']['tau'] is None
     assert summaries['a']['call_reduction'] is None
     assert summaries['a']['tokens_per_s'] == 0.0
@@ -200,6 +200,46 @@ def test_aggregate_categories_and_zero_decode_calls_guard():
     assert summaries['b']['speedup'] == 2.0
     assert summaries['b']['accept_rate_d1'] == 0.5
     assert summaries['overall']['prompts'] == 2
+
+
+def test_clock_failure_returns_counts_without_inventing_zero_time(tiny, monkeypatch):
+    def broken():
+        raise RuntimeError('clock')
+
+    monkeypatch.setattr(decoding.time, 'perf_counter', broken)
+    prompt = _prompt()
+    spec = apply_variant({}, 'esp_static')
+    output, stats = SpecDecoder(
+        tiny, spec, _eval(max_new_tokens=4),
+        mask_policy=build_mask_provider(spec, tiny.embedding_table)).generate(prompt)
+    assert output.shape[1] == prompt.shape[1] + stats['new_tokens']
+    assert stats['new_tokens'] >= 1 and stats['committed'] >= 1
+    assert 'prefill_time' not in stats and 'decode_time' not in stats
+    _, ar_stats = ar_generate(tiny, prompt, _eval(max_new_tokens=4))
+    assert ar_stats['ar_calls'] >= 1 and 'ar_time' not in ar_stats
+
+
+def test_evaluate_keeps_counts_when_sync_and_clock_fail(tiny, monkeypatch, tmp_path):
+    def broken_sync(_device):
+        raise RuntimeError('sync')
+
+    def broken():
+        raise RuntimeError('clock')
+
+    monkeypatch.setattr(esp_mtp, 'sync_device', broken_sync)
+    monkeypatch.setattr(decoding.time, 'perf_counter', broken)
+    prompts = [{'category': 'x', 'input_ids': _prompt(seed=8, length=6)}]
+    result = esp_mtp.evaluate(
+        tiny, prompts, [], apply_variant({}, 'esp_static'),
+        _eval(max_new_tokens=3, warmup=True, warmup_tokens=1,
+              log_per_prompt=False, run_ar_baseline=False),
+        seed=1, device='cpu', save_dir=str(tmp_path))
+    row = result['rows'][0]
+    assert row['new_tokens'] == 3
+    assert type(row['committed']) is int and row['committed'] >= 1
+    assert 'spec_time' not in row
+    assert result['summaries']['overall']['tokens_per_s'] is None
+    assert result['summaries']['overall']['tau'] == row['committed'] / row['decode_calls']
 
 
 def test_evaluate_empty_prompts_skips_warmup(tiny, tmp_path):

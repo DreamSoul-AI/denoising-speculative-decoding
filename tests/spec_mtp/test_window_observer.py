@@ -14,7 +14,7 @@ from spec_mtp.model import HFCausalLM
 from spec_mtp.masks import OutputHiddenMaskProvider
 
 ROOT = Path(__file__).resolve().parents[2]
-module_spec = importlib.util.spec_from_file_location('window_observer', ROOT / 'tools/diagnose_output_windows.py')
+module_spec = importlib.util.spec_from_file_location('window_observer', ROOT / 'studies/_shared/structure/diagnose_output_windows.py')
 observer = importlib.util.module_from_spec(module_spec)
 module_spec.loader.exec_module(observer)
 
@@ -81,7 +81,7 @@ def test_target_margin_sign_and_best_alternative():
 
 
 def test_crossed_norms_preserve_observed_vectors_and_change_only_magnitude(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     import diagnose_mask_scale
     a, b = torch.tensor([3., 4.]), torch.tensor([0., 10.])
     cases = diagnose_mask_scale.crossed_masks(a, b)

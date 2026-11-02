@@ -8,8 +8,8 @@ import spec_mtp.decode as decoding
 from studies._shared.structure.algorithm import SpecMtpEvalAlgorithm
 from studies._shared.structure import evidence
 from studies._shared.structure.model import _build_hf
-from rpipe.structure.algorithm.factory import AlgorithmRegistry
-from rpipe.structure.model.factory import ModelRegistry
+from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+from spec_mtp.structure.model.factory import ModelRegistry
 
 
 def verify_inputs(saved, manifest, snapshot):

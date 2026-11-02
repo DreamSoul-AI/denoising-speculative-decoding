@@ -8,7 +8,7 @@ from spec_mtp import model as kv_cache
 
 
 def test_norm_graph_native_replication_and_unchanged_state(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_norm_kernel import mapped
     p = OutputHiddenMaskProvider(2, torch.randn(13, 7), order=1)
     p.anchor, p.velocity = torch.randn(7), torch.randn(7)
@@ -24,7 +24,7 @@ def test_norm_graph_native_replication_and_unchanged_state(monkeypatch):
 
 
 def test_fixed_linear_row_reference_preserves_shape(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_qproj import linear_row
     module = torch.nn.Linear(7, 11)
     inputs = torch.randn(1, 9, 7)
@@ -37,7 +37,7 @@ def test_fixed_linear_row_reference_preserves_shape(monkeypatch):
 
 
 def test_exact_block_uses_fresh_cache(model, monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q178_qproj import exact_block
     cache = kv_cache.new_cache()
     model(model.embed(torch.tensor([[1, 2]])), torch.tensor([[0, 1]]), past_key_values=cache)

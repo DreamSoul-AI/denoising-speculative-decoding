@@ -14,7 +14,7 @@ Reports the paper's metrics per SpecBench category and overall:
 from spec_mtp.masks import build_mask_provider
 
 import torch
-from spec_mtp.analysis import _aggregate, totals as totals
+from spec_mtp.analysis import _aggregate, prompt_tau
 
 from studies._shared.structure import csv_logger
 from studies._shared.structure.inputs import legacy_inputs, make_generator
@@ -32,6 +32,7 @@ def _warmup(decoder, model, prompt_ids, eval_cfg, eos_ids, run_ar, device, seed)
     The first CUDA call pays kernel selection and allocator growth,
     which may inflate the measurement.
     Disable with `eval.warmup: false`.
+    A failed device sync does not block the measured decode.
     """
     budget = int(eval_cfg.get('warmup_tokens', 8))
     original = decoder.max_new_tokens
@@ -45,7 +46,38 @@ def _warmup(decoder, model, prompt_ids, eval_cfg, eos_ids, run_ar, device, seed)
         warm_cfg['max_new_tokens'] = budget
         ar_generate(model, prompt_ids, warm_cfg, eos_ids=eos_ids,
                     generator=make_generator(device, seed))
-    sync_device(device)
+    try:
+        sync_device(device)
+    except Exception:
+        return
+
+
+def _count_row(idx, item, stats):
+    row = {
+        'prompt': idx,
+        'category': item['category'],
+        'new_tokens': stats['new_tokens'],
+        'committed': stats['committed'],
+        'decode_calls': stats['decode_calls'],
+        'accepted': stats['accepted'],
+        'tau': prompt_tau(int(stats['committed']), int(stats['decode_calls'])),
+        'hit_context_limit': stats['hit_context_limit'],
+    }
+    for depth in (1, 2, 3):
+        row[f'attempt_d{depth}'] = int(stats['attempt_by_depth'][depth])
+        row[f'accept_d{depth}'] = int(stats['accept_by_depth'][depth])
+    return row
+
+
+def _spec_time(stats):
+    try:
+        values = (stats['prefill_time'], stats['decode_time'])
+    except KeyError:
+        return None
+    if not all(type(value) in (int, float) and value == value and value >= 0
+               and value not in (float('inf'), float('-inf')) for value in values):
+        return None
+    return float(values[0]) + float(values[1])
 
 
 def evaluate(model, prompts, eos_ids, spec_cfg, eval_cfg, seed, device, save_dir=None, *, aggregate=True):
@@ -80,24 +112,19 @@ def evaluate(model, prompts, eos_ids, spec_cfg, eval_cfg, seed, device, save_dir
         # the same sample stream (exact-match audit at temperature > 0).
         decoder.generator = make_generator(device, seed + idx)
 
-        sync_device(device)
+        try:
+            sync_device(device)
+        except Exception:
+            pass
         output, stats = decoder.generate(prompt_ids)
-        sync_device(device)
-
-        row = {
-            'prompt': idx,
-            'category': item['category'],
-            'new_tokens': stats['new_tokens'],
-            'committed': stats['committed'],
-            'decode_calls': stats['decode_calls'],
-            'accepted': stats['accepted'],
-            'tau': stats['committed'] / max(stats['decode_calls'], 1),
-            'spec_time': stats['prefill_time'] + stats['decode_time'],
-            'hit_context_limit': stats['hit_context_limit'],
-        }
-        for depth in (1, 2, 3):
-            row[f'attempt_d{depth}'] = int(stats['attempt_by_depth'][depth])
-            row[f'accept_d{depth}'] = int(stats['accept_by_depth'][depth])
+        row = _count_row(idx, item, stats)
+        try:
+            sync_device(device)
+        except Exception:
+            pass
+        observed = _spec_time(stats)
+        if observed is not None:
+            row['spec_time'] = observed
         if run_ar:
             # Context limit: the speculative block needs room for the tree and
             # k mask slots past the root, so SpecDecoder stops a few tokens
@@ -107,13 +134,20 @@ def evaluate(model, prompts, eos_ids, spec_cfg, eval_cfg, seed, device, save_dir
             if stats['hit_context_limit']:
                 ar_cfg = dict(eval_cfg)
                 ar_cfg['max_new_tokens'] = stats['new_tokens']
-            sync_device(device)
+            try:
+                sync_device(device)
+            except Exception:
+                pass
             ar_out, ar_stats = ar_generate(
                 model, prompt_ids, ar_cfg, eos_ids=eos_ids,
                 generator=make_generator(device, seed + idx),
             )
-            sync_device(device)
-            row['ar_time'] = ar_stats['ar_time']
+            try:
+                sync_device(device)
+            except Exception:
+                pass
+            if 'ar_time' in ar_stats:
+                row['ar_time'] = ar_stats['ar_time']
             row['ar_calls'] = ar_stats['ar_calls']
             row['exact_match'] = int(torch.equal(output, ar_out))
         evidence.append({

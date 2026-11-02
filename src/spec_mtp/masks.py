@@ -41,15 +41,18 @@ class OutputHiddenMaskProvider:
         for y in prompt_hidden:
             self.observe_committed(y)
 
-    def masks_per_owner(self, proxy_hiddens):
-        """Predict depths 0..k; the decoder shares each depth across tree siblings."""
-        # Proxies are at root..penultimate draft positions. The last owner
-        # has no observation; simulate only, without mutating committed state.
-        if proxy_hiddens.shape != (self.num_masks, self.anchor.numel()):
+    def trajectory(self, proxy_hiddens):
+        """Hidden slots and the observation at each owner. Does not mutate committed state.
+
+        Observation 0 is the last committed output hidden. Each later observation
+        is the anchor after the previous in-block proxy has been absorbed.
+        """
+        if self.anchor is None or proxy_hiddens.shape != (self.num_masks, self.anchor.numel()):
             raise ValueError('output proxy shape mismatch')
         anchor, velocity = self.anchor.clone(), self.velocity.clone()
-        owners = []
+        slots, observations = [], []
         for owner in range(self.num_masks + 1):
+            observations.append(anchor.clone())
             if owner < self.num_masks:
                 y = proxy_hiddens[owner].detach().float()
                 if self.order:
@@ -57,12 +60,21 @@ class OutputHiddenMaskProvider:
                 anchor = y
             else:
                 anchor = anchor + velocity
-            slots = torch.stack([anchor + slot * velocity for slot in range(self.num_masks)])
-            norms = slots.norm(dim=-1, keepdim=True)
-            if not torch.isfinite(slots).all() or not torch.isfinite(self.scale) or self.scale <= 0 or (norms <= 0).any():
-                raise ValueError('output mask mapping requires finite nonzero norms')
-            owners.append(self.scale * slots / norms)
-        return torch.stack(owners)
+            slots.append(torch.stack([anchor + slot * velocity for slot in range(self.num_masks)]))
+        return torch.stack(slots), torch.stack(observations)
+
+    def masks_per_owner(self, proxy_hiddens):
+        """Predict depths 0..k; the decoder shares each depth across tree siblings."""
+        # Proxies are at root..penultimate draft positions. The last owner
+        # has no observation; simulate only, without mutating committed state.
+        slots, _observations = self.trajectory(proxy_hiddens)
+        return self._map_hidden_slots(slots)
+
+    def _map_hidden_slots(self, slots):
+        norms = slots.norm(dim=-1, keepdim=True)
+        if not torch.isfinite(slots).all() or not torch.isfinite(self.scale) or self.scale <= 0 or (norms <= 0).any():
+            raise ValueError('output mask mapping requires finite nonzero norms')
+        return self.scale * slots / norms
 
 
 
@@ -269,7 +281,1291 @@ class EMAVelocityMaskProvider:
             self._level = self._level + self.lam * (new_embed - self._level)
 
 
+class ObservationBlendMaskProvider:
+    """Protocol `trajectory-observation-blend-v1`.
+
+    z_i = softmax(l_i) @ E is the expected input embedding under the previous
+    verify forward's logits at mask slot i of the deepest accepted node; they
+    predict the token at depth i of the current tree. Slot j of an owner at
+    depth d stands in for depth d + j, so
+        m[d, j] = mhat_j + g * (z_{d+j} - mhat_j)   if d + j <= k, else mhat_j.
+    The observation lives for one round and is never written into the
+    trajectory state, so g = 0 is the wrapped provider token for token.
+
+    condition='rejection' (`trajectory-observation-rejection-v1`): an owner's
+    mask logits seed the next tree only if it is the deepest accepted node, in
+    which case every child token was rejected. Slot 1 of an owner with
+    children therefore uses z_{d+1} conditioned on "not a child token":
+        z = (z_{d+1} - sum_c p_c e_c) / (1 - sum_c p_c),
+    falling back to mhat_1 when the children hold all the mass.
+
+    form='top1' replaces the expectation with the embedding of the most likely
+    token (under rejection: the most likely non-child token), keeping the
+    mask input on the token manifold.
+    """
+    needs_hidden = False
+    PROTOCOLS = {('mean', 'none'): 'trajectory-observation-blend-v1',
+                 ('mean', 'rejection'): 'trajectory-observation-rejection-v1',
+                 ('top1', 'none'): 'trajectory-observation-top1-v1',
+                 ('top1', 'rejection'): 'trajectory-observation-top1-rejection-v1'}
+    _MIN_REMAINING = 1e-6
+
+    def __init__(self, base, embedding_table, gain, condition='none', form='mean'):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('observation blend wraps input-embedding providers only')
+        if isinstance(gain, bool) or not isinstance(gain, (int, float)) or not 0 <= gain <= 1:
+            raise ValueError('observation gain must be a number in [0, 1]')
+        if condition not in ('none', 'rejection'):
+            raise ValueError('observation condition must be none or rejection')
+        if form not in ('mean', 'top1'):
+            raise ValueError('observation form must be mean or top1')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.embedding_table = embedding_table
+        self.gain = float(gain)
+        self.condition = condition
+        self.form = form
+        self.protocol = self.PROTOCOLS[form, condition]
+        self._observation: Any = None
+        self._probs: Any = None
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        self._observation = None
+        self._probs = None
+
+    def observe_mask_logits(self, mask_logits):
+        if mask_logits.shape[0] != self.num_masks:
+            raise ValueError('observation needs one logit row per mask slot')
+        if not torch.isfinite(mask_logits).any(dim=-1).all() or torch.isnan(mask_logits).any():
+            raise ValueError('observation logits need a finite candidate per row')
+        probs = torch.softmax(mask_logits.float(), dim=-1)
+        table = self.embedding_table
+        self._probs = probs
+        self._observation = table[probs.argmax(dim=-1)] if self.form == 'top1' else probs.to(table.dtype) @ table
+
+    def observation(self):
+        return self._observation
+
+    def masks_by_depth(self):
+        """[k + 1, k, d]: masks for owners at tree depth 0..k."""
+        trajectory = self.base.masks()
+        k = self.num_masks
+        out = trajectory.unsqueeze(0).repeat(k + 1, 1, 1)
+        if self._observation is None or self.gain == 0:
+            return out
+        z = self._observation.to(trajectory.device, trajectory.dtype)
+        for depth in range(k):
+            slots = k - depth
+            out[depth, :slots] = trajectory[:slots] + self.gain * (z[depth:] - trajectory[:slots])
+        return out
+
+    def masks_for_tree(self, tree):
+        """[1 + nodes, k, d]: per-owner masks in block order (root first)."""
+        owners = self.masks_by_depth()[[0] + list(tree.depths)]
+        if self.condition != 'rejection' or self._observation is None or self.gain == 0:
+            return owners
+        trajectory = self.base.masks()
+        children: dict[int, list[int]] = {}
+        for node, parent in enumerate(tree.parents, start=1):
+            children.setdefault(parent, []).append(tree.tokens[node - 1])
+        for owner in range(owners.shape[0]):
+            depth = 0 if owner == 0 else tree.depths[owner - 1]
+            if depth >= self.num_masks or owner not in children:
+                continue
+            tokens = torch.tensor(sorted(set(children[owner])), device=self._probs.device)
+            p = self._probs[depth, tokens]
+            remaining = 1.0 - float(p.sum())
+            if remaining <= self._MIN_REMAINING:
+                owners[owner, 0] = trajectory[0]
+                continue
+            if self.form == 'top1':
+                allowed = self._probs[depth].clone()
+                allowed[tokens] = -1.0
+                z = self.embedding_table[allowed.argmax()]
+            else:
+                rejected = p.to(self.embedding_table.dtype) @ self.embedding_table[tokens]
+                z = (self._observation[depth] - rejected) / remaining
+            z = z.to(trajectory.device, trajectory.dtype)
+            owners[owner, 0] = trajectory[0] + self.gain * (z - trajectory[0])
+        return owners
+
+    def masks(self):
+        return self.masks_by_depth()[0]
+
+    def on_token_committed(self, new_embed, prev_embed):
+        self.base.on_token_committed(new_embed, prev_embed)
+
+
+class BonusSlotMaskProvider:
+    """Bonus-slot input, no extra forward.
+
+    `hard` (`bonus-slot-hard-v1`): slot 0 of a depth-d owner is the embedding
+    of argmax on the previous mask-logit row d.
+    `topk` (`bonus-slot-topk-v1`): the same slot is the expected embedding of
+    that row restricted to the draft's top-w tokens, w = tree branch width at
+    that depth, renormalized. Deeper slots stay on the trajectory.
+    """
+    needs_hidden = False
+    PROTOCOLS = {'hard': 'bonus-slot-hard-v1', 'topk': 'bonus-slot-topk-v1'}
+
+    def __init__(self, base, embedding_table, mode='hard', widths=()):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('bonus slot wraps input-embedding providers only')
+        if mode not in self.PROTOCOLS:
+            raise ValueError('bonus slot mode must be hard or topk')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.embedding_table = embedding_table
+        self.mode = mode
+        self.protocol = self.PROTOCOLS[mode]
+        self.widths = [int(w) for w in widths]
+        self._logits = None
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        self._logits = None
+
+    def observe_mask_logits(self, mask_logits):
+        if mask_logits.shape[0] != self.num_masks:
+            raise ValueError('bonus slot needs one logit row per mask slot')
+        if not torch.isfinite(mask_logits).any(dim=-1).all() or torch.isnan(mask_logits).any():
+            raise ValueError('bonus slot logits need a finite candidate per row')
+        self._logits = mask_logits.detach()
+
+    def _slot_embedding(self, depth, trajectory):
+        logits = self._logits
+        assert logits is not None
+        row = logits[depth]
+        table = self.embedding_table
+        if self.mode == 'hard':
+            token = int(row.argmax())
+            return table[token].to(device=trajectory.device, dtype=trajectory.dtype)
+        width = self.widths[depth] if depth < len(self.widths) else 0
+        if width <= 0:
+            return None
+        k = min(width, row.numel())
+        vals, idx = torch.topk(row, k)
+        weights = torch.softmax(vals.float(), dim=0).to(dtype=table.dtype)
+        picked = table[idx].to(device=trajectory.device, dtype=trajectory.dtype)
+        return weights.to(device=trajectory.device) @ picked
+
+    def masks_for_tree(self, tree):
+        trajectory = self.base.masks()
+        owners = trajectory.unsqueeze(0).repeat(1 + tree.num_nodes, 1, 1)
+        if self._logits is None:
+            return owners
+        for owner, depth in enumerate([0] + list(tree.depths)):
+            if depth < self.num_masks:
+                embed = self._slot_embedding(depth, trajectory)
+                if embed is not None:
+                    owners[owner, 0] = embed
+        return owners
+
+    def masks(self):
+        out = self.base.masks().clone()
+        if self._logits is not None and self.num_masks > 0:
+            embed = self._slot_embedding(0, out)
+            if embed is not None:
+                out[0] = embed
+        return out
+
+    def on_token_committed(self, new_embed, prev_embed):
+        self.base.on_token_committed(new_embed, prev_embed)
+
+
+class KalmanMaskProvider:
+    """Scalar random-walk Kalman update of the mask level. Protocol `kalman-mask-scalar-v1`.
+
+    One shared variance, not a per-dimension or higher-order covariance:
+    predict m, P+q; correct with K = P-/(P-+R) on the committed embedding.
+    `online` reestimates scalar q, r from the innovation (Sage-Husa). `frozen`
+    keeps the gain from the end of the prompt. This is not the affine residual.
+    """
+    needs_hidden = False
+    PROTOCOLS = {'online': 'kalman-mask-scalar-v1', 'frozen': 'kalman-mask-frozen-k-v1'}
+
+    def __init__(self, num_masks, embedding_table, mode='online', forget=0.95,
+                 r_min=1e-6, q_min=1e-8, q_scale=0.01, generator=None):
+        if mode not in self.PROTOCOLS:
+            raise ValueError('kalman mode must be online or frozen')
+        if isinstance(forget, bool) or not isinstance(forget, (int, float)) or not 0 < float(forget) <= 1:
+            raise ValueError('kalman forget must be in (0, 1]')
+        for name, value in (('r_min', r_min), ('q_min', q_min), ('q_scale', q_scale)):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or float(value) <= 0:
+                raise ValueError(f'kalman {name} must be a positive number')
+        self.num_masks = int(num_masks)
+        self.embedding_table = embedding_table
+        self.mode = mode
+        self.protocol = self.PROTOCOLS[mode]
+        self.forget = float(forget)
+        self.r_min = float(r_min)
+        self.q_min = float(q_min)
+        self.q_scale = float(q_scale)
+        self.generator = generator
+        self._level = None
+        self._p = self._q = self._r = self._k = 0.0
+        self._t = 0
+        self._locked = False
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        if generator is not None:
+            self.generator = generator
+        if prompt_embeds.size(0) < 1:
+            raise ValueError('kalman mask needs a prompt embedding')
+        level = prompt_embeds.mean(dim=0).clone()
+        variance = float((prompt_embeds - level).float().pow(2).mean().clamp_min(self.r_min))
+        self._level = level
+        self._r = variance
+        self._q = max(variance * self.q_scale, self.q_min)
+        self._p = variance
+        self._t = 0
+        self._locked = False
+        self._k = 0.0
+        for index in range(prompt_embeds.size(0)):
+            self._step(prompt_embeds[index])
+        if self.mode == 'frozen':
+            self._locked = True
+
+    def _step(self, observation):
+        predicted = self._p + self._q
+        error = observation - self._level
+        innov = float(error.float().pow(2).mean())
+        gain = predicted / (predicted + self._r)
+        if self._locked:
+            gain = self._k
+        self._level = self._level + error * gain
+        if self._locked:
+            return
+        self._k = gain
+        self._p = (1.0 - gain) ** 2 * predicted + gain ** 2 * self._r
+        if self.mode == 'online' and self.forget < 1.0:
+            self._t += 1
+            delta = (1.0 - self.forget) / (1.0 - self.forget ** (self._t + 1))
+            self._r = max((1.0 - delta) * self._r + delta * (innov - predicted), self.r_min)
+            self._q = max((1.0 - delta) * self._q + delta * (gain * gain * innov), self.q_min)
+
+    def on_token_committed(self, new_embed, prev_embed):
+        del prev_embed
+        self._step(new_embed)
+
+    def masks(self):
+        level = self._level
+        assert level is not None
+        return level.unsqueeze(0).expand(self.num_masks, level.shape[-1]).clone()
+
+    def diagnostics(self):
+        phi = self._q / self._r
+        root = (phi + (phi * phi + 4.0 * phi) ** 0.5) / 2.0
+        return {'k': self._k, 'q': self._q, 'r': self._r, 'p': self._p,
+                'phi': phi, 'prop8_beta_star': 1.0 / (1.0 + root)}
+
+
+class VerifyCorrectionMaskProvider:
+    """m = m_hat + K(z - m_hat) on slot 0. z is the last committed embedding.
+
+    K is supplied by an offline fit. `reject_token` instead copies z into slot 0
+    only after a decode round that committed one token. Online updates are the
+    scalar least squares continued from that fit, not a new Kalman recursion.
+    """
+    needs_hidden = False
+
+    def __init__(self, base, kind, payload=None, online=False):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('verify correction wraps input-embedding providers only')
+        if kind not in ('scalar', 'diagonal', 'affine', 'lowrank', 'reject_token'):
+            raise ValueError('correction kind must be scalar, diagonal, affine, lowrank or reject_token')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.kind = kind
+        self.online = bool(online)
+        if self.online and kind not in ('scalar', 'affine', 'lowrank'):
+            raise ValueError('online correction is scalar, affine or lowrank')
+        payload = dict(payload or {})
+        self._k = self._num = self._den = None
+        self._diag = self._A = self._b = None
+        self._U = self._V = self._U0 = self._V0 = None
+        self._delta0 = self._error0 = self._extra_delta = self._extra_error = None
+        self._rank = None
+        self._ridge = None
+        self._gram = self._rhs = self._gram0 = self._rhs0 = self._A0 = self._b0 = None
+        if kind == 'scalar':
+            self._k = float(payload['k'])
+            self._num = float(payload.get('num', 0.0))
+            self._den = float(payload.get('den', 0.0))
+        elif kind == 'diagonal':
+            self._diag = torch.tensor(payload['k'], dtype=torch.float32)
+        elif kind == 'affine':
+            self._A = torch.tensor(payload['A'], dtype=torch.float32)
+            self._b = torch.tensor(payload['b'], dtype=torch.float32)
+            self._ridge = float(payload['ridge']) if 'ridge' in payload else None
+            if self.online:
+                self._gram0 = torch.tensor(payload['gram'], dtype=torch.float64)
+                self._rhs0 = torch.tensor(payload['rhs'], dtype=torch.float64)
+                self._A0 = self._A.clone()
+                self._b0 = self._b.clone()
+                self._gram = self._gram0.clone()
+                self._rhs = self._rhs0.clone()
+        elif kind == 'lowrank':
+            self._U = torch.as_tensor(payload['U'], dtype=torch.float32)
+            self._V = torch.as_tensor(payload['V'], dtype=torch.float32)
+            self._b = torch.as_tensor(payload['b'], dtype=torch.float32)
+            self._rank = int(payload['rank'])
+            self._ridge = float(payload['ridge'])
+            if self.online:
+                self._U0, self._V0, self._b0 = self._U.clone(), self._V.clone(), self._b.clone()
+                self._delta0 = torch.as_tensor(payload['delta'], dtype=torch.float32)
+                self._error0 = torch.as_tensor(payload['error'], dtype=torch.float32)
+        self._z = None
+        self._round_commits = 0
+        self._masks_calls = 0
+        self._pending = None
+        self._online_updates = 0
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        self._z = None
+        self._round_commits = 0
+        self._masks_calls = 0
+        self._pending = None
+        self._online_updates = 0
+        if self._gram0 is not None:
+            rhs0, a0, b0 = self._rhs0, self._A0, self._b0
+            assert rhs0 is not None and a0 is not None and b0 is not None
+            self._gram = self._gram0.clone()
+            self._rhs = rhs0.clone()
+            self._A = a0.clone()
+            self._b = b0.clone()
+        if self._U0 is not None:
+            v0, b0 = self._V0, self._b0
+            assert v0 is not None and b0 is not None
+            self._U, self._V, self._b = self._U0.clone(), v0.clone(), b0.clone()
+            self._extra_delta = self._extra_error = None
+
+    def on_token_committed(self, new_embed, prev_embed):
+        if self._pending is not None and self.online and self._round_commits == 0:
+            mhat, zed = self._pending
+            error = (new_embed - mhat).float()
+            delta = (zed - mhat).float()
+            if self.kind == 'scalar':
+                num, den = self._num, self._den
+                assert num is not None and den is not None
+                self._num = num + float((error * delta).sum())
+                self._den = den + float((delta * delta).sum())
+                self._k = self._num / max(self._den, 1e-12)
+            elif self.kind == 'lowrank':
+                row_d = delta.float().reshape(1, -1)
+                row_e = error.float().reshape(1, -1)
+                self._extra_delta = row_d if self._extra_delta is None else torch.cat([self._extra_delta, row_d])
+                self._extra_error = row_e if self._extra_error is None else torch.cat([self._extra_error, row_e])
+                delta0, error0 = self._delta0, self._error0
+                assert delta0 is not None and error0 is not None
+                delta_fit = delta0 if self._extra_delta is None else torch.cat([delta0, self._extra_delta])
+                error_fit = error0 if self._extra_error is None else torch.cat([error0, self._extra_error])
+                self._U, self._V, self._b = _als_lowrank(delta_fit, error_fit, self._rank, self._ridge, iters=1, v_init=self._V)
+            else:
+                row = torch.cat([delta.double(), delta.new_ones(1).double()])
+                gram, rhs = self._gram, self._rhs
+                assert gram is not None and rhs is not None
+                self._gram = gram + row[:, None] * row[None, :]
+                self._rhs = rhs + row[:, None] * error.double()[None, :]
+                eye = torch.eye(self._gram.shape[0], dtype=torch.float64)
+                if self._ridge is None:
+                    penalty = 1e-8 * eye
+                else:
+                    eye[-1, -1] = 0.0
+                    penalty = self._ridge * eye
+                solution = torch.linalg.solve(self._gram + penalty, self._rhs)
+                self._A = solution[:-1].T.float()
+                self._b = solution[-1].float()
+            self._online_updates += 1
+            self._pending = None
+        self.base.on_token_committed(new_embed, prev_embed)
+        self._z = new_embed.detach()
+        self._round_commits += 1
+
+    def _corrected(self, mhat):
+        observed = self._z
+        assert observed is not None
+        delta = observed.to(device=mhat.device, dtype=mhat.dtype) - mhat
+        if self.kind == 'scalar':
+            return mhat + delta * mhat.new_tensor(self._k)
+        if self.kind == 'diagonal':
+            diag = self._diag
+            assert diag is not None
+            return mhat + delta * diag.to(device=mhat.device, dtype=mhat.dtype)
+        if self.kind == 'lowrank':
+            left_v, right_u, bias = self._V, self._U, self._b
+            assert left_v is not None and right_u is not None and bias is not None
+            left = left_v.to(device=mhat.device, dtype=mhat.dtype)
+            right = right_u.to(device=mhat.device, dtype=mhat.dtype)
+            bias = bias.to(device=mhat.device, dtype=mhat.dtype)
+            return mhat + (delta @ left) @ right.T + bias
+        weight, bias = self._A, self._b
+        assert weight is not None and bias is not None
+        return mhat + delta @ weight.to(device=mhat.device, dtype=mhat.dtype).T + bias.to(device=mhat.device, dtype=mhat.dtype)
+
+    def masks(self):
+        out = self.base.masks().clone()
+        if self.kind == 'reject_token':
+            if self._masks_calls >= 2 and self._round_commits == 1 and self._z is not None:
+                out[0] = self._z.to(dtype=out.dtype, device=out.device)
+        elif self._z is not None and self._masks_calls >= 1:
+            mhat = out[0]
+            out[0] = self._corrected(mhat)
+            if self.online:
+                self._pending = (mhat.detach(), self._z.detach())
+        self._masks_calls += 1
+        self._round_commits = 0
+        return out
+
+    def diagnostics(self):
+        report: dict[str, Any] = {'online_updates': self._online_updates}
+        if self._A0 is not None:
+            weight = self._A
+            assert weight is not None
+            report['A_drift'] = float((weight.double() - self._A0.double()).pow(2).sum().sqrt())
+        if self._U0 is not None:
+            left, right, v0 = self._U, self._V, self._V0
+            assert left is not None and right is not None and v0 is not None
+            report['factor_drift'] = float((left - self._U0).pow(2).sum().sqrt() + (right - v0).pow(2).sum().sqrt())
+        return report
+
+
+def fit_mask_correction(m_hat, z, target, kind):
+    """Least squares for m = m_hat + K(z - m_hat), or plus a bias when affine."""
+    if kind not in ('scalar', 'diagonal', 'affine'):
+        raise ValueError('fit kind must be scalar, diagonal or affine')
+    delta = (z - m_hat).double()
+    error = (target - m_hat).double()
+    if delta.ndim != 2 or error.shape != delta.shape or delta.shape[0] < 2:
+        raise ValueError('correction fit needs at least two rows')
+    if not torch.isfinite(delta).all() or not torch.isfinite(error).all():
+        raise ValueError('correction fit inputs must be finite')
+    if kind == 'scalar':
+        num = (error * delta).sum()
+        den = (delta * delta).sum().clamp_min(1e-12)
+        return {'k': float(num / den), 'num': float(num), 'den': float(den)}
+    if kind == 'diagonal':
+        num = (error * delta).sum(dim=0)
+        den = (delta * delta).sum(dim=0).clamp_min(1e-12)
+        return {'k': (num / den).tolist()}
+    design = torch.cat([delta, torch.ones(delta.shape[0], 1, dtype=delta.dtype)], dim=1)
+    solution = torch.linalg.lstsq(design, error).solution
+    gram = design.T @ design
+    rhs = design.T @ error
+    return {'A': solution[:-1].T.tolist(), 'b': solution[-1].tolist(),
+            'gram': gram.tolist(), 'rhs': rhs.tolist()}
+
+
+RIDGE_GRID = tuple(10.0 ** exponent for exponent in range(-4, 5))
+
+
+def fit_affine_ridge(m_hat, z, target, ridge):
+    """Affine least squares with ridge on A only. The intercept column is unpenalized."""
+    delta = (z - m_hat).double()
+    error = (target - m_hat).double()
+    if delta.ndim != 2 or error.shape != delta.shape or delta.shape[0] < 2:
+        raise ValueError('correction fit needs at least two rows')
+    if not torch.isfinite(delta).all() or not torch.isfinite(error).all():
+        raise ValueError('correction fit inputs must be finite')
+    ridge = float(ridge)
+    if ridge <= 0.0:
+        raise ValueError('affine ridge must be positive')
+    design = torch.cat([delta, torch.ones(delta.shape[0], 1, dtype=delta.dtype)], dim=1)
+    gram = design.T @ design
+    rhs = design.T @ error
+    penalty = torch.eye(gram.shape[0], dtype=gram.dtype)
+    penalty[-1, -1] = 0.0
+    solution = torch.linalg.solve(gram + ridge * penalty, rhs)
+    return {'A': solution[:-1].T.tolist(), 'b': solution[-1].tolist(),
+            'gram': gram.tolist(), 'rhs': rhs.tolist(), 'ridge': ridge}
+
+
+def select_affine_ridge(blocks, seed, folds=5):
+    """Pick the ridge on prompt blocks. The score is replay MSE inside those blocks only."""
+    count = len(blocks)
+    if count < folds or folds < 2:
+        raise ValueError('ridge selection needs at least one prompt per fold')
+    order = torch.randperm(count, generator=torch.Generator().manual_seed(int(seed))).tolist()
+    sizes = [count // folds] * folds
+    for index in range(count % folds):
+        sizes[index] += 1
+    chunks, cursor = [], 0
+    for size in sizes:
+        chunks.append(order[cursor:cursor + size])
+        cursor += size
+    cv = []
+    for ridge in RIDGE_GRID:
+        squared = rows = 0.0
+        for held in chunks:
+            train = [blocks[index] for index in range(count) if index not in held]
+            val = [blocks[index] for index in held]
+            fit = fit_affine_ridge(*_stack_blocks(train), ridge)
+            squared += _affine_residual(*_stack_blocks(val), fit)
+            rows += sum(block[0].shape[0] for block in val)
+        cv.append({'ridge': ridge, 'mse': squared / rows})
+    chosen = min(cv, key=lambda item: (item['mse'], -item['ridge']))
+    fit = fit_affine_ridge(*_stack_blocks(blocks), chosen['ridge'])
+    fit['cv'] = cv
+    fit['rows'] = int(sum(block[0].shape[0] for block in blocks))
+    fit['prompts'] = count
+    return fit
+
+
+def _stack_blocks(blocks) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    return (
+        torch.cat([block[0] for block in blocks], dim=0),
+        torch.cat([block[1] for block in blocks], dim=0),
+        torch.cat([block[2] for block in blocks], dim=0),
+    )
+
+
+def fit_lowrank_ridge(m_hat, z, target, rank, ridge, iters=8):
+    """Low-rank map m = m_hat + U V^T (z - m_hat) + b. Ridge penalizes U and V, not b."""
+    delta = (z - m_hat).float()
+    error = (target - m_hat).float()
+    rank = int(rank)
+    ridge = float(ridge)
+    if delta.ndim != 2 or error.shape != delta.shape or delta.shape[0] < 2:
+        raise ValueError('correction fit needs at least two rows')
+    if rank < 1 or rank >= delta.shape[1] or ridge <= 0.0 or int(iters) < 1:
+        raise ValueError('low-rank fit needs a positive rank below the hidden size and a positive ridge')
+    if not torch.isfinite(delta).all() or not torch.isfinite(error).all():
+        raise ValueError('correction fit inputs must be finite')
+    left, right, bias = _als_lowrank(delta, error, rank, ridge, int(iters))
+    return {'U': left.cpu().tolist(), 'V': right.cpu().tolist(), 'b': bias.cpu().tolist(),
+            'rank': rank, 'ridge': ridge, 'delta': delta.cpu(), 'error': error.cpu()}
+
+
+def select_lowrank_ridge(blocks, rank, seed, folds=5, iters=8, insample=False):
+    """Pick the ridge on prompt blocks. Eval blocks are not an argument."""
+    if insample:
+        scores = []
+        for ridge in RIDGE_GRID:
+            fit = fit_lowrank_ridge(*_stack_blocks(blocks), rank, ridge, iters)
+            scores.append({'ridge': ridge, 'mse': lowrank_replay_mse(*_stack_blocks(blocks), fit)})
+        chosen = min(scores, key=lambda item: (item['mse'], -item['ridge']))
+        fit = fit_lowrank_ridge(*_stack_blocks(blocks), rank, chosen['ridge'], iters)
+        fit['cv'] = scores
+        fit['rows'] = int(sum(block[0].shape[0] for block in blocks))
+        fit['prompts'] = len(blocks)
+        return fit
+    count = len(blocks)
+    if count < folds or folds < 2:
+        raise ValueError('ridge selection needs at least one prompt per fold')
+    order = torch.randperm(count, generator=torch.Generator().manual_seed(int(seed))).tolist()
+    sizes = [count // folds] * folds
+    for index in range(count % folds):
+        sizes[index] += 1
+    chunks, cursor = [], 0
+    for size in sizes:
+        chunks.append(order[cursor:cursor + size])
+        cursor += size
+    cv = []
+    for ridge in RIDGE_GRID:
+        squared = rows = 0.0
+        for held in chunks:
+            train = [blocks[index] for index in range(count) if index not in held]
+            val = [blocks[index] for index in held]
+            fit = fit_lowrank_ridge(*_stack_blocks(train), rank, ridge, iters)
+            squared += _lowrank_residual(*_stack_blocks(val), fit)
+            rows += sum(block[0].shape[0] for block in val)
+        cv.append({'ridge': ridge, 'mse': squared / rows})
+    chosen = min(cv, key=lambda item: (item['mse'], -item['ridge']))
+    fit = fit_lowrank_ridge(*_stack_blocks(blocks), rank, chosen['ridge'], iters)
+    fit['cv'] = cv
+    fit['rows'] = int(sum(block[0].shape[0] for block in blocks))
+    fit['prompts'] = count
+    return fit
+
+
+def lowrank_replay_mse(m_hat, z, target, fit):
+    return _lowrank_residual(m_hat, z, target, fit) / max(int(target.numel()), 1)
+
+
+def _lowrank_residual(m_hat, z, target, fit):
+    delta = (z - m_hat).float()
+    left = torch.tensor(fit['V'], dtype=torch.float32, device=delta.device)
+    right = torch.tensor(fit['U'], dtype=torch.float32, device=delta.device)
+    bias = torch.tensor(fit['b'], dtype=torch.float32, device=delta.device)
+    prediction = m_hat.float() + (delta @ left) @ right.T + bias
+    return float((prediction - target.float()).pow(2).sum())
+
+
+def _als_lowrank(delta, error, rank, ridge, iters, v_init=None):
+    if v_init is None:
+        _unused, _values, vh = torch.linalg.svd(delta, full_matrices=False)
+        right = vh[:rank].T.contiguous()
+    else:
+        right = v_init.to(device=delta.device, dtype=delta.dtype)
+    left = torch.zeros(delta.shape[1], rank, dtype=delta.dtype, device=delta.device)
+    bias = torch.zeros(delta.shape[1], dtype=delta.dtype, device=delta.device)
+    for _step in range(int(iters)):
+        left, bias = _solve_lowrank_output(delta, error, right, ridge)
+        right = _solve_lowrank_input(delta, error, left, bias, ridge)
+    return left, right, bias
+
+
+def _solve_lowrank_output(delta, error, right, ridge):
+    features = torch.cat([delta @ right, torch.ones(delta.shape[0], 1, dtype=delta.dtype, device=delta.device)], dim=1)
+    gram = features.T @ features
+    penalty = torch.eye(gram.shape[0], dtype=gram.dtype, device=gram.device)
+    penalty[-1, -1] = 0.0
+    solution = torch.linalg.solve(gram + float(ridge) * penalty, features.T @ error)
+    return solution[:-1].T.contiguous(), solution[-1]
+
+
+def _solve_lowrank_input(delta, error, left, bias, ridge):
+    target = (error - bias) @ left
+    gram_u = left.T @ left
+    target = target @ torch.linalg.inv(gram_u + 1e-8 * torch.eye(left.shape[1], dtype=gram_u.dtype, device=gram_u.device))
+    gram = delta.T @ delta
+    penalty = float(ridge) * torch.eye(gram.shape[0], dtype=gram.dtype, device=gram.device)
+    return torch.linalg.solve(gram + penalty, delta.T @ target)
+
+
+def _affine_residual(m_hat, z, target, fit):
+    delta = z.double() - m_hat.double()
+    weight = torch.tensor(fit['A'], dtype=torch.float64)
+    bias = torch.tensor(fit['b'], dtype=torch.float64)
+    error = m_hat.double() + delta @ weight.T + bias - target.double()
+    return float(error.pow(2).sum())
+
+
+class OnlineVerifyKalman:
+    """ESP prior plus one verify update per round. Protocol `online-trajectory-kalman-v1`.
+
+    Slot 0 becomes m_hat + K(z - m_hat). K, P, Q and R are per-dimension and
+    reset to fixed constants on every prompt. `trajectory` emits ESP.
+    `observation` keeps the verify update but replaces the prior with a random walk.
+    """
+    needs_hidden = False
+
+    def __init__(self, base, part='full', forget=0.95, p0=1.0, q0=0.01, r0=1.0,
+                 r_min=1e-6, q_min=1e-8):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('online kalman wraps input-embedding providers only')
+        if part not in ('full', 'trajectory', 'observation'):
+            raise ValueError('online kalman part must be full, trajectory or observation')
+        if isinstance(forget, bool) or not isinstance(forget, (int, float)) or not 0 < float(forget) <= 1:
+            raise ValueError('online kalman forget must be in (0, 1]')
+        for name, value in (('p0', p0), ('q0', q0), ('r0', r0), ('r_min', r_min), ('q_min', q_min)):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or float(value) <= 0:
+                raise ValueError(f'online kalman {name} must be a positive number')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.part = part
+        self.protocol = 'online-trajectory-kalman-v1'
+        self.forget = float(forget)
+        self.p0 = float(p0)
+        self.q0 = float(q0)
+        self.r0 = float(r0)
+        self.r_min = float(r_min)
+        self.q_min = float(q_min)
+        self._p = self._q = self._r = None
+        self._z = self._x = None
+        self._pending = None
+        self._t = 0
+        self._seen = False
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        width = prompt_embeds.shape[-1]
+        state = {'device': prompt_embeds.device, 'dtype': torch.float32}
+        self._p = torch.full((width,), self.p0, **state)
+        self._q = torch.full((width,), self.q0, **state)
+        self._r = torch.full((width,), self.r0, **state)
+        self._z = None
+        self._x = torch.zeros(width, **state)
+        self._pending = None
+        self._t = 0
+        self._seen = False
+
+    def masks(self):
+        out = self.base.masks().clone()
+        if self.part == 'trajectory':
+            self._pending = None
+            return out
+        prior = out[0].detach().to(dtype=torch.float32).clone()
+        if self.part == 'observation':
+            prior = self._x
+        variance, process, noise = self._p, self._q, self._r
+        assert variance is not None and process is not None and noise is not None
+        p_pred = variance + process
+        gain = p_pred / (p_pred + noise)
+        if self.part == 'full' and self._z is not None:
+            out[0] = (prior + gain * (self._z - prior)).to(dtype=out.dtype)
+        elif self.part == 'observation' and self._seen:
+            out[0] = prior.to(dtype=out.dtype)
+        self._pending = (prior, p_pred, gain)
+        return out
+
+    def on_token_committed(self, new_embed, prev_embed):
+        self.base.on_token_committed(new_embed, prev_embed)
+        if self.part == 'trajectory' or self._pending is None:
+            return
+        prior, p_pred, gain = self._pending
+        observed = new_embed.detach().to(device=prior.device, dtype=torch.float32).reshape(-1)
+        innov = observed - prior
+        innov2 = innov * innov
+        variance, process, noise = self._p, self._q, self._r
+        assert variance is not None and process is not None and noise is not None
+        self._p = (1.0 - gain) ** 2 * p_pred + gain ** 2 * noise
+        self._t += 1
+        delta = (1.0 - self.forget) / (1.0 - self.forget ** (self._t + 1))
+        self._r = torch.clamp((1.0 - delta) * noise + delta * (innov2 - p_pred), min=self.r_min)
+        self._q = torch.clamp((1.0 - delta) * process + delta * (gain * gain * innov2), min=self.q_min)
+        if self.part == 'full':
+            self._z = observed
+        else:
+            self._x = prior + gain * innov
+            self._seen = True
+        self._pending = None
+
+    def diagnostics(self):
+        variance, process, noise = self._p, self._q, self._r
+        assert variance is not None and process is not None and noise is not None
+        return {'part': self.part, 'updates': self._t,
+                'p_mean': float(variance.mean()), 'q_mean': float(process.mean()),
+                'r_mean': float(noise.mean())}
+
+
+class AlignedResidualKalman:
+    """Scalar correlation on aligned residuals. Protocol `online-aligned-kalman-v1`.
+
+    The carried state is F, not a per-dimension embedding gain. The innovation is
+    y - m_hat at the same round. R is updated from that cosine and does not
+    subtract P. Slot 0 is m_hat + F * previous residual.
+    """
+    needs_hidden = False
+
+    def __init__(self, base, part='full', forget=0.95, p0=1.0, q0=0.01, r0=1.0,
+                 r_min=1e-3, q_min=1e-6):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('aligned kalman wraps input-embedding providers only')
+        if part not in ('full', 'trajectory', 'observation'):
+            raise ValueError('aligned kalman part must be full, trajectory or observation')
+        if isinstance(forget, bool) or not isinstance(forget, (int, float)) or not 0 < float(forget) <= 1:
+            raise ValueError('aligned kalman forget must be in (0, 1]')
+        for name, value in (('p0', p0), ('q0', q0), ('r0', r0), ('r_min', r_min), ('q_min', q_min)):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or float(value) <= 0:
+                raise ValueError(f'aligned kalman {name} must be a positive number')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.part = part
+        self.protocol = 'online-aligned-kalman-v1'
+        self.forget = float(forget)
+        self.p0 = float(p0)
+        self.q0 = float(q0)
+        self.r0 = float(r0)
+        self.r_min = float(r_min)
+        self.q_min = float(q_min)
+        self._f = 0.0
+        self._p = self._q = self._r = 0.0
+        self._nu = None
+        self._state = None
+        self._seen = False
+        self._pending = None
+        self._t = 0
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        self._f = 0.0
+        self._p = self.p0
+        self._q = self.q0
+        self._r = self.r0
+        self._nu = None
+        self._state = torch.zeros(prompt_embeds.shape[-1], device=prompt_embeds.device, dtype=torch.float32)
+        self._seen = False
+        self._pending = None
+        self._t = 0
+
+    def masks(self):
+        out = self.base.masks().clone()
+        prior = out[0].detach().to(dtype=torch.float32).clone()
+        if self.part == 'observation' and self._seen:
+            state = self._state
+            assert state is not None
+            prior = state
+            out[0] = prior.to(dtype=out.dtype)
+        elif self.part == 'full' and self._nu is not None:
+            out[0] = (prior + self._f * self._nu).to(dtype=out.dtype)
+        self._pending = prior
+        return out
+
+    def on_token_committed(self, new_embed, prev_embed):
+        self.base.on_token_committed(new_embed, prev_embed)
+        if self.part == 'trajectory' or self._pending is None:
+            return
+        prior = self._pending
+        observed = new_embed.detach().to(device=prior.device, dtype=torch.float32).reshape(-1)
+        residual = observed - prior
+        if self._nu is not None:
+            denom = float(residual.norm() * self._nu.norm())
+            cosine = float(torch.dot(residual, self._nu) / denom) if denom else 0.0
+            predicted = self._p + self._q
+            gain = predicted / (predicted + self._r)
+            before = self._f
+            updated = before + gain * (cosine - before)
+            self._f = min(1.0, max(-1.0, updated))
+            self._p = (1.0 - gain) ** 2 * predicted + gain ** 2 * self._r
+            self._t += 1
+            weight = (1.0 - self.forget) / (1.0 - self.forget ** (self._t + 1))
+            gap = cosine - before
+            self._r = max((1.0 - weight) * self._r + weight * gap * gap, self.r_min)
+            step = self._f - before
+            self._q = max((1.0 - weight) * self._q + weight * step * step, self.q_min)
+        self._nu = residual
+        if self.part == 'observation':
+            if self._seen:
+                self._state = self._state + self._f * (observed - self._state)
+            else:
+                self._state = observed.clone()
+                self._seen = True
+        self._pending = None
+
+    def diagnostics(self):
+        return {'part': self.part, 'updates': self._t, 'f': self._f, 'p': self._p,
+                'q': self._q, 'r': self._r}
+
+
+def calibrate_diagonal_gain(m_hat, z, target, q_ratio=0.01):
+    """Diagonal K and its noise prior. P is the least-squares variance, not 1."""
+    delta = (z - m_hat).double()
+    error = (target - m_hat).double()
+    if delta.ndim != 2 or error.shape != delta.shape or delta.shape[0] < 2:
+        raise ValueError('gain calibration needs at least two rows')
+    if not torch.isfinite(delta).all() or not torch.isfinite(error).all():
+        raise ValueError('gain calibration inputs must be finite')
+    q_ratio = float(q_ratio)
+    if q_ratio <= 0.0:
+        raise ValueError('gain calibration q_ratio must be positive')
+    den = (delta * delta).sum(dim=0).clamp_min(1e-8)
+    gain = (error * delta).sum(dim=0) / den
+    residual = error - gain * delta
+    noise = residual.pow(2).mean(dim=0).clamp_min(1e-12)
+    variance = noise / den
+    return {'k': gain.float().tolist(), 'p': variance.float().tolist(),
+            'r': noise.float().tolist(), 'q': (variance * q_ratio).float().tolist(),
+            'rows': int(delta.shape[0])}
+
+
+class HybridGainKalman:
+    """m = m_hat + K(z - m_hat), with K updated from the verify residual.
+
+    `hybrid` starts from a calibrated K and from P, Q, R in residual units.
+    `scratch` starts at K=0, P=R=1. `frozen` keeps the calibrated K.
+    `trajectory` emits ESP. `opened` multiplies the calibrated P and Q by
+    `boost` so one prompt can move K. `branch` keeps the ESP mask and stores
+    the corrected embedding for an extra depth-1 draft. `replace` uses that
+    same embedding, then swaps it into the weakest depth-1 leaf so the node
+    count stays equal to the ESP tree.
+    """
+    needs_hidden = False
+
+    def __init__(self, base, mode='hybrid', payload=None):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('hybrid gain wraps input-embedding providers only')
+        if mode not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch', 'replace'):
+            raise ValueError('hybrid gain mode must be hybrid, scratch, frozen, trajectory, opened, branch or replace')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.mode = mode
+        self.protocol = 'hybrid-gain-kalman-v1'
+        payload = dict(payload or {})
+        self._given = payload
+        self._boost = 1.0
+        self._k0 = self._p0 = self._r0 = self._q0 = None
+        self._k = self._p = self._r = self._q = None
+        self._z = None
+        self._pending = None
+        self._probe = None
+        self._extra = None
+        self._weight_sum = 0.0
+        self._weight_n = 0
+        self.extra_added = 0
+        self.extra_present = 0
+        self.max_nodes = 0
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        width = prompt_embeds.shape[-1]
+        state = {'device': prompt_embeds.device, 'dtype': torch.float32}
+        if self.mode == 'scratch':
+            k0 = torch.zeros(width, **state)
+            p0 = torch.ones(width, **state)
+            r0 = torch.ones(width, **state)
+            q0 = torch.full((width,), 0.01, **state)
+        elif self.mode == 'trajectory':
+            k0 = torch.zeros(width, **state)
+            p0 = r0 = q0 = k0.clone()
+        else:
+            loaded: dict[str, torch.Tensor] = {}
+            for name in ('k', 'p', 'r', 'q'):
+                value = torch.as_tensor(self._given[name], dtype=torch.float32, device=prompt_embeds.device)
+                if value.shape != (width,):
+                    raise ValueError(f'hybrid gain {name} must have shape {(width,)}')
+                loaded[name] = value
+            k0, p0, r0, q0 = loaded['k'], loaded['p'], loaded['r'], loaded['q']
+            if self.mode == 'opened':
+                boost = self._given.get('boost')
+                if isinstance(boost, bool) or not isinstance(boost, (int, float)) or float(boost) < 1.0:
+                    raise ValueError('opened hybrid gain needs boost >= 1')
+                self._boost = float(boost)
+                p0 = p0 * self._boost
+                q0 = q0 * self._boost
+        self._k0, self._p0, self._r0, self._q0 = k0, p0, r0, q0
+        self._k = k0.clone()
+        self._p = p0.clone()
+        self._r = r0.clone()
+        self._q = q0.clone()
+        self._z = None
+        self._pending = None
+        self._probe = None
+        self._extra = None
+        self._weight_sum = 0.0
+        self._weight_n = 0
+
+    def masks(self):
+        out = self.base.masks().clone()
+        prior = out[0].detach().to(dtype=torch.float32).clone()
+        self._probe = None
+        observed = self._z
+        if self.mode != 'trajectory' and observed is not None:
+            gain = self._k
+            assert gain is not None
+            correction = gain * (observed - prior)
+            corrected = prior + correction
+            if self.mode in ('branch', 'replace'):
+                self._probe = corrected.to(dtype=out.dtype)
+            else:
+                out[0] = corrected.to(dtype=out.dtype)
+                if self.mode != 'frozen':
+                    self._pending = (prior, observed, gain.clone())
+        return out
+
+    def on_token_committed(self, new_embed, prev_embed):
+        self.base.on_token_committed(new_embed, prev_embed)
+        observed = new_embed.detach().to(dtype=torch.float32).reshape(-1)
+        if self._pending is not None:
+            prior, zed, gain = self._pending
+            regressor = zed - prior
+            innov = (observed - prior) - gain * regressor
+            variance, process, noise = self._p, self._q, self._r
+            assert variance is not None and process is not None and noise is not None
+            predicted = variance + process
+            scale = noise + predicted * regressor * regressor
+            step = predicted * regressor / scale
+            self._weight_sum += float((step * regressor).mean())
+            self._weight_n += 1
+            self._k = gain + step * innov
+            self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * noise
+            self._pending = None
+        if self.mode != 'trajectory':
+            gain = self._k
+            assert gain is not None
+            self._z = observed.to(device=gain.device)
+
+    def consume_probe(self):
+        embed = self._probe
+        self._probe = None
+        return embed
+
+    def note_extra(self, token):
+        self._extra = int(token)
+
+    def take_extra_branch(self):
+        token = self._extra
+        self._extra = None
+        return token
+
+    @property
+    def extra_edit(self):
+        return 'replace' if self.mode == 'replace' else 'append'
+
+    def record_branch(self, added, num_nodes=None):
+        if added:
+            self.extra_added += 1
+        else:
+            self.extra_present += 1
+        if num_nodes is not None:
+            self.max_nodes = max(self.max_nodes, int(num_nodes))
+
+    def diagnostics(self):
+        gain, variance, noise, process, gain0 = self._k, self._p, self._r, self._q, self._k0
+        assert gain is not None and variance is not None and noise is not None and process is not None and gain0 is not None
+        delta = (gain - gain0).abs()
+        ratio = variance / noise.clamp_min(1e-12)
+        return {'mode': self.mode, 'k_mean': float(gain.mean()), 'p_mean': float(variance.mean()),
+                'r_mean': float(noise.mean()), 'q_mean': float(process.mean()),
+                'k_abs_delta': float(delta.mean()), 'p_over_r': float(ratio.mean()),
+                'weight_mean': None if self._weight_n == 0 else self._weight_sum / self._weight_n,
+                'extra_added': self.extra_added, 'extra_present': self.extra_present,
+                'max_nodes': self.max_nodes}
+
+
+class OutputHiddenHybridKalman:
+    """Diagonal Kalman correction on the output-hidden trajectory.
+
+    The correction is applied in FP32 before the norm map. `hybrid` starts
+    from a calibrated prior and multiplies P and Q by `boost`. `scratch`
+    starts at K=0. `frozen` keeps K. `trajectory` and `collect` emit the
+    uncorrected trajectory; `collect` records root pairs for calibration.
+    """
+
+    needs_hidden = True
+    protocol = 'output-hidden-hybrid-kalman-v1'
+
+    def __init__(self, base, mode='hybrid', payload=None):
+        if not isinstance(base, OutputHiddenMaskProvider):
+            raise ValueError('output hidden kalman wraps an output hidden trajectory')
+        if mode not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'collect'):
+            raise ValueError('output kalman mode must be hybrid, scratch, frozen, trajectory or collect')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.mode = mode
+        self._given = dict(payload or {})
+        self._boost = 1.0
+        self._k0 = self._p0 = self._r0 = self._q0 = None
+        self._k = self._p = self._r = self._q = None
+        self._reset_counts()
+
+    @property
+    def scale(self):
+        return self.base.scale
+
+    def _reset_counts(self):
+        self._current = []
+        self._wait = None
+        self._weight_sum = 0.0
+        self._weight_n = 0
+        self._root_err = self._root_base = 0.0
+        self._deep_err = self._deep_base = 0.0
+        self._root_n = self._deep_n = 0
+        self._pair_h, self._pair_z, self._pair_y = [], [], []
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        width = prompt_embeds.shape[-1]
+        state = {'device': prompt_embeds.device, 'dtype': torch.float32}
+        if self.mode in ('scratch', 'trajectory', 'collect'):
+            k0 = torch.zeros(width, **state)
+            p0 = torch.ones(width, **state)
+            r0 = torch.ones(width, **state)
+            q0 = torch.full((width,), 0.01, **state)
+        else:
+            loaded: dict[str, torch.Tensor] = {}
+            for name in ('k', 'p', 'r', 'q'):
+                value = torch.as_tensor(self._given[name], dtype=torch.float32, device=prompt_embeds.device)
+                if value.shape != (width,) or not torch.isfinite(value).all():
+                    raise ValueError(f'output kalman {name} must be a finite vector of width {width}')
+                loaded[name] = value
+            k0, p0, r0, q0 = loaded['k'], loaded['p'], loaded['r'], loaded['q']
+            if self.mode == 'hybrid':
+                boost = self._given.get('boost')
+                if isinstance(boost, bool) or not isinstance(boost, (int, float)) or float(boost) < 1.0:
+                    raise ValueError('hybrid output kalman needs boost >= 1')
+                self._boost = float(boost)
+                p0 = p0 * self._boost
+                q0 = q0 * self._boost
+        self._k0, self._p0, self._r0, self._q0 = k0, p0, r0, q0
+        self._k = k0.clone()
+        self._p = p0.clone()
+        self._r = r0.clone()
+        self._q = q0.clone()
+        self._reset_counts()
+
+    def masks(self):
+        return self.base.masks()
+
+    def init_hidden(self, prompt_hidden):
+        self.base.init_hidden(prompt_hidden)
+
+    def observe_committed(self, hidden):
+        self.base.observe_committed(hidden)
+
+    def masks_per_owner(self, proxy_hiddens):
+        slots, observations = self.base.trajectory(proxy_hiddens)
+        corrected = slots
+        gain = self._k
+        assert gain is not None
+        if self.mode in ('hybrid', 'scratch', 'frozen'):
+            corrected = slots + (observations.unsqueeze(1) - slots) * gain.view(1, 1, -1)
+        self._current = []
+        for owner in range(corrected.shape[0]):
+            self._current.append({
+                'h': slots[owner, 0].detach().clone(),
+                'z': observations[owner].detach().clone(),
+                'c': corrected[owner, 0].detach().clone(),
+                'k': gain.detach().clone(),
+            })
+        return self.base._map_hidden_slots(corrected)
+
+    def note_block_hiddens(self, root_hidden, accepted_hiddens):
+        root = root_hidden.detach().float().reshape(-1)
+        accepted = [hidden.detach().float().reshape(-1) for hidden in accepted_hiddens]
+        if self._wait is not None:
+            kind, prediction = self._wait
+            self._wait = None
+            self._score(kind, prediction, root)
+        current = self._current
+        if not current:
+            return
+        if accepted:
+            self._score('root', current[0], accepted[0])
+        else:
+            self._wait = ('root', current[0])
+        reached = len(accepted)
+        for owner in range(1, len(current)):
+            if owner < reached:
+                self._score('deep', current[owner], accepted[owner])
+            elif owner == reached:
+                self._wait = ('deep', current[owner])
+            else:
+                break
+
+    def _score(self, kind, prediction, target):
+        if target.shape != prediction['h'].shape or not torch.isfinite(target).all():
+            raise ValueError('output hidden target must be a finite vector of the hidden width')
+        base = float((prediction['h'] - target).pow(2).mean())
+        error = float((prediction['c'] - target).pow(2).mean())
+        if kind == 'root':
+            self._root_base += base
+            self._root_err += error
+            self._root_n += 1
+            if self.mode == 'collect':
+                self._pair_h.append(prediction['h'].detach().cpu())
+                self._pair_z.append(prediction['z'].detach().cpu())
+                self._pair_y.append(target.detach().cpu())
+            if self.mode in ('hybrid', 'scratch'):
+                self._update(prediction, target)
+        else:
+            self._deep_base += base
+            self._deep_err += error
+            self._deep_n += 1
+
+    def _update(self, prediction, target):
+        gain = prediction['k']
+        regressor = prediction['z'] - prediction['h']
+        innov = (target - prediction['h']) - gain * regressor
+        variance, process, noise = self._p, self._q, self._r
+        assert variance is not None and process is not None and noise is not None
+        predicted = variance + process
+        scale = noise + predicted * regressor * regressor
+        step = predicted * regressor / scale
+        self._weight_sum += float((step * regressor).mean())
+        self._weight_n += 1
+        self._k = gain + step * innov
+        self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * noise
+
+    def calibration_rows(self):
+        if not self._pair_h:
+            raise ValueError('output kalman has no calibration rows')
+        return {'h': torch.stack(self._pair_h), 'z': torch.stack(self._pair_z), 'y': torch.stack(self._pair_y)}
+
+    def diagnostics(self):
+        gain, variance, noise, process, gain0 = self._k, self._p, self._r, self._q, self._k0
+        assert gain is not None and variance is not None and noise is not None and process is not None and gain0 is not None
+        delta = (gain - gain0).abs()
+        ratio = variance / noise.clamp_min(1e-12)
+        def mean(total, count):
+            return None if count == 0 else total / count
+        return {'mode': self.mode, 'protocol': self.protocol, 'boost': self._boost,
+                'k_mean': float(gain.mean()), 'p_mean': float(variance.mean()),
+                'r_mean': float(noise.mean()), 'q_mean': float(process.mean()),
+                'k_abs_delta': float(delta.mean()), 'p_over_r': float(ratio.mean()),
+                'weight_mean': None if self._weight_n == 0 else self._weight_sum / self._weight_n,
+                'root_error': mean(self._root_err, self._root_n),
+                'root_base_error': mean(self._root_base, self._root_n),
+                'deep_error': mean(self._deep_err, self._deep_n),
+                'deep_base_error': mean(self._deep_base, self._deep_n),
+                'root_n': self._root_n, 'deep_n': self._deep_n}
+
+
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
+    observation = spec_cfg.get('observation')
+    bonus = spec_cfg.get('bonus_slot')
+    correction = spec_cfg.get('correction')
+    if correction is not None and (observation is not None or bonus is not None or str(spec_cfg.get('method', 'esp')).lower() == 'kalman'):
+        raise ValueError('correction does not combine with observation, bonus_slot or kalman')
+    if str(spec_cfg.get('method', 'esp')).lower() == 'kalman' and (observation is not None or bonus is not None):
+        raise ValueError('kalman does not combine with observation or bonus_slot')
+    merge = spec_cfg.get('kalman_merge')
+    align = spec_cfg.get('kalman_align')
+    hybrid = spec_cfg.get('hybrid_gain')
+    output_kalman = spec_cfg.get('output_kalman')
+    if merge is not None and align is not None:
+        raise ValueError('kalman_merge does not combine with kalman_align')
+    if merge is not None and (observation is not None or bonus is not None or correction is not None):
+        raise ValueError('kalman_merge does not combine with observation, bonus_slot or correction')
+    if align is not None and (observation is not None or bonus is not None or correction is not None):
+        raise ValueError('kalman_align does not combine with observation, bonus_slot or correction')
+    if hybrid is not None and (observation is not None or bonus is not None or correction is not None or merge is not None or align is not None):
+        raise ValueError('hybrid_gain does not combine with the other mask corrections')
+    if output_kalman is not None and (observation is not None or bonus is not None or correction is not None or merge is not None or align is not None or hybrid is not None):
+        raise ValueError('output_kalman does not combine with the other mask corrections')
+    if output_kalman is not None and str(spec_cfg.get('method', 'esp')).lower() != 'output_hidden':
+        raise ValueError('output_kalman wraps an output hidden trajectory')
+    if correction is not None:
+        if not isinstance(correction, dict) or correction.get('kind') not in ('scalar', 'diagonal', 'affine', 'lowrank', 'reject_token'):
+            raise ValueError('spec.correction kind must be scalar, diagonal, affine, lowrank or reject_token')
+        if not set(correction) <= {'kind', 'online', 'k', 'num', 'den', 'A', 'b', 'gram', 'rhs', 'ridge', 'U', 'V', 'rank', 'delta', 'error'}:
+            raise ValueError('spec.correction has an unknown field')
+        base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'correction'}
+        base = build_mask_provider(base_cfg, embedding_table, generator)
+        return VerifyCorrectionMaskProvider(base, correction['kind'], correction, online=bool(correction.get('online', False)))
+    if observation is not None and bonus is not None:
+        raise ValueError('bonus_slot does not combine with observation')
+    if bonus is not None:
+        if not isinstance(bonus, dict) or set(bonus) != {'mode'} or bonus.get('mode') not in ('hard', 'topk'):
+            raise ValueError('bonus_slot accepts only mode hard or topk')
+        widths = list((spec_cfg.get('tree') or {}).get('branches') or [])
+        if bonus['mode'] == 'topk' and (not widths or any(not isinstance(w, int) or isinstance(w, bool) or w <= 0 for w in widths)):
+            raise ValueError('topk bonus slot needs positive integer tree branch widths')
+        base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'bonus_slot'}
+        base = build_mask_provider(base_cfg, embedding_table, generator)
+        return BonusSlotMaskProvider(base, embedding_table, bonus['mode'], widths)
+    if merge is not None:
+        if str(spec_cfg.get('method', 'esp')).lower() != 'esp':
+            raise ValueError('kalman_merge wraps an ESP trajectory')
+        if not isinstance(merge, dict) or not set(merge) <= {'part', 'forget', 'p0', 'q0', 'r0', 'r_min', 'q_min'}:
+            raise ValueError('spec.kalman_merge has an unknown field')
+        base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'kalman_merge'}
+        base = build_mask_provider(base_cfg, embedding_table, generator)
+        return OnlineVerifyKalman(
+            base, part=merge.get('part', 'full'), forget=merge.get('forget', 0.95),
+            p0=merge.get('p0', 1.0), q0=merge.get('q0', 0.01), r0=merge.get('r0', 1.0),
+            r_min=merge.get('r_min', 1e-6), q_min=merge.get('q_min', 1e-8))
+    if align is not None:
+        if str(spec_cfg.get('method', 'esp')).lower() != 'esp':
+            raise ValueError('kalman_align wraps an ESP trajectory')
+        if not isinstance(align, dict) or not set(align) <= {'part', 'forget', 'p0', 'q0', 'r0', 'r_min', 'q_min'}:
+            raise ValueError('spec.kalman_align has an unknown field')
+        base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'kalman_align'}
+        base = build_mask_provider(base_cfg, embedding_table, generator)
+        return AlignedResidualKalman(
+            base, part=align.get('part', 'full'), forget=align.get('forget', 0.95),
+            p0=align.get('p0', 1.0), q0=align.get('q0', 0.01), r0=align.get('r0', 1.0),
+            r_min=align.get('r_min', 1e-3), q_min=align.get('q_min', 1e-6))
+    if hybrid is not None:
+        if str(spec_cfg.get('method', 'esp')).lower() != 'esp':
+            raise ValueError('hybrid_gain wraps an ESP trajectory')
+        if not isinstance(hybrid, dict) or hybrid.get('mode') not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch', 'replace'):
+            raise ValueError('spec.hybrid_gain mode must be hybrid, scratch, frozen, trajectory, opened, branch or replace')
+        allowed = {'mode', 'k', 'p', 'r', 'q', 'boost'}
+        if not set(hybrid) <= allowed:
+            raise ValueError('spec.hybrid_gain has an unknown field')
+        base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'hybrid_gain'}
+        base = build_mask_provider(base_cfg, embedding_table, generator)
+        return HybridGainKalman(base, hybrid['mode'], hybrid)
+    if observation is not None:
+        base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'observation'}
+        if 'gain' not in observation or not set(observation) <= {'gain', 'condition', 'form'}:
+            raise ValueError('spec.observation accepts only gain, condition and form')
+        base = build_mask_provider(base_cfg, embedding_table, generator)
+        return ObservationBlendMaskProvider(base, embedding_table, observation['gain'],
+                                            observation.get('condition', 'none'), observation.get('form', 'mean'))
     method = str(spec_cfg.get('method', 'esp')).lower()
     num_masks = int(spec_cfg.get('num_masks', 1))
     if method == 'esp':
@@ -283,6 +1579,14 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
             offset_scale=mask_cfg.get('offset_scale', 5.0),
             generator=generator,
         )
+    if method == 'kalman':
+        cfg = dict(spec_cfg.get('kalman') or {})
+        if not set(cfg) <= {'mode', 'forget', 'r_min', 'q_min', 'q_scale'}:
+            raise ValueError('spec.kalman accepts only mode, forget, r_min, q_min and q_scale')
+        return KalmanMaskProvider(
+            num_masks=num_masks, embedding_table=embedding_table, generator=generator,
+            mode=cfg.get('mode', 'online'), forget=cfg.get('forget', 0.95),
+            r_min=cfg.get('r_min', 1e-6), q_min=cfg.get('q_min', 1e-8), q_scale=cfg.get('q_scale', 0.01))
     if method == 'ema_velocity':
         ema_cfg = spec_cfg.get('ema', {})
         return EMAVelocityMaskProvider(
@@ -298,7 +1602,12 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
             generator=generator,
         )
     if method == 'output_hidden':
-
-
-        return OutputHiddenMaskProvider(num_masks, embedding_table, **dict(spec_cfg.get('output', {})))
+        provider = OutputHiddenMaskProvider(num_masks, embedding_table, **dict(spec_cfg.get('output', {})))
+        if output_kalman is None:
+            return provider
+        if not isinstance(output_kalman, dict) or output_kalman.get('mode') not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'collect'):
+            raise ValueError('spec.output_kalman mode must be hybrid, scratch, frozen, trajectory or collect')
+        if not set(output_kalman) <= {'mode', 'k', 'p', 'r', 'q', 'boost'}:
+            raise ValueError('spec.output_kalman has an unknown field')
+        return OutputHiddenHybridKalman(provider, output_kalman['mode'], output_kalman)
     raise ValueError(f'Unsupported spec.method: {method}')

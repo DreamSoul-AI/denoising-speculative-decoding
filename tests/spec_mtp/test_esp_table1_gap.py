@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-_spec = importlib.util.spec_from_file_location('esp_gap_readout', Path(__file__).resolve().parents[2] / 'tools/analyze_esp_table1_gap.py')
+_spec = importlib.util.spec_from_file_location('esp_gap_readout', Path(__file__).resolve().parents[2] / 'studies/_shared/structure/analyze_esp_table1_gap.py')
 gap = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gap)
 

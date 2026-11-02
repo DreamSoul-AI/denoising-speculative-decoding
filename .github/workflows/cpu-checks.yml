@@ -1,7 +1,7 @@
 # CPU correctness + smoke.
 # Work-branch pushes, PRs into dev/main, and the dev commit after a merge.
 # Same entry as local runs: python -m pytest tests/spec_mtp (see docs/testing.md).
-# RPipe is the vendored copy at src/rpipe (commit in src/rpipe/ORIGIN).
+# spec-mtp is the only console script. RPipe is an external template, not a package in this tree.
 # GPU model runs are not part of this workflow. This is not a release build.
 name: cpu-checks
 
@@ -55,24 +55,19 @@ jobs:
       - name: Lint (pyflakes errors only)
         run: |
           pip install "ruff==0.17.0"
-          ruff check src tests studies tools
+          ruff check src tests studies
 
       - name: Type check (mypy, files and tiers in pyproject.toml)
         run: |
           pip install "mypy==2.4.0" "types-PyYAML==6.0.12.20260906"
           mypy
 
-      - name: Check RPipe pin and entry points
+      - name: Check spec-mtp entry point
         run: |
           python - <<'PY'
           import importlib.metadata as m
-          from pathlib import Path
-          import rpipe
-          origin = Path(rpipe.__file__).resolve().parent / 'ORIGIN'
-          print('rpipe', rpipe.__file__, origin.read_text(encoding='utf-8').strip())
-          assert origin.is_file()
-          eps = {e.name: e.value for e in m.entry_points(group='console_scripts') if e.name in ('rpipe', 'spec-mtp')}
-          assert eps == {'rpipe': 'rpipe.flow.cli:main', 'spec-mtp': 'spec_mtp.cli:main'}, eps
+          eps = {e.name: e.value for e in m.entry_points(group='console_scripts') if e.name == 'spec-mtp'}
+          assert eps == {'spec-mtp': 'spec_mtp.cli:main'}, eps
           PY
 
       - name: Run spec_mtp tests

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-_spec = importlib.util.spec_from_file_location('esp_repeats', Path(__file__).resolve().parents[2] / 'tools/analyze_esp_repeat_roots.py')
+_spec = importlib.util.spec_from_file_location('esp_repeats', Path(__file__).resolve().parents[2] / 'studies/_shared/structure/analyze_esp_repeat_roots.py')
 repeats = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(repeats)
 

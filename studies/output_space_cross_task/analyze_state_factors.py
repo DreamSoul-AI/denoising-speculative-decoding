@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 from diagnose_output_windows import file_hash, margin
 
 
@@ -52,9 +52,9 @@ def main():
     assert manifest()['digest'] == new['source_digest'] == op['source_digest'] == '670c744e0535dcad'
     for name, r in (('old', previous), ('state', new), ('operator', op)):
         assert binding[name + '_tensor'] == r['raw_tensor_sha256']
-    assert file_hash(ROOT / 'tools/diagnose_q241_state_factors.py') == new['source_binding']['tool']
+    assert file_hash(ROOT / 'studies/_shared/structure/diagnose_q241_state_factors.py') == new['source_binding']['tool']
     assert file_hash(study / 'docs/STATE_FACTOR_PLAN.md') == new['source_binding']['plan']
-    assert file_hash(ROOT / 'tools/diagnose_q178_rounding_factors.py') == op['source_binding']['tool']
+    assert file_hash(ROOT / 'studies/_shared/structure/diagnose_q178_rounding_factors.py') == op['source_binding']['tool']
     assert file_hash(ROOT / 'studies/output_space_extension/docs/ROUNDING_FACTOR_PLAN.md') == op['source_binding']['plan']
     a = torch.load(paths['old_tensor'], weights_only=True, map_location='cpu', mmap=True)
     b = torch.load(paths['state_tensor'], weights_only=True, map_location='cpu', mmap=True)

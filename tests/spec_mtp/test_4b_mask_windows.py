@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def tool(name, monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT / 'tools'))
-    spec = importlib.util.spec_from_file_location(name, ROOT / 'tools' / f'{name}.py')
+    monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
+    spec = importlib.util.spec_from_file_location(name, ROOT / 'studies' / '_shared' / 'structure' / f'{name}.py')
     module = importlib.util.module_from_spec(spec)
     monkeypatch.setitem(sys.modules, name, module)
     spec.loader.exec_module(module)

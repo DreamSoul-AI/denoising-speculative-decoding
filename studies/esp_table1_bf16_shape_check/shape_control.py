@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 import torch
 from numerics import NumericsEval
-from rpipe.structure.algorithm.factory import AlgorithmRegistry
+from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
 
 def rowwise_linear(original, x):
     assert x.dtype == torch.bfloat16

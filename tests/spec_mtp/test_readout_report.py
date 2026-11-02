@@ -6,8 +6,8 @@ import json
 import pytest
 
 from conftest import cli
-from rpipe.structure.artifact import _atomic
-from rpipe.structure.artifact.readout.report import write_numbers
+from spec_mtp.structure.artifact import _atomic
+from spec_mtp.structure.artifact.readout.report import write_numbers
 
 
 def _study(root):

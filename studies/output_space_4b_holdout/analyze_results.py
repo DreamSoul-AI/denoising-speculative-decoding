@@ -6,7 +6,7 @@ import statistics
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0,str(ROOT/'tools'))
+sys.path.insert(0,str(ROOT/'studies'/'_shared'/'structure'))
 from diagnose_output_windows import file_hash
 
 
@@ -29,7 +29,7 @@ def main():
     import yaml
     from studies._shared.structure.sources import manifest,check_frozen
     from studies._shared.structure.validation import verify_evidence
-    from rpipe.structure.artifact.provenance import check_frozen as pcheck
+    from spec_mtp.structure.artifact.provenance import check_frozen as pcheck
     read=lambda p:json.loads(p.read_text(encoding='utf-8'))
     study=args.study.resolve()
     decl=yaml.safe_load((study/'study.yaml').read_text(encoding='utf-8'))

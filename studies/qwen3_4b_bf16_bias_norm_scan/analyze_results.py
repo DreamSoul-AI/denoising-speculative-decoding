@@ -10,7 +10,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 STUDY = Path(__file__).resolve().parent
 BASE = ROOT / 'studies/qwen3_4b_bf16_five_methods'
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 import analyze_4b_full_directions as directions  # noqa: E402
 _spec = importlib.util.spec_from_file_location('norm_pair_readout', BASE / 'analyze_results.py')
 _pair = importlib.util.module_from_spec(_spec)
@@ -128,7 +128,7 @@ def load_reused(data_root):
 
 
 def matrix_settings(decl):
-    from rpipe.structure.control.merge import deep_merge
+    from spec_mtp.structure.control.merge import deep_merge
     common = yaml.safe_load((STUDY / 'experiment_config.yaml').read_text(encoding='utf-8'))['algorithm']['config']
     return [deep_merge(common, setting) for setting in decl['axes']['algorithm.config']]
 
@@ -184,8 +184,8 @@ def verify_reused(data_root, output_dir=None):
 
 def continuation_entries(study, decl, entries, continuation):
     """Map only unexecuted old cells to identical scientific configurations."""
-    from rpipe.structure.control.merge import deep_merge
-    from rpipe.structure.artifact.provenance import check_frozen as pcheck
+    from spec_mtp.structure.control.merge import deep_merge
+    from spec_mtp.structure.artifact.provenance import check_frozen as pcheck
     from studies._shared.structure.sources import check_frozen, manifest
     new_decl = yaml.safe_load((continuation / 'study.yaml').read_text(encoding='utf-8'))
     assert new_decl['axes'] == {'algorithm.config': decl['axes']['algorithm.config'][1:]}
@@ -214,8 +214,8 @@ def continuation_entries(study, decl, entries, continuation):
 
 def main(data_root=None, study_dir=None, output_dir=None, continuation_study=None):
     from norm_control import check_refs
-    from rpipe.structure.artifact.provenance import check_frozen as pcheck
-    from rpipe.structure.make.expand import load_study_yaml
+    from spec_mtp.structure.artifact.provenance import check_frozen as pcheck
+    from spec_mtp.structure.make.expand import load_study_yaml
     from studies._shared.structure.sources import check_frozen, manifest
     data_root = ROOT if data_root is None else Path(data_root).resolve()
     study = STUDY if study_dir is None else Path(study_dir).resolve()

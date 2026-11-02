@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "denoise-spec-mtp"
 version = "0.1.0"
-description = "ESP speculative MTP reproduction and EMA-velocity masks; vendors RPipe"
+description = "ESP speculative MTP reproduction and EMA-velocity masks. Study flow lives in this package; structure follows https://github.com/DreamSoul-AI/RPipe"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -23,7 +23,6 @@ dependencies = [
 ]
 
 [project.scripts]
-rpipe = "rpipe.flow.cli:main"
 spec-mtp = "spec_mtp.cli:main"
 
 [project.optional-dependencies]
@@ -31,10 +30,9 @@ dev = ["pytest>=7.0", "hypothesis>=6.100", "mypy==2.4.0", "types-PyYAML==6.0.12.
 
 [tool.setuptools.packages.find]
 where = ["src", "."]
-include = ["rpipe*", "spec_mtp*", "studies*"]
+include = ["spec_mtp*", "studies*"]
 
 [tool.setuptools.package-data]
-rpipe = ["ORIGIN", "LICENSE.md", "**/*.md"]
 spec_mtp = ["structure/algorithm/reference/esp_reproduction_artifacts/**/*"]
 studies = ["**/study.yaml", "**/experiment_config.yaml"]
 
@@ -58,21 +56,17 @@ extend-exclude = ["src/spec_mtp/structure/algorithm/reference/esp_reproduction_a
 select = ["F", "E9"]
 
 [tool.ruff.lint.per-file-ignores]
-# RPipe v0.3.1 public facades intentionally reexport these imports; keep upstream bytes.
-"src/rpipe/structure/api/algorithm_api.py" = ["F401"]
-"src/rpipe/structure/api/data_api.py" = ["F401"]
-"src/rpipe/structure/api/model_api.py" = ["F401"]
-"src/rpipe/structure/algorithm/train/__init__.py" = ["F401"]
-# Decoder logic unchanged since the audit (perf: dynamic-tree mask cache only); `block_size` is an unused local.
-"src/spec_mtp/structure/algorithm/decoding.py" = ["F841"]
+# Study-flow facades reexport these imports.
+"src/spec_mtp/structure/api/algorithm_api.py" = ["F401"]
+"src/spec_mtp/structure/api/data_api.py" = ["F401"]
+"src/spec_mtp/structure/api/model_api.py" = ["F401"]
+"src/spec_mtp/structure/algorithm/train/__init__.py" = ["F401"]
 
 [tool.mypy]
-exclude = ["src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/upstream/"]
+exclude = ["src/spec_mtp/structure/", "src/spec_mtp/flow/", "src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/upstream/"]
 # datasets/ stores JSONL, not a Python namespace package.
 namespace_packages = false
-# Gradual: whole package with check_untyped_defs; research decoder modules
-# have variable / attribute annotations only (no logic change). Modules
-# written for the RPipe dependency are in the strict tier below.
+# Gradual: the scientific package uses check_untyped_defs. cli keeps a stricter override.
 python_version = "3.10"
 files = ["src/spec_mtp"]
 follow_imports = "silent"
@@ -82,35 +76,10 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 
 [[tool.mypy.overrides]]
-# Strict tier: new modules written for the RPipe dependency.
-module = [
-  "spec_mtp.recipe",
-  "spec_mtp.structure.api.recipe",
-  "spec_mtp.cli",
-  "spec_mtp.flow.cli",
-  "spec_mtp.flow.checks",
-  "spec_mtp.structure.artifact.sources",
-  "spec_mtp.structure.algorithm.config_bridge",
-]
-# Explicit strict flags (per-module `strict` is not honoured by mypy). Calls
-# into the untyped research helpers (NamedDict, decoders) stay allowed.
+module = ["spec_mtp.cli"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 disallow_any_generics = true
 warn_return_any = true
 no_implicit_reexport = true
 strict_equality = true
-
-[[tool.mypy.overrides]]
-# Mid tier: research helpers with annotations; calls into torch / transformers stay free.
-module = [
-  "spec_mtp.structure.algorithm.kv_cache",
-  "spec_mtp.structure.algorithm.common",
-  "spec_mtp.structure.algorithm.mask_settings",
-  "spec_mtp.structure.algorithm.tree_attention",
-  "spec_mtp.structure.artifact.csv_logger",
-]
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-warn_return_any = false

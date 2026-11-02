@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
-    from rpipe.flow.context import FlowContext, StudyProcessContext
+    from spec_mtp.flow.context import FlowContext, StudyProcessContext
 
 from studies._shared.structure.validation import (
     GATE_KEY, STUDY_CHECK_NAME, SpecMtpGateError, declared_factors, verify_evidence,
@@ -14,8 +14,8 @@ def _normalised(items: list[dict[str, Any]]) -> list[str]:
 
 def study_gate(ctx: StudyProcessContext | FlowContext, expected_factors: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Study process hook (``ctx.scope == 'study'``); writes ``spec_mtp_study_check.json``."""
-    from rpipe.structure.artifact._atomic import atomic_write_text
-    from rpipe.structure.artifact.index import load_index
+    from spec_mtp.structure.artifact._atomic import atomic_write_text
+    from spec_mtp.structure.artifact.index import load_index
 
     if ctx.scope != 'study':
         return {}
@@ -33,7 +33,7 @@ def study_gate(ctx: StudyProcessContext | FlowContext, expected_factors: list[di
             result = json.loads(result_path.read_text(encoding='utf-8'))
             gate = dict(result.get(GATE_KEY) or {})
             try:
-                from rpipe.structure.artifact.config import load_config
+                from spec_mtp.structure.artifact.config import load_config
                 verify_evidence(load_config(root / 'config.yaml'), root / 'assets')
                 saved_sources = json.loads((root / 'assets' / 'spec_mtp_sources.json').read_text(encoding='utf-8'))
                 if gate.get('sources_digest') != saved_sources.get('digest'):
@@ -55,17 +55,17 @@ def study_gate(ctx: StudyProcessContext | FlowContext, expected_factors: list[di
                 digests.add(row['sources_digest'])
     expected_ok = True
     if expected_factors is None and (study_dir / 'study.yaml').is_file():
-        from rpipe.structure.make.expand import load_study_yaml
+        from spec_mtp.structure.make.expand import load_study_yaml
 
-        from rpipe.structure.artifact.config import load_config
+        from spec_mtp.structure.artifact.config import load_config
 
         expected_factors = declared_factors(load_study_yaml(study_dir),
                                             load_config(study_dir / 'experiment_config.yaml'))
     seeds_ok = True
     if (study_dir / 'study.yaml').is_file():
-        from rpipe.structure.make.expand import load_study_yaml
+        from spec_mtp.structure.make.expand import load_study_yaml
 
-        from rpipe.structure.make.expand import expand_patches
+        from spec_mtp.structure.make.expand import expand_patches
 
         declared_seeds = sorted({patch['seed'] for patch in expand_patches(load_study_yaml(study_dir))})
         for experiment in index.get('experiments') or []:
@@ -89,7 +89,7 @@ def study_gate(ctx: StudyProcessContext | FlowContext, expected_factors: list[di
     ctx.state[GATE_KEY] = body
     process = ctx.state.get('process')
     if isinstance(process, dict):
-        from rpipe.structure.artifact.result.format import encode_result
+        from spec_mtp.structure.artifact.result.format import encode_result
 
         process[GATE_KEY] = body
         process['complete'] = bool(process.get('complete')) and body['passed']

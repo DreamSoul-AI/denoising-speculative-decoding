@@ -32,9 +32,38 @@ from spec_mtp.contracts import DecodeRequest, DecodeResult, MaskPolicy, HiddenMa
 
 import torch
 
-from spec_mtp.tree import build_tree, node_budget_for
-from spec_mtp.tree import (DynamicTreeAttentionCache, TreeAttentionCache,
-                                          build_block_attention, mask_indices_of)
+from spec_mtp.tree import (DynamicTreeAttentionCache, TreeAttentionCache, add_depth1_branch,
+                           build_block_attention, build_tree, mask_indices_of, node_budget_for,
+                           replace_weakest_depth1)
+
+
+def _clock():
+    """Wall time is an observation. A broken clock does not stop decoding."""
+    try:
+        value = time.perf_counter()
+    except Exception:
+        return None
+    if type(value) not in (int, float) or value != value or value in (float('inf'), float('-inf')):
+        return None
+    return float(value)
+
+
+def _elapsed(started):
+    if started is None:
+        return None
+    finished = _clock()
+    if finished is None:
+        return None
+    value = finished - started
+    if value != value or value < 0 or value in (float('inf'), float('-inf')):
+        return None
+    return value
+
+
+def _record_elapsed(stats, key, started):
+    value = _elapsed(started)
+    if value is not None:
+        stats[key] = value
 
 
 def _fork_generator(generator: torch.Generator | None) -> torch.Generator | None:
@@ -171,7 +200,7 @@ class SpecDecoder:
             raise ValueError('prompt plus mask slots exceeds context capacity')
 
         # ---- Prefill: [prompt | m_1..m_k], plain causal mask. -------------
-        start = time.perf_counter()
+        start = _clock()
         prompt_embeds = model.embed(prompt_ids)[0]                    # [t, d]
         provider.init_from_prompt(prompt_embeds, generator=_fork_generator(self.generator))
         masks = provider.masks().to(dtype)                            # [k, d]
@@ -198,6 +227,10 @@ class SpecDecoder:
             stats['output_hidden_prefill'] = {'observed_positions': t, 'scale': float(cast(HiddenMaskPolicy, provider).scale),
                                               'state_dtype': 'float32', 'final_normalized': True}
         mask_logits = logits[t:t + k].clone()                         # [k, V]
+        observe = getattr(provider, 'observe_mask_logits', None)
+        for_tree = getattr(provider, 'masks_for_tree', None)
+        if observe is not None:
+            observe(mask_logits)
         model.crop_cache(cache, t)                                       # evict masks
 
         committed = [root_token]
@@ -210,14 +243,32 @@ class SpecDecoder:
         if not self.output_hidden:
             provider.on_token_committed(root_embed, prev_token_embed)
         prev_token_embed = root_embed
-        stats['prefill_time'] = time.perf_counter() - start
+        _record_elapsed(stats, 'prefill_time', start)
 
         # ---- Decode: simultaneous verification + generation. --------------
-        decode_start = time.perf_counter()
+        decode_start = _clock()
         while len(committed) < self.max_new_tokens and not self._is_eos(committed[-1]) and not self._poll_cancel():
             remaining = self.max_new_tokens - len(committed)
             probs = tree_probs(mask_logits, self.temperature)
             tree = build_tree(self.spec_cfg, probs, committed[-1])
+            extra = getattr(provider, 'take_extra_branch', None)
+            if extra is not None:
+                token = extra()
+                if token is not None:
+                    pruning = bool(self.spec_cfg.get('tree', {}).get('pruning', True))
+                    edit = getattr(provider, 'extra_edit', 'append')
+                    before_nodes = tree.num_nodes
+                    if edit == 'replace':
+                        added = replace_weakest_depth1(tree, token, pruning=pruning)
+                        if tree.num_nodes != before_nodes:
+                            raise RuntimeError('equal-budget replacement changed the draft node count')
+                    elif edit == 'append':
+                        added = add_depth1_branch(tree, token, pruning=pruning)
+                    else:
+                        raise ValueError(f'unsupported extra branch edit: {edit}')
+                    record = getattr(provider, 'record_branch', None)
+                    if record is not None:
+                        record(added, tree.num_nodes)
             num_nodes = tree.num_nodes
             cache_len = model.cache_len(cache)
             root_position = t + len(committed) - 1
@@ -233,6 +284,8 @@ class SpecDecoder:
             if self.output_hidden:
                 depth_masks = cast(HiddenMaskPolicy, provider).masks_per_owner(proxy_hiddens).to(dtype)
                 owner_masks = depth_masks[[0] + tree.depths]
+            elif for_tree is not None:
+                owner_masks = for_tree(tree).to(dtype)
             else:
                 masks = provider.masks().to(dtype)
                 owner_masks = masks.unsqueeze(0).expand(1 + num_nodes, k, -1)
@@ -314,6 +367,10 @@ class SpecDecoder:
                 'stopped': stop, 'cache_after': None,
             })
             if self.output_hidden:
+                note = getattr(provider, 'note_block_hiddens', None)
+                if note is not None:
+                    accepted_hiddens = [] if stop else [out.last_hidden_state[0, row] for row in accepted_nodes]
+                    note(out.last_hidden_state[0, 0], accepted_hiddens)
                 observed = [] if stop else [0] + accepted_nodes
                 for block_row in observed:
                     cast(HiddenMaskPolicy, provider).observe_committed(out.last_hidden_state[0, block_row])
@@ -331,15 +388,28 @@ class SpecDecoder:
             # Cache keeps root + accepted path; masks/rejects are evicted.
             model.keep_cache(cache, cache_len, [0] + accepted_nodes)
             stats['trace'][-1]['cache_after'] = model.cache_len(cache)
+            probe = getattr(provider, 'consume_probe', None)
+            if probe is not None:
+                embed = probe()
+                if embed is not None:
+                    prefix = model.cache_len(cache)
+                    position = torch.tensor([[prefix]], device=device)
+                    probed = model(embed.reshape(1, 1, -1).to(dtype=dtype), position, past_key_values=cache)
+                    model.crop_cache(cache, prefix)
+                    note = getattr(provider, 'note_extra', None)
+                    if note is not None:
+                        note(int(probed.logits[0, 0].argmax().item()))
 
             # Next tree seeds: masks of the deepest accepted node (or root).
             n_star = accepted_nodes[-1] if accepted_nodes else 0
             mask_rows = mask_indices_of(tree, k, n_star)
             mask_logits = logits[mask_rows].clone()
+            if observe is not None:
+                observe(mask_logits)
             if self.output_hidden:
                 proxy_hiddens = out.last_hidden_state[0, mask_rows].clone()
 
-        stats['decode_time'] = time.perf_counter() - decode_start
+        _record_elapsed(stats, 'decode_time', decode_start)
         stats['new_tokens'] = len(committed)
         stats['termination_reason'] = ('cancelled' if self.was_cancelled else
             'context' if stats['hit_context_limit'] else 'eos' if self._is_eos(committed[-1]) else 'budget')
@@ -384,7 +454,7 @@ def ar_generate(model, prompt_ids, eval_cfg, eos_ids=(), generator=None):
     t = prompt_ids.size(1)
     if t > model.max_positions:
         raise ValueError('prompt exceeds context capacity')
-    start = time.perf_counter()
+    start = _clock()
 
     cache = model.new_cache()
     position_ids = torch.arange(t, device=device).unsqueeze(0)
@@ -408,11 +478,8 @@ def ar_generate(model, prompt_ids, eval_cfg, eos_ids=(), generator=None):
         committed.append(select_token(out.logits[0, -1], temperature, generator))
         calls += 1
 
-    stats = {
-        'ar_calls': calls,
-        'ar_time': time.perf_counter() - start,
-        'ar_new_tokens': len(committed),
-    }
+    stats = {'ar_calls': calls, 'ar_new_tokens': len(committed)}
+    _record_elapsed(stats, 'ar_time', start)
     output = torch.cat([
         prompt_ids,
         torch.tensor([committed], dtype=torch.long, device=device),
