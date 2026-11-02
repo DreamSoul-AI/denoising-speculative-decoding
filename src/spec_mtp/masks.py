@@ -434,7 +434,9 @@ class BonusSlotMaskProvider:
         self._logits = mask_logits.detach()
 
     def _slot_embedding(self, depth, trajectory):
-        row = self._logits[depth]
+        logits = self._logits
+        assert logits is not None
+        row = logits[depth]
         table = self.embedding_table
         if self.mode == 'hard':
             token = int(row.argmax())
@@ -548,7 +550,9 @@ class KalmanMaskProvider:
         self._step(new_embed)
 
     def masks(self):
-        return self._level.unsqueeze(0).expand(self.num_masks, self._level.shape[-1]).clone()
+        level = self._level
+        assert level is not None
+        return level.unsqueeze(0).expand(self.num_masks, level.shape[-1]).clone()
 
     def diagnostics(self):
         phi = self._q / self._r
@@ -626,12 +630,16 @@ class VerifyCorrectionMaskProvider:
         self._pending = None
         self._online_updates = 0
         if self._gram0 is not None:
+            rhs0, a0, b0 = self._rhs0, self._A0, self._b0
+            assert rhs0 is not None and a0 is not None and b0 is not None
             self._gram = self._gram0.clone()
-            self._rhs = self._rhs0.clone()
-            self._A = self._A0.clone()
-            self._b = self._b0.clone()
+            self._rhs = rhs0.clone()
+            self._A = a0.clone()
+            self._b = b0.clone()
         if self._U0 is not None:
-            self._U, self._V, self._b = self._U0.clone(), self._V0.clone(), self._b0.clone()
+            v0, b0 = self._V0, self._b0
+            assert v0 is not None and b0 is not None
+            self._U, self._V, self._b = self._U0.clone(), v0.clone(), b0.clone()
             self._extra_delta = self._extra_error = None
 
     def on_token_committed(self, new_embed, prev_embed):
@@ -640,21 +648,27 @@ class VerifyCorrectionMaskProvider:
             error = (new_embed - mhat).float()
             delta = (zed - mhat).float()
             if self.kind == 'scalar':
-                self._num += float((error * delta).sum())
-                self._den += float((delta * delta).sum())
+                num, den = self._num, self._den
+                assert num is not None and den is not None
+                self._num = num + float((error * delta).sum())
+                self._den = den + float((delta * delta).sum())
                 self._k = self._num / max(self._den, 1e-12)
             elif self.kind == 'lowrank':
                 row_d = delta.float().reshape(1, -1)
                 row_e = error.float().reshape(1, -1)
                 self._extra_delta = row_d if self._extra_delta is None else torch.cat([self._extra_delta, row_d])
                 self._extra_error = row_e if self._extra_error is None else torch.cat([self._extra_error, row_e])
-                delta_fit = self._delta0 if self._extra_delta is None else torch.cat([self._delta0, self._extra_delta])
-                error_fit = self._error0 if self._extra_error is None else torch.cat([self._error0, self._extra_error])
+                delta0, error0 = self._delta0, self._error0
+                assert delta0 is not None and error0 is not None
+                delta_fit = delta0 if self._extra_delta is None else torch.cat([delta0, self._extra_delta])
+                error_fit = error0 if self._extra_error is None else torch.cat([error0, self._extra_error])
                 self._U, self._V, self._b = _als_lowrank(delta_fit, error_fit, self._rank, self._ridge, iters=1, v_init=self._V)
             else:
                 row = torch.cat([delta.double(), delta.new_ones(1).double()])
-                self._gram = self._gram + row[:, None] * row[None, :]
-                self._rhs = self._rhs + row[:, None] * error.double()[None, :]
+                gram, rhs = self._gram, self._rhs
+                assert gram is not None and rhs is not None
+                self._gram = gram + row[:, None] * row[None, :]
+                self._rhs = rhs + row[:, None] * error.double()[None, :]
                 eye = torch.eye(self._gram.shape[0], dtype=torch.float64)
                 if self._ridge is None:
                     penalty = 1e-8 * eye
@@ -671,17 +685,25 @@ class VerifyCorrectionMaskProvider:
         self._round_commits += 1
 
     def _corrected(self, mhat):
-        delta = self._z.to(device=mhat.device, dtype=mhat.dtype) - mhat
+        observed = self._z
+        assert observed is not None
+        delta = observed.to(device=mhat.device, dtype=mhat.dtype) - mhat
         if self.kind == 'scalar':
             return mhat + delta * mhat.new_tensor(self._k)
         if self.kind == 'diagonal':
-            return mhat + delta * self._diag.to(device=mhat.device, dtype=mhat.dtype)
+            diag = self._diag
+            assert diag is not None
+            return mhat + delta * diag.to(device=mhat.device, dtype=mhat.dtype)
         if self.kind == 'lowrank':
-            left = self._V.to(device=mhat.device, dtype=mhat.dtype)
-            right = self._U.to(device=mhat.device, dtype=mhat.dtype)
-            bias = self._b.to(device=mhat.device, dtype=mhat.dtype)
+            left_v, right_u, bias = self._V, self._U, self._b
+            assert left_v is not None and right_u is not None and bias is not None
+            left = left_v.to(device=mhat.device, dtype=mhat.dtype)
+            right = right_u.to(device=mhat.device, dtype=mhat.dtype)
+            bias = bias.to(device=mhat.device, dtype=mhat.dtype)
             return mhat + (delta @ left) @ right.T + bias
-        return mhat + delta @ self._A.to(device=mhat.device, dtype=mhat.dtype).T + self._b.to(device=mhat.device, dtype=mhat.dtype)
+        weight, bias = self._A, self._b
+        assert weight is not None and bias is not None
+        return mhat + delta @ weight.to(device=mhat.device, dtype=mhat.dtype).T + bias.to(device=mhat.device, dtype=mhat.dtype)
 
     def masks(self):
         out = self.base.masks().clone()
@@ -698,11 +720,15 @@ class VerifyCorrectionMaskProvider:
         return out
 
     def diagnostics(self):
-        report = {'online_updates': self._online_updates}
+        report: dict[str, Any] = {'online_updates': self._online_updates}
         if self._A0 is not None:
-            report['A_drift'] = float((self._A.double() - self._A0.double()).pow(2).sum().sqrt())
+            weight = self._A
+            assert weight is not None
+            report['A_drift'] = float((weight.double() - self._A0.double()).pow(2).sum().sqrt())
         if self._U0 is not None:
-            report['factor_drift'] = float((self._U - self._U0).pow(2).sum().sqrt() + (self._V - self._V0).pow(2).sum().sqrt())
+            left, right, v0 = self._U, self._V, self._V0
+            assert left is not None and right is not None and v0 is not None
+            report['factor_drift'] = float((left - self._U0).pow(2).sum().sqrt() + (right - v0).pow(2).sum().sqrt())
         return report
 
 
@@ -787,8 +813,12 @@ def select_affine_ridge(blocks, seed, folds=5):
     return fit
 
 
-def _stack_blocks(blocks):
-    return tuple(torch.cat([block[axis] for block in blocks], dim=0) for axis in range(3))
+def _stack_blocks(blocks) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    return (
+        torch.cat([block[0] for block in blocks], dim=0),
+        torch.cat([block[1] for block in blocks], dim=0),
+        torch.cat([block[2] for block in blocks], dim=0),
+    )
 
 
 def fit_lowrank_ridge(m_hat, z, target, rank, ridge, iters=8):
@@ -960,8 +990,10 @@ class OnlineVerifyKalman:
         prior = out[0].detach().to(dtype=torch.float32).clone()
         if self.part == 'observation':
             prior = self._x
-        p_pred = self._p + self._q
-        gain = p_pred / (p_pred + self._r)
+        variance, process, noise = self._p, self._q, self._r
+        assert variance is not None and process is not None and noise is not None
+        p_pred = variance + process
+        gain = p_pred / (p_pred + noise)
         if self.part == 'full' and self._z is not None:
             out[0] = (prior + gain * (self._z - prior)).to(dtype=out.dtype)
         elif self.part == 'observation' and self._seen:
@@ -977,11 +1009,13 @@ class OnlineVerifyKalman:
         observed = new_embed.detach().to(device=prior.device, dtype=torch.float32).reshape(-1)
         innov = observed - prior
         innov2 = innov * innov
-        self._p = (1.0 - gain) ** 2 * p_pred + gain ** 2 * self._r
+        variance, process, noise = self._p, self._q, self._r
+        assert variance is not None and process is not None and noise is not None
+        self._p = (1.0 - gain) ** 2 * p_pred + gain ** 2 * noise
         self._t += 1
         delta = (1.0 - self.forget) / (1.0 - self.forget ** (self._t + 1))
-        self._r = torch.clamp((1.0 - delta) * self._r + delta * (innov2 - p_pred), min=self.r_min)
-        self._q = torch.clamp((1.0 - delta) * self._q + delta * (gain * gain * innov2), min=self.q_min)
+        self._r = torch.clamp((1.0 - delta) * noise + delta * (innov2 - p_pred), min=self.r_min)
+        self._q = torch.clamp((1.0 - delta) * process + delta * (gain * gain * innov2), min=self.q_min)
         if self.part == 'full':
             self._z = observed
         else:
@@ -990,9 +1024,11 @@ class OnlineVerifyKalman:
         self._pending = None
 
     def diagnostics(self):
+        variance, process, noise = self._p, self._q, self._r
+        assert variance is not None and process is not None and noise is not None
         return {'part': self.part, 'updates': self._t,
-                'p_mean': float(self._p.mean()), 'q_mean': float(self._q.mean()),
-                'r_mean': float(self._r.mean())}
+                'p_mean': float(variance.mean()), 'q_mean': float(process.mean()),
+                'r_mean': float(noise.mean())}
 
 
 class AlignedResidualKalman:
@@ -1049,7 +1085,9 @@ class AlignedResidualKalman:
         out = self.base.masks().clone()
         prior = out[0].detach().to(dtype=torch.float32).clone()
         if self.part == 'observation' and self._seen:
-            prior = self._state
+            state = self._state
+            assert state is not None
+            prior = state
             out[0] = prior.to(dtype=out.dtype)
         elif self.part == 'full' and self._nu is not None:
             out[0] = (prior + self._f * self._nu).to(dtype=out.dtype)
@@ -1155,30 +1193,33 @@ class HybridGainKalman:
         width = prompt_embeds.shape[-1]
         state = {'device': prompt_embeds.device, 'dtype': torch.float32}
         if self.mode == 'scratch':
-            self._k0 = torch.zeros(width, **state)
-            self._p0 = torch.ones(width, **state)
-            self._r0 = torch.ones(width, **state)
-            self._q0 = torch.full((width,), 0.01, **state)
+            k0 = torch.zeros(width, **state)
+            p0 = torch.ones(width, **state)
+            r0 = torch.ones(width, **state)
+            q0 = torch.full((width,), 0.01, **state)
         elif self.mode == 'trajectory':
-            self._k0 = torch.zeros(width, **state)
-            self._p0 = self._r0 = self._q0 = self._k0.clone()
+            k0 = torch.zeros(width, **state)
+            p0 = r0 = q0 = k0.clone()
         else:
+            loaded: dict[str, torch.Tensor] = {}
             for name in ('k', 'p', 'r', 'q'):
                 value = torch.as_tensor(self._given[name], dtype=torch.float32, device=prompt_embeds.device)
                 if value.shape != (width,):
                     raise ValueError(f'hybrid gain {name} must have shape {(width,)}')
-                setattr(self, f'_{name}0', value)
+                loaded[name] = value
+            k0, p0, r0, q0 = loaded['k'], loaded['p'], loaded['r'], loaded['q']
             if self.mode == 'opened':
                 boost = self._given.get('boost')
                 if isinstance(boost, bool) or not isinstance(boost, (int, float)) or float(boost) < 1.0:
                     raise ValueError('opened hybrid gain needs boost >= 1')
                 self._boost = float(boost)
-                self._p0 = self._p0 * self._boost
-                self._q0 = self._q0 * self._boost
-        self._k = self._k0.clone()
-        self._p = self._p0.clone()
-        self._r = self._r0.clone()
-        self._q = self._q0.clone()
+                p0 = p0 * self._boost
+                q0 = q0 * self._boost
+        self._k0, self._p0, self._r0, self._q0 = k0, p0, r0, q0
+        self._k = k0.clone()
+        self._p = p0.clone()
+        self._r = r0.clone()
+        self._q = q0.clone()
         self._z = None
         self._pending = None
         self._probe = None
@@ -1190,15 +1231,18 @@ class HybridGainKalman:
         out = self.base.masks().clone()
         prior = out[0].detach().to(dtype=torch.float32).clone()
         self._probe = None
-        if self.mode != 'trajectory' and self._z is not None:
-            correction = self._k * (self._z - prior)
+        observed = self._z
+        if self.mode != 'trajectory' and observed is not None:
+            gain = self._k
+            assert gain is not None
+            correction = gain * (observed - prior)
             corrected = prior + correction
             if self.mode in ('branch', 'replace'):
                 self._probe = corrected.to(dtype=out.dtype)
             else:
                 out[0] = corrected.to(dtype=out.dtype)
                 if self.mode != 'frozen':
-                    self._pending = (prior, self._z, self._k.clone())
+                    self._pending = (prior, observed, gain.clone())
         return out
 
     def on_token_committed(self, new_embed, prev_embed):
@@ -1208,16 +1252,20 @@ class HybridGainKalman:
             prior, zed, gain = self._pending
             regressor = zed - prior
             innov = (observed - prior) - gain * regressor
-            predicted = self._p + self._q
-            scale = self._r + predicted * regressor * regressor
+            variance, process, noise = self._p, self._q, self._r
+            assert variance is not None and process is not None and noise is not None
+            predicted = variance + process
+            scale = noise + predicted * regressor * regressor
             step = predicted * regressor / scale
             self._weight_sum += float((step * regressor).mean())
             self._weight_n += 1
             self._k = gain + step * innov
-            self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * self._r
+            self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * noise
             self._pending = None
         if self.mode != 'trajectory':
-            self._z = observed.to(device=self._k.device)
+            gain = self._k
+            assert gain is not None
+            self._z = observed.to(device=gain.device)
 
     def consume_probe(self):
         embed = self._probe
@@ -1245,10 +1293,12 @@ class HybridGainKalman:
             self.max_nodes = max(self.max_nodes, int(num_nodes))
 
     def diagnostics(self):
-        delta = (self._k - self._k0).abs()
-        ratio = self._p / self._r.clamp_min(1e-12)
-        return {'mode': self.mode, 'k_mean': float(self._k.mean()), 'p_mean': float(self._p.mean()),
-                'r_mean': float(self._r.mean()), 'q_mean': float(self._q.mean()),
+        gain, variance, noise, process, gain0 = self._k, self._p, self._r, self._q, self._k0
+        assert gain is not None and variance is not None and noise is not None and process is not None and gain0 is not None
+        delta = (gain - gain0).abs()
+        ratio = variance / noise.clamp_min(1e-12)
+        return {'mode': self.mode, 'k_mean': float(gain.mean()), 'p_mean': float(variance.mean()),
+                'r_mean': float(noise.mean()), 'q_mean': float(process.mean()),
                 'k_abs_delta': float(delta.mean()), 'p_over_r': float(ratio.mean()),
                 'weight_mean': None if self._weight_n == 0 else self._weight_sum / self._weight_n,
                 'extra_added': self.extra_added, 'extra_present': self.extra_present,
@@ -1300,27 +1350,30 @@ class OutputHiddenHybridKalman:
         width = prompt_embeds.shape[-1]
         state = {'device': prompt_embeds.device, 'dtype': torch.float32}
         if self.mode in ('scratch', 'trajectory', 'collect'):
-            self._k0 = torch.zeros(width, **state)
-            self._p0 = torch.ones(width, **state)
-            self._r0 = torch.ones(width, **state)
-            self._q0 = torch.full((width,), 0.01, **state)
+            k0 = torch.zeros(width, **state)
+            p0 = torch.ones(width, **state)
+            r0 = torch.ones(width, **state)
+            q0 = torch.full((width,), 0.01, **state)
         else:
+            loaded: dict[str, torch.Tensor] = {}
             for name in ('k', 'p', 'r', 'q'):
                 value = torch.as_tensor(self._given[name], dtype=torch.float32, device=prompt_embeds.device)
                 if value.shape != (width,) or not torch.isfinite(value).all():
                     raise ValueError(f'output kalman {name} must be a finite vector of width {width}')
-                setattr(self, f'_{name}0', value)
+                loaded[name] = value
+            k0, p0, r0, q0 = loaded['k'], loaded['p'], loaded['r'], loaded['q']
             if self.mode == 'hybrid':
                 boost = self._given.get('boost')
                 if isinstance(boost, bool) or not isinstance(boost, (int, float)) or float(boost) < 1.0:
                     raise ValueError('hybrid output kalman needs boost >= 1')
                 self._boost = float(boost)
-                self._p0 = self._p0 * self._boost
-                self._q0 = self._q0 * self._boost
-        self._k = self._k0.clone()
-        self._p = self._p0.clone()
-        self._r = self._r0.clone()
-        self._q = self._q0.clone()
+                p0 = p0 * self._boost
+                q0 = q0 * self._boost
+        self._k0, self._p0, self._r0, self._q0 = k0, p0, r0, q0
+        self._k = k0.clone()
+        self._p = p0.clone()
+        self._r = r0.clone()
+        self._q = q0.clone()
         self._reset_counts()
 
     def masks(self):
@@ -1335,15 +1388,17 @@ class OutputHiddenHybridKalman:
     def masks_per_owner(self, proxy_hiddens):
         slots, observations = self.base.trajectory(proxy_hiddens)
         corrected = slots
+        gain = self._k
+        assert gain is not None
         if self.mode in ('hybrid', 'scratch', 'frozen'):
-            corrected = slots + (observations.unsqueeze(1) - slots) * self._k.view(1, 1, -1)
+            corrected = slots + (observations.unsqueeze(1) - slots) * gain.view(1, 1, -1)
         self._current = []
         for owner in range(corrected.shape[0]):
             self._current.append({
                 'h': slots[owner, 0].detach().clone(),
                 'z': observations[owner].detach().clone(),
                 'c': corrected[owner, 0].detach().clone(),
-                'k': self._k.detach().clone(),
+                'k': gain.detach().clone(),
             })
         return self.base._map_hidden_slots(corrected)
 
@@ -1394,13 +1449,15 @@ class OutputHiddenHybridKalman:
         gain = prediction['k']
         regressor = prediction['z'] - prediction['h']
         innov = (target - prediction['h']) - gain * regressor
-        predicted = self._p + self._q
-        scale = self._r + predicted * regressor * regressor
+        variance, process, noise = self._p, self._q, self._r
+        assert variance is not None and process is not None and noise is not None
+        predicted = variance + process
+        scale = noise + predicted * regressor * regressor
         step = predicted * regressor / scale
         self._weight_sum += float((step * regressor).mean())
         self._weight_n += 1
         self._k = gain + step * innov
-        self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * self._r
+        self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * noise
 
     def calibration_rows(self):
         if not self._pair_h:
@@ -1408,13 +1465,15 @@ class OutputHiddenHybridKalman:
         return {'h': torch.stack(self._pair_h), 'z': torch.stack(self._pair_z), 'y': torch.stack(self._pair_y)}
 
     def diagnostics(self):
-        delta = (self._k - self._k0).abs()
-        ratio = self._p / self._r.clamp_min(1e-12)
+        gain, variance, noise, process, gain0 = self._k, self._p, self._r, self._q, self._k0
+        assert gain is not None and variance is not None and noise is not None and process is not None and gain0 is not None
+        delta = (gain - gain0).abs()
+        ratio = variance / noise.clamp_min(1e-12)
         def mean(total, count):
             return None if count == 0 else total / count
         return {'mode': self.mode, 'protocol': self.protocol, 'boost': self._boost,
-                'k_mean': float(self._k.mean()), 'p_mean': float(self._p.mean()),
-                'r_mean': float(self._r.mean()), 'q_mean': float(self._q.mean()),
+                'k_mean': float(gain.mean()), 'p_mean': float(variance.mean()),
+                'r_mean': float(noise.mean()), 'q_mean': float(process.mean()),
                 'k_abs_delta': float(delta.mean()), 'p_over_r': float(ratio.mean()),
                 'weight_mean': None if self._weight_n == 0 else self._weight_sum / self._weight_n,
                 'root_error': mean(self._root_err, self._root_n),
