@@ -206,7 +206,7 @@ K 的校准与 11 月 2 日额外分支相同：288 句式的前 128 条，每�
 
 本地 `question.jsonl` 的 `question_id` 只有 81–560。本轮评测用 81–208 的第一轮，128 条，每条 64 token。这段不在 209–560 里。它在 2026-11-02 以 16 token 解码过，旧接受数不参与本轮判据，也不用来选信号、秩或 ridge。拟合只用 288 句式的前 128 条、每条 24 token。树仍是 k=1、`branches` [4]、T=0、`stop_on_eos` false。先跑 0.6B。门不过就不跑 4B，也不接 Kalman，不改 64，不加节点。0.6B 已跑完：四个低秩留出 \(R^2\) 都是负的，门没有开。
 
-**同预算替换的独立复现（2026年11月3日，前向前信号留出 \(R^2\) 为负之后，运行前写定）**：协议 `extra-branch-replace-fresh-v1`。要复现的是家里 PC 的同节点替换，不是再拟合一个 K。比较代码用 `dev` 上 PR #61 的 `fair_branch.run_split`：两边都是 k=1、`branches` [4]、剪枝开、T=0、`impl` efficient；替换臂冻结校准 K，槽 0 仍是 ESP mask，修正嵌入的 top-1 换掉累计概率最低的无子节点深度 1 叶。不改 boost，不改 token 下标的取法，不把 ESP 改成五条分支。入口是 `studies/trajectory_observation/structure/fresh_replace.py`，只负责选句和效应量。公式不另写。
+**同预算替换的独立复现（2026年11月3日，前向前信号留出 \(R^2\) 为负之后，运行前写定）**：协议 `extra-branch-replace-fresh-v1`。要复现的是家里 PC 的同节点替换，不是再拟合一个 K。比较代码用 `dev` 上 PR #61 的 `fair_branch.run_split`：两边都是 k=1、`branches` [4]、剪枝开、T=0、`impl` efficient；替换臂冻结校准 K，槽 0 仍是 ESP mask，修正嵌入的 top-1 换掉累计概率最低的无子节点深度 1 叶。不改 boost，不改 token 下标的取法，不把 ESP 改成五条分支。预注册时的入口是 `studies/trajectory_observation/structure/fresh_replace.py`，只负责选句和效应量。合并进带两柱门禁的 `dev` 之后，同一段命令实现放在 `studies/trajectory_observation/flow/fresh_replace.py`；选句、哈希和效应量仍留在 structure，公式不另写。
 
 假设：在从未用于这条替换的 prompt 上，同预算替换相对 ESP 提高每条 prompt 的接受 token 数，方向为正。τ 与“每轮接受的草稿 token 数”一起报告。
 
