@@ -821,6 +821,41 @@ def _stack_blocks(blocks) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     )
 
 
+def centered_r2(error, prediction, center):
+    """1 - ||e - pred||^2 / ||e - center||^2. `center` is the training mean."""
+    error = error.float()
+    prediction = prediction.float()
+    center = center.float().reshape(1, -1)
+    total = (error - center).pow(2).sum()
+    if float(total) <= 0.0:
+        raise ValueError('centered R^2 needs nonzero target energy')
+    return float(1.0 - (error - prediction).pow(2).sum() / total)
+
+
+def fit_lowrank_delta(delta, error, rank, ridge, iters=8):
+    """Low-rank map error ≈ (delta @ V) @ U^T + b. Ridge penalizes U and V, not b."""
+    delta = delta.float().contiguous()
+    error = error.float().contiguous()
+    rank = int(rank)
+    ridge = float(ridge)
+    if delta.ndim != 2 or error.shape != delta.shape or delta.shape[0] < 2:
+        raise ValueError('low-rank delta fit needs at least two aligned rows')
+    if rank < 1 or rank >= delta.shape[1] or ridge <= 0.0 or int(iters) < 1:
+        raise ValueError('low-rank delta fit needs a positive rank below the width and a positive ridge')
+    if not torch.isfinite(delta).all() or not torch.isfinite(error).all():
+        raise ValueError('low-rank delta fit inputs must be finite')
+    left, right, bias = _als_lowrank(delta, error, rank, ridge, int(iters))
+    return {'U': left, 'V': right, 'b': bias, 'rank': rank, 'ridge': float(ridge)}
+
+
+def apply_lowrank_delta(delta, fit):
+    delta = delta.float()
+    factor_in = fit['V'].to(device=delta.device, dtype=torch.float32)
+    factor_out = fit['U'].to(device=delta.device, dtype=torch.float32)
+    bias = fit['b'].to(device=delta.device, dtype=torch.float32)
+    return (delta @ factor_in) @ factor_out.T + bias
+
+
 def fit_lowrank_ridge(m_hat, z, target, rank, ridge, iters=8):
     """Low-rank map m = m_hat + U V^T (z - m_hat) + b. Ridge penalizes U and V, not b."""
     delta = (z - m_hat).float()
@@ -1160,20 +1195,31 @@ class HybridGainKalman:
     `boost` so one prompt can move K. `branch` keeps the ESP mask and stores
     the corrected embedding for an extra depth-1 draft. `replace` uses that
     same embedding, then swaps it into the weakest depth-1 leaf so the node
-    count stays equal to the ESP tree.
+    count stays equal to the ESP tree. `collect` emits ESP and records the
+    slot-0 prior, z, and both commit targets.
+
+    `observe='first'` updates K on the first committed token of the round
+    (`hybrid-gain-kalman-v1`). `observe='last'` waits until the round's last
+    committed token, the bonus the next-tree mask stands in for
+    (`hybrid-gain-bonus-aligned-v1`).
     """
     needs_hidden = False
 
     def __init__(self, base, mode='hybrid', payload=None):
         if getattr(base, 'needs_hidden', False):
             raise ValueError('hybrid gain wraps input-embedding providers only')
-        if mode not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch', 'replace'):
-            raise ValueError('hybrid gain mode must be hybrid, scratch, frozen, trajectory, opened, branch or replace')
+        if mode not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch', 'replace', 'collect'):
+            raise ValueError(
+                'hybrid gain mode must be hybrid, scratch, frozen, trajectory, opened, branch, replace or collect')
         self.base = base
         self.num_masks = base.num_masks
         self.mode = mode
-        self.protocol = 'hybrid-gain-kalman-v1'
         payload = dict(payload or {})
+        observe = payload.get('observe', 'first')
+        if observe not in ('first', 'last'):
+            raise ValueError('hybrid gain observe must be first or last')
+        self.observe = observe
+        self.protocol = 'hybrid-gain-bonus-aligned-v1' if observe == 'last' else 'hybrid-gain-kalman-v1'
         self._given = payload
         self._boost = 1.0
         self._k0 = self._p0 = self._r0 = self._q0 = None
@@ -1197,7 +1243,7 @@ class HybridGainKalman:
             p0 = torch.ones(width, **state)
             r0 = torch.ones(width, **state)
             q0 = torch.full((width,), 0.01, **state)
-        elif self.mode == 'trajectory':
+        elif self.mode in ('trajectory', 'collect'):
             k0 = torch.zeros(width, **state)
             p0 = r0 = q0 = k0.clone()
         else:
@@ -1222,15 +1268,27 @@ class HybridGainKalman:
         self._q = q0.clone()
         self._z = None
         self._pending = None
+        self._first = None
         self._probe = None
         self._extra = None
         self._weight_sum = 0.0
         self._weight_n = 0
+        self._pair_m, self._pair_z, self._pair_first, self._pair_last = [], [], [], []
 
     def masks(self):
         out = self.base.masks().clone()
         prior = out[0].detach().to(dtype=torch.float32).clone()
         self._probe = None
+        if self.mode == 'collect':
+            self._first = None
+            observed = self._z
+            if observed is None:
+                self._pending = None
+            else:
+                gain = self._k
+                assert gain is not None
+                self._pending = (prior, observed.detach().clone(), gain.clone())
+            return out
         observed = self._z
         if self.mode != 'trajectory' and observed is not None:
             gain = self._k
@@ -1242,30 +1300,68 @@ class HybridGainKalman:
             else:
                 out[0] = corrected.to(dtype=out.dtype)
                 if self.mode != 'frozen':
-                    self._pending = (prior, observed, gain.clone())
+                    self._pending = (prior, observed.detach().clone(), gain.clone())
         return out
+
+    def _apply(self, observed):
+        pending = self._pending
+        assert pending is not None
+        prior, zed, gain = pending
+        observed = observed.detach().to(dtype=torch.float32, device=gain.device).reshape(-1)
+        regressor = zed - prior
+        innov = (observed - prior) - gain * regressor
+        variance, process, noise = self._p, self._q, self._r
+        assert variance is not None and process is not None and noise is not None
+        predicted = variance + process
+        scale = noise + predicted * regressor * regressor
+        step = predicted * regressor / scale
+        self._weight_sum += float((step * regressor).mean())
+        self._weight_n += 1
+        self._k = gain + step * innov
+        self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * noise
+        self._pending = None
 
     def on_token_committed(self, new_embed, prev_embed):
         self.base.on_token_committed(new_embed, prev_embed)
         observed = new_embed.detach().to(dtype=torch.float32).reshape(-1)
-        if self._pending is not None:
-            prior, zed, gain = self._pending
-            regressor = zed - prior
-            innov = (observed - prior) - gain * regressor
-            variance, process, noise = self._p, self._q, self._r
-            assert variance is not None and process is not None and noise is not None
-            predicted = variance + process
-            scale = noise + predicted * regressor * regressor
-            step = predicted * regressor / scale
-            self._weight_sum += float((step * regressor).mean())
-            self._weight_n += 1
-            self._k = gain + step * innov
-            self._p = (1.0 - step * regressor) ** 2 * predicted + step ** 2 * noise
-            self._pending = None
+        if self._pending is not None and self.mode == 'collect' and self._first is None:
+            self._first = observed.clone()
+        elif self._pending is not None and self.observe == 'first' and self.mode not in ('frozen', 'trajectory', 'branch', 'replace', 'collect'):
+            self._apply(observed)
         if self.mode != 'trajectory':
             gain = self._k
             assert gain is not None
             self._z = observed.to(device=gain.device)
+
+    def finish_round(self):
+        """Close the round. `observe='last'` learns from the bonus token."""
+        if self._pending is None:
+            return
+        if self.mode == 'collect':
+            first = self._first
+            last = self._z
+            if first is None or last is None:
+                return
+            pending = self._pending
+            assert pending is not None
+            prior, zed, _gain = pending
+            self._pair_m.append(prior.detach().cpu())
+            self._pair_z.append(zed.detach().cpu())
+            self._pair_first.append(first.detach().cpu())
+            self._pair_last.append(last.detach().to(dtype=torch.float32).cpu())
+            self._pending = None
+            self._first = None
+            return
+        if self.observe == 'last' and self.mode not in ('frozen', 'trajectory', 'branch', 'replace'):
+            last = self._z
+            assert last is not None
+            self._apply(last)
+
+    def calibration_rows(self):
+        if not self._pair_m:
+            raise ValueError('hybrid gain has no calibration rows')
+        return {'m': torch.stack(self._pair_m), 'z': torch.stack(self._pair_z),
+                'first': torch.stack(self._pair_first), 'last': torch.stack(self._pair_last)}
 
     def consume_probe(self):
         embed = self._probe
@@ -1297,7 +1393,8 @@ class HybridGainKalman:
         assert gain is not None and variance is not None and noise is not None and process is not None and gain0 is not None
         delta = (gain - gain0).abs()
         ratio = variance / noise.clamp_min(1e-12)
-        return {'mode': self.mode, 'k_mean': float(gain.mean()), 'p_mean': float(variance.mean()),
+        return {'mode': self.mode, 'observe': self.observe, 'protocol': self.protocol,
+                'k_mean': float(gain.mean()), 'p_mean': float(variance.mean()),
                 'r_mean': float(noise.mean()), 'q_mean': float(process.mean()),
                 'k_abs_delta': float(delta.mean()), 'p_over_r': float(ratio.mean()),
                 'weight_mean': None if self._weight_n == 0 else self._weight_sum / self._weight_n,
@@ -1483,6 +1580,118 @@ class OutputHiddenHybridKalman:
                 'root_n': self._root_n, 'deep_n': self._deep_n}
 
 
+class PreforwardSignalCollector:
+    """Record a before-forward bundle and the bonus embedding. Masks stay ESP.
+
+    The bundle is the previous forward's single mask slot: full-softmax expected
+    embedding, top-4 renormalized expected embedding, final-norm hidden, entropy
+    and top-4 mass. `finish_round` pairs it with this round's first and last
+    committed embeddings. Slot 0 is not modified.
+    """
+    needs_hidden = False
+    TOPK = 4
+
+    def __init__(self, base, embedding_table):
+        if getattr(base, 'needs_hidden', False):
+            raise ValueError('preforward signal wraps input-embedding providers only')
+        if int(base.num_masks) != 1:
+            raise ValueError('preforward signal is specified for one mask slot')
+        self.base = base
+        self.num_masks = base.num_masks
+        self.embedding_table = embedding_table
+        self._bundle = None
+        self._pending = None
+        self._z = None
+        self._first = None
+        self._commits = 0
+        self._prev_accepted = None
+        self._rows = []
+
+    def init_from_prompt(self, prompt_embeds, generator=None):
+        self.base.init_from_prompt(prompt_embeds, generator=generator)
+        self._bundle = None
+        self._pending = None
+        self._z = None
+        self._first = None
+        self._commits = 0
+        self._prev_accepted = None
+        self._rows = []
+
+    def masks(self):
+        out = self.base.masks().clone()
+        self._pending = None
+        self._first = None
+        self._commits = 0
+        if self._bundle is None or self._z is None:
+            return out
+        if self._bundle.get('hidden') is None:
+            raise RuntimeError('preforward signal is missing the mask hidden')
+        prior = out[0].detach().to(dtype=torch.float32)
+        self._pending = {
+            'm': prior.cpu(),
+            'z': self._z.detach().to(dtype=torch.float32).cpu(),
+            'expected': self._bundle['expected'].detach().to(dtype=torch.float32).cpu(),
+            'topk': self._bundle['topk'].detach().to(dtype=torch.float32).cpu(),
+            'hidden': self._bundle['hidden'].detach().to(dtype=torch.float32).cpu(),
+            'entropy': self._bundle['entropy'],
+            'top_mass': self._bundle['top_mass'],
+            'prev_accepted': -1 if self._prev_accepted is None else int(self._prev_accepted),
+        }
+        return out
+
+    def observe_mask_logits(self, mask_logits):
+        if mask_logits.shape[0] != 1:
+            raise ValueError('preforward signal needs one logit row')
+        row = mask_logits[0].float()
+        if row.shape[0] != self.embedding_table.shape[0]:
+            raise ValueError('preforward signal logits and the embedding table disagree on vocab size')
+        if not torch.isfinite(row).any() or torch.isnan(row).any():
+            raise ValueError('preforward signal logits need a finite candidate')
+        probs = torch.softmax(row, dim=-1)
+        table = self.embedding_table.detach().float()
+        mass, index = torch.topk(probs, self.TOPK)
+        self._bundle = {
+            'expected': probs @ table,
+            'topk': (mass / mass.sum().clamp_min(1e-12)) @ table[index],
+            'hidden': None,
+            'entropy': float(-(probs * probs.clamp_min(1e-12).log()).sum()),
+            'top_mass': float(mass.sum()),
+        }
+
+    def observe_mask_hidden(self, hidden):
+        if self._bundle is None:
+            raise ValueError('preforward signal hidden arrived before logits')
+        row = hidden[0].detach().float().reshape(-1)
+        if row.shape[0] != self.embedding_table.shape[1] or not torch.isfinite(row).all():
+            raise ValueError('preforward signal hidden must be one finite vector of embedding width')
+        self._bundle['hidden'] = row
+
+    def on_token_committed(self, new_embed, prev_embed):
+        self.base.on_token_committed(new_embed, prev_embed)
+        observed = new_embed.detach().to(dtype=torch.float32).reshape(-1)
+        if self._pending is not None and self._first is None:
+            self._first = observed.clone()
+        self._commits += 1
+        self._z = observed
+
+    def finish_round(self):
+        accepted = None if self._commits < 1 else self._commits - 1
+        if self._pending is not None:
+            if self._first is None or self._z is None or accepted is None:
+                raise RuntimeError('preforward signal closed a round without a commit')
+            row = dict(self._pending)
+            row['first'] = self._first.detach().to(dtype=torch.float32).cpu()
+            row['last'] = self._z.detach().to(dtype=torch.float32).cpu()
+            row['accepted'] = int(accepted)
+            self._rows.append(row)
+        self._prev_accepted = accepted
+        self._pending = None
+        self._first = None
+
+    def rows(self):
+        return list(self._rows)
+
+
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
     observation = spec_cfg.get('observation')
     bonus = spec_cfg.get('bonus_slot')
@@ -1551,11 +1760,15 @@ def build_mask_provider(spec_cfg, embedding_table, generator=None):
     if hybrid is not None:
         if str(spec_cfg.get('method', 'esp')).lower() != 'esp':
             raise ValueError('hybrid_gain wraps an ESP trajectory')
-        if not isinstance(hybrid, dict) or hybrid.get('mode') not in ('hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch', 'replace'):
-            raise ValueError('spec.hybrid_gain mode must be hybrid, scratch, frozen, trajectory, opened, branch or replace')
-        allowed = {'mode', 'k', 'p', 'r', 'q', 'boost'}
+        if not isinstance(hybrid, dict) or hybrid.get('mode') not in (
+                'hybrid', 'scratch', 'frozen', 'trajectory', 'opened', 'branch', 'replace', 'collect'):
+            raise ValueError(
+                'spec.hybrid_gain mode must be hybrid, scratch, frozen, trajectory, opened, branch, replace or collect')
+        allowed = {'mode', 'k', 'p', 'r', 'q', 'boost', 'observe'}
         if not set(hybrid) <= allowed:
             raise ValueError('spec.hybrid_gain has an unknown field')
+        if hybrid.get('observe', 'first') not in ('first', 'last'):
+            raise ValueError('spec.hybrid_gain observe must be first or last')
         base_cfg = {key: value for key, value in dict(spec_cfg).items() if key != 'hybrid_gain'}
         base = build_mask_provider(base_cfg, embedding_table, generator)
         return HybridGainKalman(base, hybrid['mode'], hybrid)

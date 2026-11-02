@@ -136,6 +136,27 @@
       ]
     },
     {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_bonus_aligned_gain_learns_the_last_commit_and_stays_lossless",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_lowrank_delta_recovers_rank1_and_rejects_noise",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_observation_blend.py::test_preforward_collector_matches_esp_tokens",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
       "test_id": "tests/spec_mtp/test_4b_bf16_plot.py::test_row_vs_column_preserves_all_wins_ties_losses_without_double_inverting_calls",
       "target": "spec_mtp",
       "tags": [

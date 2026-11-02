@@ -89,6 +89,21 @@ def select_token(logits_row, temperature, generator):
     return int(torch.multinomial(probs, num_samples=1, generator=generator).item())
 
 
+def _deliver_mask_hidden(provider, out, rows):
+    """Hand the final-norm rows to a provider that asked for them.
+
+    Providers without `observe_mask_hidden` are unchanged. The forward keeps
+    those rows only when the caller requested `last_hidden_only`.
+    """
+    hidden_fn = getattr(provider, 'observe_mask_hidden', None)
+    if hidden_fn is None:
+        return
+    hidden = getattr(out, 'last_hidden_state', None)
+    if hidden is None:
+        raise RuntimeError('mask provider asked for the final hidden, but this forward did not keep it')
+    hidden_fn(hidden[0][rows])
+
+
 def tree_probs(mask_logits, temperature):
     """Candidate-ranking distribution per mask; matches the verifier at T>0."""
     scaled = mask_logits.float() if temperature <= 0.0 else mask_logits.float() / temperature
@@ -231,6 +246,7 @@ class SpecDecoder:
         for_tree = getattr(provider, 'masks_for_tree', None)
         if observe is not None:
             observe(mask_logits)
+        _deliver_mask_hidden(provider, out, slice(t, t + k))
         model.crop_cache(cache, t)                                       # evict masks
 
         committed = [root_token]
@@ -361,6 +377,10 @@ class SpecDecoder:
                             'token': token, 'forward': record['forward'],
                             'row': record['row'], 'argmax': record['argmax']})
 
+            finish_round = getattr(provider, 'finish_round', None)
+            if finish_round is not None:
+                finish_round()
+
             stats['trace'].append({
                 'root_position': root_position, 'cache_before': cache_len,
                 'accepted_nodes': list(accepted_nodes), 'committed_tokens': list(committed_now),
@@ -406,6 +426,7 @@ class SpecDecoder:
             mask_logits = logits[mask_rows].clone()
             if observe is not None:
                 observe(mask_logits)
+            _deliver_mask_hidden(provider, out, mask_rows)
             if self.output_hidden:
                 proxy_hiddens = out.last_hidden_state[0, mask_rows].clone()
 

@@ -6,7 +6,8 @@ import torch
 from spec_mtp.analysis import round_split
 from spec_mtp.decode import SpecDecoder, ar_generate
 from spec_mtp.masks import (BonusSlotMaskProvider, ESPMaskProvider, ObservationBlendMaskProvider,
-                            OutputHiddenMaskProvider, build_mask_provider)
+                            OutputHiddenMaskProvider, PreforwardSignalCollector, apply_lowrank_delta,
+                            build_mask_provider, centered_r2, fit_lowrank_delta)
 from spec_mtp.model import HFCausalLM
 from spec_mtp.tree import DraftTree
 
@@ -496,6 +497,67 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     assert stats['verification_argmax_audit']['passed']
 
 
+def test_bonus_aligned_gain_learns_the_last_commit_and_stays_lossless():
+    from spec_mtp.masks import HybridGainKalman
+    payload = {'k': [0.2], 'p': [0.01], 'r': [0.04], 'q': [0.0001], 'boost': 64, 'observe': 'last'}
+    aligned = HybridGainKalman(ESPMaskProvider(1, torch.zeros(4, 1)), 'opened', payload)
+    aligned.init_from_prompt(torch.zeros(2, 1))
+    aligned.base._masks = torch.zeros(1, 1)
+    aligned._z = torch.tensor([2.0])
+    assert torch.allclose(aligned.masks()[0], torch.tensor([0.4]))
+    aligned.on_token_committed(torch.tensor([1.0]), torch.zeros(1))
+    aligned.on_token_committed(torch.tensor([5.0]), torch.zeros(1))
+    assert abs(float(aligned._k) - 0.2) < 1e-6
+    aligned.finish_round()
+    wide = 0.6464
+    step = wide * 2.0 / (0.04 + wide * 4.0)
+    assert abs(float(aligned._k) - (0.2 + step * (5.0 - 0.4))) < 1e-5
+    aligned.finish_round()
+    assert abs(float(aligned._k) - (0.2 + step * (5.0 - 0.4))) < 1e-5
+    early = HybridGainKalman(ESPMaskProvider(1, torch.zeros(4, 1)), 'opened',
+                             {'k': [0.2], 'p': [0.01], 'r': [0.04], 'q': [0.0001], 'boost': 64})
+    early.init_from_prompt(torch.zeros(2, 1))
+    early.base._masks = torch.zeros(1, 1)
+    early._z = torch.tensor([2.0])
+    early.masks()
+    early.on_token_committed(torch.tensor([1.0]), torch.zeros(1))
+    kept = float(early._k)
+    early.on_token_committed(torch.tensor([5.0]), torch.zeros(1))
+    early.finish_round()
+    assert abs(float(early._k) - kept) < 1e-6
+    collected = HybridGainKalman(ESPMaskProvider(1, torch.zeros(4, 1)), 'collect')
+    collected.init_from_prompt(torch.zeros(2, 1))
+    collected.base._masks = torch.tensor([[0.0]])
+    collected._z = torch.tensor([2.0])
+    assert torch.equal(collected.masks(), torch.tensor([[0.0]]))
+    collected.on_token_committed(torch.tensor([1.0]), torch.zeros(1))
+    collected.on_token_committed(torch.tensor([5.0]), torch.zeros(1))
+    collected.finish_round()
+    rows = collected.calibration_rows()
+    assert torch.allclose(rows['m'], torch.tensor([[0.0]]))
+    assert torch.allclose(rows['z'], torch.tensor([[2.0]]))
+    assert torch.allclose(rows['first'], torch.tensor([[1.0]]))
+    assert torch.allclose(rows['last'], torch.tensor([[5.0]]))
+    with pytest.raises(ValueError, match='observe'):
+        build_mask_provider({'method': 'esp', 'num_masks': 1, 'hybrid_gain': {'mode': 'collect', 'observe': 'bonus'}},
+                            torch.zeros(4, 1))
+    model = _model()
+    spec = _spec('esp', 1, 'static')
+    spec['tree'] = {'mode': 'static', 'branches': [4], 'pruning': True}
+    width = model.embedding_table.shape[-1]
+    spec['hybrid_gain'] = {'mode': 'opened', 'observe': 'last', 'boost': 64, 'k': [0.0] * width,
+                           'p': [0.01] * width, 'r': [0.04] * width, 'q': [0.0001] * width}
+    provider = build_mask_provider(spec, model.embedding_table)
+    prompt = PROMPTS[0]
+    out, stats = SpecDecoder(model, spec, {'max_new_tokens': 20, 'temperature': 0.0, 'stop_on_eos': False},
+                             generator=torch.Generator().manual_seed(1), mask_policy=provider).generate(prompt)
+    ar_out, _ = ar_generate(model, prompt, {'max_new_tokens': 20, 'temperature': 0.0, 'stop_on_eos': False},
+                            generator=torch.Generator().manual_seed(1))
+    assert torch.equal(out, ar_out)
+    assert stats['verification_argmax_audit']['passed'] is True
+    assert provider.protocol == 'hybrid-gain-bonus-aligned-v1'
+
+
 def test_round_split_groups_by_previous_outcome():
     trace = [{'accepted_nodes': [1, 2], 'committed_tokens': [5, 6, 7]},
              {'accepted_nodes': [], 'committed_tokens': [8]},
@@ -509,3 +571,56 @@ def test_round_split_groups_by_previous_outcome():
     assert round_split([])['after_reject']['tau'] is None
     with pytest.raises(ValueError, match='bonus'):
         round_split([{'accepted_nodes': [], 'committed_tokens': [1, 2]}])
+
+
+def test_lowrank_delta_recovers_rank1_and_rejects_noise():
+    generator = torch.Generator().manual_seed(0)
+    width = 8
+    train = torch.randn(60, width, generator=generator)
+    hold = torch.randn(40, width, generator=generator)
+    direction = torch.randn(width, generator=generator)
+    loading = torch.tensor([0.4, -0.2, 0.1, 0.0, 0.3, -0.1, 0.2, 0.05])
+    train_error = torch.outer(train @ direction, loading)
+    hold_error = torch.outer(hold @ direction, loading)
+    fit = fit_lowrank_delta(train, train_error, rank=1, ridge=1e-3, iters=8)
+    center = train_error.mean(dim=0)
+    assert centered_r2(hold_error, apply_lowrank_delta(hold, fit), center) > 0.98
+    noise = torch.randn(60, width, generator=generator)
+    noise_hold = torch.randn(40, width, generator=generator)
+    null = fit_lowrank_delta(noise, train_error, rank=1, ridge=1.0, iters=8)
+    assert centered_r2(hold_error, apply_lowrank_delta(noise_hold, null), center) < 0.2
+
+
+def test_preforward_collector_matches_esp_tokens():
+    model = _model()
+    spec = _spec('esp', 1, 'static')
+    prompt = PROMPTS[0]
+    eval_cfg = {'max_new_tokens': 8, 'temperature': 0.0, 'stop_on_eos': False}
+    plain = build_mask_provider(spec, model.embedding_table)
+    reference, reference_stats = SpecDecoder(model, spec, eval_cfg, mask_policy=plain).generate(prompt)
+    collector = PreforwardSignalCollector(ESPMaskProvider(1, model.embedding_table), model.embedding_table)
+    original = model.forward
+
+    def keeping_hidden(*args, **kwargs):
+        kwargs['last_hidden_only'] = True
+        return original(*args, **kwargs)
+
+    model.forward = keeping_hidden
+    try:
+        output, stats = SpecDecoder(model, spec, eval_cfg, mask_policy=collector).generate(prompt)
+    finally:
+        model.forward = original
+    assert torch.equal(output, reference)
+    assert stats['verification_argmax_audit']['passed'] is True
+    assert reference_stats['verification_argmax_audit']['passed'] is True
+    rows = collector.rows()
+    assert rows
+    assert rows[0]['hidden'].shape == (64,)
+    assert rows[0]['expected'].shape == (64,)
+    assert rows[0]['accepted'] >= 0
+    bare = PreforwardSignalCollector(ESPMaskProvider(1, model.embedding_table), model.embedding_table)
+    bare.init_from_prompt(model.embed(prompt)[0])
+    bare.observe_mask_logits(torch.zeros(1, model.vocab_size))
+    bare.on_token_committed(torch.zeros(64), torch.zeros(64))
+    with pytest.raises(RuntimeError, match='mask hidden'):
+        bare.masks()
