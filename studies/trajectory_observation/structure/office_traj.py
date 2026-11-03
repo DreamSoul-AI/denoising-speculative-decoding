@@ -1,13 +1,17 @@
 """Qwen3-8B trajectory-only versus joint observation ablation.
 
-Protocol ``office-8b-traj-ablate-v1``. Prompt selection, the two arm specs and
-the paired summary live here. The command that loads weights is
-``studies.trajectory_observation.flow.execute.office_traj``. Both arms wrap the
+Protocols ``office-8b-traj-ablate-v1`` and ``office-8b-traj-xcat-v1``. Prompt
+selection, the two arm specs and the paired summary live here. The command that
+loads weights is ``studies.trajectory_observation.flow.execute.office_traj``.
+Both arms wrap the
 current ESP baseline with the existing ``spec.observation`` switch. This module
 does not fit K and does not mutate the process environment on import.
 """
 
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 from studies.trajectory_observation.structure.fresh_replace import (
     bootstrap_mean_ci, direction, paired_deltas, prompt_sha256,
@@ -26,6 +30,12 @@ BOOT_RESAMPLES = 10000
 SKIPPED_QIDS = (658, 678)
 EVAL_SHA256 = 'd23ad590c45307fa7c1981b272adaec243bfaca5a2e390eda394bf2fe42a4cca'
 EVAL_QIDS = tuple(qid for qid in range(START, END + 1) if qid not in SKIPPED_QIDS)
+PROTOCOL_XCAT = 'office-8b-traj-xcat-v1'
+CATEGORY_XCAT = 'open_qa'
+TAKE_XCAT = 128
+SKIPPED_QIDS_XCAT = ()
+EVAL_SHA256_XCAT = 'f6e6b1c71a20f1170692e22a2c2bd79fb31eaeb810b861553f7c76a41df25231'
+EVAL_QIDS_XCAT = tuple(range(TAKE_XCAT))
 GAIN_FULL = 0.5
 GAIN_TRAJ = 0.0
 MASK = {'init': 'mean_prompt', 'lam': 0.1, 'update': True}
@@ -36,6 +46,7 @@ ARMS = (
     ('full', GAIN_FULL),
     ('traj', GAIN_TRAJ),
 )
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def arm_spec(gain):
@@ -62,6 +73,63 @@ def prompts_from_647(rows, take=TAKE):
     return prompts_after(rows, START, take)
 
 
+def dolly_text(item):
+    text = item.get('instruction')
+    context = item.get('context') or ''
+    if context:
+        text = f"{context}\n\n{text}"
+    if isinstance(text, str) and text.strip():
+        return text
+    return None
+
+
+def category_texts(rows, category):
+    texts = []
+    for item in rows:
+        if item.get('category') != category:
+            continue
+        text = dolly_text(item)
+        if text is not None:
+            texts.append(text)
+    return texts
+
+
+def previously_used_texts(rows):
+    """Creative stream, calibration templates, and local SpecBench turns."""
+    from studies.trajectory_observation.structure.office_qwen8b import HEADS, TAILS
+
+    used = set(category_texts(rows, 'creative_writing'))
+    used.update(f'{head} {tail}' for head in HEADS for tail in TAILS)
+    path = ROOT / 'datasets' / 'spec_bench' / 'question.jsonl'
+    for line in path.read_text(encoding='utf-8').splitlines():
+        if not line.strip():
+            continue
+        item = json.loads(line)
+        for turn in item.get('turns') or []:
+            if isinstance(turn, str) and turn.strip():
+                used.add(turn)
+    return used
+
+
+def prompts_open_qa(rows, take=TAKE_XCAT):
+    """First unused nonempty open_qa texts. qid is the index in that stream."""
+    texts = category_texts(rows, CATEGORY_XCAT)
+    if len(texts) < take:
+        raise RuntimeError(f'open_qa has only {len(texts)} nonempty prompts')
+    used = previously_used_texts(rows)
+    skipped = []
+    chosen = []
+    for index, text in enumerate(texts):
+        if text in used:
+            skipped.append(index)
+            continue
+        used.add(text)
+        chosen.append({'qid': index, 'category': CATEGORY_XCAT, 'text': text})
+        if len(chosen) == take:
+            return chosen, tuple(skipped)
+    raise RuntimeError(f'open_qa has only {len(chosen)} unused prompts')
+
+
 def assert_registered_slice(prompts, skipped):
     digest = prompt_sha256(prompts)
     qids = tuple(prompt['qid'] for prompt in prompts)
@@ -69,6 +137,17 @@ def assert_registered_slice(prompts, skipped):
         raise RuntimeError('registered qids do not cover the unused tail')
     if digest != EVAL_SHA256 or qids != EVAL_QIDS or tuple(skipped) != SKIPPED_QIDS:
         raise RuntimeError(f'prompt hash {digest} does not match the pre-registered slice')
+    return digest
+
+
+def assert_registered_xcat_slice(prompts, skipped):
+    digest = prompt_sha256(prompts)
+    qids = tuple(prompt['qid'] for prompt in prompts)
+    if (len(prompts) != TAKE_XCAT or digest != EVAL_SHA256_XCAT or qids != EVAL_QIDS_XCAT
+            or tuple(skipped) != SKIPPED_QIDS_XCAT):
+        raise RuntimeError(f'prompt hash {digest} does not match the pre-registered open_qa slice')
+    if any(prompt['category'] != CATEGORY_XCAT for prompt in prompts):
+        raise RuntimeError('cross-category slice left open_qa')
     return digest
 
 
@@ -110,11 +189,11 @@ def _compare(treated_name, treated, baseline_name, baseline):
     }
 
 
-def ablation_summary(rows_by_name, protocol=PROTOCOL, digest=EVAL_SHA256, skipped=SKIPPED_QIDS):
+def ablation_summary(rows_by_name, protocol=PROTOCOL, digest=EVAL_SHA256, skipped=SKIPPED_QIDS, take=TAKE):
     if set(rows_by_name) != {name for name, _gain in ARMS}:
         raise RuntimeError('summary is missing a registered arm')
-    if any(len(rows) != TAKE for rows in rows_by_name.values()):
-        raise RuntimeError(f'summary needs {TAKE} rows in every arm')
+    if any(len(rows) != take for rows in rows_by_name.values()):
+        raise RuntimeError(f'summary needs {take} rows in every arm')
     expected = block_complexity(1, TREE['branches'])
     comparison = _compare('traj', rows_by_name['traj'], 'full', rows_by_name['full'])
     complexities = comparison['block_complexity']['full'] + comparison['block_complexity']['traj']
@@ -127,7 +206,7 @@ def ablation_summary(rows_by_name, protocol=PROTOCOL, digest=EVAL_SHA256, skippe
         'protocol': protocol,
         'role': ROLE,
         'confirmatory': False,
-        'prompts': TAKE,
+        'prompts': take,
         'prompt_sha256': digest,
         'skipped_qids': list(skipped),
         'baseline': 'full',
