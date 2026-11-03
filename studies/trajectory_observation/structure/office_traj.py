@@ -5,14 +5,16 @@ Protocols ``office-8b-traj-ablate-v1``, ``office-8b-traj-xcat-v1``,
 ``office-8b-traj-xcat6-v1`` and ``office-8b-traj-xcat7-v1``. Prompt
 selection, the two arm specs, the paired summary, and the command that loads
 weights live here. Both arms wrap the current ESP baseline with the existing
-``spec.observation`` switch. This module does not fit K. Import does not
-mutate the process environment.
+``spec.observation`` switch. ``--protocol xcat7`` keeps the frozen summarization
+slice and records per-arm ``wall_seconds`` for ``office-8b-traj-wall-v1``.
+This module does not fit K. Import does not mutate the process environment.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 import time
 
@@ -21,7 +23,7 @@ from studies.trajectory_observation.structure.fresh_replace import (
 )
 from studies.trajectory_observation.structure.office_tree import (
     NODE_BUDGET, EVAL as TREE_EVAL, SMOKE as TREE_SMOKE, _append, _identity, _load_model,
-    _offline_caches, block_complexity, decode_prompt, existing_output_dir, prompts_after, read_rows,
+    _offline_caches, block_complexity, existing_output_dir, prompts_after, read_rows,
 )
 
 PROTOCOL = 'office-8b-traj-ablate-v1'
@@ -76,6 +78,7 @@ TAKE_XCAT7 = 128
 SKIPPED_QIDS_XCAT7 = ()
 EVAL_SHA256_XCAT7 = 'f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a'
 EVAL_QIDS_XCAT7 = tuple(range(TAKE_XCAT7))
+PROTOCOL_WALL = 'office-8b-traj-wall-v1'
 GAIN_FULL = 0.5
 GAIN_TRAJ = 0.0
 MASK = {'init': 'mean_prompt', 'lam': 0.1, 'update': True}
@@ -488,6 +491,83 @@ def _compare(treated_name, treated, baseline_name, baseline):
     }
 
 
+def finite_wall(value):
+    """Seconds kept on a row. Missing, non-finite, and negative stay missing."""
+    if type(value) not in (int, float):
+        return None
+    number = float(value)
+    if not math.isfinite(number) or number < 0.0:
+        return None
+    return number
+
+
+def measure_generate(generate, prompt_ids, device):
+    """Wall clock around one ``SpecDecoder.generate``.
+
+    ``sync_device`` runs before the start read and again before the end read.
+    A failed sync or clock leaves the wall missing and still returns the decode.
+    """
+    from spec_mtp.model import sync_device
+
+    started = None
+    try:
+        sync_device(device)
+        started = time.perf_counter()
+    except Exception:
+        started = None
+    output, stats = generate(prompt_ids)
+    if started is None:
+        return output, stats, None
+    try:
+        sync_device(device)
+        elapsed = time.perf_counter() - started
+    except Exception:
+        return output, stats, None
+    return output, stats, finite_wall(elapsed)
+
+
+def wall_direction(shorter, longer, mean):
+    """Direction of ``wall_seconds_traj - wall_seconds_full``.
+
+    ``shorter`` means traj used less wall time. This is not the acceptance
+    ``direction``, which treats a larger count as positive.
+    """
+    if shorter > longer and mean < 0:
+        return 'shorter'
+    if longer > shorter and mean > 0:
+        return 'longer'
+    if shorter == longer and mean == 0:
+        return 'flat'
+    return 'mixed'
+
+
+def wall_report(full_rows, traj_rows):
+    """Paired wall summary. An incomplete clock is not a direction."""
+    if any(finite_wall(row.get('wall_seconds')) is None for row in full_rows + traj_rows):
+        return {'complete': False}
+    deltas = paired_deltas(traj_rows, full_rows, 'wall_seconds')
+    shorter = sum(delta < 0 for delta in deltas)
+    longer = sum(delta > 0 for delta in deltas)
+    ties = sum(delta == 0 for delta in deltas)
+    difference = bootstrap_mean_ci(deltas)
+    tested = shorter + longer
+    from scipy.stats import binomtest
+
+    pvalue = None if tested == 0 else float(
+        binomtest(shorter, tested, 0.5, alternative='two-sided').pvalue)
+    return {
+        'complete': True,
+        'delta': 'wall_seconds_traj - wall_seconds_full',
+        'shorter': shorter,
+        'longer': longer,
+        'ties': ties,
+        'wins_losses_ties': [shorter, longer, ties],
+        'p': pvalue,
+        'wall_difference': difference,
+        'wall_direction': wall_direction(shorter, longer, difference['mean']),
+    }
+
+
 def ablation_summary(rows_by_name, protocol=PROTOCOL, digest=EVAL_SHA256, skipped=SKIPPED_QIDS, take=TAKE):
     if set(rows_by_name) != {name for name, _gain in ARMS}:
         raise RuntimeError('summary is missing a registered arm')
@@ -501,7 +581,7 @@ def ablation_summary(rows_by_name, protocol=PROTOCOL, digest=EVAL_SHA256, skippe
         and comparison['max_nodes'] == NODE_BUDGET
         and complexities == [expected, expected]
     )
-    return {
+    summary = {
         'protocol': protocol,
         'role': ROLE,
         'confirmatory': False,
@@ -511,7 +591,11 @@ def ablation_summary(rows_by_name, protocol=PROTOCOL, digest=EVAL_SHA256, skippe
         'baseline': 'full',
         'comparison': comparison,
         'argmax_all_passed': passed,
+        'wall': wall_report(rows_by_name['full'], rows_by_name['traj']),
     }
+    if protocol == PROTOCOL_XCAT7:
+        summary['wall_protocol'] = PROTOCOL_WALL
+    return summary
 
 
 def round_config(protocol):
@@ -599,25 +683,121 @@ def _specs():
     return tuple((name, specs[name]) for name, _gain in ARMS)
 
 
+def _model_device(model):
+    return getattr(model, 'device', 'cpu')
+
+
+def _store_clock(row, stats, wall):
+    kept = finite_wall(wall)
+    if kept is not None:
+        row['wall_seconds'] = kept
+    if isinstance(stats, dict):
+        for key in ('prefill_time', 'decode_time'):
+            if key not in stats:
+                continue
+            kept = finite_wall(stats[key])
+            if kept is not None:
+                row[key] = kept
+    return row
+
+
+def _measured_arm(model, spec, ids, limit):
+    """One new decoder. The wall covers only this arm's generate."""
+    import spec_mtp.decode as decode_mod
+    from studies.trajectory_observation.structure.office_tree import arm_row
+
+    captured = {}
+    original = decode_mod.SpecDecoder.generate
+
+    def generate(self, prompt_ids):
+        output, stats, wall = measure_generate(
+            lambda tokens: original(self, tokens), prompt_ids, _model_device(model))
+        captured['stats'] = stats
+        captured['wall'] = wall
+        return output, stats
+
+    decode_mod.SpecDecoder.generate = generate
+    try:
+        row = arm_row(model, spec, ids, limit)
+    finally:
+        decode_mod.SpecDecoder.generate = original
+    return _store_clock(row, captured.get('stats', {}), captured.get('wall'))
+
+
+def decode_measured_prompt(model, tokenizer, prompt, specs, limit):
+    """Independent AR, then full, then traj. Only the two arms get a wall clock."""
+    from spec_mtp.decode import ar_generate
+    from studies.trajectory_observation.structure.office_tree import token_hash
+
+    ids = tokenizer(prompt['text'], return_tensors='pt').input_ids
+    reference, _stats = ar_generate(model, ids, limit)
+    reference_hash = token_hash(reference)
+    rows = {}
+    for name, spec in specs:
+        row = _measured_arm(model, spec, ids, limit)
+        row['qid'] = prompt['qid']
+        row['category'] = prompt['category']
+        row['ar_equal'] = row['output_sha256'] == reference_hash
+        rows[name] = row
+    return rows
+
+
+def _warmup_arms(model, tokenizer, prompt):
+    """Untimed 8-token pass. Each arm builds a decoder and drops it, then sync."""
+    from spec_mtp.model import sync_device
+    from studies.trajectory_observation.structure.office_tree import arm_row
+
+    ids = tokenizer(prompt['text'], return_tensors='pt').input_ids
+    for _name, spec in _specs():
+        arm_row(model, spec, ids, SMOKE)
+    sync_device(_model_device(model))
+
+
+def _smoke_view(row):
+    recorded = {
+        'accepted': row['accepted'],
+        'argmax_passed': row['argmax_passed'],
+        'max_nodes': row['max_nodes'],
+        'block_complexity': row['block_complexity'],
+    }
+    wall = finite_wall(row.get('wall_seconds'))
+    if wall is not None:
+        recorded['wall_seconds'] = wall
+    for key in ('prefill_time', 'decode_time'):
+        if key in row and finite_wall(row[key]) is not None:
+            recorded[key] = row[key]
+    return recorded
+
+
 def _smoke(model, tokenizer, prompts, dest, cfg):
     rows = []
     for prompt in prompts[:2]:
         started = time.perf_counter()
-        decoded = decode_prompt(model, tokenizer, prompt, _specs(), SMOKE)
-        rows.append({name: {'accepted': row['accepted'], 'argmax_passed': row['argmax_passed'],
-                            'max_nodes': row['max_nodes'], 'block_complexity': row['block_complexity']}
-                     for name, row in decoded.items()})
+        decoded = decode_measured_prompt(model, tokenizer, prompt, _specs(), SMOKE)
+        rows.append({name: _smoke_view(row) for name, row in decoded.items()})
         print(f"smoke {prompt['qid']} {time.perf_counter() - started:.1f}s", flush=True)
     payload = {'protocol': cfg['protocol'], 'role': 'exploration', 'prompts': 2,
                'qids': [prompt['qid'] for prompt in prompts[:2]],
                'tokens': SMOKE['max_new_tokens'], 'arms': rows,
-               'argmax_all_passed': all(arm['argmax_passed'] for item in rows for arm in item.values())}
+               'argmax_all_passed': all(arm['argmax_passed'] for item in rows for arm in item.values()),
+               'wall_all_recorded': all('wall_seconds' in arm for item in rows for arm in item.values())}
+    if cfg['protocol'] == PROTOCOL_XCAT7:
+        payload['wall_protocol'] = PROTOCOL_WALL
     _file(dest, 'smoke', 'json', cfg['prefix'], cfg['stamp']).write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
     if not payload['argmax_all_passed']:
         raise RuntimeError('smoke argmax failed')
+    if not payload['wall_all_recorded']:
+        raise RuntimeError('smoke wall clock missing')
     print('smoke passed', flush=True)
     return payload
+
+
+def _shown_wall(row):
+    wall = finite_wall(row.get('wall_seconds'))
+    if wall is None:
+        return 'missing'
+    return f'{wall:.3f}'
 
 
 def _formal(model, tokenizer, prompts, skipped, digest, dest, cfg):
@@ -627,24 +807,31 @@ def _formal(model, tokenizer, prompts, skipped, digest, dest, cfg):
         raise RuntimeError('arms resumed at different prompts')
     header = _file(dest, 'header', 'json', cfg['prefix'], cfg['stamp'])
     if not header.exists():
-        header.write_text(json.dumps({
+        body = {
             'protocol': cfg['protocol'], 'role': 'exploration', 'source': _identity(),
             'eval': EVAL, 'arms': {name: spec for name, spec in _specs()},
             'prompt_sha256': digest, 'qids': [prompt['qid'] for prompt in prompts],
             'skipped_qids': list(skipped),
             'delta': 'accepted_traj - accepted_full',
+            'wall_seconds': 'sync_device and perf_counter around this arm SpecDecoder.generate',
+            'wall_delta': 'wall_seconds_traj - wall_seconds_full',
             'bootstrap': {'seed': 0, 'resamples': 10000},
-        }, ensure_ascii=False, indent=2), encoding='utf-8')
+        }
+        if cfg['protocol'] == PROTOCOL_XCAT7:
+            body['wall_protocol'] = PROTOCOL_WALL
+        header.write_text(json.dumps(body, ensure_ascii=False, indent=2), encoding='utf-8')
+    _warmup_arms(model, tokenizer, prompts[0])
     finished = done['full']
     for prompt in prompts:
         if prompt['qid'] in finished:
             continue
         started = time.perf_counter()
-        decoded = decode_prompt(model, tokenizer, prompt, _specs(), EVAL)
+        decoded = decode_measured_prompt(model, tokenizer, prompt, _specs(), EVAL)
         for name, row in decoded.items():
             _append(paths[name], row)
         print(f"eval {prompt['qid']} full={decoded['full']['accepted']} "
               f"traj={decoded['traj']['accepted']} nodes={decoded['full']['max_nodes']} "
+              f"wall={_shown_wall(decoded['full'])}/{_shown_wall(decoded['traj'])} "
               f"{time.perf_counter() - started:.1f}s", flush=True)
     summary = ablation_summary(
         {name: read_rows(path) for name, path in paths.items()},
