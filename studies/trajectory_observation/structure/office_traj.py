@@ -1,7 +1,7 @@
 """Qwen3-8B trajectory-only versus joint observation ablation.
 
-Protocols ``office-8b-traj-ablate-v1``, ``office-8b-traj-xcat-v1`` and
-``office-8b-traj-xcat2-v1``. Prompt
+Protocols ``office-8b-traj-ablate-v1``, ``office-8b-traj-xcat-v1``,
+``office-8b-traj-xcat2-v1`` and ``office-8b-traj-xcat3-v1``. Prompt
 selection, the two arm specs and the paired summary live here. The command that
 loads weights is ``studies.trajectory_observation.flow.execute.office_traj``.
 Both arms wrap the
@@ -43,6 +43,12 @@ TAKE_XCAT2 = 128
 SKIPPED_QIDS_XCAT2 = (91,)
 EVAL_SHA256_XCAT2 = 'a6a306ea868767da6cf8b6006bb4d91c5360387ae8b16ba1a20142cdd35ec677'
 EVAL_QIDS_XCAT2 = tuple(range(91)) + tuple(range(92, 129))
+PROTOCOL_XCAT3 = 'office-8b-traj-xcat3-v1'
+CATEGORY_XCAT3 = 'classification'
+TAKE_XCAT3 = 128
+SKIPPED_QIDS_XCAT3 = ()
+EVAL_SHA256_XCAT3 = '01c21dbf4a774b2395bed3a8606d3fe20d92a0cb7d2562ff8e8d965b9f2bd35e'
+EVAL_QIDS_XCAT3 = tuple(range(TAKE_XCAT3))
 GAIN_FULL = 0.5
 GAIN_TRAJ = 0.0
 MASK = {'init': 'mean_prompt', 'lam': 0.1, 'update': True}
@@ -187,6 +193,42 @@ def assert_registered_xcat2_slice(prompts, skipped):
         raise RuntimeError(f'prompt hash {digest} does not match the pre-registered general_qa slice')
     if any(prompt['category'] != CATEGORY_XCAT2 for prompt in prompts):
         raise RuntimeError('second cross-category slice left general_qa')
+    return digest
+
+
+def prompts_classification(rows, take=TAKE_XCAT3):
+    """First unused nonempty classification texts. qid is the index in that stream."""
+    prior, _prior_skipped = prompts_general_qa(rows, take=TAKE_XCAT2)
+    if len(prior) != TAKE_XCAT2 or any(item['category'] != CATEGORY_XCAT2 for item in prior):
+        raise RuntimeError('general_qa slice drifted before the classification draw')
+    open_prior, open_skipped = prompts_open_qa(rows, take=TAKE_XCAT)
+    if tuple(open_skipped) != SKIPPED_QIDS_XCAT or len(open_prior) != TAKE_XCAT:
+        raise RuntimeError('open_qa slice drifted before the classification draw')
+    texts = category_texts(rows, CATEGORY_XCAT3)
+    used = previously_used_texts(rows)
+    used.update(item['text'] for item in open_prior)
+    used.update(item['text'] for item in prior)
+    skipped = []
+    chosen = []
+    for index, text in enumerate(texts):
+        if text in used:
+            skipped.append(index)
+            continue
+        used.add(text)
+        chosen.append({'qid': index, 'category': CATEGORY_XCAT3, 'text': text})
+        if len(chosen) == take:
+            return chosen, tuple(skipped)
+    raise RuntimeError(f'classification has only {len(chosen)} unused prompts')
+
+
+def assert_registered_xcat3_slice(prompts, skipped):
+    digest = prompt_sha256(prompts)
+    qids = tuple(prompt['qid'] for prompt in prompts)
+    if (len(prompts) != TAKE_XCAT3 or digest != EVAL_SHA256_XCAT3 or qids != EVAL_QIDS_XCAT3
+            or tuple(skipped) != SKIPPED_QIDS_XCAT3):
+        raise RuntimeError(f'prompt hash {digest} does not match the pre-registered classification slice')
+    if any(prompt['category'] != CATEGORY_XCAT3 for prompt in prompts):
+        raise RuntimeError('third cross-category slice left classification')
     return digest
 
 
