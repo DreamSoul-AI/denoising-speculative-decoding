@@ -1,6 +1,8 @@
-"""Run the pre-registered Qwen3-8B trajectory-only versus full-blend ablation.
+"""Run a pre-registered Qwen3-8B trajectory-only versus full-blend comparison.
 
-Writes flat files into an existing directory. It does not create directories.
+``--protocol ablate`` is the finished creative_writing tail. ``--protocol xcat``
+is the open_qa cross-category exploration. Writes flat files into an existing
+directory. It does not create directories.
 """
 
 from __future__ import annotations
@@ -14,17 +16,37 @@ from studies.trajectory_observation.flow.execute.office_tree import (
     _append, _identity, _load_model, _offline_caches,
 )
 from studies.trajectory_observation.structure.office_traj import (
-    ARMS, EVAL, PROTOCOL, SMOKE, ablation_summary, arm_specs, assert_registered_slice,
-    prompts_from_647,
+    ARMS, EVAL, PROTOCOL, PROTOCOL_XCAT, SMOKE, TAKE, TAKE_XCAT, ablation_summary,
+    arm_specs, assert_registered_slice, assert_registered_xcat_slice, prompts_from_647,
+    prompts_open_qa,
 )
 from studies.trajectory_observation.structure.office_tree import decode_prompt, existing_output_dir, read_rows
 
-STAMP = '20261103-0905'
-PREFIX = 'sd-office-8b-traj-ablate'
+
+def round_config(protocol):
+    if protocol == 'ablate':
+        return {
+            'protocol': PROTOCOL,
+            'prefix': 'sd-office-8b-traj-ablate',
+            'stamp': '20261103-0905',
+            'select': prompts_from_647,
+            'check': assert_registered_slice,
+            'take': TAKE,
+        }
+    if protocol == 'xcat':
+        return {
+            'protocol': PROTOCOL_XCAT,
+            'prefix': 'sd-office-8b-traj-xcat',
+            'stamp': '20261103-0929',
+            'select': prompts_open_qa,
+            'check': assert_registered_xcat_slice,
+            'take': TAKE_XCAT,
+        }
+    raise RuntimeError(f'unknown trajectory protocol {protocol}')
 
 
-def _file(dest, name, suffix):
-    return dest / f'{PREFIX}-{name}-{STAMP}.{suffix}'
+def _file(dest, name, suffix, prefix, stamp):
+    return dest / f'{prefix}-{name}-{stamp}.{suffix}'
 
 
 def _specs():
@@ -32,7 +54,7 @@ def _specs():
     return tuple((name, specs[name]) for name, _gain in ARMS)
 
 
-def _smoke(model, tokenizer, prompts, dest):
+def _smoke(model, tokenizer, prompts, dest, cfg):
     rows = []
     for prompt in prompts[:2]:
         started = time.perf_counter()
@@ -41,26 +63,27 @@ def _smoke(model, tokenizer, prompts, dest):
                             'max_nodes': row['max_nodes'], 'block_complexity': row['block_complexity']}
                      for name, row in decoded.items()})
         print(f"smoke {prompt['qid']} {time.perf_counter() - started:.1f}s", flush=True)
-    payload = {'protocol': PROTOCOL, 'role': 'exploration', 'prompts': 2,
+    payload = {'protocol': cfg['protocol'], 'role': 'exploration', 'prompts': 2,
                'qids': [prompt['qid'] for prompt in prompts[:2]],
                'tokens': SMOKE['max_new_tokens'], 'arms': rows,
                'argmax_all_passed': all(arm['argmax_passed'] for item in rows for arm in item.values())}
-    _file(dest, 'smoke', 'json').write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+    _file(dest, 'smoke', 'json', cfg['prefix'], cfg['stamp']).write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
     if not payload['argmax_all_passed']:
         raise RuntimeError('smoke argmax failed')
     print('smoke passed', flush=True)
     return payload
 
 
-def _formal(model, tokenizer, prompts, skipped, digest, dest):
-    paths = {name: _file(dest, name, 'jsonl') for name, _gain in ARMS}
+def _formal(model, tokenizer, prompts, skipped, digest, dest, cfg):
+    paths = {name: _file(dest, name, 'jsonl', cfg['prefix'], cfg['stamp']) for name, _gain in ARMS}
     done = {name: {row['qid'] for row in read_rows(path)} for name, path in paths.items()}
     if len(set(map(frozenset, done.values()))) != 1:
         raise RuntimeError('arms resumed at different prompts')
-    header = _file(dest, 'header', 'json')
+    header = _file(dest, 'header', 'json', cfg['prefix'], cfg['stamp'])
     if not header.exists():
         header.write_text(json.dumps({
-            'protocol': PROTOCOL, 'role': 'exploration', 'source': _identity(),
+            'protocol': cfg['protocol'], 'role': 'exploration', 'source': _identity(),
             'eval': EVAL, 'arms': {name: spec for name, spec in _specs()},
             'prompt_sha256': digest, 'qids': [prompt['qid'] for prompt in prompts],
             'skipped_qids': list(skipped),
@@ -80,9 +103,10 @@ def _formal(model, tokenizer, prompts, skipped, digest, dest):
               f"{time.perf_counter() - started:.1f}s", flush=True)
     summary = ablation_summary(
         {name: read_rows(path) for name, path in paths.items()},
-        protocol=PROTOCOL, digest=digest, skipped=skipped,
+        protocol=cfg['protocol'], digest=digest, skipped=skipped, take=cfg['take'],
     )
-    _file(dest, 'summary', 'json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+    _file(dest, 'summary', 'json', cfg['prefix'], cfg['stamp']).write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(summary, ensure_ascii=False), flush=True)
     return summary
 
@@ -91,21 +115,23 @@ def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--dest', type=Path, required=True)
     parser.add_argument('--only', choices=('all', 'smoke', 'formal'), default='all')
+    parser.add_argument('--protocol', choices=('ablate', 'xcat'), default='ablate')
     args = parser.parse_args(argv)
     dest = existing_output_dir(args.dest)
+    cfg = round_config(args.protocol)
     _offline_caches(dest)
     from studies.trajectory_observation.structure.office_qwen8b import load_dolly_rows
 
-    prompts, skipped = prompts_from_647(load_dolly_rows())
-    digest = assert_registered_slice(prompts, skipped)
+    prompts, skipped = cfg['select'](load_dolly_rows())
+    digest = cfg['check'](prompts, skipped)
     print('load 8b', flush=True)
     model, tokenizer, torch_version = _load_model('8b')
     if args.only in ('all', 'smoke'):
-        _smoke(model, tokenizer, prompts, dest)
+        _smoke(model, tokenizer, prompts, dest, cfg)
     if args.only in ('all', 'formal'):
         if _identity()['dirty']:
             raise RuntimeError('formal run requires a clean worktree')
-        _formal(model, tokenizer, prompts, skipped, digest, dest)
+        _formal(model, tokenizer, prompts, skipped, digest, dest, cfg)
     print('torch', torch_version, flush=True)
 
 
