@@ -455,6 +455,8 @@ qid 是 information_extraction 非空文本流里的下标。已用文本按 `cr
 
 选句常量仍放在 `studies/trajectory_observation/structure/office_traj.py`。命令仍是 `studies/trajectory_observation/flow/execute/office_traj.py`，本轮加 `--protocol xcat6`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。`--protocol xcat2` 仍是已经跑完的 general_qa 切片。`--protocol xcat3` 仍是已经跑完的 classification 切片。`--protocol xcat4` 仍是已经跑完的 closed_qa 切片。`--protocol xcat5` 仍是已经跑完的 brainstorming 切片。不改那六组哈希。
 
+这一组已经跑完。已提交的 `direction` 作用在 traj−full 上，返回 positive：胜多于负，接受数差均值大于 0。traj 对 full 为 106:10:12（p=2.164e-21），差均值 +3.046875，区间 [2.5234375, 3.6015625]，τ 均值 1.326882→1.415774。区间不含 0。完整版相对 traj 的接受增益是这个差的相反数，均值 −3.046875，区间 [−3.6015625, −2.5234375]，也不含 0。τ 差均值 +0.088892，区间 [0.074741, 0.103290]，不含 0。最大草稿节点数是 4。块复杂度两边都是 10。argmax 全部通过。换到 information_extraction 之后，gain 0.5 的联合 mask 仍然接受更少。这 128 条上的接受数差均值是 +3.046875，高于 closed_qa 的 +2.4921875 和 brainstorming 的 +2.6171875，接近 general_qa 的 +3.1484375，低于 classification 的 +4.0546875。这是探索复现，不是确认。不改 K，不改 0.5，不改 64，不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。数字在第七章和同日运行记录。
+
 资源需求在公式和最小比较的输入规模确定前不编造预算。历史“GPU 不空闲”不能当作新的执行许可。取消时保留已写出的部分观测，不把未完成矩阵记为成功。
 
 # 七、已完成研究的有效范围
@@ -495,6 +497,7 @@ qid 是 information_extraction 非空文本流里的下标。已用文本按 `cr
 | Qwen3-8B trajectory 第三次跨类复现 | 标明探索。Dolly classification 非空流 qid 0–127，128 条，没有跳过。traj（gain 0）对 full（gain 0.5）为 93:23:12（p=3.597e-11），接受数差 +4.0546875，区间 [3.09375, 5.015625]，τ 1.243178→1.352919。完整版相对 traj 的增益是 −4.0546875，区间不含 0。换到 classification 后联合 mask 仍然接受更少。不改 0.5，不改 64，不重选句子 |
 | Qwen3-8B trajectory 第四次跨类复现 | 标明探索。Dolly closed_qa 非空流 qid 0–127，128 条，没有跳过。traj（gain 0）对 full（gain 0.5）为 95:22:11（p=5.314e-12），接受数差 +2.4921875，区间 [1.9765625, 3.03125]，τ 1.357949→1.431103。完整版相对 traj 的增益是 −2.4921875，区间不含 0。换到 closed_qa 后联合 mask 仍然接受更少。不改 0.5，不改 64，不重选句子 |
 | Qwen3-8B trajectory 第五次跨类复现 | 标明探索。Dolly brainstorming 非空流 qid 0–127，128 条，没有跳过。traj（gain 0）对 full（gain 0.5）为 95:17:16（p=2.508e-14），接受数差 +2.6171875，区间 [2.1328125, 3.1171875]，τ 1.290219→1.358632。完整版相对 traj 的增益是 −2.6171875，区间不含 0。换到 brainstorming 后联合 mask 仍然接受更少。不改 0.5，不改 64，不重选句子 |
+| Qwen3-8B trajectory 第六次跨类复现 | 标明探索。Dolly information_extraction 非空流 qid 0–127，128 条，没有跳过。traj（gain 0）对 full（gain 0.5）为 106:10:12（p=2.164e-21），接受数差 +3.046875，区间 [2.5234375, 3.6015625]，τ 1.326882→1.415774。完整版相对 traj 的增益是 −3.046875，区间不含 0。换到 information_extraction 后联合 mask 仍然接受更少。不改 0.5，不改 64，不重选句子 |
 | 采样分布保证、独立 AR 等价、端到端速度 | 未完成，不能由 T0 推广 |
 
 # 八、和开发计划的关系
