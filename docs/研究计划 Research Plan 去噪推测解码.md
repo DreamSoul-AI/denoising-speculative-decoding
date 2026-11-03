@@ -252,6 +252,22 @@ K 的校准与 11 月 2 日额外分支相同：288 句式的前 128 条，每�
 
 选句、形状和汇总放在 `studies/trajectory_observation/structure/office_tree.py`。命令放在 `studies/trajectory_observation/flow/execute/office_tree.py`。
 
+**Qwen3-8B 上的同预算树形探索（2026年11月3日，运行前写定，标明探索）**：协议 `office-8b-tree-shape-v1`。这是探索，不是主确认。不设 p<0.05 通过线，也不把某一种形状写成默认树。要看的是：Qwen3-4B 上 [2, 2] 与 [3, 1] 对 [4] 都是负方向之后，换到 Qwen3-8B、换一批句子，方向会不会变。K 不进入这轮：不拟合、不乘、不按结果再估。生成长度保持 64。下面的句子写死，不按结果重选。
+
+问题与形状沿用 `office-tree-shape-v1`。最大草稿节点数保持 4。基线是现有 ESP：`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。温度 0。备选只使用入口已经支持的 [2, 2] 与 [3, 1]，`num_masks` 都是 2。草稿节点数都是 4。不使用动态树，不把基线改成 `branches` [5]。块复杂度仍是基线 10、两个备选 15。比较的量是接受数。不把备选的块复杂度调回 10。任一步草稿节点数不是 4，该形状中止，这一组不进入符号检验。
+
+模型只有 Qwen3-8B，BF16，CUDA，eager，`local_files_only`。权重只用 `D:\models\Qwen3-8B`，模型表键 `8b` 指向这一目录，不下载。显存大约 17–18GB。正式加载前确认没有别的 CUDA 计算占用显存，空闲显存够放下这一份权重。分词用 `tokenizer(text)`，不用 chat template。
+
+冒烟用正式 128 条里的前 2 条，每条 8 token。三个形状都要 argmax 通过。冒烟不进入符号检验。冒烟失败就不跑正式。
+
+评测是 Dolly `databricks/databricks-dolly-15k` 的 train split，本机 `datasets` 5.0.0 离线缓存。`creative_writing` 非空文本流共 709 条，qid 是这条流里的下标。已用文本按 qid 0–515 的全部文本计算，其中包含办公室此前的 8B 切片（257–288、290–303、305–364、366–387）和 4B 树形切片（388–515）。从 qid 516 起向后取满 128 条。文本与 qid 0–515 的任一文本相同，或与已经选入的新句相同，就跳过。实际跳过 597（与本切片已选入的 554 相同）、608（与 226 相同）、626（与 198 相同）。留下的 qid 是 516–596、598–607、609–625、627–646。换行拼接的 SHA256 是 `d4596e4f7404f47ac53e327d711f70edb7d49298b7583155c8050bfe27bed4dd`。运行时条数、qid 或哈希对不上就中止，不另选句子。
+
+正式每条 64 token，`stop_on_eos` false。三个形状的 argmax 都要通过，否则该组无效。独立 AR 不一致只作诊断。
+
+主比较是 [2, 2] 对 [4]，以及 [3, 1] 对 [4]。差值是备选的 `accepted` 减去基线。每组报告胜:负:平、双侧二项符号检验的 p、两边的 τ（每条均值，以及提交数除以解码调用数）、接受数差的均值和 bootstrap 95% 区间（百分位，种子 0，10000 次）。τ 的差用同一组 bootstrap，只作伴随描述。p 不卡 0.05。效应量按算出来的数写。胜多于负且均值大于 0，只记为这次探索里的正方向，不记成确认。胜少于负且均值小于 0，记为这次探索里的负方向。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 64、不重选这 128 条，也不再加第三种形状，不把任一形状写成默认树。
+
+选句常量、形状和汇总仍在 `studies/trajectory_observation/structure/office_tree.py`。命令仍是 `studies/trajectory_observation/flow/execute/office_tree.py`，8B 用 `--model 8b`。默认不带该参数时仍是已经跑完的 4B 切片，不改那一组哈希。
+
 资源需求在公式和最小比较的输入规模确定前不编造预算。历史“GPU 不空闲”不能当作新的执行许可。取消时保留已写出的部分观测，不把未完成矩阵记为成功。
 
 # 七、已完成研究的有效范围
