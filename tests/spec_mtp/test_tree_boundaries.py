@@ -94,7 +94,6 @@ def test_children_of_and_block_layout_indices():
 def test_legacy_path_reexports_decode_tree():
     import spec_mtp.structure.algorithm.decode.tree as tree
     import spec_mtp.structure.algorithm.decode.tree_attention as attention
-    import spec_mtp.structure.algorithm.decode.tree_edit as edit
     import spec_mtp.tree as legacy
 
     same = {
@@ -104,9 +103,9 @@ def test_legacy_path_reexports_decode_tree():
         'build_static_tree': tree,
         'build_dynamic_tree': tree,
         'build_tree': tree,
-        'add_depth1_branch': edit,
-        'replace_weakest_depth1': edit,
-        '_depth1_indices': edit,
+        'add_depth1_branch': tree,
+        'replace_weakest_depth1': tree,
+        '_depth1_indices': tree,
         'block_layout': attention,
         'mask_indices_of': attention,
         'build_block_attention': attention,
