@@ -735,6 +735,13 @@
       ]
     },
     {
+      "test_id": "tests/spec_mtp/test_contracts.py::test_legacy_path_reexports_decode_api",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
       "test_id": "tests/spec_mtp/test_correctness.py::test_mask_providers",
       "target": "spec_mtp",
       "tags": [
