@@ -322,6 +322,31 @@ qid 是 open_qa 非空文本流里的下标。已用文本按 `creative_writing`
 
 这一组已经跑完。已提交的 `direction` 作用在 traj−full 上，返回 positive：胜多于负，接受数差均值大于 0。traj 对 full 为 103:12:13（p=3.351e-19），差均值 +3.2421875，区间 [2.71875, 3.765625]，τ 均值 1.253489→1.338024。区间不含 0。完整版相对 traj 的接受增益是这个差的相反数，均值 −3.2421875，区间 [−3.765625, −2.71875]，也不含 0。τ 差均值 +0.084534，区间 [0.071050, 0.098127]，不含 0。最大草稿节点数是 4。块复杂度两边都是 10。argmax 全部通过。换到 open_qa 之后，gain 0.5 的联合 mask 仍然接受更少。这是探索复现，不是确认。不改 K，不改 0.5，不改 64，不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。数字在第七章和同日运行记录。
 
+**Qwen3-8B 上 trajectory-only 对完整 ESP 的第二次跨类复现（2026年11月3日，运行前写定，标明探索）**：协议 `office-8b-traj-xcat2-v1`。这是探索复现，不是主确认。不设 p<0.05 通过线。树形方向不再继续：两边都不用 [2, 2] 或 [3, 1]。K 不进入这轮：不拟合、不乘、不按结果再估。生成长度保持 64。下面的句子写死，不按结果重选。
+
+问题是：第八轮在 `open_qa` 的 qid 0–127 上，traj 对 full 为 103:12:13。再换一个办公室没有用过的 Dolly 类别之后，同一对开关下，trajectory-only 的接受数是否仍然更高。两臂与第七轮、第八轮相同。正式基线是现有 ESP：`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。温度 0。最大草稿节点数保持 4。块复杂度两边都是 \((1+1)\times(1+4)=10\)。这个基线配置本身没有 `spec.observation`。已实现的联合开关就是 `spec.observation`：`gain` 为 0 时与被包装的 provider 逐 token 相同，只走 trajectory。本轮不新写 provider，也不把 `mask.update` 关掉。
+
+两臂共用上面的基线，都设置 `condition` none、`form` mean，协议名都是 `trajectory-observation-blend-v1`。
+
+- full：`gain` 0.5，与第七轮、第八轮 full 一致。不在这批句子上重选。
+- traj：`gain` 0，与第七轮、第八轮 traj 一致。这是关闭联合 mask 里 observation 一侧的现有开关。
+
+任一步草稿节点数不是 4，该臂中止，这一组不进入符号检验。
+
+模型只有 Qwen3-8B，BF16，CUDA，eager，`local_files_only`。权重只用 `D:\models\Qwen3-8B`，模型表键 `8b` 指向这一目录，不下载。显存大约 17–18GB。正式加载前确认没有别的 CUDA 计算占用显存。分词用 `tokenizer(text)`，不用 chat template。
+
+冒烟用正式 128 条里的前 2 条，每条 8 token。两臂都要 argmax 通过。冒烟不进入符号检验。冒烟失败就不跑正式。
+
+评测是 Dolly `databricks/databricks-dolly-15k` 的 train split，本机 `datasets` 5.0.0 离线缓存，15011 行。办公室既往切片用过的类别是 `creative_writing` 和 `open_qa`。`creative_writing` 非空流 709 条已经用尽。`open_qa` 本轮不回用；已用文本只计第八轮实际选入的 qid 0–127。其余类别按非空条数从大到小是 general_qa 2191、classification 2136、closed_qa 1773、brainstorming 1766、information_extraction 1506、summarization 1188。这些类别都没有作为办公室切片用过。最大的是 general_qa，本轮用它。
+
+qid 是 general_qa 非空文本流里的下标。已用文本按 `creative_writing` 全部 709 条、第八轮 `open_qa` qid 0–127、本仓 SpecBench `datasets/spec_bench/question.jsonl` 的各轮原文，以及 288 句校准模板计算。从 qid 0 起取满 128 条。文本与上述任一已用文本相同，或与已经选入的新句相同，就跳过。实际跳过 91。这条文本是 “What is the English Premier League?”，与 `open_qa` qid 93 相同。留下的 qid 是 0–90、92–128。这 128 条文本以换行拼接后的 SHA256 是 `a6a306ea868767da6cf8b6006bb4d91c5360387ae8b16ba1a20142cdd35ec677`。general_qa 更后面另有 3 条与 `creative_writing` 相同（186、571、1760），1 条与 `open_qa` qid 93 相同（2012），以及 80 条类内重复，没有进入这 128 条。运行时条数、qid 或哈希对不上就中止，不另选句子。
+
+正式每条 64 token，`stop_on_eos` false。两臂的 argmax 都要通过，否则该组无效。独立 AR 不一致只作诊断。
+
+主比较是 traj 对 full。差值是 traj 的 `accepted` 减去 full。胜是 traj 更高，负是 full 更高，平是相等。同时报告完整版相对 traj 的接受增益，即 full 减去 traj，它是同一组差值的相反数。两边的 τ 用每条均值，以及提交数除以解码调用数的合计。接受数差的均值和 bootstrap 95% 区间用百分位，种子 0，10000 次。完整版增益的区间用同一规则、同一组配对再算一次。τ 的差用同一组 bootstrap，只作伴随描述。p 是双侧二项符号检验，不卡 0.05。效应量按算出来的数写。代码里的 `direction` 作用在 traj−full 上：胜多于负且均值大于 0 是 positive，表示这次探索里 trajectory-only 接受更多；胜少于负且均值小于 0 是 negative，表示 full 接受更多。这是探索复现，不记成确认。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。
+
+选句常量仍放在 `studies/trajectory_observation/structure/office_traj.py`。命令仍是 `studies/trajectory_observation/flow/execute/office_traj.py`，本轮加 `--protocol xcat2`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。不改那两组哈希。
+
 资源需求在公式和最小比较的输入规模确定前不编造预算。历史“GPU 不空闲”不能当作新的执行许可。取消时保留已写出的部分观测，不把未完成矩阵记为成功。
 
 # 七、已完成研究的有效范围
