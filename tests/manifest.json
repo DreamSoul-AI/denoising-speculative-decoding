@@ -3393,6 +3393,62 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_qwen8b.py::test_prompts_after_256_skip_texts_already_used",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_qwen8b.py::test_short_pool_after_256_is_rejected",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_qwen8b.py::test_registered_qid_span_skips_the_three_duplicates",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_qwen8b.py::test_8b_table_points_at_the_local_qwen3_directory",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_qwen8b.py::test_replace_keeps_the_esp_tree_and_kalman_is_frozen_last",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_qwen8b.py::test_summary_reports_each_arm_against_esp",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_qwen8b.py::test_output_dir_must_exist_off_the_repo",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_qwen8b_command.py::test_command_rejects_a_missing_destination",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

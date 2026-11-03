@@ -51,6 +51,7 @@ TAILS = (
 MODELS = {
     '4b': Path(r'D:\models\Qwen3-4B'),
     '0.6b': Path(r'D:\models\Qwen3-0.6B'),
+    '8b': Path('D' + ':' + '\\') / 'models' / 'Qwen3-8B',
 }
 EVAL = {'max_new_tokens': 64, 'temperature': 0.0, 'stop_on_eos': False}
 FIT = {'max_new_tokens': 24, 'temperature': 0.0, 'stop_on_eos': False}
