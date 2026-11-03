@@ -1,8 +1,8 @@
 """Qwen3-8B trajectory-only versus joint observation ablation.
 
 Protocols ``office-8b-traj-ablate-v1``, ``office-8b-traj-xcat-v1``,
-``office-8b-traj-xcat2-v1``, ``office-8b-traj-xcat3-v1``, ``office-8b-traj-xcat4-v1``, ``office-8b-traj-xcat5-v1``
-and ``office-8b-traj-xcat6-v1``. Prompt
+``office-8b-traj-xcat2-v1``, ``office-8b-traj-xcat3-v1``, ``office-8b-traj-xcat4-v1``, ``office-8b-traj-xcat5-v1``,
+``office-8b-traj-xcat6-v1`` and ``office-8b-traj-xcat7-v1``. Prompt
 selection, the two arm specs and the paired summary live here. The command that
 loads weights is ``studies.trajectory_observation.flow.execute.office_traj``.
 Both arms wrap the
@@ -68,6 +68,12 @@ TAKE_XCAT6 = 128
 SKIPPED_QIDS_XCAT6 = ()
 EVAL_SHA256_XCAT6 = 'b7094d9ecf62a73e299d742016a3fdfcf4608ef5a7a32f7adc7703b86706d7c3'
 EVAL_QIDS_XCAT6 = tuple(range(TAKE_XCAT6))
+PROTOCOL_XCAT7 = 'office-8b-traj-xcat7-v1'
+CATEGORY_XCAT7 = 'summarization'
+TAKE_XCAT7 = 128
+SKIPPED_QIDS_XCAT7 = ()
+EVAL_SHA256_XCAT7 = 'f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a'
+EVAL_QIDS_XCAT7 = tuple(range(TAKE_XCAT7))
 GAIN_FULL = 0.5
 GAIN_TRAJ = 0.0
 MASK = {'init': 'mean_prompt', 'lam': 0.1, 'update': True}
@@ -384,6 +390,61 @@ def assert_registered_xcat6_slice(prompts, skipped):
             f'prompt hash {digest} does not match the pre-registered information_extraction slice')
     if any(prompt['category'] != CATEGORY_XCAT6 for prompt in prompts):
         raise RuntimeError('sixth cross-category slice left information_extraction')
+    return digest
+
+
+def prompts_summarization(rows, take=TAKE_XCAT7):
+    """First unused nonempty summarization texts. qid is the index in that stream."""
+    prior, prior_skipped = prompts_information_extraction(rows, take=TAKE_XCAT6)
+    if (len(prior) != TAKE_XCAT6 or tuple(prior_skipped) != SKIPPED_QIDS_XCAT6
+            or any(item['category'] != CATEGORY_XCAT6 for item in prior)):
+        raise RuntimeError('information_extraction slice drifted before the summarization draw')
+    brain_prior, brain_skipped = prompts_brainstorming(rows, take=TAKE_XCAT5)
+    if (len(brain_prior) != TAKE_XCAT5 or tuple(brain_skipped) != SKIPPED_QIDS_XCAT5
+            or any(item['category'] != CATEGORY_XCAT5 for item in brain_prior)):
+        raise RuntimeError('brainstorming slice drifted before the summarization draw')
+    closed_prior, closed_skipped = prompts_closed_qa(rows, take=TAKE_XCAT4)
+    if (len(closed_prior) != TAKE_XCAT4 or tuple(closed_skipped) != SKIPPED_QIDS_XCAT4
+            or any(item['category'] != CATEGORY_XCAT4 for item in closed_prior)):
+        raise RuntimeError('closed_qa slice drifted before the summarization draw')
+    class_prior, _class_skipped = prompts_classification(rows, take=TAKE_XCAT3)
+    if len(class_prior) != TAKE_XCAT3 or any(item['category'] != CATEGORY_XCAT3 for item in class_prior):
+        raise RuntimeError('classification slice drifted before the summarization draw')
+    general_prior, _general_skipped = prompts_general_qa(rows, take=TAKE_XCAT2)
+    if len(general_prior) != TAKE_XCAT2 or any(item['category'] != CATEGORY_XCAT2 for item in general_prior):
+        raise RuntimeError('general_qa slice drifted before the summarization draw')
+    open_prior, open_skipped = prompts_open_qa(rows, take=TAKE_XCAT)
+    if tuple(open_skipped) != SKIPPED_QIDS_XCAT or len(open_prior) != TAKE_XCAT:
+        raise RuntimeError('open_qa slice drifted before the summarization draw')
+    texts = category_texts(rows, CATEGORY_XCAT7)
+    used = previously_used_texts(rows)
+    used.update(item['text'] for item in open_prior)
+    used.update(item['text'] for item in general_prior)
+    used.update(item['text'] for item in class_prior)
+    used.update(item['text'] for item in closed_prior)
+    used.update(item['text'] for item in brain_prior)
+    used.update(item['text'] for item in prior)
+    skipped = []
+    chosen = []
+    for index, text in enumerate(texts):
+        if text in used:
+            skipped.append(index)
+            continue
+        used.add(text)
+        chosen.append({'qid': index, 'category': CATEGORY_XCAT7, 'text': text})
+        if len(chosen) == take:
+            return chosen, tuple(skipped)
+    raise RuntimeError(f'summarization has only {len(chosen)} unused prompts')
+
+
+def assert_registered_xcat7_slice(prompts, skipped):
+    digest = prompt_sha256(prompts)
+    qids = tuple(prompt['qid'] for prompt in prompts)
+    if (len(prompts) != TAKE_XCAT7 or digest != EVAL_SHA256_XCAT7 or qids != EVAL_QIDS_XCAT7
+            or tuple(skipped) != SKIPPED_QIDS_XCAT7):
+        raise RuntimeError(f'prompt hash {digest} does not match the pre-registered summarization slice')
+    if any(prompt['category'] != CATEGORY_XCAT7 for prompt in prompts):
+        raise RuntimeError('seventh cross-category slice left summarization')
     return digest
 
 

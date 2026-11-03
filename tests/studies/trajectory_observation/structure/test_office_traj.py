@@ -6,15 +6,16 @@ import torch
 from spec_mtp.masks import build_mask_provider
 from studies.trajectory_observation.structure.office_qwen8b import ESP
 from studies.trajectory_observation.structure.office_traj import (
-    CATEGORY_XCAT, CATEGORY_XCAT2, CATEGORY_XCAT3, CATEGORY_XCAT4, CATEGORY_XCAT5, CATEGORY_XCAT6, EVAL_QIDS,
-    EVAL_QIDS_XCAT, EVAL_QIDS_XCAT2, EVAL_QIDS_XCAT3, EVAL_QIDS_XCAT4, EVAL_QIDS_XCAT5, EVAL_QIDS_XCAT6,
-    EVAL_SHA256, EVAL_SHA256_XCAT, EVAL_SHA256_XCAT2, EVAL_SHA256_XCAT3, EVAL_SHA256_XCAT4, EVAL_SHA256_XCAT5,
-    EVAL_SHA256_XCAT6, GAIN_FULL, GAIN_TRAJ, PROTOCOL, PROTOCOL_XCAT, PROTOCOL_XCAT2, PROTOCOL_XCAT3,
-    PROTOCOL_XCAT4, PROTOCOL_XCAT5, PROTOCOL_XCAT6, SKIPPED_QIDS, SKIPPED_QIDS_XCAT, SKIPPED_QIDS_XCAT2,
-    SKIPPED_QIDS_XCAT3, SKIPPED_QIDS_XCAT4, SKIPPED_QIDS_XCAT5, SKIPPED_QIDS_XCAT6, TAKE, TAKE_XCAT,
-    TAKE_XCAT2, TAKE_XCAT3, TAKE_XCAT4, TAKE_XCAT5, TAKE_XCAT6, ablation_summary, arm_spec, arm_specs,
-    prompts_brainstorming, prompts_classification, prompts_closed_qa, prompts_from_647, prompts_general_qa,
-    prompts_information_extraction, prompts_open_qa,
+    CATEGORY_XCAT, CATEGORY_XCAT2, CATEGORY_XCAT3, CATEGORY_XCAT4, CATEGORY_XCAT5, CATEGORY_XCAT6,
+    CATEGORY_XCAT7, EVAL_QIDS, EVAL_QIDS_XCAT, EVAL_QIDS_XCAT2, EVAL_QIDS_XCAT3, EVAL_QIDS_XCAT4,
+    EVAL_QIDS_XCAT5, EVAL_QIDS_XCAT6, EVAL_QIDS_XCAT7, EVAL_SHA256, EVAL_SHA256_XCAT, EVAL_SHA256_XCAT2,
+    EVAL_SHA256_XCAT3, EVAL_SHA256_XCAT4, EVAL_SHA256_XCAT5, EVAL_SHA256_XCAT6, EVAL_SHA256_XCAT7,
+    GAIN_FULL, GAIN_TRAJ, PROTOCOL, PROTOCOL_XCAT, PROTOCOL_XCAT2, PROTOCOL_XCAT3, PROTOCOL_XCAT4,
+    PROTOCOL_XCAT5, PROTOCOL_XCAT6, PROTOCOL_XCAT7, SKIPPED_QIDS, SKIPPED_QIDS_XCAT, SKIPPED_QIDS_XCAT2,
+    SKIPPED_QIDS_XCAT3, SKIPPED_QIDS_XCAT4, SKIPPED_QIDS_XCAT5, SKIPPED_QIDS_XCAT6, SKIPPED_QIDS_XCAT7,
+    TAKE, TAKE_XCAT, TAKE_XCAT2, TAKE_XCAT3, TAKE_XCAT4, TAKE_XCAT5, TAKE_XCAT6, TAKE_XCAT7,
+    ablation_summary, arm_spec, arm_specs, prompts_brainstorming, prompts_classification, prompts_closed_qa,
+    prompts_from_647, prompts_general_qa, prompts_information_extraction, prompts_open_qa, prompts_summarization,
 )
 
 
@@ -221,6 +222,53 @@ def test_information_extraction_skips_prior_slices_template_and_specbench():
 def test_short_information_extraction_pool_is_rejected():
     with pytest.raises(RuntimeError):
         prompts_information_extraction([_row('information_extraction', 'only one')], take=TAKE_XCAT6)
+
+
+def test_summarization_skips_prior_slices_template_and_specbench():
+    specbench = ('Compose an engaging travel blog post about a recent trip to Hawaii, '
+                 'highlighting cultural experiences and must-see attractions.')
+    template = 'Name the color of a common example'
+    rows = [_row('open_qa', f'open {index}') for index in range(128)]
+    rows.extend(_row('general_qa', f'general {index}') for index in range(128))
+    rows.extend(_row('classification', f'class {index}') for index in range(128))
+    rows.extend(_row('closed_qa', f'closed {index}') for index in range(128))
+    rows.extend(_row('brainstorming', f'brain {index}') for index in range(128))
+    rows.extend(_row('information_extraction', f'extract {index}') for index in range(128))
+    rows.extend([
+        _row('creative_writing', 'used once'),
+        _row('summarization', 'open 0'),
+        _row('summarization', 'general 0'),
+        _row('summarization', 'class 0'),
+        _row('summarization', 'closed 0'),
+        _row('summarization', 'brain 0'),
+        _row('summarization', 'extract 0'),
+        _row('summarization', 'used once'),
+        _row('summarization', 'fresh', 'ctx'),
+        _row('summarization', template),
+        _row('summarization', specbench),
+        _row('summarization', 'later'),
+    ])
+    chosen, skipped = prompts_summarization(rows, take=2)
+    assert skipped == (0, 1, 2, 3, 4, 5, 6, 8, 9)
+    assert chosen == [
+        {'qid': 7, 'category': 'summarization', 'text': 'ctx\n\nfresh'},
+        {'qid': 10, 'category': 'summarization', 'text': 'later'},
+    ]
+
+
+def test_short_summarization_pool_is_rejected():
+    with pytest.raises(RuntimeError):
+        prompts_summarization([_row('summarization', 'only one')], take=TAKE_XCAT7)
+
+
+def test_registered_summarization_slice_has_no_skips():
+    assert PROTOCOL_XCAT7 == 'office-8b-traj-xcat7-v1'
+    assert CATEGORY_XCAT7 == 'summarization'
+    assert TAKE_XCAT7 == 128
+    assert SKIPPED_QIDS_XCAT7 == ()
+    assert EVAL_QIDS_XCAT7 == tuple(range(128))
+    assert len(EVAL_QIDS_XCAT7) == TAKE_XCAT7
+    assert EVAL_SHA256_XCAT7 == 'f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a'
 
 
 def test_registered_information_extraction_slice_has_no_skips():
