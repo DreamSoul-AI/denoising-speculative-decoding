@@ -270,6 +270,29 @@ K 的校准与 11 月 2 日额外分支相同：288 句式的前 128 条，每�
 
 两组都已跑完。已提交的 `direction` 对两组都返回 negative：胜少于负，接受数差均值小于 0。[2, 2] 对 [4] 为 21:98:9（p=4.403e-13），差均值 −1.765625，区间 [−2.1875, −1.3515625]，τ 均值 1.326833→1.282968。这一组的区间不含 0。[3, 1] 对 [4] 为 40:58:30（p=0.08541），差均值 −0.3125，区间 [−0.671875, 0.0546875]，τ 均值 1.326833→1.319737。这一组的区间含 0。[3, 1] 的 τ 差区间也含 0。[2, 2] 的 τ 差区间不含 0。最大草稿节点数都是 4。块复杂度基线为 10，两个备选为 15。argmax 全部通过。换到 8B 没有把方向改成正：[2, 2] 仍是明显更少的接受，幅度与 4B 那次接近；[3, 1] 仍是胜少于负、均值小于 0，但这 128 条上的区间含 0。不改 K，不改 64，不重选这 128 条，不加第三种形状，也不把任一形状写成默认树。数字在第七章和同日运行记录。
 
+**Qwen3-8B 上 trajectory-only 对完整联合 mask 的消融（2026年11月3日，运行前写定，标明探索）**：协议 `office-8b-traj-ablate-v1`。这是探索，不是主确认。不设 p<0.05 通过线。树形方向不再继续：两边都不用 [2, 2] 或 [3, 1]。K 不进入这轮：不拟合、不乘、不按结果再估。生成长度保持 64。下面的句子写死，不按结果重选。
+
+问题是：在当前 8B 正式基线上，把 observation 联合进 mask，相对只走 trajectory，接受数是否还更高。正式基线是现有 ESP：`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。温度 0。最大草稿节点数保持 4。块复杂度两边都是 \((1+1)\times(1+4)=10\)。这个基线配置本身没有 `spec.observation`。已实现的联合开关就是 `spec.observation`：`gain` 为 0 时与被包装的 provider 逐 token 相同，只走 trajectory；\(0<g<1\) 才把上一轮验证前向的 mask logits 期望嵌入联合进 mask。本轮不新写 provider，也不把 `mask.update` 关掉。关掉 `update` 会冻住 prompt 均值，不是 trajectory-only。
+
+两臂共用上面的基线，都设置 `condition` none、`form` mean，协议名都是 `trajectory-observation-blend-v1`。
+
+- full：`gain` 0.5。这是合成 pilot 里单次冻结联合增益的默认 `blend_gain`，也是已有联合增益网格 0.25、0.5、0.75 的中点。不在这批句子上重选，也不用 `gain` 1，因为 1 是仅 observation。
+- traj：`gain` 0。这是关闭联合 mask 里 observation 一侧的现有开关。
+
+任一步草稿节点数不是 4，该臂中止，这一组不进入符号检验。
+
+模型只有 Qwen3-8B，BF16，CUDA，eager，`local_files_only`。权重只用 `D:\models\Qwen3-8B`，模型表键 `8b` 指向这一目录，不下载。显存大约 17–18GB。正式加载前确认没有别的 CUDA 计算占用显存。分词用 `tokenizer(text)`，不用 chat template。
+
+冒烟用正式句子里的前 2 条，每条 8 token。两臂都要 argmax 通过。冒烟不进入符号检验。冒烟失败就不跑正式。
+
+评测是 Dolly `databricks/databricks-dolly-15k` 的 train split，本机 `datasets` 5.0.0 离线缓存。`creative_writing` 非空文本流共 709 条，qid 是这条流里的下标，最后一条是 708。已用文本按 qid 0–646 的全部文本计算，其中包含第六轮 516–646，以及当时跳过、但文本已经出现在更早 qid 的 597、608、626。从 qid 647 起向后取未用过的句子。文本与 qid 0–646 的任一文本相同，或与已经选入的新句相同，就跳过。实际跳过 658（与 408 相同）、678（与 198 相同，该文本也出现在 289、304、626）。流在 708 结束。去掉这两条之后只剩 60 条，凑不满 128。不回用 0–646 来补满 128，也不另造句子。留下的 qid 是 647–657、659–677、679–708。换行拼接的 SHA256 是 `d23ad590c45307fa7c1981b272adaec243bfaca5a2e390eda394bf2fe42a4cca`。运行时条数、qid 或哈希对不上就中止，不另选句子。
+
+正式每条 64 token，`stop_on_eos` false。两臂的 argmax 都要通过，否则该组无效。独立 AR 不一致只作诊断。
+
+主比较是 traj 对 full。差值是 traj 的 `accepted` 减去 full。胜是 traj 更高，负是 full 更高，平是相等。同时报告完整版相对 traj 的接受增益，即 full 减去 traj，它是同一组差值的相反数。两边的 τ 用每条均值，以及提交数除以解码调用数的合计。接受数差的均值和 bootstrap 95% 区间用百分位，种子 0，10000 次。完整版增益的区间用同一规则、同一组配对再算一次。τ 的差用同一组 bootstrap，只作伴随描述。p 是双侧二项符号检验，不卡 0.05。效应量按算出来的数写。代码里的 `direction` 作用在 traj−full 上：胜多于负且均值大于 0 是 positive，表示这次探索里 trajectory-only 接受更多；胜少于负且均值小于 0 是 negative，表示 full 接受更多。完整版相对 traj 的增益是否为正，看 full−traj 的均值，不另设通过线，也不记成确认。区间不含 0，只说明这 60 条上的差离开了 0。无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 60 条，也不把树改回 [2, 2] 或 [3, 1]。
+
+选句常量、两臂和汇总放在 `studies/trajectory_observation/structure/office_traj.py`。命令放在 `studies/trajectory_observation/flow/execute/office_traj.py`。
+
 资源需求在公式和最小比较的输入规模确定前不编造预算。历史“GPU 不空闲”不能当作新的执行许可。取消时保留已写出的部分观测，不把未完成矩阵记为成功。
 
 # 七、已完成研究的有效范围
