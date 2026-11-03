@@ -5,7 +5,8 @@ is the finished open_qa cross-category exploration. ``--protocol xcat2`` is the 
 ``--protocol xcat3`` is the finished classification cross-category exploration.
 ``--protocol xcat4`` is the finished closed_qa cross-category exploration.
 ``--protocol xcat5`` is the finished brainstorming cross-category exploration.
-``--protocol xcat6`` is the information_extraction cross-category exploration. Writes
+``--protocol xcat6`` is the finished information_extraction cross-category exploration.
+``--protocol xcat7`` is the summarization cross-category exploration. Writes
 flat files into an existing directory. It does not create directories.
 """
 
@@ -21,12 +22,13 @@ from studies.trajectory_observation.flow.execute.office_tree import (
 )
 from studies.trajectory_observation.structure.office_traj import (
     ARMS, EVAL,     PROTOCOL, PROTOCOL_XCAT, PROTOCOL_XCAT2, PROTOCOL_XCAT3, PROTOCOL_XCAT4, PROTOCOL_XCAT5,
-    PROTOCOL_XCAT6, SMOKE, TAKE, TAKE_XCAT, TAKE_XCAT2, TAKE_XCAT3, TAKE_XCAT4, TAKE_XCAT5,
-    TAKE_XCAT6, ablation_summary, arm_specs, assert_registered_slice, assert_registered_xcat_slice,
-    assert_registered_xcat2_slice, assert_registered_xcat3_slice, assert_registered_xcat4_slice,
-    assert_registered_xcat5_slice, assert_registered_xcat6_slice, prompts_brainstorming,
-    prompts_classification, prompts_closed_qa, prompts_from_647, prompts_general_qa,
-    prompts_information_extraction, prompts_open_qa,
+    PROTOCOL_XCAT6, PROTOCOL_XCAT7, SMOKE, TAKE, TAKE_XCAT, TAKE_XCAT2, TAKE_XCAT3, TAKE_XCAT4,
+    TAKE_XCAT5, TAKE_XCAT6, TAKE_XCAT7, ablation_summary, arm_specs, assert_registered_slice,
+    assert_registered_xcat_slice, assert_registered_xcat2_slice, assert_registered_xcat3_slice,
+    assert_registered_xcat4_slice, assert_registered_xcat5_slice, assert_registered_xcat6_slice,
+    assert_registered_xcat7_slice, prompts_brainstorming, prompts_classification, prompts_closed_qa,
+    prompts_from_647, prompts_general_qa, prompts_information_extraction, prompts_open_qa,
+    prompts_summarization,
 )
 from studies.trajectory_observation.structure.office_tree import decode_prompt, existing_output_dir, read_rows
 
@@ -94,6 +96,15 @@ def round_config(protocol):
             'select': prompts_information_extraction,
             'check': assert_registered_xcat6_slice,
             'take': TAKE_XCAT6,
+        }
+    if protocol == 'xcat7':
+        return {
+            'protocol': PROTOCOL_XCAT7,
+            'prefix': 'sd-office-8b-traj-xcat7',
+            'stamp': '20261104-045236',
+            'select': prompts_summarization,
+            'check': assert_registered_xcat7_slice,
+            'take': TAKE_XCAT7,
         }
     raise RuntimeError(f'unknown trajectory protocol {protocol}')
 
@@ -169,7 +180,7 @@ def main(argv=None):
     parser.add_argument('--dest', type=Path, required=True)
     parser.add_argument('--only', choices=('all', 'smoke', 'formal'), default='all')
     parser.add_argument(
-        '--protocol', choices=('ablate', 'xcat', 'xcat2', 'xcat3', 'xcat4', 'xcat5', 'xcat6'),
+        '--protocol', choices=('ablate', 'xcat', 'xcat2', 'xcat3', 'xcat4', 'xcat5', 'xcat6', 'xcat7'),
         default='ablate')
     args = parser.parse_args(argv)
     dest = existing_output_dir(args.dest)
