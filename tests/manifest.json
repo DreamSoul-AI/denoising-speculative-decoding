@@ -2310,6 +2310,13 @@
       ]
     },
     {
+      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_legacy_path_reexports_decode_tree",
+      "target": "spec_mtp",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
       "test_id": "tests/spec_mtp/test_window_observer.py::test_observation_preserves_tokens_trace_and_temporal_seed",
       "target": "spec_mtp",
       "tags": [
