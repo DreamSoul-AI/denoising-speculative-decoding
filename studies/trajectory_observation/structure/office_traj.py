@@ -1,6 +1,7 @@
 """Qwen3-8B trajectory-only versus joint observation ablation.
 
-Protocols ``office-8b-traj-ablate-v1`` and ``office-8b-traj-xcat-v1``. Prompt
+Protocols ``office-8b-traj-ablate-v1``, ``office-8b-traj-xcat-v1`` and
+``office-8b-traj-xcat2-v1``. Prompt
 selection, the two arm specs and the paired summary live here. The command that
 loads weights is ``studies.trajectory_observation.flow.execute.office_traj``.
 Both arms wrap the
@@ -36,6 +37,12 @@ TAKE_XCAT = 128
 SKIPPED_QIDS_XCAT = ()
 EVAL_SHA256_XCAT = 'f6e6b1c71a20f1170692e22a2c2bd79fb31eaeb810b861553f7c76a41df25231'
 EVAL_QIDS_XCAT = tuple(range(TAKE_XCAT))
+PROTOCOL_XCAT2 = 'office-8b-traj-xcat2-v1'
+CATEGORY_XCAT2 = 'general_qa'
+TAKE_XCAT2 = 128
+SKIPPED_QIDS_XCAT2 = (91,)
+EVAL_SHA256_XCAT2 = 'a6a306ea868767da6cf8b6006bb4d91c5360387ae8b16ba1a20142cdd35ec677'
+EVAL_QIDS_XCAT2 = tuple(range(91)) + tuple(range(92, 129))
 GAIN_FULL = 0.5
 GAIN_TRAJ = 0.0
 MASK = {'init': 'mean_prompt', 'lam': 0.1, 'update': True}
@@ -140,6 +147,27 @@ def assert_registered_slice(prompts, skipped):
     return digest
 
 
+def prompts_general_qa(rows, take=TAKE_XCAT2):
+    """First unused nonempty general_qa texts. qid is the index in that stream."""
+    prior, prior_skipped = prompts_open_qa(rows, take=TAKE_XCAT)
+    if tuple(prior_skipped) != SKIPPED_QIDS_XCAT or len(prior) != TAKE_XCAT:
+        raise RuntimeError('open_qa slice drifted before the general_qa draw')
+    texts = category_texts(rows, CATEGORY_XCAT2)
+    used = previously_used_texts(rows)
+    used.update(item['text'] for item in prior)
+    skipped = []
+    chosen = []
+    for index, text in enumerate(texts):
+        if text in used:
+            skipped.append(index)
+            continue
+        used.add(text)
+        chosen.append({'qid': index, 'category': CATEGORY_XCAT2, 'text': text})
+        if len(chosen) == take:
+            return chosen, tuple(skipped)
+    raise RuntimeError(f'general_qa has only {len(chosen)} unused prompts')
+
+
 def assert_registered_xcat_slice(prompts, skipped):
     digest = prompt_sha256(prompts)
     qids = tuple(prompt['qid'] for prompt in prompts)
@@ -148,6 +176,17 @@ def assert_registered_xcat_slice(prompts, skipped):
         raise RuntimeError(f'prompt hash {digest} does not match the pre-registered open_qa slice')
     if any(prompt['category'] != CATEGORY_XCAT for prompt in prompts):
         raise RuntimeError('cross-category slice left open_qa')
+    return digest
+
+
+def assert_registered_xcat2_slice(prompts, skipped):
+    digest = prompt_sha256(prompts)
+    qids = tuple(prompt['qid'] for prompt in prompts)
+    if (len(prompts) != TAKE_XCAT2 or digest != EVAL_SHA256_XCAT2 or qids != EVAL_QIDS_XCAT2
+            or tuple(skipped) != SKIPPED_QIDS_XCAT2):
+        raise RuntimeError(f'prompt hash {digest} does not match the pre-registered general_qa slice')
+    if any(prompt['category'] != CATEGORY_XCAT2 for prompt in prompts):
+        raise RuntimeError('second cross-category slice left general_qa')
     return digest
 
 
