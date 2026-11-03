@@ -46,3 +46,11 @@ def test_xcat4_round_keeps_the_fourth_cross_category_names():
     assert cfg['prefix'] == 'sd-office-8b-traj-xcat4'
     assert cfg['stamp'] == '20261104-032457'
     assert cfg['take'] == 128
+
+
+def test_xcat5_round_keeps_the_fifth_cross_category_names():
+    cfg = round_config('xcat5')
+    assert cfg['protocol'] == 'office-8b-traj-xcat5-v1'
+    assert cfg['prefix'] == 'sd-office-8b-traj-xcat5'
+    assert cfg['stamp'] == '20261104-035230'
+    assert cfg['take'] == 128

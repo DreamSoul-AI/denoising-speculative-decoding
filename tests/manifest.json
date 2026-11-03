@@ -3680,6 +3680,34 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj.py::test_brainstorming_skips_prior_slices_template_and_specbench",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj.py::test_short_brainstorming_pool_is_rejected",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj.py::test_registered_brainstorming_slice_has_no_skips",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_traj_command.py::test_xcat5_round_keeps_the_fifth_cross_category_names",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {
