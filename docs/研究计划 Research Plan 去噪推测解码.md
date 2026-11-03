@@ -1,5 +1,5 @@
 **去噪推测解码 研究计划**
-更新日期：2026年10月31日。这是唯一中文研究计划。旧英文计划和冻结子计划只从固定 Git 历史取证。研究计划规范的飞书正文本次没有读到，下面按本仓已采用的六方面裁剪，并保留规范的建议采用状态。工程任务见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。机制见 [通用调研](<通用调研 General Research 去噪推测解码.md>)，已有数字见 [历史证据归位](<运行记录 Run Record/2026-10-31 历史证据归位.md>)。
+更新日期：2026年11月4日。这是唯一中文研究计划。旧英文计划和冻结子计划只从固定 Git 历史取证。研究计划规范的飞书正文本次没有读到，下面按本仓已采用的六方面裁剪，并保留规范的建议采用状态。工程任务见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。机制见 [通用调研](<通用调研 General Research 去噪推测解码.md>)，已有数字见 [历史证据归位](<运行记录 Run Record/2026-10-31 历史证据归位.md>)。
 
 # 一、这次要回答的问题
 2026年10月31日 Speculative Decoding 会议的背景是：把历史 trajectory 的预测和本轮 verify 得到的 observation 结合起来。会议记录为 [妙记](https://dreamsoul.feishu.cn/minutes/obcnxg184e211uydnt8zyi4g)。本次用户令牌已过期，没有读到逐字稿。下面采用的是会议背景摘要，不是已验证结论，也不是投稿截止日期或可发表性判断。
@@ -250,7 +250,7 @@ K 的校准与 11 月 2 日额外分支相同：288 句式的前 128 条，每�
 
 两组都已跑完。已提交的 `direction` 对两组都返回 negative：胜少于负，接受数差均值小于 0。接受数差的 95% 区间都不含 0，差离开了 0，方向是更少的接受。[2, 2] 对 [4] 为 22:94:12（p=8.66e-12），差均值 −1.945，区间 [−2.438, −1.438]，τ 均值 1.299→1.252。[3, 1] 对 [4] 为 36:71:21（p=0.000923），差均值 −0.430，区间 [−0.805, −0.0313]，τ 均值 1.299→1.289。[2, 2] 的 τ 差区间不含 0；[3, 1] 的 τ 差区间含 0。最大草稿节点数都是 4。块复杂度基线为 10，两个备选为 15。argmax 全部通过。不改 K，不改 64，不重选这 128 条，不加第三种形状，也不把任一形状写成默认树。数字在第七章和同日运行记录。
 
-选句、形状和汇总放在 `studies/trajectory_observation/structure/office_tree.py`。命令放在 `studies/trajectory_observation/flow/execute/office_tree.py`。
+选句、形状、汇总和命令都在 `studies/trajectory_observation/structure/office_tree.py`。
 
 **Qwen3-8B 上的同预算树形探索（2026年11月3日，运行前写定，标明探索）**：协议 `office-8b-tree-shape-v1`。这是探索，不是主确认。不设 p<0.05 通过线，也不把某一种形状写成默认树。要看的是：Qwen3-4B 上 [2, 2] 与 [3, 1] 对 [4] 都是负方向之后，换到 Qwen3-8B、换一批句子，方向会不会变。K 不进入这轮：不拟合、不乘、不按结果再估。生成长度保持 64。下面的句子写死，不按结果重选。
 
@@ -266,7 +266,7 @@ K 的校准与 11 月 2 日额外分支相同：288 句式的前 128 条，每�
 
 主比较是 [2, 2] 对 [4]，以及 [3, 1] 对 [4]。差值是备选的 `accepted` 减去基线。每组报告胜:负:平、双侧二项符号检验的 p、两边的 τ（每条均值，以及提交数除以解码调用数）、接受数差的均值和 bootstrap 95% 区间（百分位，种子 0，10000 次）。τ 的差用同一组 bootstrap，只作伴随描述。p 不卡 0.05。效应量按算出来的数写。胜多于负且均值大于 0，只记为这次探索里的正方向，不记成确认。胜少于负且均值小于 0，记为这次探索里的负方向。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 64、不重选这 128 条，也不再加第三种形状，不把任一形状写成默认树。
 
-选句常量、形状和汇总仍在 `studies/trajectory_observation/structure/office_tree.py`。命令仍是 `studies/trajectory_observation/flow/execute/office_tree.py`，8B 用 `--model 8b`。默认不带该参数时仍是已经跑完的 4B 切片，不改那一组哈希。
+选句常量、形状、汇总和命令仍在 `studies/trajectory_observation/structure/office_tree.py`，8B 用 `--model 8b`。默认不带该参数时仍是已经跑完的 4B 切片，不改那一组哈希。
 
 两组都已跑完。已提交的 `direction` 对两组都返回 negative：胜少于负，接受数差均值小于 0。[2, 2] 对 [4] 为 21:98:9（p=4.403e-13），差均值 −1.765625，区间 [−2.1875, −1.3515625]，τ 均值 1.326833→1.282968。这一组的区间不含 0。[3, 1] 对 [4] 为 40:58:30（p=0.08541），差均值 −0.3125，区间 [−0.671875, 0.0546875]，τ 均值 1.326833→1.319737。这一组的区间含 0。[3, 1] 的 τ 差区间也含 0。[2, 2] 的 τ 差区间不含 0。最大草稿节点数都是 4。块复杂度基线为 10，两个备选为 15。argmax 全部通过。换到 8B 没有把方向改成正：[2, 2] 仍是明显更少的接受，幅度与 4B 那次接近；[3, 1] 仍是胜少于负、均值小于 0，但这 128 条上的区间含 0。不改 K，不改 64，不重选这 128 条，不加第三种形状，也不把任一形状写成默认树。数字在第七章和同日运行记录。4B 与 8B 的并列见 [2026-11-04 同预算树形阴性结果](<开发记录 Development Record/2026-11-04 同预算树形阴性结果.md>)。
 
@@ -291,7 +291,7 @@ K 的校准与 11 月 2 日额外分支相同：288 句式的前 128 条，每�
 
 主比较是 traj 对 full。差值是 traj 的 `accepted` 减去 full。胜是 traj 更高，负是 full 更高，平是相等。同时报告完整版相对 traj 的接受增益，即 full 减去 traj，它是同一组差值的相反数。两边的 τ 用每条均值，以及提交数除以解码调用数的合计。接受数差的均值和 bootstrap 95% 区间用百分位，种子 0，10000 次。完整版增益的区间用同一规则、同一组配对再算一次。τ 的差用同一组 bootstrap，只作伴随描述。p 是双侧二项符号检验，不卡 0.05。效应量按算出来的数写。代码里的 `direction` 作用在 traj−full 上：胜多于负且均值大于 0 是 positive，表示这次探索里 trajectory-only 接受更多；胜少于负且均值小于 0 是 negative，表示 full 接受更多。完整版相对 traj 的增益是否为正，看 full−traj 的均值，不另设通过线，也不记成确认。区间不含 0，只说明这 60 条上的差离开了 0。无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 60 条，也不把树改回 [2, 2] 或 [3, 1]。
 
-选句常量、两臂和汇总放在 `studies/trajectory_observation/structure/office_traj.py`。命令放在 `studies/trajectory_observation/flow/execute/office_traj.py`。
+选句常量、两臂、汇总和命令都在 `studies/trajectory_observation/structure/office_traj.py`。
 
 这一组已经跑完。已提交的 `direction` 作用在 traj−full 上，返回 positive：胜多于负，接受数差均值大于 0。traj 对 full 为 47:5:8（p=1.285e-09），差均值 +3.616667，区间 [2.733333, 4.550000]，τ 均值 1.267772→1.361124。区间不含 0。完整版相对 traj 的接受增益是这个差的相反数，均值 −3.616667，区间 [−4.550000, −2.733333]，也不含 0。τ 差均值 +0.093352，区间 [0.069798, 0.117705]，不含 0。最大草稿节点数是 4。块复杂度两边都是 10。argmax 全部通过。这是探索：gain 0.5 的联合 mask 在这 60 条上接受更少，不是 trajectory-only 的增益，也不记成确认。不改 K，不改 0.5，不改 64，不重选这 60 条，也不把树改成 [2, 2] 或 [3, 1]。数字在第七章和同日运行记录。
 
@@ -318,7 +318,7 @@ qid 是 open_qa 非空文本流里的下标。已用文本按 `creative_writing`
 
 主比较是 traj 对 full。差值是 traj 的 `accepted` 减去 full。胜是 traj 更高，负是 full 更高，平是相等。同时报告完整版相对 traj 的接受增益，即 full 减去 traj，它是同一组差值的相反数。两边的 τ 用每条均值，以及提交数除以解码调用数的合计。接受数差的均值和 bootstrap 95% 区间用百分位，种子 0，10000 次。完整版增益的区间用同一规则、同一组配对再算一次。τ 的差用同一组 bootstrap，只作伴随描述。p 是双侧二项符号检验，不卡 0.05。效应量按算出来的数写。代码里的 `direction` 作用在 traj−full 上：胜多于负且均值大于 0 是 positive，表示这次探索里 trajectory-only 接受更多；胜少于负且均值小于 0 是 negative，表示 full 接受更多。这是探索复现，不记成确认。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。
 
-选句常量仍放在 `studies/trajectory_observation/structure/office_traj.py`。命令仍是 `studies/trajectory_observation/flow/execute/office_traj.py`，本轮加 `--protocol xcat`。默认不带该参数时仍是已经跑完的 creative_writing 尾段，不改那一组哈希。
+选句常量和命令仍在 `studies/trajectory_observation/structure/office_traj.py`，本轮加 `--protocol xcat`。默认不带该参数时仍是已经跑完的 creative_writing 尾段，不改那一组哈希。
 
 这一组已经跑完。已提交的 `direction` 作用在 traj−full 上，返回 positive：胜多于负，接受数差均值大于 0。traj 对 full 为 103:12:13（p=3.351e-19），差均值 +3.2421875，区间 [2.71875, 3.765625]，τ 均值 1.253489→1.338024。区间不含 0。完整版相对 traj 的接受增益是这个差的相反数，均值 −3.2421875，区间 [−3.765625, −2.71875]，也不含 0。τ 差均值 +0.084534，区间 [0.071050, 0.098127]，不含 0。最大草稿节点数是 4。块复杂度两边都是 10。argmax 全部通过。换到 open_qa 之后，gain 0.5 的联合 mask 仍然接受更少。这是探索复现，不是确认。不改 K，不改 0.5，不改 64，不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。数字在第七章和同日运行记录。
 
@@ -345,7 +345,7 @@ qid 是 general_qa 非空文本流里的下标。已用文本按 `creative_writi
 
 主比较是 traj 对 full。差值是 traj 的 `accepted` 减去 full。胜是 traj 更高，负是 full 更高，平是相等。同时报告完整版相对 traj 的接受增益，即 full 减去 traj，它是同一组差值的相反数。两边的 τ 用每条均值，以及提交数除以解码调用数的合计。接受数差的均值和 bootstrap 95% 区间用百分位，种子 0，10000 次。完整版增益的区间用同一规则、同一组配对再算一次。τ 的差用同一组 bootstrap，只作伴随描述。p 是双侧二项符号检验，不卡 0.05。效应量按算出来的数写。代码里的 `direction` 作用在 traj−full 上：胜多于负且均值大于 0 是 positive，表示这次探索里 trajectory-only 接受更多；胜少于负且均值小于 0 是 negative，表示 full 接受更多。这是探索复现，不记成确认。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。
 
-选句常量仍放在 `studies/trajectory_observation/structure/office_traj.py`。命令仍是 `studies/trajectory_observation/flow/execute/office_traj.py`，本轮加 `--protocol xcat2`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。不改那两组哈希。
+选句常量和命令仍在 `studies/trajectory_observation/structure/office_traj.py`，本轮加 `--protocol xcat2`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。不改那两组哈希。
 
 这一组已经跑完。已提交的 `direction` 作用在 traj−full 上，返回 positive：胜多于负，接受数差均值大于 0。traj 对 full 为 101:17:10（p=1.006e-15），差均值 +3.1484375，区间 [2.6171875, 3.6796875]，τ 均值 1.265720→1.350626。区间不含 0。完整版相对 traj 的接受增益是这个差的相反数，均值 −3.1484375，区间 [−3.6796875, −2.6171875]，也不含 0。τ 差均值 +0.084906，区间 [0.070639, 0.099335]，不含 0。最大草稿节点数是 4。块复杂度两边都是 10。argmax 全部通过。换到 general_qa 之后，gain 0.5 的联合 mask 仍然接受更少。这是探索复现，不是确认。不改 K，不改 0.5，不改 64，不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。数字在第七章和同日运行记录。
 
@@ -372,7 +372,7 @@ qid 是 classification 非空文本流里的下标。已用文本按 `creative_w
 
 主比较是 traj 对 full。差值是 traj 的 `accepted` 减去 full。胜是 traj 更高，负是 full 更高，平是相等。同时报告完整版相对 traj 的接受增益，即 full 减去 traj，它是同一组差值的相反数。两边的 τ 用每条均值，以及提交数除以解码调用数的合计。接受数差的均值和 bootstrap 95% 区间用百分位，种子 0，10000 次。完整版增益的区间用同一规则、同一组配对再算一次。τ 的差用同一组 bootstrap，只作伴随描述。p 是双侧二项符号检验，不卡 0.05。效应量按算出来的数写。代码里的 `direction` 作用在 traj−full 上：胜多于负且均值大于 0 是 positive，表示这次探索里 trajectory-only 接受更多；胜少于负且均值小于 0 是 negative，表示 full 接受更多。这是探索复现，不记成确认。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。
 
-选句常量仍放在 `studies/trajectory_observation/structure/office_traj.py`。命令仍是 `studies/trajectory_observation/flow/execute/office_traj.py`，本轮加 `--protocol xcat3`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。`--protocol xcat2` 仍是已经跑完的 general_qa 切片。不改那三组哈希。
+选句常量和命令仍在 `studies/trajectory_observation/structure/office_traj.py`，本轮加 `--protocol xcat3`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。`--protocol xcat2` 仍是已经跑完的 general_qa 切片。不改那三组哈希。
 
 这一组已经跑完。已提交的 `direction` 作用在 traj−full 上，返回 positive：胜多于负，接受数差均值大于 0。traj 对 full 为 93:23:12（p=3.597e-11），差均值 +4.0546875，区间 [3.09375, 5.015625]，τ 均值 1.243178→1.352919。区间不含 0。完整版相对 traj 的接受增益是这个差的相反数，均值 −4.0546875，区间 [−5.015625, −3.09375]，也不含 0。τ 差均值 +0.109740，区间 [0.084222, 0.135928]，不含 0。最大草稿节点数是 4。块复杂度两边都是 10。argmax 全部通过。换到 classification 之后，gain 0.5 的联合 mask 仍然接受更少。这是探索复现，不是确认。不改 K，不改 0.5，不改 64，不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。数字在第七章和同日运行记录。
 
@@ -399,7 +399,7 @@ qid 是 closed_qa 非空文本流里的下标。已用文本按 `creative_writin
 
 主比较是 traj 对 full。差值是 traj 的 `accepted` 减去 full。胜是 traj 更高，负是 full 更高，平是相等。同时报告完整版相对 traj 的接受增益，即 full 减去 traj，它是同一组差值的相反数。两边的 τ 用每条均值，以及提交数除以解码调用数的合计。接受数差的均值和 bootstrap 95% 区间用百分位，种子 0，10000 次。完整版增益的区间用同一规则、同一组配对再算一次。τ 的差用同一组 bootstrap，只作伴随描述。p 是双侧二项符号检验，不卡 0.05。效应量按算出来的数写。代码里的 `direction` 作用在 traj−full 上：胜多于负且均值大于 0 是 positive，表示这次探索里 trajectory-only 接受更多；胜少于负且均值小于 0 是 negative，表示 full 接受更多。这是探索复现，不记成确认。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。
 
-选句常量仍放在 `studies/trajectory_observation/structure/office_traj.py`。命令仍是 `studies/trajectory_observation/flow/execute/office_traj.py`，本轮加 `--protocol xcat4`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。`--protocol xcat2` 仍是已经跑完的 general_qa 切片。`--protocol xcat3` 仍是已经跑完的 classification 切片。不改那四组哈希。
+选句常量和命令仍在 `studies/trajectory_observation/structure/office_traj.py`，本轮加 `--protocol xcat4`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。`--protocol xcat2` 仍是已经跑完的 general_qa 切片。`--protocol xcat3` 仍是已经跑完的 classification 切片。不改那四组哈希。
 
 这一组已经跑完。已提交的 `direction` 作用在 traj−full 上，返回 positive：胜多于负，接受数差均值大于 0。traj 对 full 为 95:22:11（p=5.314e-12），差均值 +2.4921875，区间 [1.9765625, 3.03125]，τ 均值 1.357949→1.431103。区间不含 0。完整版相对 traj 的接受增益是这个差的相反数，均值 −2.4921875，区间 [−3.03125, −1.9765625]，也不含 0。τ 差均值 +0.073154，区间 [0.058284, 0.088805]，不含 0。最大草稿节点数是 4。块复杂度两边都是 10。argmax 全部通过。换到 closed_qa 之后，gain 0.5 的联合 mask 仍然接受更少。这 128 条上的接受数差均值是 +2.4921875，小于前面四轮大约 +3.1 到 +4.1 的差。这是探索复现，不是确认。不改 K，不改 0.5，不改 64，不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。数字在第七章和同日运行记录。
 
@@ -426,7 +426,7 @@ qid 是 brainstorming 非空文本流里的下标。已用文本按 `creative_wr
 
 主比较是 traj 对 full。差值是 traj 的 `accepted` 减去 full。胜是 traj 更高，负是 full 更高，平是相等。同时报告完整版相对 traj 的接受增益，即 full 减去 traj，它是同一组差值的相反数。两边的 τ 用每条均值，以及提交数除以解码调用数的合计。接受数差的均值和 bootstrap 95% 区间用百分位，种子 0，10000 次。完整版增益的区间用同一规则、同一组配对再算一次。τ 的差用同一组 bootstrap，只作伴随描述。p 是双侧二项符号检验，不卡 0.05。效应量按算出来的数写。代码里的 `direction` 作用在 traj−full 上：胜多于负且均值大于 0 是 positive，表示这次探索里 trajectory-only 接受更多；胜少于负且均值小于 0 是 negative，表示 full 接受更多。这是探索复现，不记成确认。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。
 
-选句常量仍放在 `studies/trajectory_observation/structure/office_traj.py`。命令仍是 `studies/trajectory_observation/flow/execute/office_traj.py`，本轮加 `--protocol xcat5`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。`--protocol xcat2` 仍是已经跑完的 general_qa 切片。`--protocol xcat3` 仍是已经跑完的 classification 切片。`--protocol xcat4` 仍是已经跑完的 closed_qa 切片。不改那五组哈希。
+选句常量和命令仍在 `studies/trajectory_observation/structure/office_traj.py`，本轮加 `--protocol xcat5`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。`--protocol xcat2` 仍是已经跑完的 general_qa 切片。`--protocol xcat3` 仍是已经跑完的 classification 切片。`--protocol xcat4` 仍是已经跑完的 closed_qa 切片。不改那五组哈希。
 
 这一组已经跑完。已提交的 `direction` 作用在 traj−full 上，返回 positive：胜多于负，接受数差均值大于 0。traj 对 full 为 95:17:16（p=2.508e-14），差均值 +2.6171875，区间 [2.1328125, 3.1171875]，τ 均值 1.290219→1.358632。区间不含 0。完整版相对 traj 的接受增益是这个差的相反数，均值 −2.6171875，区间 [−3.1171875, −2.1328125]，也不含 0。τ 差均值 +0.068413，区间 [0.055728, 0.081630]，不含 0。最大草稿节点数是 4。块复杂度两边都是 10。argmax 全部通过。换到 brainstorming 之后，gain 0.5 的联合 mask 仍然接受更少。这 128 条上的接受数差均值是 +2.6171875，和 closed_qa 的 +2.4921875 接近，小于前面四轮大约 +3.1 到 +4.1 的差。这是探索复现，不是确认。不改 K，不改 0.5，不改 64，不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。数字在第七章和同日运行记录。
 
@@ -453,7 +453,7 @@ qid 是 information_extraction 非空文本流里的下标。已用文本按 `cr
 
 主比较是 traj 对 full。差值是 traj 的 `accepted` 减去 full。胜是 traj 更高，负是 full 更高，平是相等。同时报告完整版相对 traj 的接受增益，即 full 减去 traj，它是同一组差值的相反数。两边的 τ 用每条均值，以及提交数除以解码调用数的合计。接受数差的均值和 bootstrap 95% 区间用百分位，种子 0，10000 次。完整版增益的区间用同一规则、同一组配对再算一次。τ 的差用同一组 bootstrap，只作伴随描述。p 是双侧二项符号检验，不卡 0.05。效应量按算出来的数写。代码里的 `direction` 作用在 traj−full 上：胜多于负且均值大于 0 是 positive，表示这次探索里 trajectory-only 接受更多；胜少于负且均值小于 0 是 negative，表示 full 接受更多。这是探索复现，不记成确认。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。
 
-选句常量仍放在 `studies/trajectory_observation/structure/office_traj.py`。命令仍是 `studies/trajectory_observation/flow/execute/office_traj.py`，本轮加 `--protocol xcat6`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。`--protocol xcat2` 仍是已经跑完的 general_qa 切片。`--protocol xcat3` 仍是已经跑完的 classification 切片。`--protocol xcat4` 仍是已经跑完的 closed_qa 切片。`--protocol xcat5` 仍是已经跑完的 brainstorming 切片。不改那六组哈希。
+选句常量和命令仍在 `studies/trajectory_observation/structure/office_traj.py`，本轮加 `--protocol xcat6`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。`--protocol xcat2` 仍是已经跑完的 general_qa 切片。`--protocol xcat3` 仍是已经跑完的 classification 切片。`--protocol xcat4` 仍是已经跑完的 closed_qa 切片。`--protocol xcat5` 仍是已经跑完的 brainstorming 切片。不改那六组哈希。
 
 这一组已经跑完。已提交的 `direction` 作用在 traj−full 上，返回 positive：胜多于负，接受数差均值大于 0。traj 对 full 为 106:10:12（p=2.164e-21），差均值 +3.046875，区间 [2.5234375, 3.6015625]，τ 均值 1.326882→1.415774。区间不含 0。完整版相对 traj 的接受增益是这个差的相反数，均值 −3.046875，区间 [−3.6015625, −2.5234375]，也不含 0。τ 差均值 +0.088892，区间 [0.074741, 0.103290]，不含 0。最大草稿节点数是 4。块复杂度两边都是 10。argmax 全部通过。换到 information_extraction 之后，gain 0.5 的联合 mask 仍然接受更少。这 128 条上的接受数差均值是 +3.046875，高于 closed_qa 的 +2.4921875 和 brainstorming 的 +2.6171875，接近 general_qa 的 +3.1484375，低于 classification 的 +4.0546875。这是探索复现，不是确认。不改 K，不改 0.5，不改 64，不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。数字在第七章和同日运行记录。
 
@@ -480,7 +480,7 @@ qid 是 summarization 非空文本流里的下标。已用文本按 `creative_wr
 
 主比较是 traj 对 full。差值是 traj 的 `accepted` 减去 full。胜是 traj 更高，负是 full 更高，平是相等。同时报告完整版相对 traj 的接受增益，即 full 减去 traj，它是同一组差值的相反数。两边的 τ 用每条均值，以及提交数除以解码调用数的合计。接受数差的均值和 bootstrap 95% 区间用百分位，种子 0，10000 次。完整版增益的区间用同一规则、同一组配对再算一次。τ 的差用同一组 bootstrap，只作伴随描述。p 是双侧二项符号检验，不卡 0.05。效应量按算出来的数写。代码里的 `direction` 作用在 traj−full 上：胜多于负且均值大于 0 是 positive，表示这次探索里 trajectory-only 接受更多；胜少于负且均值小于 0 是 negative，表示 full 接受更多。这是探索复现，不记成确认。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。
 
-选句常量仍放在 `studies/trajectory_observation/structure/office_traj.py`。命令仍是 `studies/trajectory_observation/flow/execute/office_traj.py`，本轮加 `--protocol xcat7`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。`--protocol xcat2` 仍是已经跑完的 general_qa 切片。`--protocol xcat3` 仍是已经跑完的 classification 切片。`--protocol xcat4` 仍是已经跑完的 closed_qa 切片。`--protocol xcat5` 仍是已经跑完的 brainstorming 切片。`--protocol xcat6` 仍是已经跑完的 information_extraction 切片。不改那七组哈希。
+选句常量和命令仍在 `studies/trajectory_observation/structure/office_traj.py`，本轮加 `--protocol xcat7`。默认不带该参数时仍是已经跑完的 creative_writing 尾段。`--protocol xcat` 仍是已经跑完的 open_qa 切片。`--protocol xcat2` 仍是已经跑完的 general_qa 切片。`--protocol xcat3` 仍是已经跑完的 classification 切片。`--protocol xcat4` 仍是已经跑完的 closed_qa 切片。`--protocol xcat5` 仍是已经跑完的 brainstorming 切片。`--protocol xcat6` 仍是已经跑完的 information_extraction 切片。不改那七组哈希。
 
 这一组已经跑完。已提交的 `direction` 作用在 traj−full 上，返回 positive：胜多于负，接受数差均值大于 0。traj 对 full 为 97:17:14（p=8.636e-15），差均值 +2.6640625，区间 [2.125, 3.203125]，τ 均值 1.340886→1.418055。区间不含 0。完整版相对 traj 的接受增益是这个差的相反数，均值 −2.6640625，区间 [−3.203125, −2.125]，也不含 0。τ 差均值 +0.077169，区间 [0.062001, 0.092411]，不含 0。最大草稿节点数是 4。块复杂度两边都是 10。argmax 全部通过。换到 summarization 之后，gain 0.5 的联合 mask 仍然接受更少。这 128 条上的接受数差均值是 +2.6640625，和 brainstorming 的 +2.6171875 接近，高于 closed_qa 的 +2.4921875，低于 information_extraction 的 +3.046875。这是探索复现，不是确认。Dolly 八个类别的办公室切片到此用完，不再另起新类。不改 K，不改 0.5，不改 64，不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。数字在第七章和同日运行记录。
 
@@ -526,7 +526,89 @@ qid 是 summarization 非空文本流里的下标。已用文本按 `creative_wr
 | Qwen3-8B trajectory 第五次跨类复现 | 标明探索。Dolly brainstorming 非空流 qid 0–127，128 条，没有跳过。traj（gain 0）对 full（gain 0.5）为 95:17:16（p=2.508e-14），接受数差 +2.6171875，区间 [2.1328125, 3.1171875]，τ 1.290219→1.358632。完整版相对 traj 的增益是 −2.6171875，区间不含 0。换到 brainstorming 后联合 mask 仍然接受更少。不改 0.5，不改 64，不重选句子 |
 | Qwen3-8B trajectory 第六次跨类复现 | 标明探索。Dolly information_extraction 非空流 qid 0–127，128 条，没有跳过。traj（gain 0）对 full（gain 0.5）为 106:10:12（p=2.164e-21），接受数差 +3.046875，区间 [2.5234375, 3.6015625]，τ 1.326882→1.415774。完整版相对 traj 的增益是 −3.046875，区间不含 0。换到 information_extraction 后联合 mask 仍然接受更少。不改 0.5，不改 64，不重选句子 |
 | Qwen3-8B trajectory 第七次跨类复现 | 标明探索。Dolly summarization 非空流 qid 0–127，128 条，没有跳过。这是最后一个未用 Dolly 类别。traj（gain 0）对 full（gain 0.5）为 97:17:14（p=8.636e-15），接受数差 +2.6640625，区间 [2.125, 3.203125]，τ 1.340886→1.418055。完整版相对 traj 的增益是 −2.6640625，区间不含 0。换到 summarization 后联合 mask 仍然接受更少。不改 0.5，不改 64，不重选句子。八个类别到此用完，不再另起新类 |
-| 采样分布保证、独立 AR 等价、端到端速度 | 未完成，不能由 T0 推广 |
+| 采样分布保证、独立 AR 等价 | 未完成，不能由 T0 推广 |
+| 端到端墙钟 | 协议 `office-8b-traj-wall-v1` 已在第九章写定，尚未运行。已归档的八组只比较了接受数 |
 
 # 八、和开发计划的关系
-研究计划决定要检验的主张和会改变判断的结果。开发计划决定代码、文档和工程验收。主问题的公式未冻结，所以开发计划不包含真实模型实验。现有解码器、审计和 τ 口径的工程修改不能改变已归档 Run 的计数。
+研究计划决定要检验的主张和会改变判断的结果。开发计划决定代码、文档和工程验收。第九章写定了下一轮墙钟比较和 full 胜出子集的分析协议。开发计划只登记逐臂墙钟这一项工程依赖。写进这两份计划不批准实现，也不批准 GPU 运行。现有解码器、审计和 τ 口径的工程修改不能改变已归档 Run 的计数。
+
+# 九、下一高信息实验（运行前写定）
+2026年11月4日写定。Dolly 八个类别的办公室切片已经跑完，本章不再另起新类。主项是端到端墙钟，次项是从已归档结果界定 full 胜出的 prompt 子集。本章只写比较、计时口径和停止规则。它不授权实现，也不授权 GPU 运行。
+
+## A. 端到端墙钟 `office-8b-traj-wall-v1`
+这是探索，不是主确认。不设 p<0.05 通过线。
+
+问题：在 trajectory-only 的接受数已经高于 gain 0.5 的同一协议上，逐条墙钟是否也是 trajectory-only 更短。切片锁定为已经跑完的 summarization，即 `office-8b-traj-xcat7-v1` 的 128 条。这一类是八类里最后写定的切片，不在八类里按效应量再挑一类。
+
+两臂、树和长度与该切片相同。正式基线是现有 ESP：`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。温度 0。最大草稿节点数保持 4。块复杂度两边都是 \((1+1)\times(1+4)=10\)。
+
+两臂都设置 `condition` none、`form` mean，协议名都是 `trajectory-observation-blend-v1`。
+
+- full：`gain` 0.5。与已归档 xcat7 的 full 一致。
+- traj：`gain` 0。与已归档 xcat7 的 traj 一致。
+
+K 不进入这轮。不改 0.5，不改树，不改 64。
+
+模型只有 Qwen3-8B，BF16，CUDA，eager，`local_files_only`。权重只用 `D:\models\Qwen3-8B`，模型表键 `8b` 指向这一目录，不下载。显存大约 17–18GB。正式加载前确认没有别的 CUDA 计算占用显存。分词用 `tokenizer(text)`，不用 chat template。
+
+句子沿用 summarization 非空流 qid 0–127，128 条，没有跳过。换行拼接的 SHA256 是 `f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a`。运行时条数、qid 或哈希对不上就中止，不另选句子。
+
+正式每条 64 token，`stop_on_eos` false。两臂的 argmax 都要通过，否则该组无效。独立 AR 不一致只作诊断。任一步草稿节点数不是 4，该臂中止，这一组不进入符号检验。
+
+计时口径：
+
+主墙钟是逐臂、逐 prompt 的 `wall_seconds`，单位秒。该臂调用 `SpecDecoder.generate` 之前，先调用现有 `sync_device`（CUDA 上即 `torch.cuda.synchronize`），用 `time.perf_counter` 记下起点；`generate` 返回后再次 `sync_device`，再记下终点。`wall_seconds` 是这两次读数的差。它只包住这一臂的 generate，并等到这次调用已经提交的 CUDA 工作结束。它不包含另一臂，也不包含独立 AR。
+
+解码器内部的 `prefill_time` 与 `decode_time` 可以附在同一行。它们在 `generate` 里面分段读取 `perf_counter`，分段两端没有再同步。二者之和只作伴随描述。同向判断只用 `wall_seconds`。
+
+已归档的 office 正式行没有逐臂墙钟。命令外层把 full、traj 和独立 AR 包在同一次 `perf_counter` 里的打印，不进入比较。
+
+缺失、非有限或为负的 `wall_seconds` 保持缺失，不写成 0。任一条正式 prompt 的任一臂缺墙钟，墙钟汇总记为不完整，不解释成同向或反向。该条的接受数仍按原口径保留。
+
+臂的顺序与现有 `office_traj` 相同：先做独立 AR，只供 `ar_equal` 诊断，不计入 `wall_seconds`；然后 full；然后 traj。每一臂使用新的解码器。预热也使用单独构造、随后丢弃的解码器，不把预热后的 mask 状态带进正式行。
+
+冒烟用正式 128 条里的前 2 条，每条 8 token。两臂 argmax 都要通过，并且两臂都写出有限、非负的 `wall_seconds`。冒烟不进入符号检验。冒烟失败就不跑正式。正式开始前，用第 1 条正式 prompt、8 token、两臂各做一次不计时预热，预热后同步。预热不写入正式 jsonl。预热时同步失败或 argmax 失败，就不跑正式。
+
+主比较仍是 traj 对 full。接受数差是 traj 的 `accepted` 减去 full。墙钟差是 traj 的 `wall_seconds` 减去 full。接受数沿用现有 `direction`，作用在接受数差上：胜是 traj 的接受数更高，负是 full 更高，平是相等。墙钟另记 `wall_direction`，不把墙钟差送进现有 `direction`，以免把更长的时间记成 positive。`wall_direction` 为 shorter：墙钟差均值小于 0，且 traj 更短的条数多于 traj 更长的条数。为 longer：墙钟差均值大于 0，且 traj 更长的条数更多。其余记为 mixed 或 flat。
+
+两边都报告胜:负:平、双侧二项符号检验的 p、均值和 bootstrap 95% 区间（百分位，种子 0，10000 次）。墙钟的“胜”按上面的 shorter 计数，也就是 traj 更短的条数。p 不卡 0.05。效应量按算出来的数写。
+
+同向的操作定义：接受数的 `direction` 为 positive，并且 `wall_direction` 为 shorter。两个区间都不含 0，记为这 128 条上接受数与墙钟同向离开了 0。只有一个区间不含 0，记为没有一起离开 0。接受数的 `direction` 为 positive 且 `wall_direction` 为 longer，记为接受更多但墙钟更长。这是探索，不记成确认。
+
+已归档 xcat7 的接受数是 97:17:14，差均值 +2.6640625。这次若接受数的 `direction` 不是 positive，墙钟仍按上面的规则报告，同时写明接受数没有保持已归档的方向。不因为方向不同而重选句子或改增益。
+
+无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 128 条、不把树改成 [2, 2] 或 [3, 1]，也不另起 Dolly 类别。
+
+选句常量、两臂和汇总仍在 `studies/trajectory_observation/structure/office_traj.py`。获准实现时，`wall_seconds` 加在这个文件的现有命令里。模块是 `studies.trajectory_observation.structure.office_traj`，句子沿用 `--protocol xcat7` 已经冻结的那一批。不另建脚本，不增加 legacy 条目。本段不批准这次实现。
+
+## B. traj 失败模式 `office-8b-traj-failset-v1`
+这是对已归档 office 结果的分析协议。默认不加载生成模型，不新跑解码。
+
+full 胜出子集：同一协议、同一 qid 上，`accepted_full` 大于 `accepted_traj` 的 prompt。相等不进入子集。traj 更高不进入子集。八组各自定义。不同类别的 qid 不合成一条流，也不做跨类的符号检验。
+
+归档 jsonl 不进 Git。分析时到运行记录所指的输出目录读取下表的成对文件。文件名是 `{前缀}-{full|traj}-{戳}.jsonl`。每组子集的条数必须等于该组已归档的“负”（full 的接受数更高）。对不上就停在该组，不补造条数，也不改已归档汇总。
+
+| **协议** | **类别** | **条数** | **SHA256** | **已归档负** | **前缀与戳** |
+| --- | --- | --- | --- | --- | --- |
+| `office-8b-traj-ablate-v1` | creative_writing | 60 | `d23ad590c45307fa7c1981b272adaec243bfaca5a2e390eda394bf2fe42a4cca` | 5 | `sd-office-8b-traj-ablate` / `20261103-0905` |
+| `office-8b-traj-xcat-v1` | open_qa | 128 | `f6e6b1c71a20f1170692e22a2c2bd79fb31eaeb810b861553f7c76a41df25231` | 12 | `sd-office-8b-traj-xcat` / `20261103-0929` |
+| `office-8b-traj-xcat2-v1` | general_qa | 128 | `a6a306ea868767da6cf8b6006bb4d91c5360387ae8b16ba1a20142cdd35ec677` | 17 | `sd-office-8b-traj-xcat2` / `20261103-0958` |
+| `office-8b-traj-xcat3-v1` | classification | 128 | `01c21dbf4a774b2395bed3a8606d3fe20d92a0cb7d2562ff8e8d965b9f2bd35e` | 23 | `sd-office-8b-traj-xcat3` / `20261103-1024` |
+| `office-8b-traj-xcat4-v1` | closed_qa | 128 | `55ad2a82a6853587c7f28a641ba5acbdcc66d374c1b2cc3924c1563ce3fafdf9` | 22 | `sd-office-8b-traj-xcat4` / `20261104-032457` |
+| `office-8b-traj-xcat5-v1` | brainstorming | 128 | `3dcf4c093d586cd329f7393213009962308365098a9790b009cafc32c7f37869` | 17 | `sd-office-8b-traj-xcat5` / `20261104-035230` |
+| `office-8b-traj-xcat6-v1` | information_extraction | 128 | `b7094d9ecf62a73e299d742016a3fdfcf4608ef5a7a32f7adc7703b86706d7c3` | 10 | `sd-office-8b-traj-xcat6` / `20261104-042546` |
+| `office-8b-traj-xcat7-v1` | summarization | 128 | `f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a` | 17 | `sd-office-8b-traj-xcat7` / `20261104-045236` |
+
+每组报告四项，都是描述，不另设通过线：
+
+1. 子集里的 qid，以及每条的 `accepted_full - accepted_traj`。
+2. 用该组已经冻结的选句函数取回文本，先核对 SHA256。然后在子集、traj 更高的 prompt、以及打平的 prompt 之间，比较字符长度的均值和中位数。本机已有 Qwen3-8B 分词器、且 `tokenizer(text)` 不触发下载时，再用同一分词、不用 chat template，报告 token 长度的均值和中位数。分词器不可用时，token 长度保持未计算，只保留字符长度。
+3. 子集里 `ar_equal` 为假的条数，以及同组其余 prompt 里 `ar_equal` 为假的条数。这只作诊断。
+4. 子集上 `accepted_full - accepted_traj` 的条数、最小值、中位数、最大值和均值。
+
+分析不改 K、不改 0.5、不改树、不改 64，也不因子集的长相另起 Dolly 类别。
+
+某一组 jsonl 缺失时，该组记为未知。不新跑模型来补这组。句子和哈希已经冻结在 `studies/trajectory_observation/structure/office_traj.py`。日后若另行批准复跑，必须用这些常量，条数、qid 或哈希对不上就中止。本段不批准复跑。
+
+## C. 仍不足时才换数据集
+A 回答锁定切片上墙钟和接受数是否同向。B 回答已归档八组里 full 胜出的 prompt 如何分布。两项都有结果之后，若仍然不能判断接受数优势是否对应更短的墙钟，也不能判断 full 胜出是否集中在可描述的长度或类别差异上，才另写一版计划，考虑 SpecBench 或其他数据集。本轮不选那些句子，不改 0.5，不改树，也不把那一版写成已经批准。
