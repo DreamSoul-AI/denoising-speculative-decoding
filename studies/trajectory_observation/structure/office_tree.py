@@ -1,7 +1,8 @@
-"""Equal-node static tree shapes for one Qwen3-4B exploration.
+"""Equal-node static tree shapes for the Qwen3 explorations.
 
-Protocol ``office-tree-shape-v1``. Prompt selection, the three supported
-shapes, and the paired summary live here. The command that loads weights is
+``office-tree-shape-v1`` is the finished Qwen3-4B slice. ``office-8b-tree-shape-v1``
+reuses the same three shapes on a later Dolly slice. Prompt selection and the
+paired summary live here. The command that loads weights is
 ``studies.trajectory_observation.flow.execute.office_tree``. This module does
 not fit K and does not mutate the process environment on import.
 """
@@ -26,6 +27,12 @@ BOOT_RESAMPLES = 10000
 SKIPPED_QIDS = ()
 EVAL_SHA256 = '123702e2294e9339665cf752ab286297b670cc06e6af632d9b6912399b6cc4e3'
 EVAL_QIDS = tuple(range(START, START + TAKE))
+PROTOCOL_8B = 'office-8b-tree-shape-v1'
+START_8B = 516
+END_8B = 646
+SKIPPED_QIDS_8B = (597, 608, 626)
+EVAL_SHA256_8B = 'd4596e4f7404f47ac53e327d711f70edb7d49298b7583155c8050bfe27bed4dd'
+EVAL_QIDS_8B = tuple(qid for qid in range(START_8B, END_8B + 1) if qid not in SKIPPED_QIDS_8B)
 MASK = {'init': 'mean_prompt', 'lam': 0.1, 'update': True}
 EVAL = {'max_new_tokens': 64, 'temperature': 0.0, 'stop_on_eos': False}
 SMOKE = {'max_new_tokens': 8, 'temperature': 0.0, 'stop_on_eos': False}
@@ -63,15 +70,15 @@ def arm_specs():
     return {name: arm_spec(branches, masks) for name, branches, masks in ARMS}
 
 
-def prompts_from_388(rows, take=TAKE):
-    """Take unused creative texts from qid 388, skipping strings already seen."""
+def prompts_after(rows, start, take=TAKE):
+    """Take unused creative texts from ``start``, skipping strings already seen."""
     texts = creative_texts(rows)
-    if len(texts) <= START - 1:
-        raise RuntimeError('creative stream does not reach qid 388')
-    used = set(texts[:START])
+    if len(texts) <= start - 1:
+        raise RuntimeError(f'creative stream does not reach qid {start}')
+    used = set(texts[:start])
     skipped = []
     chosen = []
-    for index, text in enumerate(texts[START:], start=START):
+    for index, text in enumerate(texts[start:], start=start):
         if text in used:
             skipped.append(index)
             continue
@@ -79,15 +86,33 @@ def prompts_from_388(rows, take=TAKE):
         chosen.append({'qid': index, 'category': 'creative_writing', 'text': text})
         if len(chosen) == take:
             return chosen, tuple(skipped)
-    raise RuntimeError(f'creative_writing has only {len(chosen)} new prompts from qid {START}')
+    raise RuntimeError(f'creative_writing has only {len(chosen)} new prompts from qid {start}')
+
+
+def prompts_from_388(rows, take=TAKE):
+    """Take unused creative texts from qid 388, skipping strings already seen."""
+    return prompts_after(rows, START, take)
+
+
+def prompts_from_516(rows, take=TAKE):
+    """Take unused creative texts from qid 516, skipping strings already seen."""
+    return prompts_after(rows, START_8B, take)
+
+
+def _assert_slice(prompts, skipped, digest_expected, qids_expected, skipped_expected, label):
+    digest = prompt_sha256(prompts)
+    qids = tuple(prompt['qid'] for prompt in prompts)
+    if digest != digest_expected or qids != qids_expected or tuple(skipped) != skipped_expected:
+        raise RuntimeError(f'prompt hash {digest} does not match the pre-registered {label} slice')
+    return digest
 
 
 def assert_registered_slice(prompts, skipped):
-    digest = prompt_sha256(prompts)
-    qids = tuple(prompt['qid'] for prompt in prompts)
-    if digest != EVAL_SHA256 or qids != EVAL_QIDS or tuple(skipped) != SKIPPED_QIDS:
-        raise RuntimeError(f'prompt hash {digest} does not match the pre-registered slice')
-    return digest
+    return _assert_slice(prompts, skipped, EVAL_SHA256, EVAL_QIDS, SKIPPED_QIDS, '4b')
+
+
+def assert_registered_8b_slice(prompts, skipped):
+    return _assert_slice(prompts, skipped, EVAL_SHA256_8B, EVAL_QIDS_8B, SKIPPED_QIDS_8B, '8b')
 
 
 def existing_output_dir(path):
@@ -210,7 +235,7 @@ def _compare(name, treated, baseline):
     }
 
 
-def tree_summary(rows_by_name):
+def tree_summary(rows_by_name, protocol=PROTOCOL, digest=EVAL_SHA256, skipped=SKIPPED_QIDS):
     if set(rows_by_name) != {name for name, _branches, _masks in ARMS}:
         raise RuntimeError('summary is missing a registered shape')
     if any(len(rows) != TAKE for rows in rows_by_name.values()):
@@ -219,12 +244,12 @@ def tree_summary(rows_by_name):
     comparisons = {name: _compare(name, rows_by_name[name], baseline) for name in ('b22', 'b31')}
     passed = all(item['argmax_all_passed'] and item['max_nodes'] == NODE_BUDGET for item in comparisons.values())
     return {
-        'protocol': PROTOCOL,
+        'protocol': protocol,
         'role': ROLE,
         'confirmatory': False,
         'prompts': TAKE,
-        'prompt_sha256': EVAL_SHA256,
-        'skipped_qids': list(SKIPPED_QIDS),
+        'prompt_sha256': digest,
+        'skipped_qids': list(skipped),
         'baseline': 'b4',
         'comparisons': comparisons,
         'argmax_all_passed': passed,

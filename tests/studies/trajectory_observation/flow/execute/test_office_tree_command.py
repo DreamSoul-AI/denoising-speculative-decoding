@@ -12,3 +12,5 @@ def test_command_rejects_a_missing_destination():
         main(['--only', 'smoke'])
     with pytest.raises(RuntimeError, match='already exist'):
         main(['--dest', str(Path('missing-office-tree-output')), '--only', 'smoke'])
+    with pytest.raises(RuntimeError, match='already exist'):
+        main(['--dest', str(Path('missing-office-8b-tree-output')), '--model', '8b', '--only', 'smoke'])
