@@ -1,10 +1,10 @@
-"""The trajectory ablation command stays in flow and refuses a missing output directory."""
+"""The trajectory ablation command refuses a missing output directory."""
 
 from pathlib import Path
 
 import pytest
 
-from studies.trajectory_observation.flow.execute.office_traj import main, round_config
+from studies.trajectory_observation.structure.office_traj import main, round_config
 
 
 def test_command_rejects_a_missing_destination():

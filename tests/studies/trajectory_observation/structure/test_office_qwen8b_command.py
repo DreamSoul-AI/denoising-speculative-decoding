@@ -1,10 +1,10 @@
-"""The 8B command stays in flow and refuses a missing output directory."""
+"""The 8B command refuses a missing output directory."""
 
 from pathlib import Path
 
 import pytest
 
-from studies.trajectory_observation.flow.execute.office_qwen8b import main
+from studies.trajectory_observation.structure.office_qwen8b import main
 
 
 def test_command_rejects_a_missing_destination():

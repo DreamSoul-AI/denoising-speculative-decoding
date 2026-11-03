@@ -3458,7 +3458,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_qwen8b_command.py::test_command_rejects_a_missing_destination",
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_qwen8b_command.py::test_command_rejects_a_missing_destination",
       "target": "studies.trajectory_observation",
       "tags": [
         "offline_cpu"
@@ -3521,7 +3521,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_tree_command.py::test_command_rejects_a_missing_destination",
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_tree_command.py::test_command_rejects_a_missing_destination",
       "target": "studies.trajectory_observation",
       "tags": [
         "offline_cpu"
@@ -3577,7 +3577,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_traj_command.py::test_command_rejects_a_missing_destination",
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj_command.py::test_command_rejects_a_missing_destination",
       "target": "studies.trajectory_observation",
       "tags": [
         "offline_cpu"
@@ -3605,7 +3605,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_traj_command.py::test_xcat_round_keeps_the_cross_category_names",
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj_command.py::test_xcat_round_keeps_the_cross_category_names",
       "target": "studies.trajectory_observation",
       "tags": [
         "offline_cpu"
@@ -3633,7 +3633,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_traj_command.py::test_xcat2_round_keeps_the_second_cross_category_names",
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj_command.py::test_xcat2_round_keeps_the_second_cross_category_names",
       "target": "studies.trajectory_observation",
       "tags": [
         "offline_cpu"
@@ -3661,7 +3661,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_traj_command.py::test_xcat3_round_keeps_the_third_cross_category_names",
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj_command.py::test_xcat3_round_keeps_the_third_cross_category_names",
       "target": "studies.trajectory_observation",
       "tags": [
         "offline_cpu"
@@ -3689,7 +3689,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_traj_command.py::test_xcat4_round_keeps_the_fourth_cross_category_names",
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj_command.py::test_xcat4_round_keeps_the_fourth_cross_category_names",
       "target": "studies.trajectory_observation",
       "tags": [
         "offline_cpu"
@@ -3717,7 +3717,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_traj_command.py::test_xcat5_round_keeps_the_fifth_cross_category_names",
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj_command.py::test_xcat5_round_keeps_the_fifth_cross_category_names",
       "target": "studies.trajectory_observation",
       "tags": [
         "offline_cpu"
@@ -3745,7 +3745,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_traj_command.py::test_xcat6_round_keeps_the_sixth_cross_category_names",
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj_command.py::test_xcat6_round_keeps_the_sixth_cross_category_names",
       "target": "studies.trajectory_observation",
       "tags": [
         "offline_cpu"
@@ -3773,7 +3773,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_traj_command.py::test_xcat7_round_keeps_the_seventh_cross_category_names",
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj_command.py::test_xcat7_round_keeps_the_seventh_cross_category_names",
       "target": "studies.trajectory_observation",
       "tags": [
         "offline_cpu"
