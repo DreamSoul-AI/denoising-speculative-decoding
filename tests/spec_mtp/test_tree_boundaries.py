@@ -89,3 +89,30 @@ def test_children_of_and_block_layout_indices():
     kids = tree.children_of(top1 + 1)
     assert len(kids) == 2 and all(tree.depths[i - 1] == 2 for i in kids)
     assert tree.children_of(kids[0]) == []
+
+
+def test_legacy_path_reexports_decode_tree():
+    import spec_mtp.structure.algorithm.decode.tree as tree
+    import spec_mtp.structure.algorithm.decode.tree_attention as attention
+    import spec_mtp.structure.algorithm.decode.tree_edit as edit
+    import spec_mtp.tree as legacy
+
+    same = {
+        'DraftTree': tree,
+        'node_budget_for': tree,
+        '_topk_with_pruning': tree,
+        'build_static_tree': tree,
+        'build_dynamic_tree': tree,
+        'build_tree': tree,
+        'add_depth1_branch': edit,
+        'replace_weakest_depth1': edit,
+        '_depth1_indices': edit,
+        'block_layout': attention,
+        'mask_indices_of': attention,
+        'build_block_attention': attention,
+        '_block_structure': attention,
+        'TreeAttentionCache': attention,
+        'DynamicTreeAttentionCache': attention,
+    }
+    for name, module in same.items():
+        assert getattr(legacy, name) is getattr(module, name)
