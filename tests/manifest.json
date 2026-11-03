@@ -3596,6 +3596,34 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj.py::test_general_qa_skips_open_qa_creative_template_and_specbench",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj.py::test_short_general_qa_pool_is_rejected",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_traj.py::test_registered_general_qa_slice_skips_only_the_open_qa_duplicate",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office_traj_command.py::test_xcat2_round_keeps_the_second_cross_category_names",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

@@ -1,7 +1,8 @@
 """Run a pre-registered Qwen3-8B trajectory-only versus full-blend comparison.
 
 ``--protocol ablate`` is the finished creative_writing tail. ``--protocol xcat``
-is the open_qa cross-category exploration. Writes flat files into an existing
+is the finished open_qa cross-category exploration. ``--protocol xcat2`` is the
+general_qa cross-category exploration. Writes flat files into an existing
 directory. It does not create directories.
 """
 
@@ -16,9 +17,9 @@ from studies.trajectory_observation.flow.execute.office_tree import (
     _append, _identity, _load_model, _offline_caches,
 )
 from studies.trajectory_observation.structure.office_traj import (
-    ARMS, EVAL, PROTOCOL, PROTOCOL_XCAT, SMOKE, TAKE, TAKE_XCAT, ablation_summary,
-    arm_specs, assert_registered_slice, assert_registered_xcat_slice, prompts_from_647,
-    prompts_open_qa,
+    ARMS, EVAL, PROTOCOL, PROTOCOL_XCAT, PROTOCOL_XCAT2, SMOKE, TAKE, TAKE_XCAT, TAKE_XCAT2,
+    ablation_summary, arm_specs, assert_registered_slice, assert_registered_xcat_slice,
+    assert_registered_xcat2_slice, prompts_from_647, prompts_general_qa, prompts_open_qa,
 )
 from studies.trajectory_observation.structure.office_tree import decode_prompt, existing_output_dir, read_rows
 
@@ -41,6 +42,15 @@ def round_config(protocol):
             'select': prompts_open_qa,
             'check': assert_registered_xcat_slice,
             'take': TAKE_XCAT,
+        }
+    if protocol == 'xcat2':
+        return {
+            'protocol': PROTOCOL_XCAT2,
+            'prefix': 'sd-office-8b-traj-xcat2',
+            'stamp': '20261103-0958',
+            'select': prompts_general_qa,
+            'check': assert_registered_xcat2_slice,
+            'take': TAKE_XCAT2,
         }
     raise RuntimeError(f'unknown trajectory protocol {protocol}')
 
@@ -115,7 +125,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--dest', type=Path, required=True)
     parser.add_argument('--only', choices=('all', 'smoke', 'formal'), default='all')
-    parser.add_argument('--protocol', choices=('ablate', 'xcat'), default='ablate')
+    parser.add_argument('--protocol', choices=('ablate', 'xcat', 'xcat2'), default='ablate')
     args = parser.parse_args(argv)
     dest = existing_output_dir(args.dest)
     cfg = round_config(args.protocol)
