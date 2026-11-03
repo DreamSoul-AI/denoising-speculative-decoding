@@ -16,8 +16,8 @@
 | [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 研究问题、假设、对照和停止规则 |
 | [开发计划 Development Plan 去噪推测解码](<docs/开发计划 Development Plan 去噪推测解码.md>) | 剩余工程、验收和待确认的来源策略 |
 | [缺陷记录 Bug Report 去噪推测解码](<docs/缺陷记录 Bug Report 去噪推测解码.md>) | 尚未关闭的问题 |
-| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-03 Qwen3-8B同预算与冻结卡尔曼.md>) | 当前的 Qwen3-8B 同预算替换与冻结卡尔曼。上一轮在 [2026-11-03 同预算替换复现](<docs/开发记录 Development Record/2026-11-03 同预算替换复现.md>)。两柱目录规则在 [2026-11-03 两柱规则与遗留门禁](<docs/开发记录 Development Record/2026-11-03 两柱规则与遗留门禁.md>) |
-| [运行记录 Run Record](<docs/运行记录 Run Record/2026-11-03 Qwen3-8B同预算与冻结卡尔曼.md>) | 最近一次测量：Qwen3-8B 上同预算替换和冻结卡尔曼对 ESP。上一轮在 [2026-11-03 同预算替换复现](<docs/运行记录 Run Record/2026-11-03 同预算替换复现.md>)。历史测量在 [2026-10-31 历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>) |
+| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-03 同预算树形探索.md>) | 当前的同预算树形探索。上一轮在 [2026-11-03 Qwen3-8B同预算与冻结卡尔曼](<docs/开发记录 Development Record/2026-11-03 Qwen3-8B同预算与冻结卡尔曼.md>)。两柱目录规则在 [2026-11-03 两柱规则与遗留门禁](<docs/开发记录 Development Record/2026-11-03 两柱规则与遗留门禁.md>) |
+| [运行记录 Run Record](<docs/运行记录 Run Record/2026-11-03 同预算树形探索.md>) | 最近一次测量：Qwen3-4B 上同预算树形探索。上一轮在 [2026-11-03 Qwen3-8B同预算与冻结卡尔曼](<docs/运行记录 Run Record/2026-11-03 Qwen3-8B同预算与冻结卡尔曼.md>)。历史测量在 [2026-10-31 历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>) |
 
 # 二、当前实现与使用边界
 当前安装包为 `denoise-spec-mtp`。`spec_mtp` 与每个 `studies/<name>/` 的目标布局都是 [RPipe](https://github.com/DreamSoul-AI/RPipe) 的 `structure/` 与 `flow/` 两柱：`structure` 定义一次 Run 由什么组成，`flow` 运行阶段链。顶层只保留 `__init__.py`、`__main__.py` 和薄入口。新增机制必须先落在这两柱里；要改这条规则，先改代码结构设计。解码内容目前仍在 `contracts.py`、`data.py`、`model.py`、`decode.py`、`masks.py`、`tree.py`、`audit.py`、`analysis.py`、`cli.py`，Study 顶层还有一批历史脚本。这些都是冻结遗留，迁移分步进行，本步没有搬模块。流程骨架已经在 `spec_mtp.flow` 与 `spec_mtp.structure`，不再内嵌 `src/rpipe/` 副本，也不再 `import rpipe`。`python -m spec_mtp` / `spec-mtp` 提供 `decode/audit/compare`；旧 make/launch/process 研究命令明确拒绝并提示使用 `python -m studies._shared.flow.cli`。
