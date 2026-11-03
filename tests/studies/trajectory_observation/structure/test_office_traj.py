@@ -5,6 +5,7 @@ import torch
 
 from spec_mtp.masks import build_mask_provider
 from studies.trajectory_observation.structure.office_qwen8b import ESP
+from studies.trajectory_observation.structure.office_tree import SMOKE
 from studies.trajectory_observation.structure.office_traj import (
     CATEGORY_XCAT, CATEGORY_XCAT2, CATEGORY_XCAT3, CATEGORY_XCAT4, CATEGORY_XCAT5, CATEGORY_XCAT6,
     CATEGORY_XCAT7, EVAL_QIDS, EVAL_QIDS_XCAT, EVAL_QIDS_XCAT2, EVAL_QIDS_XCAT3, EVAL_QIDS_XCAT4,
@@ -14,8 +15,9 @@ from studies.trajectory_observation.structure.office_traj import (
     PROTOCOL_XCAT5, PROTOCOL_XCAT6, PROTOCOL_XCAT7, SKIPPED_QIDS, SKIPPED_QIDS_XCAT, SKIPPED_QIDS_XCAT2,
     SKIPPED_QIDS_XCAT3, SKIPPED_QIDS_XCAT4, SKIPPED_QIDS_XCAT5, SKIPPED_QIDS_XCAT6, SKIPPED_QIDS_XCAT7,
     TAKE, TAKE_XCAT, TAKE_XCAT2, TAKE_XCAT3, TAKE_XCAT4, TAKE_XCAT5, TAKE_XCAT6, TAKE_XCAT7,
-    ablation_summary, arm_spec, arm_specs, prompts_brainstorming, prompts_classification, prompts_closed_qa,
-    prompts_from_647, prompts_general_qa, prompts_information_extraction, prompts_open_qa, prompts_summarization,
+    ablation_summary, arm_spec, arm_specs, decode_measured_prompt, finite_wall, measure_generate,
+    prompts_brainstorming, prompts_classification, prompts_closed_qa, prompts_from_647, prompts_general_qa,
+    prompts_information_extraction, prompts_open_qa, prompts_summarization, wall_report,
 )
 
 
@@ -379,3 +381,184 @@ def test_summary_defines_traj_minus_full_and_the_opposite_full_gain():
     assert comparison['full_gain_difference']['ci95'][0] > 0
     assert comparison['max_nodes'] == 4
     assert comparison['block_complexity'] == {'full': [10], 'traj': [10]}
+    assert summary['wall'] == {'complete': False}
+    assert 'wall_direction' not in summary['wall']
+    assert 'wall_protocol' not in summary
+
+
+def _pair(accepted_full, accepted_traj, wall_full=None, wall_traj=None):
+    full = [_arm(qid, accepted_full) for qid in range(2)]
+    traj = [_arm(qid, accepted_traj) for qid in range(2)]
+    if wall_full is not None:
+        for row in full:
+            row['wall_seconds'] = wall_full
+    if wall_traj is not None:
+        for row in traj:
+            row['wall_seconds'] = wall_traj
+    return full, traj
+
+
+def test_wall_report_keeps_a_missing_clock_missing():
+    full, traj = _pair(1, 4, wall_full=2.0, wall_traj=1.0)
+    traj[1]['wall_seconds'] = float('nan')
+    report = wall_report(full, traj)
+    assert report == {'complete': False}
+    assert finite_wall(None) is None
+    assert finite_wall(float('inf')) is None
+    assert finite_wall(-0.1) is None
+    assert finite_wall(True) is None
+    assert finite_wall(0.0) == 0.0
+    summary = ablation_summary(
+        {'full': full, 'traj': traj}, protocol=PROTOCOL_XCAT7, digest=EVAL_SHA256_XCAT7,
+        skipped=SKIPPED_QIDS_XCAT7, take=2)
+    assert summary['wall_protocol'] == 'office-8b-traj-wall-v1'
+    assert summary['wall'] == {'complete': False}
+    assert summary['comparison']['direction'] == 'positive'
+    assert summary['comparison']['accepted_difference']['mean'] == 3
+
+
+def test_wall_direction_uses_the_shorter_count_and_not_the_acceptance_sign():
+    full, traj = _pair(1, 4, wall_full=1.0, wall_traj=2.0)
+    summary = ablation_summary({'full': full, 'traj': traj}, take=2)
+    wall = summary['wall']
+    assert summary['comparison']['direction'] == 'positive'
+    assert wall['complete'] is True
+    assert wall['wins_losses_ties'] == [0, 2, 0]
+    assert wall['wall_direction'] == 'longer'
+    assert wall['delta'] == 'wall_seconds_traj - wall_seconds_full'
+    assert wall['wall_difference']['mean'] == 1.0
+    full, traj = _pair(1, 4, wall_full=2.0, wall_traj=1.0)
+    assert ablation_summary({'full': full, 'traj': traj}, take=2)['wall']['wall_direction'] == 'shorter'
+    full, traj = _pair(1, 1, wall_full=1.5, wall_traj=1.5)
+    flat = ablation_summary({'full': full, 'traj': traj}, take=2)['wall']
+    assert flat['wall_direction'] == 'flat'
+    assert flat['p'] is None
+    mixed_full = [_arm(0, 1), _arm(1, 1)]
+    mixed_traj = [_arm(0, 1), _arm(1, 1)]
+    mixed_full[0]['wall_seconds'] = 1.0
+    mixed_full[1]['wall_seconds'] = 1.0
+    mixed_traj[0]['wall_seconds'] = 0.9
+    mixed_traj[1]['wall_seconds'] = 2.0
+    mixed = wall_report(mixed_full, mixed_traj)
+    assert mixed['wall_direction'] == 'mixed'
+    assert mixed['wins_losses_ties'] == [1, 1, 0]
+
+
+def test_measure_generate_syncs_around_one_call_and_drops_a_bad_clock(monkeypatch):
+    from studies.trajectory_observation.structure import office_traj
+
+    events = []
+
+    def sync(device):
+        events.append(('sync', device))
+
+    def generate(ids):
+        events.append(('generate', ids))
+        return 'out', {'accepted': 3, 'prefill_time': 0.2, 'decode_time': 0.3}
+
+    ticks = iter([10.0, 10.5])
+    monkeypatch.setattr(office_traj.time, 'perf_counter', lambda: next(ticks))
+    monkeypatch.setattr('spec_mtp.model.sync_device', sync)
+    output, stats, wall = measure_generate(generate, 'ids', 'cpu')
+    assert events == [('sync', 'cpu'), ('generate', 'ids'), ('sync', 'cpu')]
+    assert output == 'out' and stats['accepted'] == 3 and wall == 0.5
+
+    events.clear()
+
+    def fail_first(device):
+        events.append('sync')
+        raise RuntimeError('sync failed')
+
+    monkeypatch.setattr('spec_mtp.model.sync_device', fail_first)
+    output, _stats, wall = measure_generate(generate, 'ids', 'cpu')
+    assert output == 'out' and wall is None
+    assert events == ['sync', ('generate', 'ids')]
+
+    calls = {'n': 0}
+
+    def fail_second(device):
+        calls['n'] += 1
+        if calls['n'] == 2:
+            raise RuntimeError('sync failed')
+
+    monkeypatch.setattr('spec_mtp.model.sync_device', fail_second)
+    output, _stats, wall = measure_generate(generate, 'ids', 'cuda')
+    assert output == 'out' and wall is None
+
+    monkeypatch.setattr('spec_mtp.model.sync_device', lambda device: None)
+    backward = iter([5.0, 4.0])
+    monkeypatch.setattr(office_traj.time, 'perf_counter', lambda: next(backward))
+    _output, _stats, wall = measure_generate(generate, 'ids', 'cpu')
+    assert wall is None
+    broken = iter([1.0, float('nan')])
+    monkeypatch.setattr(office_traj.time, 'perf_counter', lambda: next(broken))
+    _output, _stats, wall = measure_generate(generate, 'ids', 'cpu')
+    assert wall is None
+
+
+def test_measured_prompt_times_full_then_traj_and_leaves_ar_outside(monkeypatch):
+    import spec_mtp.decode as decode_mod
+    from studies.trajectory_observation.structure import office_traj
+
+    events = []
+
+    class _Tree:
+        num_nodes = 4
+
+    class _Model:
+        device = 'cpu'
+        embedding_table = torch.arange(24, dtype=torch.float32).reshape(6, 4)
+
+    class _Batch:
+        input_ids = torch.ones(1, 2, dtype=torch.long)
+
+    class _Tokenizer:
+        def __call__(self, text, return_tensors='pt'):
+            events.append(('tokenize', text))
+            return _Batch()
+
+    class _Decoder:
+        def __init__(self, model, spec, limit, mask_policy=None):
+            self.gain = spec['observation']['gain']
+
+        def generate(self, ids):
+            decode_mod.build_tree(None, None, 0)
+            events.append(('generate', self.gain))
+            stats = {
+                'verification_argmax_audit': {'passed': True},
+                'block_complexity': 10,
+                'decode_calls': 2,
+                'accepted': 4,
+                'committed': 8,
+                'prefill_time': 0.1,
+                'decode_time': float('nan'),
+            }
+            return torch.tensor([[1, 2, 3]]), stats
+
+    def ar_generate(model, ids, limit):
+        events.append('ar')
+        return torch.tensor([[1, 2, 3]]), {'ar_time': 9.0}
+
+    def sync(device):
+        events.append(('sync', device))
+
+    ticks = iter([10.0, 10.5, 20.0, 21.0])
+    monkeypatch.setattr(decode_mod, 'build_tree', lambda *args, **kwargs: _Tree())
+    monkeypatch.setattr(decode_mod, 'SpecDecoder', _Decoder)
+    monkeypatch.setattr(decode_mod, 'ar_generate', ar_generate)
+    monkeypatch.setattr('spec_mtp.model.sync_device', sync)
+    monkeypatch.setattr(office_traj.time, 'perf_counter', lambda: next(ticks))
+    prompt = {'qid': 3, 'category': 'summarization', 'text': 'sum'}
+    decoded = decode_measured_prompt(_Model(), _Tokenizer(), prompt, tuple(arm_specs().items()), SMOKE)
+    assert [event for event in events if event == 'ar' or (isinstance(event, tuple) and event[0] in {'sync', 'generate'})] == [
+        'ar',
+        ('sync', 'cpu'), ('generate', 0.5), ('sync', 'cpu'),
+        ('sync', 'cpu'), ('generate', 0.0), ('sync', 'cpu'),
+    ]
+    assert decoded['full']['wall_seconds'] == 0.5
+    assert decoded['traj']['wall_seconds'] == 1.0
+    assert decoded['full']['prefill_time'] == 0.1
+    assert 'decode_time' not in decoded['full']
+    assert decoded['full']['accepted'] == 4
+    assert 'ar_time' not in decoded['full']
+    assert decoded['full']['ar_equal'] is True
