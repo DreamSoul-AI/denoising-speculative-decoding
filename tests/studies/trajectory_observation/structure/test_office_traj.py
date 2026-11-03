@@ -6,9 +6,11 @@ import torch
 from spec_mtp.masks import build_mask_provider
 from studies.trajectory_observation.structure.office_qwen8b import ESP
 from studies.trajectory_observation.structure.office_traj import (
-    CATEGORY_XCAT, EVAL_QIDS, EVAL_QIDS_XCAT, EVAL_SHA256, EVAL_SHA256_XCAT, GAIN_FULL,
-    GAIN_TRAJ, PROTOCOL, PROTOCOL_XCAT, SKIPPED_QIDS, SKIPPED_QIDS_XCAT, TAKE, TAKE_XCAT,
-    ablation_summary, arm_spec, arm_specs, prompts_from_647, prompts_open_qa,
+    CATEGORY_XCAT, CATEGORY_XCAT2, EVAL_QIDS, EVAL_QIDS_XCAT, EVAL_QIDS_XCAT2, EVAL_SHA256,
+    EVAL_SHA256_XCAT, EVAL_SHA256_XCAT2, GAIN_FULL, GAIN_TRAJ, PROTOCOL, PROTOCOL_XCAT,
+    PROTOCOL_XCAT2, SKIPPED_QIDS, SKIPPED_QIDS_XCAT, SKIPPED_QIDS_XCAT2, TAKE, TAKE_XCAT,
+    TAKE_XCAT2, ablation_summary, arm_spec, arm_specs, prompts_from_647, prompts_general_qa,
+    prompts_open_qa,
 )
 
 
@@ -60,6 +62,43 @@ def test_open_qa_skips_creative_duplicate_template_and_specbench():
 def test_short_open_qa_pool_is_rejected():
     with pytest.raises(RuntimeError):
         prompts_open_qa([_row('open_qa', 'only one')], take=TAKE_XCAT)
+
+
+def test_general_qa_skips_open_qa_creative_template_and_specbench():
+    specbench = ('Compose an engaging travel blog post about a recent trip to Hawaii, '
+                 'highlighting cultural experiences and must-see attractions.')
+    template = 'Name the color of a common example'
+    rows = [_row('open_qa', f'open {index}') for index in range(128)]
+    rows.extend([
+        _row('creative_writing', 'used once'),
+        _row('general_qa', 'open 0'),
+        _row('general_qa', 'used once'),
+        _row('general_qa', 'fresh', 'ctx'),
+        _row('general_qa', template),
+        _row('general_qa', specbench),
+        _row('general_qa', 'later'),
+    ])
+    chosen, skipped = prompts_general_qa(rows, take=2)
+    assert skipped == (0, 1, 3, 4)
+    assert chosen == [
+        {'qid': 2, 'category': 'general_qa', 'text': 'ctx\n\nfresh'},
+        {'qid': 5, 'category': 'general_qa', 'text': 'later'},
+    ]
+
+
+def test_short_general_qa_pool_is_rejected():
+    with pytest.raises(RuntimeError):
+        prompts_general_qa([_row('general_qa', 'only one')], take=TAKE_XCAT2)
+
+
+def test_registered_general_qa_slice_skips_only_the_open_qa_duplicate():
+    assert PROTOCOL_XCAT2 == 'office-8b-traj-xcat2-v1'
+    assert CATEGORY_XCAT2 == 'general_qa'
+    assert TAKE_XCAT2 == 128
+    assert SKIPPED_QIDS_XCAT2 == (91,)
+    assert EVAL_QIDS_XCAT2 == tuple(range(91)) + tuple(range(92, 129))
+    assert len(EVAL_QIDS_XCAT2) == TAKE_XCAT2
+    assert EVAL_SHA256_XCAT2 == 'a6a306ea868767da6cf8b6006bb4d91c5360387ae8b16ba1a20142cdd35ec677'
 
 
 def test_registered_open_qa_head_is_128_with_no_skips():
