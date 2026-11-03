@@ -2,7 +2,8 @@
 
 ``--protocol ablate`` is the finished creative_writing tail. ``--protocol xcat``
 is the finished open_qa cross-category exploration. ``--protocol xcat2`` is the finished general_qa cross-category exploration.
-``--protocol xcat3`` is the classification cross-category exploration. Writes
+``--protocol xcat3`` is the finished classification cross-category exploration.
+``--protocol xcat4`` is the closed_qa cross-category exploration. Writes
 flat files into an existing directory. It does not create directories.
 """
 
@@ -17,10 +18,11 @@ from studies.trajectory_observation.flow.execute.office_tree import (
     _append, _identity, _load_model, _offline_caches,
 )
 from studies.trajectory_observation.structure.office_traj import (
-    ARMS, EVAL, PROTOCOL, PROTOCOL_XCAT, PROTOCOL_XCAT2, PROTOCOL_XCAT3, SMOKE, TAKE,
-    TAKE_XCAT, TAKE_XCAT2, TAKE_XCAT3, ablation_summary, arm_specs, assert_registered_slice,
+    ARMS, EVAL, PROTOCOL, PROTOCOL_XCAT, PROTOCOL_XCAT2, PROTOCOL_XCAT3, PROTOCOL_XCAT4, SMOKE, TAKE,
+    TAKE_XCAT, TAKE_XCAT2, TAKE_XCAT3, TAKE_XCAT4, ablation_summary, arm_specs, assert_registered_slice,
     assert_registered_xcat_slice, assert_registered_xcat2_slice, assert_registered_xcat3_slice,
-    prompts_classification, prompts_from_647, prompts_general_qa, prompts_open_qa,
+    assert_registered_xcat4_slice, prompts_classification, prompts_closed_qa, prompts_from_647,
+    prompts_general_qa, prompts_open_qa,
 )
 from studies.trajectory_observation.structure.office_tree import decode_prompt, existing_output_dir, read_rows
 
@@ -61,6 +63,15 @@ def round_config(protocol):
             'select': prompts_classification,
             'check': assert_registered_xcat3_slice,
             'take': TAKE_XCAT3,
+        }
+    if protocol == 'xcat4':
+        return {
+            'protocol': PROTOCOL_XCAT4,
+            'prefix': 'sd-office-8b-traj-xcat4',
+            'stamp': '20261104-032457',
+            'select': prompts_closed_qa,
+            'check': assert_registered_xcat4_slice,
+            'take': TAKE_XCAT4,
         }
     raise RuntimeError(f'unknown trajectory protocol {protocol}')
 
@@ -135,7 +146,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--dest', type=Path, required=True)
     parser.add_argument('--only', choices=('all', 'smoke', 'formal'), default='all')
-    parser.add_argument('--protocol', choices=('ablate', 'xcat', 'xcat2', 'xcat3'), default='ablate')
+    parser.add_argument('--protocol', choices=('ablate', 'xcat', 'xcat2', 'xcat3', 'xcat4'), default='ablate')
     args = parser.parse_args(argv)
     dest = existing_output_dir(args.dest)
     cfg = round_config(args.protocol)
