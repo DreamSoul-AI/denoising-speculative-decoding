@@ -6,8 +6,9 @@ import torch
 from spec_mtp.masks import build_mask_provider
 from studies.trajectory_observation.structure.office_qwen8b import ESP
 from studies.trajectory_observation.structure.office_traj import (
-    EVAL_QIDS, EVAL_SHA256, GAIN_FULL, GAIN_TRAJ, PROTOCOL, SKIPPED_QIDS, TAKE,
-    ablation_summary, arm_spec, arm_specs, prompts_from_647,
+    CATEGORY_XCAT, EVAL_QIDS, EVAL_QIDS_XCAT, EVAL_SHA256, EVAL_SHA256_XCAT, GAIN_FULL,
+    GAIN_TRAJ, PROTOCOL, PROTOCOL_XCAT, SKIPPED_QIDS, SKIPPED_QIDS_XCAT, TAKE, TAKE_XCAT,
+    ablation_summary, arm_spec, arm_specs, prompts_from_647, prompts_open_qa,
 )
 
 
@@ -29,6 +30,45 @@ def test_prompts_from_647_skip_texts_already_seen():
 def test_short_pool_from_647_is_rejected():
     with pytest.raises(RuntimeError):
         prompts_from_647([_creative(f'write {index}') for index in range(660)], take=TAKE)
+
+
+def _row(category, text, context=''):
+    return {'category': category, 'instruction': text, 'context': context}
+
+
+def test_open_qa_skips_creative_duplicate_template_and_specbench():
+    specbench = ('Compose an engaging travel blog post about a recent trip to Hawaii, '
+                 'highlighting cultural experiences and must-see attractions.')
+    template = 'Name the color of a common example'
+    rows = [
+        _row('creative_writing', 'used once'),
+        _row('open_qa', 'used once'),
+        _row('open_qa', 'fresh', 'ctx'),
+        _row('open_qa', 'ctx\n\nfresh'),
+        _row('open_qa', template),
+        _row('open_qa', specbench),
+        _row('open_qa', 'later'),
+    ]
+    chosen, skipped = prompts_open_qa(rows, take=2)
+    assert skipped == (0, 2, 3, 4)
+    assert chosen == [
+        {'qid': 1, 'category': 'open_qa', 'text': 'ctx\n\nfresh'},
+        {'qid': 5, 'category': 'open_qa', 'text': 'later'},
+    ]
+
+
+def test_short_open_qa_pool_is_rejected():
+    with pytest.raises(RuntimeError):
+        prompts_open_qa([_row('open_qa', 'only one')], take=TAKE_XCAT)
+
+
+def test_registered_open_qa_head_is_128_with_no_skips():
+    assert PROTOCOL_XCAT == 'office-8b-traj-xcat-v1'
+    assert CATEGORY_XCAT == 'open_qa'
+    assert TAKE_XCAT == 128
+    assert SKIPPED_QIDS_XCAT == ()
+    assert EVAL_QIDS_XCAT == tuple(range(128))
+    assert EVAL_SHA256_XCAT == 'f6e6b1c71a20f1170692e22a2c2bd79fb31eaeb810b861553f7c76a41df25231'
 
 
 def test_registered_tail_is_sixty_prompts_after_two_skips():
