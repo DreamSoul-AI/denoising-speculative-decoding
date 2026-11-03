@@ -1,5 +1,5 @@
 **去噪推测解码 架构设计**
-更新日期：2026年11月3日。状态：当前选定设计。科学职责保持；源码组织的目标是 `structure` / `flow` 两柱，模块尚未按该目标搬迁。实现差距和验收顺序见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)。机制见 [通用调研 General Research](<通用调研 General Research 去噪推测解码.md>)，历史数字见 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，文件职责见 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，实验问题见 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。
+更新日期：2026年11月4日。状态：当前选定设计。科学职责保持；源码组织的目标是 `structure` / `flow` 两柱。解码合同已迁入 `structure/api`，其余模块尚未按该目标搬迁。实现差距和验收顺序见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)。机制见 [通用调研 General Research](<通用调研 General Research 去噪推测解码.md>)，历史数字见 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，文件职责见 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，实验问题见 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。
 
 # 一、从研究目标推导架构
 ## （一）目标、上下文与约束
@@ -91,7 +91,7 @@ flowchart TB
 
 箭头仅表示目标 import。`flow` 可以导入 `structure`。`structure` 不导入 `flow`。`api` 不导入其他 structure 子层。解码通过注入模型会话进入具体接入，源码不导入 HF 接入。`spec_mtp` 不导入 `rpipe` 或 `studies`。数据与模型不导入解码，审计与分析不导入模型。跨研究复用进入宿主公共入口，Study 内部私有函数不被宿主反向导入。
 
-这张图是搬迁完成后的方向。当前代码仍是扁平模块，`structure/api` 还会再导出 algorithm、data、model、system。那些边冻结在代码结构设计的 legacy 清单里。具体文件只在 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>) 维护。静态检查不证明动态导入、数据泄漏、状态或数值合同正确。`.importlinter` 在步骤 8 之前仍是扁平模块合同。
+这张图是搬迁完成后的方向。解码合同已经在 `structure/api/decode_api.py`，`contracts.py` 只再导出原名字。其余解码模块仍是扁平文件。`structure/api` 还会再导出 algorithm、data、model、system。那些边冻结在代码结构设计的 legacy 清单里。具体文件只在 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>) 维护。静态检查不证明动态导入、数据泄漏、状态或数值合同正确。`.importlinter` 在步骤 8 之前仍是扁平模块合同。
 ## （二）一次完整研究运行
 ```mermaid
 sequenceDiagram

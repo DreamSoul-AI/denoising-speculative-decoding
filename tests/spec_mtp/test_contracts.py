@@ -23,3 +23,14 @@ def test_eos_flag_is_a_boolean(stop):
 def test_budget_is_not_coerced(budget):
     with pytest.raises(ValueError):
         replace(request(), max_new_tokens=budget)
+
+
+def test_legacy_path_reexports_decode_api():
+    import spec_mtp.contracts as legacy
+    import spec_mtp.structure.api.decode_api as api
+
+    for name in (
+        'Prompt', 'DecodeRequest', 'DecodeResult', 'AuditResult', 'ModelSession',
+        'MaskPolicy', 'HiddenMaskPolicy', 'ObservationSink', 'Cancel',
+    ):
+        assert getattr(legacy, name) is getattr(api, name)
