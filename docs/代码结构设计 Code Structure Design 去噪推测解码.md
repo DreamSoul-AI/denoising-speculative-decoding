@@ -105,7 +105,7 @@ denoising-speculative-decoding/
 
 不在 Study、tests 或 datasets 下规划 README、PLAN、NUMBERS 或报告。排除项与测试说明在本文和架构设计，研究安排只在唯一中文计划，运行证据放外部运行根。
 
-每个 Study 的目标是具备 `study.yaml`、`experiment_config.yaml`、`structure/`（仅该 Study 专属的配置与适配）和 `flow/<phase>/run.py`。顶层 `.py` 只允许 `recipe.py` 与 `__init__.py`，以 `studies/_template` 为准。`trajectory_observation` 仍然没有 `study.yaml`。仍带 `main()` 的旧测量脚本继续留在 legacy 清单里。`fresh_replace.py` 的 `main` 不在这份清单上，命令改到 `flow/execute/fresh_replace.py`，选句和汇总留在 structure。Qwen3-8B 这一轮的选句、拟合和比较在 `structure/office_qwen8b.py`，命令在 `flow/execute/office_qwen8b.py`。同预算树形探索的选句、形状和汇总在 `structure/office_tree.py`，命令在 `flow/execute/office_tree.py`。Qwen3-8B 的同预算树形探索复用这两个文件，选句常量仍在 structure，命令加 `--model 8b`，不另建脚本。Qwen3-8B 的 trajectory-only 对完整联合 mask 消融，选句、两臂和汇总在 `structure/office_traj.py`，命令在 `flow/execute/office_traj.py`。跨类复现仍复用这两个文件，选句常量增加 open_qa 切片，命令加 `--protocol xcat`。第二次跨类复现仍复用这两个文件，选句常量增加 general_qa 切片，命令加 `--protocol xcat2`。第三次跨类复现仍复用这两个文件，选句常量增加 classification 切片，命令加 `--protocol xcat3`。第四次跨类复现仍复用这两个文件，选句常量增加 closed_qa 切片，命令加 `--protocol xcat4`。第五次跨类复现仍复用这两个文件，选句常量增加 brainstorming 切片，命令加 `--protocol xcat5`。第六次跨类复现仍复用这两个文件，选句常量增加 information_extraction 切片，命令加 `--protocol xcat6`。第七次跨类复现仍复用这两个文件，选句常量增加 summarization 切片，命令加 `--protocol xcat7`。默认不带该参数时仍是已经跑完的 creative_writing 尾段，`--protocol xcat` 仍是已经跑完的 open_qa 切片，`--protocol xcat2` 仍是已经跑完的 general_qa 切片，`--protocol xcat3` 仍是已经跑完的 classification 切片，`--protocol xcat4` 仍是已经跑完的 closed_qa 切片，`--protocol xcat5` 仍是已经跑完的 brainstorming 切片，`--protocol xcat6` 仍是已经跑完的 information_extraction 切片，不改那七组哈希。这些新增文件不带新的 legacy 条目。四个旧脚本的拆分仍未做。
+每个 Study 的目标是具备 `study.yaml`、`experiment_config.yaml`、`structure/`（仅该 Study 专属的配置与适配）和 `flow/<phase>/run.py`。顶层 `.py` 只允许 `recipe.py` 与 `__init__.py`，以 `studies/_template` 为准。`trajectory_observation` 仍然没有 `study.yaml`。仍带 `main()` 的旧测量脚本继续留在 legacy 清单里。`fresh_replace.py` 的选句、汇总和命令都在 `structure/fresh_replace.py`。Qwen3-8B 这一轮的选句、拟合、比较和命令都在 `structure/office_qwen8b.py`。同预算树形探索的选句、形状、汇总和命令都在 `structure/office_tree.py`。Qwen3-8B 的同预算树形探索复用 `structure/office_tree.py`，选句常量仍在该文件，命令加 `--model 8b`，不另建脚本。Qwen3-8B 的 trajectory-only 对完整联合 mask 消融，选句、两臂、汇总和命令都在 `structure/office_traj.py`。跨类复现仍复用 `structure/office_traj.py`，选句常量增加 open_qa 切片，命令加 `--protocol xcat`。第二次跨类复现仍复用 `structure/office_traj.py`，选句常量增加 general_qa 切片，命令加 `--protocol xcat2`。第三次跨类复现仍复用 `structure/office_traj.py`，选句常量增加 classification 切片，命令加 `--protocol xcat3`。第四次跨类复现仍复用 `structure/office_traj.py`，选句常量增加 closed_qa 切片，命令加 `--protocol xcat4`。第五次跨类复现仍复用 `structure/office_traj.py`，选句常量增加 brainstorming 切片，命令加 `--protocol xcat5`。第六次跨类复现仍复用 `structure/office_traj.py`，选句常量增加 information_extraction 切片，命令加 `--protocol xcat6`。第七次跨类复现仍复用 `structure/office_traj.py`，选句常量增加 summarization 切片，命令加 `--protocol xcat7`。默认不带该参数时仍是已经跑完的 creative_writing 尾段，`--protocol xcat` 仍是已经跑完的 open_qa 切片，`--protocol xcat2` 仍是已经跑完的 general_qa 切片，`--protocol xcat3` 仍是已经跑完的 classification 切片，`--protocol xcat4` 仍是已经跑完的 closed_qa 切片，`--protocol xcat5` 仍是已经跑完的 brainstorming 切片，`--protocol xcat6` 仍是已经跑完的 information_extraction 切片，不改那七组哈希。这些新增文件不带新的 legacy 条目。四个旧脚本的拆分仍未做。
 
 # 三、structure 与 flow 各装什么
 **structure（组成一次 Run）**
@@ -148,7 +148,7 @@ CPU 门禁在 `tests/spec_mtp/test_structure_flow_gates.py`。清单在 `tests/s
 | `structure/` 与 `flow/` 的代码不得出现盘符字面量 | `drive_letters.json` | 10 |
 | 宿主与 Study 的模块在 import 时不得写 `os.environ` | `import_environ.json` | 4 |
 
-这 4 条导入违规都是现有 `structure/api/*_api.py` 再导出 `algorithm`、`data`、`model`、`system`。`structure` 导入 `flow` 的静态 import，以及 `spec_mtp` 导入 `rpipe` / `studies`，当前条数是 0。77 条脚本记录来自 40 个文件：40 个带 `main` 守卫，其中 37 个同时使用 `argparse`。
+这 4 条导入违规都是现有 `structure/api/*_api.py` 再导出 `algorithm`、`data`、`model`、`system`。`structure` 导入 `flow` 的静态 import，以及 `spec_mtp` 导入 `rpipe` / `studies`，当前条数是 0。77 条脚本记录来自 40 个文件：40 个带 `main` 守卫，其中 37 个同时使用 `argparse`。`trajectory_observation` 的 `fresh_replace.py`、`office_qwen8b.py`、`office_tree.py`、`office_traj.py` 把原来的 `flow/execute` 命令折进已经拥有协议的 structure 模块。门禁对这四个路径闭合豁免，清单仍是 77 条，不能再加别的 structure 脚本。
 
 测试镜像的目标是 `tests/spec_mtp/structure|flow` 与 `tests/studies/<name>/structure|flow`，`tests/manifest.json` 的 `test_id` 随路径一起改。步骤 8 之前不改现有测试路径。新增 provider 或算法要在 `structure/algorithm/config.py` 注册配置键；该文件还没有建立，本步不建。
 
@@ -162,7 +162,7 @@ CPU 门禁在 `tests/spec_mtp/test_structure_flow_gates.py`。清单在 `tests/s
 | 3 | `masks.py` 拆到 `structure/algorithm/mask/`；注册表与配置 schema 分开 | 未做 |
 | 4 | `decode.py` → `structure/algorithm/decode/loop.py` | 未做 |
 | 5 | `data.py`、`model.py`、`audit.py`、`analysis.py` 进入对应子层，并消除与 `structure.data` / `structure.model` 的重名 | 未做 |
-| 6 | `trajectory_observation` 补齐 Study 声明，并拆开四个旧测量脚本。8B 命令已经放在 `flow/execute/`，不代替这一步 | 未做 |
+| 6 | `trajectory_observation` 补齐 Study 声明，并拆开四个旧测量脚本。这四个文件的命令已经折进对应 structure 模块，不代替这一步 | 未做 |
 | 7 | `cli.py` → `flow/cli.py`；`python -m spec_mtp` 保留薄入口 | 未做 |
 | 8 | 删除 shim，测试镜像改路径，`.importlinter` 按两柱重写 | 未做 |
 
