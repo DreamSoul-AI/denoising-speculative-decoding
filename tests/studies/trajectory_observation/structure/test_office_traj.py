@@ -6,14 +6,15 @@ import torch
 from spec_mtp.masks import build_mask_provider
 from studies.trajectory_observation.structure.office_qwen8b import ESP
 from studies.trajectory_observation.structure.office_traj import (
-    CATEGORY_XCAT, CATEGORY_XCAT2, CATEGORY_XCAT3, CATEGORY_XCAT4, CATEGORY_XCAT5, EVAL_QIDS, EVAL_QIDS_XCAT,
-    EVAL_QIDS_XCAT2, EVAL_QIDS_XCAT3, EVAL_QIDS_XCAT4, EVAL_QIDS_XCAT5, EVAL_SHA256, EVAL_SHA256_XCAT,
-    EVAL_SHA256_XCAT2, EVAL_SHA256_XCAT3, EVAL_SHA256_XCAT4, EVAL_SHA256_XCAT5, GAIN_FULL, GAIN_TRAJ, PROTOCOL,
-    PROTOCOL_XCAT, PROTOCOL_XCAT2, PROTOCOL_XCAT3, PROTOCOL_XCAT4, PROTOCOL_XCAT5, SKIPPED_QIDS,
-    SKIPPED_QIDS_XCAT, SKIPPED_QIDS_XCAT2, SKIPPED_QIDS_XCAT3, SKIPPED_QIDS_XCAT4, SKIPPED_QIDS_XCAT5, TAKE,
-    TAKE_XCAT, TAKE_XCAT2, TAKE_XCAT3, TAKE_XCAT4, TAKE_XCAT5, ablation_summary, arm_spec, arm_specs,
+    CATEGORY_XCAT, CATEGORY_XCAT2, CATEGORY_XCAT3, CATEGORY_XCAT4, CATEGORY_XCAT5, CATEGORY_XCAT6, EVAL_QIDS,
+    EVAL_QIDS_XCAT, EVAL_QIDS_XCAT2, EVAL_QIDS_XCAT3, EVAL_QIDS_XCAT4, EVAL_QIDS_XCAT5, EVAL_QIDS_XCAT6,
+    EVAL_SHA256, EVAL_SHA256_XCAT, EVAL_SHA256_XCAT2, EVAL_SHA256_XCAT3, EVAL_SHA256_XCAT4, EVAL_SHA256_XCAT5,
+    EVAL_SHA256_XCAT6, GAIN_FULL, GAIN_TRAJ, PROTOCOL, PROTOCOL_XCAT, PROTOCOL_XCAT2, PROTOCOL_XCAT3,
+    PROTOCOL_XCAT4, PROTOCOL_XCAT5, PROTOCOL_XCAT6, SKIPPED_QIDS, SKIPPED_QIDS_XCAT, SKIPPED_QIDS_XCAT2,
+    SKIPPED_QIDS_XCAT3, SKIPPED_QIDS_XCAT4, SKIPPED_QIDS_XCAT5, SKIPPED_QIDS_XCAT6, TAKE, TAKE_XCAT,
+    TAKE_XCAT2, TAKE_XCAT3, TAKE_XCAT4, TAKE_XCAT5, TAKE_XCAT6, ablation_summary, arm_spec, arm_specs,
     prompts_brainstorming, prompts_classification, prompts_closed_qa, prompts_from_647, prompts_general_qa,
-    prompts_open_qa,
+    prompts_information_extraction, prompts_open_qa,
 )
 
 
@@ -185,6 +186,51 @@ def test_brainstorming_skips_prior_slices_template_and_specbench():
 def test_short_brainstorming_pool_is_rejected():
     with pytest.raises(RuntimeError):
         prompts_brainstorming([_row('brainstorming', 'only one')], take=TAKE_XCAT5)
+
+
+def test_information_extraction_skips_prior_slices_template_and_specbench():
+    specbench = ('Compose an engaging travel blog post about a recent trip to Hawaii, '
+                 'highlighting cultural experiences and must-see attractions.')
+    template = 'Name the color of a common example'
+    rows = [_row('open_qa', f'open {index}') for index in range(128)]
+    rows.extend(_row('general_qa', f'general {index}') for index in range(128))
+    rows.extend(_row('classification', f'class {index}') for index in range(128))
+    rows.extend(_row('closed_qa', f'closed {index}') for index in range(128))
+    rows.extend(_row('brainstorming', f'brain {index}') for index in range(128))
+    rows.extend([
+        _row('creative_writing', 'used once'),
+        _row('information_extraction', 'open 0'),
+        _row('information_extraction', 'general 0'),
+        _row('information_extraction', 'class 0'),
+        _row('information_extraction', 'closed 0'),
+        _row('information_extraction', 'brain 0'),
+        _row('information_extraction', 'used once'),
+        _row('information_extraction', 'fresh', 'ctx'),
+        _row('information_extraction', template),
+        _row('information_extraction', specbench),
+        _row('information_extraction', 'later'),
+    ])
+    chosen, skipped = prompts_information_extraction(rows, take=2)
+    assert skipped == (0, 1, 2, 3, 4, 5, 7, 8)
+    assert chosen == [
+        {'qid': 6, 'category': 'information_extraction', 'text': 'ctx\n\nfresh'},
+        {'qid': 9, 'category': 'information_extraction', 'text': 'later'},
+    ]
+
+
+def test_short_information_extraction_pool_is_rejected():
+    with pytest.raises(RuntimeError):
+        prompts_information_extraction([_row('information_extraction', 'only one')], take=TAKE_XCAT6)
+
+
+def test_registered_information_extraction_slice_has_no_skips():
+    assert PROTOCOL_XCAT6 == 'office-8b-traj-xcat6-v1'
+    assert CATEGORY_XCAT6 == 'information_extraction'
+    assert TAKE_XCAT6 == 128
+    assert SKIPPED_QIDS_XCAT6 == ()
+    assert EVAL_QIDS_XCAT6 == tuple(range(128))
+    assert len(EVAL_QIDS_XCAT6) == TAKE_XCAT6
+    assert EVAL_SHA256_XCAT6 == 'b7094d9ecf62a73e299d742016a3fdfcf4608ef5a7a32f7adc7703b86706d7c3'
 
 
 def test_registered_brainstorming_slice_has_no_skips():
