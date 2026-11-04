@@ -566,6 +566,67 @@ def test_measured_prompt_times_full_then_traj_and_leaves_ar_outside(monkeypatch)
     assert decoded['full']['accepted'] == 4
     assert 'ar_time' not in decoded['full']
     assert decoded['full']['ar_equal'] is True
+    assert decoded['full']['argmax_passed'] is True
+    assert decoded['full']['prompt_length'] == 2
+    assert decoded['full']['first_divergence_index'] is None
+    assert decoded['full']['common_prefix_length'] == 3
+    assert 'side_tokens' not in decoded['full']
+    assert 'output_ids' not in decoded['full']
+
+def test_measured_prompt_records_a_shared_fork_without_touching_argmax(monkeypatch):
+    import spec_mtp.structure.algorithm.decode.loop as decode_mod
+
+    class _Tree:
+        num_nodes = 4
+
+    class _Model:
+        device = 'cpu'
+        embedding_table = torch.arange(24, dtype=torch.float32).reshape(6, 4)
+
+    class _Batch:
+        input_ids = torch.ones(1, 4, dtype=torch.long)
+
+    class _Tokenizer:
+        def __call__(self, text, return_tensors='pt'):
+            return _Batch()
+
+    class _Decoder:
+        def __init__(self, model, spec, limit, mask_policy=None):
+            self.gain = spec['observation']['gain']
+
+        def generate(self, ids):
+            decode_mod.build_tree(None, None, 0)
+            stats = {
+                'verification_argmax_audit': {'passed': True},
+                'block_complexity': 10,
+                'decode_calls': 2,
+                'accepted': 4,
+                'committed': 8,
+            }
+            tokens = [1, 2, 9, 4] if self.gain == 0.5 else [1, 2, 9, 8]
+            return torch.tensor([tokens]), stats
+
+    def ar_generate(model, ids, limit):
+        return torch.tensor([[1, 2, 3, 4]]), {'ar_time': 9.0}
+
+    monkeypatch.setattr(decode_mod, 'build_tree', lambda *args, **kwargs: _Tree())
+    monkeypatch.setattr(decode_mod, 'SpecDecoder', _Decoder)
+    monkeypatch.setattr(decode_mod, 'ar_generate', ar_generate)
+    monkeypatch.setattr('spec_mtp.model.sync_device', lambda device: None)
+    prompt = {'qid': 3, 'category': 'summarization', 'text': 'sum'}
+    decoded = decode_measured_prompt(
+        _Model(), _Tokenizer(), prompt, tuple(arm_specs().items()), SMOKE, keep_sequences=True)
+    assert decoded['full']['argmax_passed'] is True
+    assert decoded['full']['ar_equal'] is False
+    assert decoded['traj']['ar_equal'] is False
+    assert decoded['full']['first_divergence_index'] == 2
+    assert decoded['full']['common_prefix_length'] == 2
+    assert decoded['full']['side_tokens'] == {'reference': 3, 'candidate': 9}
+    assert decoded['traj']['side_tokens'] == {'reference': 3, 'candidate': 9}
+    assert decoded['full']['output_ids'] == [1, 2, 9, 4]
+    assert decoded['full']['reference_ids'] == [1, 2, 3, 4]
+    assert decoded['full']['output_sha256'] != decoded['traj']['output_sha256']
+
 
 def test_groups_keep_the_chapter_table_and_the_archived_xcat7_names():
     by_key = {group['key']: group for group in GROUPS}
@@ -770,3 +831,100 @@ def test_classify_pair_keeps_divergence_missing_and_stops_on_argmax():
     full[0]['argmax_passed'] = True
     unknown = classify_pair(group, prompts, full, traj, 'abc')
     assert unknown['status'] == 'unknown'
+
+
+def _fork_row(qid, equal, index, candidate, prompt_length=4, digest='arm'):
+    row = {
+        'qid': qid,
+        'ar_equal': equal,
+        'argmax_passed': True,
+        'first_divergence_index': None if equal else index,
+        'common_prefix_length': prompt_length + 8 if equal else index,
+        'prompt_length': prompt_length,
+        'output_sha256': digest if equal else f'{digest}-{qid}-{index}-{candidate}',
+    }
+    if not equal:
+        row['side_tokens'] = {'reference': 3, 'candidate': candidate}
+    return row
+
+
+def test_first_fork_labels_follow_the_registered_rates():
+    from studies.trajectory_observation.structure.office_traj import describe_first_fork
+
+    shared_full = [_fork_row(qid, False, 10, 9) for qid in range(5)]
+    shared_traj = [_fork_row(qid, False, 10, 9, digest='same') for qid in range(5)]
+    for left, right in zip(shared_full, shared_traj):
+        right['output_sha256'] = left['output_sha256']
+    shared = describe_first_fork(shared_full, shared_traj)
+    assert shared['label'] == '共享参照'
+    assert shared['h1_direction'] == 'positive'
+    assert shared['shared_fork_rate'] == 1.0
+    assert shared['arms_hash_equal_rate'] == 1.0
+    assert shared['argmax_all_passed'] is True
+    assert shared['continuation_offset_median'] == {'full': 6, 'traj': 6}
+    assert 'fp32' not in shared
+
+    split_traj = [_fork_row(qid, False, 12, 8, digest='other') for qid in range(5)]
+    split = describe_first_fork(shared_full, split_traj)
+    assert split['label'] == '分叉分开'
+    assert split['h1_direction'] == 'negative'
+    assert split['shared_fork_rate'] == 0.0
+
+    inside = [_fork_row(qid, False, 1, 9, prompt_length=4) for qid in range(5)]
+    blocked = describe_first_fork(inside, [dict(row) for row in inside])
+    assert blocked['fork_inside_prompt'] == 10
+    assert blocked['label'] is None
+    assert blocked['shared_fork_rate'] == 1.0
+
+    quiet = [_fork_row(qid, True, None, None) for qid in range(4)]
+    assert describe_first_fork(quiet, [dict(row) for row in quiet])['relation'] == '全一致'
+
+    failed = [dict(row, argmax_passed=False) for row in shared_full]
+    assert describe_first_fork(failed, shared_traj)['status'] == 'invalid'
+    assert 'shared_fork_rate' not in describe_first_fork(failed, shared_traj)
+
+
+def test_fp32_gap_is_separate_from_the_bf16_fork_label():
+    from studies.trajectory_observation.structure.office_traj import describe_first_fork, fp32_fields
+
+    full = []
+    traj = []
+    for qid in range(5):
+        left = _fork_row(qid, False, 10, 9)
+        right = dict(left)
+        fields = fp32_fields([1, 2, 9], [1, 2, 9], [1, 2, 9])
+        left.update(fields)
+        right.update(dict(fields))
+        full.append(left)
+        traj.append(right)
+    report = describe_first_fork(full, traj)
+    assert report['label'] == '共享参照'
+    assert report['fp32']['label'] == 'bf16参照离开fp32'
+    assert report['fp32']['h3_direction'] == 'positive'
+    assert report['fp32']['full_gap'] == 1.0
+    assert report['argmax_all_passed'] is True
+
+
+def test_fp32_gate_does_not_load_when_the_resident_copy_does_not_fit(tmp_path):
+    from studies.trajectory_observation.structure.office_traj import (
+        FORK_PREFIX, FORK_STAMP, finish_first_fork, fp32_allocation_fits,
+    )
+
+    assert fp32_allocation_fits(8_000_000_000, 21000)['fits'] is False
+    assert fp32_allocation_fits(1000, 21000)['fits'] is True
+    calls = []
+    full = _fork_row(1, False, 6, 4)
+    full['output_ids'] = [1, 2, 9]
+    full['reference_ids'] = [1, 2, 3]
+    text = json.dumps(full, ensure_ascii=False) + '\n'
+    (tmp_path / f'{FORK_PREFIX}-full-{FORK_STAMP}.jsonl').write_text(text, encoding='utf-8')
+    (tmp_path / f'{FORK_PREFIX}-traj-{FORK_STAMP}.jsonl').write_text(text, encoding='utf-8')
+    payload = finish_first_fork(tmp_path, 8_000_000_000, 21000, loader=lambda: calls.append('load'))
+    assert calls == []
+    assert payload['status'] == 'not_loaded'
+    assert payload['reason'] == 'fp32 resident weights exceed free GPU memory'
+    assert payload['fork']['label'] == '共享参照'
+    saved = json.loads((tmp_path / f'{FORK_PREFIX}-fork-{FORK_STAMP}.json').read_text(encoding='utf-8'))
+    assert saved['status'] == 'not_loaded'
+    kept = (tmp_path / f'{FORK_PREFIX}-full-{FORK_STAMP}.jsonl').read_text(encoding='utf-8')
+    assert 'fp32_ar_equal' not in kept

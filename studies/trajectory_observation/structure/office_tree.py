@@ -146,7 +146,7 @@ def token_hash(ids):
     return hashlib.sha256(json.dumps(ids.detach().cpu().reshape(-1).tolist()).encode()).hexdigest()
 
 
-def arm_row(model, spec, ids, limit):
+def arm_row(model, spec, ids, limit, *, keep_output=False):
     import spec_mtp.structure.algorithm.decode.loop as decode_mod
     from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
     from spec_mtp.structure.algorithm.mask import build_mask_provider
@@ -175,7 +175,7 @@ def arm_row(model, spec, ids, limit):
     if int(stats['block_complexity']) != expected:
         raise RuntimeError(f"block complexity {stats['block_complexity']} != {expected}")
     calls = int(stats['decode_calls'])
-    return {
+    row = {
         'accepted': int(stats['accepted']),
         'committed': int(stats['committed']),
         'decode_calls': calls,
@@ -187,6 +187,9 @@ def arm_row(model, spec, ids, limit):
         'tree_steps': len(seen),
         'block_complexity': int(stats['block_complexity']),
     }
+    if keep_output:
+        row['output_ids'] = output.detach().cpu().reshape(-1).tolist()
+    return row
 
 
 def decode_prompt(model, tokenizer, prompt, specs, limit):
