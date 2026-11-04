@@ -4409,6 +4409,18 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_run.py::test_analysis_rejects_computation_source_drift_before_output",
+      "target": "studies.output_space_extension.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

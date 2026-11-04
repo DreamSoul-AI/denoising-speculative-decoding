@@ -17,7 +17,7 @@ def analyze(raw_root, execution, repository, commit, execution_git_sha256, outpu
     import torch
     from spec_mtp.structure.artifact.paths import validate_output_root
     from spec_mtp.structure.artifact.provenance import file_sha256, read_historical_bytes
-    from studies._shared.structure import extension_diagnostics
+    from studies._shared.structure import extension_diagnostics, window_diagnostics
 
     raw_root = Path(raw_root).resolve()
     repository = Path(repository).resolve()
@@ -47,12 +47,14 @@ def analyze(raw_root, execution, repository, commit, execution_git_sha256, outpu
     if data.get('source_digest') != report['source_digest']:
         raise ValueError('historical execution and saved transfer sources differ')
     tool_path, helper_path = Path(__file__), Path(extension_diagnostics.__file__)
+    window_path = Path(window_diagnostics.__file__)
     tool_sha, helper_sha = file_sha256(tool_path), file_sha256(helper_path)
+    window_sha = file_sha256(window_path)
     raw = torch.load(tensor_path, map_location='cpu', weights_only=True)
     findings = extension_diagnostics.analyze_saved_transfers(report, data, raw)
     if (file_sha256(report_path) != report_sha or file_sha256(tensor_path) != tensor_sha
             or file_sha256(execution) != matrix_sha or file_sha256(tool_path) != tool_sha
-            or file_sha256(helper_path) != helper_sha):
+            or file_sha256(helper_path) != helper_sha or file_sha256(window_path) != window_sha):
         raise ValueError('analysis input changed during reading')
     result = {
         'schema': 1,
@@ -62,7 +64,8 @@ def analyze(raw_root, execution, repository, commit, execution_git_sha256, outpu
         'raw_report_sha256': report_sha, 'raw_tensor_sha256': tensor_sha,
         'historical_input': {'commit': commit, 'path': EXECUTION_MEMBER, 'sha256': execution_git_sha256},
         'runtime_execution_sha256': matrix_sha, 'execution_content_equal': True,
-        'analysis_provenance': {'module': __name__, 'tool_sha256': tool_sha, 'helper_sha256': helper_sha},
+        'analysis_provenance': {'module': __name__, 'tool_sha256': tool_sha, 'helper_sha256': helper_sha,
+                                'window_sha256': window_sha},
         'findings': findings,
     }
     payload = json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + '\n'

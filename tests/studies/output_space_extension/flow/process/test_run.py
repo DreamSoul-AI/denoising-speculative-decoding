@@ -3,6 +3,7 @@
 import hashlib
 import importlib
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -71,6 +72,8 @@ def _analyze(case, **overrides):
 
 
 def test_analysis_distinguishes_git_blob_and_runtime_execution_bytes(saved_inputs):
+    from studies._shared.structure import window_diagnostics
+
     case = saved_inputs
     inputs = (case.report_path, case.tensor, case.execution)
     before = {path: path.read_bytes() for path in inputs}
@@ -81,11 +84,33 @@ def test_analysis_distinguishes_git_blob_and_runtime_execution_bytes(saved_input
         'path': case.module.EXECUTION_MEMBER, 'sha256': case.git_sha}
     assert result['runtime_execution_sha256'] == _sha(before[case.execution]) != case.git_sha
     assert result['execution_content_equal'] is True
+    assert result['analysis_provenance']['window_sha256'] == _sha(Path(window_diagnostics.__file__).read_bytes())
     assert result['findings'] == {'offline': True}
     assert case.calls == [('history', case.repository, case.commit,
                            case.module.EXECUTION_MEMBER, case.git_sha),
                           ('tensor', case.tensor, 'cpu', True)]
     assert before == {path: path.read_bytes() for path in inputs}
+
+
+def test_analysis_rejects_computation_source_drift_before_output(saved_inputs, monkeypatch):
+    from studies._shared.structure import extension_diagnostics, window_diagnostics
+
+    case = saved_inputs
+    real_source = Path(window_diagnostics.__file__)
+    real_bytes = real_source.read_bytes()
+    fake_source = case.raw.parent / 'margin.py'
+    fake_source.write_bytes(b'# margin before computation\n')
+    monkeypatch.setattr(window_diagnostics, '__file__', str(fake_source))
+
+    def drift(*args):
+        fake_source.write_bytes(b'# margin changed during computation\n')
+        return {'offline': True}
+
+    monkeypatch.setattr(extension_diagnostics, 'analyze_saved_transfers', drift)
+    with pytest.raises(ValueError, match='changed'):
+        _analyze(case)
+    assert not case.output.exists()
+    assert real_source.read_bytes() == real_bytes
 
 
 @pytest.mark.parametrize('fault', ['missing_report', 'missing_tensor', 'missing_execution',
