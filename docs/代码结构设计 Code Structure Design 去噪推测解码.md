@@ -105,7 +105,7 @@ denoising-speculative-decoding/
 
 不在 Study、tests 或 datasets 下规划 README、PLAN、NUMBERS 或报告。排除项与测试说明在本文和架构设计，研究安排只在唯一中文计划，运行证据放外部运行根。
 
-每个 Study 的目标是具备 `study.yaml`、`experiment_config.yaml`、`structure/`（仅该 Study 专属的配置与适配）和 `flow/<phase>/run.py`。顶层 `.py` 只允许 `recipe.py` 与 `__init__.py`，以 `studies/_template` 为准。`trajectory_observation` 仍然没有 `study.yaml`。仍带 `main()` 的旧测量脚本继续留在 legacy 清单里。`fresh_replace.py` 的选句、汇总和命令都在 `structure/fresh_replace.py`。Qwen3-8B 这一轮的选句、拟合、比较和命令都在 `structure/office_qwen8b.py`。同预算树形探索的选句、形状、汇总和命令都在 `structure/office_tree.py`。Qwen3-8B 的同预算树形探索复用 `structure/office_tree.py`，选句常量仍在该文件，命令加 `--model 8b`，不另建脚本。trajectory-only 的尾段与全部跨类协议都复用 `structure/office_traj.py`，不另建脚本，不增加 legacy 条目；选句常量和已冻结哈希都在该文件。`first_fork`、`ar_determinism`、`wall_by_length` 的助手在同目录的 `office_traj_fork.py`、`office_traj_determinism.py`、`office_traj_length.py`，命令仍在 `office_traj.py`。`gscan` 的四臂、冒烟、正式和汇总在 `office_traj.py`，命令是 `--protocol gscan`。
+每个 Study 的目标是具备 `study.yaml`、`experiment_config.yaml`、`structure/`（仅该 Study 专属的配置与适配）和 `flow/<phase>/run.py`。顶层 `.py` 只允许 `recipe.py` 与 `__init__.py`，以 `studies/_template` 为准。`trajectory_observation` 仍然没有 `study.yaml`。仍带 `main()` 的旧测量脚本继续留在 legacy 清单里。`fresh_replace.py` 的选句、汇总和命令都在 `structure/fresh_replace.py`。Qwen3-8B 这一轮的选句、拟合、比较和命令都在 `structure/office_qwen8b.py`。同预算树形探索的选句、形状、汇总和命令都在 `structure/office_tree.py`。Qwen3-8B 的同预算树形探索复用 `structure/office_tree.py`，选句常量仍在该文件，命令加 `--model 8b`，不另建脚本。trajectory-only 的尾段与全部跨类协议都复用 `structure/office_traj.py`，不另建脚本，不增加 legacy 条目；选句常量和已冻结哈希都在该文件。`first_fork`、`ar_determinism`、`wall_by_length` 的助手在同目录的 `office_traj_diagnostics.py`，命令仍在 `office_traj.py`。`gscan` 的四臂、冒烟、正式和汇总在 `office_traj.py`，命令是 `--protocol gscan`。
 
 | **protocol** | **slice** | **notes** |
 | --- | --- | --- |
@@ -117,9 +117,9 @@ denoising-speculative-decoding/
 | `xcat5` | brainstorming | 哈希已冻结 |
 | `xcat6` | information_extraction | 哈希已冻结 |
 | `xcat7` | summarization | 哈希已冻结。接受数归档名 `sd-office-8b-traj-xcat7` / `20261104-045236`，与墙钟产物分开 |
-| `first_fork` | 同一 summarization 128 条 | `office-ar-first-fork-v1`。助手在 `office_traj_fork.py`，命令仍在 `office_traj.py` |
-| `ar_determinism` | 上一协议里 `ar_equal` 为假的并集 | `office-ar-bf16-determinism-v1`。助手在 `office_traj_determinism.py`。`prompt_tokenwise` 在 `loop.py` 的 `ar_generate` |
-| `wall_by_length` | 同一 summarization 128 条，长度 64、256、512 | `office-8b-traj-wall-by-length-v1`。助手在 `office_traj_length.py`。`draft_seconds` 与 `verify_seconds` 在 `loop.py` |
+| `first_fork` | 同一 summarization 128 条 | `office-ar-first-fork-v1`。助手在 `office_traj_diagnostics.py`，命令仍在 `office_traj.py` |
+| `ar_determinism` | 上一协议里 `ar_equal` 为假的并集 | `office-ar-bf16-determinism-v1`。助手在 `office_traj_diagnostics.py`。`prompt_tokenwise` 在 `loop.py` 的 `ar_generate` |
+| `wall_by_length` | 同一 summarization 128 条，长度 64、256、512 | `office-8b-traj-wall-by-length-v1`。助手在 `office_traj_diagnostics.py`。`draft_seconds` 与 `verify_seconds` 在 `loop.py` |
 | `gscan` | 同一 summarization 128 条，长度 256 | `office-8b-traj-g-scan-v1`。四臂只改 `spec.observation.gain`。逻辑在 `office_traj.py` 的 `--protocol gscan`。已跑，数字在运行记录 |
 
 full 胜出子集的离线描述在 `structure/office_traj.py`，选句和 SHA256 仍用该文件里已经冻结的函数。这些离线函数没有单独的 `main`，也不增加 legacy 条目。四个旧脚本的拆分仍未做。

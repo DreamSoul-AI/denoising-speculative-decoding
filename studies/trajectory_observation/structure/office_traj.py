@@ -12,7 +12,7 @@ Offline helpers for ``office-8b-traj-failset-v1`` and ``office-ar-inconsistency-
 live here. They do not load a generator or start a decode, and they have no command entry.
 ``office-ar-first-fork-v1``, ``office-ar-bf16-determinism-v1`` and
 ``office-8b-traj-wall-by-length-v1`` reuse this command. Their helpers live in
-``office_traj_fork``, ``office_traj_determinism`` and ``office_traj_length``.
+``office_traj_diagnostics``.
 ``office-8b-traj-g-scan-v1`` is ``--protocol gscan`` in this module.
 ``draft_seconds`` and ``verify_seconds`` stay in the decode loop.
 """
@@ -625,11 +625,9 @@ def ablation_summary(rows_by_name, protocol=PROTOCOL, digest=EVAL_SHA256, skippe
 
 
 def round_config(protocol):
-    from studies.trajectory_observation.structure.office_traj_fork import (
-        FORK_PREFIX, FORK_STAMP, PROTOCOL_FORK,
-    )
-    from studies.trajectory_observation.structure.office_traj_length import (
-        LENGTHS, LENGTH_PREFIX, LENGTH_STAMP, PROTOCOL_LENGTH,
+    from studies.trajectory_observation.structure.office_traj_diagnostics import (
+        FORK_PREFIX, FORK_STAMP, LENGTHS, LENGTH_PREFIX, LENGTH_STAMP, PROTOCOL_FORK,
+        PROTOCOL_LENGTH,
     )
 
     if protocol == 'ablate':
@@ -791,7 +789,7 @@ def decode_measured_prompt(model, tokenizer, prompt, specs, limit, keep_sequence
 
     The fork fields compare each arm with that AR sequence. Argmax stays on the arm row.
     """
-    from studies.trajectory_observation.structure.office_traj_fork import _id_list, attach_fork
+    from studies.trajectory_observation.structure.office_traj_diagnostics import _id_list, attach_fork
     from spec_mtp.structure.algorithm.decode.loop import ar_generate
 
     ids = tokenizer(prompt['text'], return_tensors='pt').input_ids
@@ -846,8 +844,9 @@ def _smoke_view(row):
 
 
 def _smoke(model, tokenizer, prompts, dest, cfg):
-    from studies.trajectory_observation.structure.office_traj_fork import PROTOCOL_FORK
-    from studies.trajectory_observation.structure.office_traj_length import LENGTHS, PROTOCOL_LENGTH
+    from studies.trajectory_observation.structure.office_traj_diagnostics import (
+        LENGTHS, PROTOCOL_FORK, PROTOCOL_LENGTH,
+    )
 
     rows = []
     for prompt in prompts[:2]:
@@ -1171,7 +1170,7 @@ def gscan_formal(model, tokenizer, prompts, skipped, digest, dest, cfg):
 
 
 def _formal(model, tokenizer, prompts, skipped, digest, dest, cfg):
-    from studies.trajectory_observation.structure.office_traj_fork import PROTOCOL_FORK
+    from studies.trajectory_observation.structure.office_traj_diagnostics import PROTOCOL_FORK
 
     paths = {name: _file(dest, name, 'jsonl', cfg['prefix'], cfg['stamp']) for name, _gain in ARMS}
     done = {name: {row['qid'] for row in read_rows(path)} for name, path in paths.items()}
@@ -1723,12 +1722,10 @@ def classify_archive(dest, rows):
 
 
 def main(argv=None):
-    from studies.trajectory_observation.structure.office_traj_determinism import run_ar_determinism_main
-    from studies.trajectory_observation.structure.office_traj_fork import (
-        _load_fp32_model, finish_first_fork, gpu_free_mib, release_session,
-        resident_parameter_count,
+    from studies.trajectory_observation.structure.office_traj_diagnostics import (
+        _formal_by_length, _load_fp32_model, finish_first_fork, gpu_free_mib,
+        release_session, resident_parameter_count, run_ar_determinism_main,
     )
-    from studies.trajectory_observation.structure.office_traj_length import _formal_by_length
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--dest', type=Path, required=True)
