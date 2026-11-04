@@ -249,10 +249,10 @@ K 工程 fixture 使用随机 tied tiny LLaMA、CPU FP32、eager；先拟合并�
 | **合同** | **准入、状态与验收** | **当前边界** |
 | --- | --- | --- |
 | CR0 身份与准入 | 绑定checkpoint原字节SHA、来源/配置/模型、步数预算、实际device/dtype/backend与CUDA映射。所有身份、schema、状态和Data能力先校验，再修改活跃model/optimizer/tracker/RNG；旧Run不重签，恢复尝试另记原checkpoint | native训练已分读取、纯准入、应用；拒绝合同、模型keys/shape/dtype、计数、Data/RNG及已声明状态结构不符。模型/数据身份仍基于声明元数据，不替代来源代码或数据内容冻结；自定义optimizer语义不在当前完整保证内 |
-| CR1 持久化 | 使用已授权可信的本地checkpoint。完整bundle为提交边界，piece mirror或incomplete标记不独立证明完整；载入不改变原件，缺失/截断/身份漂移拒绝 | System路径解析只读，实际文件载入前后核SHA。native exact恢复须有实际文件来源；无bundle的目录镜像不能冒充提交完整性。默认latest不存在可fresh，显式resume_from缺失失败；损坏全矩阵未覆盖 |
+| CR1 持久化 | 使用已授权可信的本地checkpoint。完整bundle为提交边界，piece mirror或incomplete标记不独立证明完整；载入不改变原件，缺失/截断/身份漂移拒绝 | 独占同目录stage完整写入并flush/fsync，最后替换bundle。提交前故障保全旧bundle；提交后诊断清理不翻转成功。旧分片无bundle时须显式迁移，拒绝隐式覆盖；未发布stage及解析别名不能作为恢复源。路径解析只读，载入前后核SHA；未声称断电或并发写保证 |
 | CR2 RNG | Python、NumPy、Torch CPU及已冻结的全部CUDA全局状态先在独立生成器试装，再提交；缺域/损坏/设备数量不等或不可用时，全局状态不变。显式generator必须独立保存恢复 | CUDA逐域往返与四类损坏拒绝已验证。cuda=None只表示未冻结该域，恢复时不查询或初始化CUDA，不称GPU轨迹恢复；不保证硬件运行中故障的跨库事务回滚 |
 | CR3 模型与优化 | 固定架构、dtype、optimizer/scheduler及计数，恢复后的下一批输入、loss、参数、动量、LR应匹配连续执行；bitwise与容差判据按后端声明 | 同进程受控单步与native新进程微型CUDA的SGD momentum/StepLR结果精确匹配；不外推真实模型、跨设备、HF Trainer或长训练 |
 | CR4 数据与指标 | 保存sampler/loader的显式CPU generator、共享关系、batch cursor、数据身份、epoch/step和tracker。支持零worker、标准DataLoader/BatchSampler及SequentialSampler或有generator的RandomSampler；其它能力未知应拒绝exact恢复或明记partial | Data子状态v2先纯校验再挂起，进入iterator前复验；只重放sampler索引，不重跑已消费样本transform。独立、共享或无loader generator及末yield/StopIteration边界已有回归。旧Data v1未冻结共享关系，拒绝exact且不重签；未覆盖prefetch、多worker或分布式 |
-| CR5 新进程对照 | 同一冻结条件连续k+m步，对照新进程载第k步checkpoint再执行m步。逐批核样本ID、全域RNG、参数与optimizer/scheduler/tracker/预算终态，记录实际PID、CUDA设备、版本与失败 | native微型CUDA分类夹具连续6步，对照第2步提交后退出、新进程恢复到6步；shuffle、随机transform、Dropout和2批梯度累积纳入逐项比较，旧checkpoint全字节摘要不变。只证明此固定环境与能力范围 |
+| CR5 新进程对照 | 同一冻结条件连续k+m步，对照新进程载第k步checkpoint再执行m步。逐批核样本ID、全域RNG、参数与optimizer/scheduler/tracker/预算终态，记录实际PID、CUDA设备、版本与失败 | native微型CUDA覆盖6步预算及完整重绑、3epoch预算、5epoch预算下stall触发的早停；固定score只检验停止逻辑。终态恢复不新增batch、eval或科学写入，epoch与step双上限生效；原checkpoint摘要不变。只证明此固定环境与能力范围 |
 
 恢复功能、工程回归与研究结论分别报告。无法证明某域完整时保留partial/未知范围，不清空旧证据、不换成功重复，也不把恢复差异归因于新算法。

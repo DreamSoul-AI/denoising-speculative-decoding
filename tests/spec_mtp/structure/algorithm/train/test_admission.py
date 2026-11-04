@@ -16,10 +16,13 @@ from spec_mtp.structure.algorithm.progress import resolve_budget
 @pytest.mark.parametrize('damage', ['contract', 'version', 'python_rng', 'torch_rng', 'data_capability',
     'data_state', 'model_keys', 'model_shape', 'model_dtype', 'optimizer', 'optimizer_groups', 'optimizer_missing_key',
     'tracker', 'missing_tracker', 'missing_step', 'missing_epoch', 'fractional_step',
-    'scheduler_missing', 'scheduler_schema', 'scheduler_value', 'missing_stopped', 'missing_stall', 'missing_percent'])
+    'scheduler_missing', 'scheduler_schema', 'scheduler_value', 'missing_stopped', 'missing_stall', 'missing_percent',
+    'epoch_exceeds_budget', 'tracker_progress'])
 def test_training_admission_precedes_all_live_state_changes(tmp_path, monkeypatch, damage):
     config = AlgorithmConfig.from_mapping({'mode': 'train', 'config': {'num_steps': 4, 'lr': .05,
         'scheduler': 'StepLR', 'step_size': 1, 'gamma': .5}})
+    if damage == 'epoch_exceeds_budget':
+        config.config.update(progress_unit='epoch', num_epochs=2)
     algo = TrainAlgorithm(config)
     model = SimpleNamespace(module=torch.nn.Linear(2, 2))
     tracker = AlgorithmTracker(tmp_path / 'assets')
@@ -85,6 +88,10 @@ def test_training_admission_precedes_all_live_state_changes(tmp_path, monkeypatc
     elif damage in ('missing_stopped', 'missing_stall', 'missing_percent'):
         payload['training_state'].pop({'missing_stopped': 'stopped', 'missing_stall': 'stall',
                                         'missing_percent': 'already_percent'}[damage])
+    elif damage == 'epoch_exceeds_budget':
+        payload['epoch'] = 3
+    elif damage == 'tracker_progress':
+        payload['tracker']['progress'] = {'step': 1, 'epoch': 0}
     else:
         payload['step'] = 1.5
     weights = deepcopy(model.module.state_dict())

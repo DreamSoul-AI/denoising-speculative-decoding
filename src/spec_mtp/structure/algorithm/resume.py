@@ -270,6 +270,9 @@ def admit_training_resume(payload, *, model, tracker, data, contract, num_steps,
             raise ValueError(f'invalid checkpoint {field}')
     if payload.get('step', 0) is not None and payload.get('step', 0) > contract['num_steps']:
         raise ValueError('checkpoint step exceeds the declared budget')
+    if (contract['unit'] == 'epoch' and contract.get('num_epochs') is not None
+            and payload.get('epoch') is not None and payload['epoch'] > contract['num_epochs']):
+        raise ValueError('checkpoint epoch exceeds the declared budget')
     for field in ('best_value', 'best_accuracy'):
         value = payload.get(field)
         if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)):
@@ -282,6 +285,9 @@ def admit_training_resume(payload, *, model, tracker, data, contract, num_steps,
             raise ValueError('checkpoint training state requires step and epoch counters')
         if not isinstance(payload.get('tracker'), dict):
             raise ValueError('checkpoint training state requires tracker state')
+        if state.get('data') is not None and payload['tracker'].get('progress') != {
+                'step': payload['step'], 'epoch': payload['epoch']}:
+            raise ValueError('checkpoint tracker progress differs from training counters')
         if state.get('data') is not None and not {'version', 'rng', 'data', 'contract', 'stall', 'already_percent', 'stopped'} <= state.keys():
             raise ValueError('checkpoint exact training state is incomplete')
         if state.get('data') is not None and not resume_sources:

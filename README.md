@@ -36,11 +36,13 @@
 
 离线报告使用 `python -m studies._shared.flow.cli report <Study> --out <外部新文件.md>`，输出路径必填，拒绝已有文件、输入目录和源码 checkout；报告检查不回写旧 process 或 gate。`output_space_extension` 的已保存槽位诊断迁入 `python -m studies.output_space_extension.flow.process.run --raw <保存张量目录> --execution <原运行矩阵.json> --repository <本地仓库> --commit <完整提交> --execution-git-sha256 <Git原件SHA256> --output-root <新外部目录>`。它只读原件并加载 CPU 张量，不载入模型；实际运行矩阵须匹配旧报告哈希，与固定 Git 原件分别记录字节身份并核对 JSON 内容。缺失或漂移直接失败，不自动修换行或重签旧来源。历史读件需要支持 `--no-lazy-fetch` 的本地 Git，当前验证版本为 `2.55.0.windows.3`，不支持时直接失败，不降级联网。followup 读端同样迁入 `studies.output_space_followup.flow.process.run`，参数与槽位读端一致，保存张量实际在 CUDA 分析并登记设备。其余旧完整分析器仍待逐项迁移。
 
-trajectory 专用协议入口改为 `python -m studies.trajectory_observation.flow.execute.office <qwen8b|tree|traj> --help` 与 `python -m studies.trajectory_observation.flow.execute.fresh_replace --help`。它们要求显式本地模型目录、目录外完整模型SHA清单、Dolly JSONL、计划文件及其SHA、新外部输出；旧研究root只读，命令存在不表示获准重跑旧矩阵。office正式运行先验干净源码，CPU设备与已停止的独立AR数值机理协议拒绝。协议常量和数学留structure，四个旧structure命令及折叠例外移除，不保留反向wrapper。真实研究权重和完整流程本轮未执行。
+trajectory 专用协议入口为 `python -m studies.trajectory_observation.flow.execute.office <qwen8b|tree|traj> --help`、`python -m studies.trajectory_observation.flow.execute.fresh_replace --help` 与 `python -m studies.trajectory_observation.flow.execute.fair_branch --help`。它们要求显式本地模型目录、目录外完整模型SHA清单、本地JSONL、计划文件及其SHA、新外部输出；fair_branch以 `--split specbench|dolly --input <本地JSONL>` 保留原337–464/前128切片，不再联网取数据。fair/fresh共用本地输入准入并只读取已解析绑定路径，旧研究root只读，命令存在不表示获准重跑旧矩阵。CPU设备与已停止的独立AR数值机理协议拒绝。协议常量和数学留structure，五个旧structure命令移入flow，不保留反向wrapper。真实研究权重和完整流程本轮未执行。
 
 checkpoint/RNG的独立合同见架构设计CR0–CR5。native `TrainAlgorithm` 将读取、准入与应用分开：先核合同、模型状态、数据游标和RNG，再改活跃训练状态；实际bundle载入前后核SHA，来源进入恢复摘要。`algorithm.config.resume_from` 显式指定文件时，缺失即失败；默认latest不存在仍可新建训练。Data子状态使用v2，冻结sampler/loader generator及其共享关系；旧v1不能自动当exact恢复，原件保留。无完整training_state的旧checkpoint继续明确警告partial。
 
 微型CUDA回归已覆盖零worker标准DataLoader、shuffle、随机transform、Dropout、梯度累积，以及第2步保存后新进程恢复至同一6步预算；逐批样本、模型/优化器/调度器、tracker数值、游标与后续RNG均与连续执行比较。该范围不包含HF Trainer、多worker、分布式、真实模型或跨设备等价；数据身份按元数据核对，尚无数据内容哈希保证。
+
+epoch预算与早停另有独立进程CUDA对照，固定评估分数只用于检验stall与停止状态。已停止或任一预算上限已尽的恢复只还原状态，不再取batch、评估或写checkpoint/tracker。checkpoint以同目录独占临时文件同步后最后替换bundle；提交前错误保留旧bundle，提交后诊断清理失败不否定已提交状态。未发布stage及其别名拒绝读入；只有旧分片目录时，写入前要求显式迁移，不自动补签或覆盖旧原件。
 
 诊断日志新写 `assets/logs/events.jsonl`，状态、日志与报告读端兼容旧 `run.log`。应用启动与 Run 身份分开，普通日志不保存异常原文或模型输入。流式文件哈希兼容 Python 3.10 所需 API，但最低版本及全部依赖组合尚未实机验证。
 

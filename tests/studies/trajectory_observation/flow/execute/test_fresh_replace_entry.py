@@ -71,6 +71,24 @@ def test_fresh_command_binds_local_inputs_and_writes_only_new_external_output(lo
     assert all(call[2]['local_files_only'] for call in case.calls if call[0] in ('model', 'tokenizer'))
 
 
+def test_fresh_entry_reads_the_resolved_input_bound_before_argument_alias_changes(local_inputs, monkeypatch):
+    case = local_inputs
+    original = command.prepare_local_inputs
+    admitted = case.args.dolly
+    replacement = admitted.with_name('rebound-alias.jsonl')
+    replacement.write_bytes(b'42\n')
+
+    def admit(args, data):
+        result = original(args, data)
+        args.dolly = replacement
+        return result
+
+    monkeypatch.setattr(command, 'prepare_local_inputs', admit)
+    assert command.run(case.args)['complete'] is True
+    header = json.loads((case.args.output / 'header.json').read_text())
+    assert str(admitted) in header['input_sources'] and str(replacement) not in header['input_sources']
+
+
 @pytest.mark.parametrize('fault', ['existing_output', 'inside_model', 'source_checkout', 'model_hash', 'manifest_inside_model',
                                   'cpu_device', 'missing_cuda', 'missing_device_index', 'bad_device_index',
                                   'planwrong', 'planmissing', 'plan_inside_model'])

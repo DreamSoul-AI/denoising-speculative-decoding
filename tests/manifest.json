@@ -3366,45 +3366,57 @@
     },
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_fresh_replace.py::test_fresh_prompts_skip_the_used_creative_prefix",
-      "target": "studies.trajectory_observation",
+      "target": "studies.trajectory_observation.structure.fresh_replace",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "cost_class": "c1"
     },
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_fresh_replace.py::test_context_is_prefixed_the_same_way_as_the_original_loader",
-      "target": "studies.trajectory_observation",
+      "target": "studies.trajectory_observation.structure.fresh_replace",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "cost_class": "c1"
     },
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_fresh_replace.py::test_repeated_text_is_skipped_and_short_pools_are_rejected",
-      "target": "studies.trajectory_observation",
+      "target": "studies.trajectory_observation.structure.fresh_replace",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "cost_class": "c1"
     },
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_fresh_replace.py::test_output_inside_the_repo_is_rejected",
-      "target": "studies.trajectory_observation",
+      "target": "studies.trajectory_observation.structure.fresh_replace",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "cost_class": "c1"
     },
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_fresh_replace.py::test_direction_follows_the_sign_and_the_mean",
-      "target": "studies.trajectory_observation",
+      "target": "studies.trajectory_observation.structure.fresh_replace",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "cost_class": "c1"
     },
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_fresh_replace.py::test_bootstrap_ci_is_deterministic_and_paired_by_qid",
-      "target": "studies.trajectory_observation",
+      "target": "studies.trajectory_observation.structure.fresh_replace",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "cost_class": "c1"
     },
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_office_qwen8b.py::test_prompts_after_256_skip_texts_already_used",
@@ -5035,7 +5047,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fresh_replace.py::test_fresh_command_binds_local_inputs_and_writes_only_new_external_output",
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_command_binds_local_inputs_and_writes_only_new_external_output",
       "target": "studies.trajectory_observation.flow.execute.fresh_replace",
       "level": "integration",
       "type": "content",
@@ -5047,7 +5059,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fresh_replace.py::test_fresh_command_rejects_unadmitted_inputs_before_model_or_output",
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_command_rejects_unadmitted_inputs_before_model_or_output",
       "target": "studies.trajectory_observation.flow.execute.fresh_replace",
       "level": "integration",
       "type": "content",
@@ -5059,7 +5071,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fresh_replace.py::test_fresh_command_source_drift_keeps_partial_output_without_complete_summary",
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_command_source_drift_keeps_partial_output_without_complete_summary",
       "target": "studies.trajectory_observation.flow.execute.fresh_replace",
       "level": "integration",
       "type": "content",
@@ -5071,7 +5083,7 @@
       ]
     },
     {
-      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fresh_replace.py::test_fresh_command_requires_explicit_local_input_device_and_output",
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_command_requires_explicit_local_input_device_and_output",
       "target": "studies.trajectory_observation.flow.execute.fresh_replace",
       "level": "integration",
       "type": "content",
@@ -5415,6 +5427,272 @@
         "offline_cpu",
         "checkpoint_resume"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_path_rejects_explicit_unpublished_staging_material",
+      "target": "spec_mtp.structure.system.factory.System.checkpoint_path",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "recovery_boundary"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_precommit_failure_preserves_committed_cuda_bundle",
+      "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "recovery_boundary"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_first_write_partial_mirror_cannot_be_selected_as_committed_checkpoint",
+      "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "recovery_boundary"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_failed_write_never_promotes_unknown_legacy_mirror_to_bundle",
+      "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "recovery_boundary"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_committed_cuda_checkpoint_survives_diagnostic_cleanup_failure",
+      "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "recovery_boundary"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_bundle_is_fsynced_before_publication_and_tensor_meta_roundtrips",
+      "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "recovery_boundary"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_failed_checkpoint_cleanup_keeps_primary_error_and_previous_cuda_bundle",
+      "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "recovery_boundary"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_complete_but_unpublished_cuda_temporary_never_becomes_resume_source",
+      "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "recovery_boundary"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_resume_preserves_stall_and_terminal_checkpoints_do_no_work",
+      "target": "spec_mtp.structure.algorithm.train.TrainAlgorithm.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "recovery_boundary"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_checkpoint_failure_keeps_primary_error_when_tracker_cleanup_also_fails",
+      "target": "spec_mtp.structure.algorithm.train.TrainAlgorithm.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "recovery_boundary"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_preserves_protocol_and_local_slice_and_closes_model",
+      "target": "studies.trajectory_observation.flow.execute.fair_branch.main",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "local_entry"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_rejects_unbound_inputs_before_model_or_output",
+      "target": "studies.trajectory_observation.flow.execute.fair_branch.main",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "local_entry"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_drift_preserves_partial_run_without_completion",
+      "target": "studies.trajectory_observation.flow.execute.fair_branch.main",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "local_entry"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_closes_the_owned_model_after_failure",
+      "target": "studies.trajectory_observation.flow.execute.fair_branch.main",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "local_entry"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_requires_explicit_protocol_inputs_before_dispatch",
+      "target": "studies.trajectory_observation.flow.execute.fair_branch.main",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "local_entry"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_path_rechecks_selected_bundle_for_unpublished_alias",
+      "target": "spec_mtp.structure.system.factory.System.checkpoint_path",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "recovery_boundary"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_reads_the_resolved_input_bound_before_argument_alias_changes",
+      "target": "studies.trajectory_observation.flow.execute.fair_branch.main",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "local_entry"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_entry_reads_the_resolved_input_bound_before_argument_alias_changes",
+      "target": "studies.trajectory_observation.flow.execute.fresh_replace.main",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "local_entry"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch",
+      "target": "spec_mtp.structure.algorithm.train.TrainAlgorithm.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "recovery_boundary"
+      ]
     }
   ],
   "plans": {
@@ -5468,6 +5746,46 @@
         {
           "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run",
           "reason": "Requires real CUDA training or batches; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_precommit_failure_preserves_committed_cuda_bundle",
+          "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_first_write_partial_mirror_cannot_be_selected_as_committed_checkpoint",
+          "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_failed_write_never_promotes_unknown_legacy_mirror_to_bundle",
+          "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_committed_cuda_checkpoint_survives_diagnostic_cleanup_failure",
+          "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_bundle_is_fsynced_before_publication_and_tensor_meta_roundtrips",
+          "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_failed_checkpoint_cleanup_keeps_primary_error_and_previous_cuda_bundle",
+          "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_complete_but_unpublished_cuda_temporary_never_becomes_resume_source",
+          "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_resume_preserves_stall_and_terminal_checkpoints_do_no_work",
+          "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_checkpoint_failure_keeps_primary_error_when_tracker_cleanup_also_fails",
+          "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch",
+          "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -5539,10 +5857,10 @@
         "tests/spec_mtp/structure/make/test_schedule.py::test_worker_admission_failure_does_not_rewrite_a_previous_scientific_success",
         "tests/studies/shared/flow/test_revalidate.py::test_validator_requires_a_loadable_python_module",
         "tests/spec_mtp/structure/algorithm/test_resume.py::test_unfrozen_cuda_rng_state_does_not_query_or_initialize_cuda",
-        "tests/studies/trajectory_observation/flow/execute/test_fresh_replace.py::test_fresh_command_binds_local_inputs_and_writes_only_new_external_output",
-        "tests/studies/trajectory_observation/flow/execute/test_fresh_replace.py::test_fresh_command_rejects_unadmitted_inputs_before_model_or_output",
-        "tests/studies/trajectory_observation/flow/execute/test_fresh_replace.py::test_fresh_command_source_drift_keeps_partial_output_without_complete_summary",
-        "tests/studies/trajectory_observation/flow/execute/test_fresh_replace.py::test_fresh_command_requires_explicit_local_input_device_and_output",
+        "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_command_binds_local_inputs_and_writes_only_new_external_output",
+        "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_command_rejects_unadmitted_inputs_before_model_or_output",
+        "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_command_source_drift_keeps_partial_output_without_complete_summary",
+        "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_command_requires_explicit_local_input_device_and_output",
         "tests/studies/trajectory_observation/flow/execute/test_office.py::test_office_requires_every_local_input_plan_and_output_argument",
         "tests/studies/trajectory_observation/flow/execute/test_office.py::test_office_rejects_unbound_inputs_before_scientific_work_or_output",
         "tests/studies/trajectory_observation/flow/execute/test_office.py::test_office_formal_source_drift_is_rejected_before_fit_or_output",
@@ -5570,7 +5888,22 @@
         "tests/spec_mtp/structure/algorithm/train/test_admission.py::test_missing_explicit_resume_rejects_while_default_latest_remains_optional",
         "tests/spec_mtp/structure/algorithm/train/test_admission.py::test_legacy_checkpoint_application_retains_partial_resume_warning",
         "tests/spec_mtp/structure/algorithm/train/test_admission.py::test_checkpoint_read_sha_binds_original_bytes_and_rejects_drift",
-        "tests/spec_mtp/structure/algorithm/train/test_admission.py::test_native_recovery_requires_a_committed_sha_bound_bundle"
+        "tests/spec_mtp/structure/algorithm/train/test_admission.py::test_native_recovery_requires_a_committed_sha_bound_bundle",
+        "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_preserves_protocol_and_local_slice_and_closes_model",
+        "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_rejects_unbound_inputs_before_model_or_output",
+        "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_drift_preserves_partial_run_without_completion",
+        "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_closes_the_owned_model_after_failure",
+        "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_requires_explicit_protocol_inputs_before_dispatch",
+        "tests/studies/trajectory_observation/structure/test_fresh_replace.py::test_fresh_prompts_skip_the_used_creative_prefix",
+        "tests/studies/trajectory_observation/structure/test_fresh_replace.py::test_context_is_prefixed_the_same_way_as_the_original_loader",
+        "tests/studies/trajectory_observation/structure/test_fresh_replace.py::test_repeated_text_is_skipped_and_short_pools_are_rejected",
+        "tests/studies/trajectory_observation/structure/test_fresh_replace.py::test_output_inside_the_repo_is_rejected",
+        "tests/studies/trajectory_observation/structure/test_fresh_replace.py::test_direction_follows_the_sign_and_the_mean",
+        "tests/studies/trajectory_observation/structure/test_fresh_replace.py::test_bootstrap_ci_is_deterministic_and_paired_by_qid",
+        "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_path_rejects_explicit_unpublished_staging_material",
+        "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_path_rechecks_selected_bundle_for_unpublished_alias",
+        "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_reads_the_resolved_input_bound_before_argument_alias_changes",
+        "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_entry_reads_the_resolved_input_bound_before_argument_alias_changes"
       ],
       "exclude": []
     },
@@ -5589,7 +5922,17 @@
         "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_checkpoint_bundle_restores_one_controlled_optimizer_step",
         "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_malformed_domain_rejects_before_any_global_state_change",
         "tests/spec_mtp/structure/data/test_data_resume.py::test_mid_epoch_cuda_batches_preserve_suffix_and_do_not_replay_transforms",
-        "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run"
+        "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run",
+        "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_precommit_failure_preserves_committed_cuda_bundle",
+        "tests/spec_mtp/structure/system/test_factory.py::test_first_write_partial_mirror_cannot_be_selected_as_committed_checkpoint",
+        "tests/spec_mtp/structure/system/test_factory.py::test_failed_write_never_promotes_unknown_legacy_mirror_to_bundle",
+        "tests/spec_mtp/structure/system/test_factory.py::test_committed_cuda_checkpoint_survives_diagnostic_cleanup_failure",
+        "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_bundle_is_fsynced_before_publication_and_tensor_meta_roundtrips",
+        "tests/spec_mtp/structure/system/test_factory.py::test_failed_checkpoint_cleanup_keeps_primary_error_and_previous_cuda_bundle",
+        "tests/spec_mtp/structure/system/test_factory.py::test_complete_but_unpublished_cuda_temporary_never_becomes_resume_source",
+        "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_resume_preserves_stall_and_terminal_checkpoints_do_no_work",
+        "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_checkpoint_failure_keeps_primary_error_when_tracker_cleanup_also_fails",
+        "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch"
       ],
       "exclude": []
     }

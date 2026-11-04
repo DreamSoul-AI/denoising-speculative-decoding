@@ -1,4 +1,4 @@
-"""Explicit local-input entry for the frozen fresh-prompt replication protocol."""
+"""Fresh replication entry and shared local-input admission for replacement flows."""
 
 import argparse
 import hashlib
@@ -12,7 +12,8 @@ from spec_mtp.structure.artifact.provenance import file_sha256
 from studies.trajectory_observation.structure import fresh_replace as protocol
 
 
-def run(args):
+def prepare_local_inputs(args, input_path):
+    """Bind local model/data/plan and both source pillars before either flow writes."""
     plan = Path(args.plan).resolve(strict=True)
     if not plan.is_file():
         raise ValueError('research plan must be a local file')
@@ -20,26 +21,24 @@ def run(args):
     if plan_sha != args.plan_sha256:
         raise ValueError('research plan SHA256 differs from the explicit binding')
     import torch
-    from transformers import AutoTokenizer
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
     from studies._shared.structure.sources import package_files
     from studies.trajectory_observation.structure import fair_branch
 
     weights = Path(args.model_root).resolve(strict=True)
     manifest = Path(args.model_sources).resolve(strict=True)
-    dolly = Path(args.dolly).resolve(strict=True)
-    if not weights.is_dir() or not manifest.is_file() or not dolly.is_file():
-        raise ValueError('model root must be a directory; model sources and Dolly must be files')
+    data = Path(input_path).resolve(strict=True)
+    if not weights.is_dir() or not manifest.is_file() or not data.is_file():
+        raise ValueError('model root must be a directory; model sources and data must be files')
     if manifest.is_relative_to(weights):
         raise ValueError('model sources must be outside the model directory')
     if plan.is_relative_to(weights):
         raise ValueError('research plan must be outside the model directory')
-    output = validate_study_root(validate_output_root(args.output, weights, manifest, dolly, plan))
+    output = validate_study_root(validate_output_root(args.output, weights, manifest, data, plan))
     if output.exists() or output.is_symlink():
-        raise FileExistsError('fresh replication requires a new output directory')
+        raise FileExistsError('replacement protocols require a new output directory')
     device = torch.device(args.device)
     if device.type != 'cuda' or not torch.cuda.is_available():
-        raise RuntimeError('fresh replication requires an available explicit CUDA device')
+        raise RuntimeError('replacement protocols require an available explicit CUDA device')
     if device.index is None or device.index >= torch.cuda.device_count():
         raise ValueError('device must name an available CUDA index, for example cuda:0')
     manifest_sha = file_sha256(manifest)
@@ -47,32 +46,53 @@ def run(args):
     verify_model_files(weights, sources)
     identity = fair_branch.identity()
     if identity.get('dirty') is not False:
-        raise RuntimeError('fresh replication requires a known clean source worktree')
+        raise RuntimeError('replacement protocols require a known clean source worktree')
     package_sources = package_files()
-    inputs = {path: file_sha256(path) for path in (
-        manifest, dolly, Path(__file__), Path(protocol.__file__), Path(fair_branch.__file__))}
+    study_root = Path(fair_branch.__file__).resolve().parents[1]
+
+    def study_sources():
+        return {path: file_sha256(path) for pillar in ('structure', 'flow')
+                for path in sorted((study_root / pillar).rglob('*.py'))}
+
+    source_files = study_sources()
+    inputs = {data: file_sha256(data), **source_files}
     inputs[plan] = plan_sha
     inputs[manifest] = manifest_sha
-    rows = [json.loads(line) for line in dolly.read_text(encoding='utf-8').splitlines() if line.strip()]
-    prompts = protocol.fresh_prompts(rows)
-    digest = protocol.assert_known_slice(prompts)
-    if set(item['text'] for item in prompts) & set(fair_branch.templates()[:128]):
-        raise RuntimeError('fresh prompts overlap calibration text')
-
     def verify_inputs():
         verify_model_files(weights, sources)
-        if fair_branch.identity() != identity or package_files() != package_sources or any(file_sha256(path) != sha for path, sha in inputs.items()):
-            raise ValueError('fresh replication inputs or sources changed during execution')
+        if (fair_branch.identity() != identity or study_sources() != source_files
+                or package_files() != package_sources or any(file_sha256(path) != sha for path, sha in inputs.items())):
+            raise ValueError('replacement inputs or sources changed during execution')
 
-    verify_inputs()
-    output.mkdir(parents=True, exist_ok=False)
-    header = {
-        'protocol': protocol.PROTOCOL, 'source': identity, 'torch': torch.__version__,
+    binding = {
+        'source': identity, 'torch': torch.__version__,
         'device': str(device), 'device_name': torch.cuda.get_device_name(device),
         'model': args.model, 'model_root': str(weights), 'model_sources': sources,
         'plan': {'path': str(plan), 'sha256': plan_sha},
         'package_sources': package_sources,
         'input_sources': {str(path): sha for path, sha in inputs.items()},
+    }
+    return output, weights, device, data, binding, verify_inputs
+
+
+def run(args):
+    import torch
+    from transformers import AutoTokenizer
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    from studies.trajectory_observation.structure import fair_branch
+
+    output, weights, device, data, binding, verify_inputs = prepare_local_inputs(args, args.dolly)
+    rows = [json.loads(line) for line in data.read_text(encoding='utf-8').splitlines() if line.strip()]
+    if not rows or any(not isinstance(row, dict) for row in rows):
+        raise ValueError('Dolly input must contain local JSONL objects')
+    prompts = protocol.fresh_prompts(rows)
+    digest = protocol.assert_known_slice(prompts)
+    if set(item['text'] for item in prompts) & set(fair_branch.templates()[:128]):
+        raise RuntimeError('fresh prompts overlap calibration text')
+    verify_inputs()
+    output.mkdir(parents=True, exist_ok=False)
+    header = {
+        **binding, 'protocol': protocol.PROTOCOL,
         'eval': fair_branch.EVAL, 'tree': fair_branch.TREE,
         'esp': {'method': fair_branch.ESP['method'], 'num_masks': fair_branch.ESP['num_masks']},
         'split': protocol.SPLIT, 'skip': protocol.SKIP, 'take': protocol.TAKE, 'prompt_sha256': digest,

@@ -306,7 +306,10 @@ def _run_supervised(
     if training_state is not None:
         algo._stall = training_state.get('stall', 0)
         already_percent = set(training_state.get('already_percent') or [])
-    tracker.begin_run((restored or {}).get('tracker'))
+    resumed_terminal = bool(training_state and training_state.get('stopped')) or (
+        steps >= budget.num_steps or budget.progress(epoch=epoch, step=steps) >= budget.total)
+    if not resumed_terminal:
+        tracker.begin_run((restored or {}).get('tracker'))
     bind_step_train_loader(data, config, step=0 if training_state and training_state.get('data') else steps, budget=budget)
     if training_state is not None:
         if training_state.get('data') is not None:
@@ -373,14 +376,10 @@ def _run_supervised(
             for hit in crossed_percents(current, budget.total, percents, already_percent):
                 already_percent.add(hit)
 
-    already_done = budget.progress(epoch=epoch, step=steps) >= budget.total
+    extra: dict[str, Any]
     wrote_last_ckpt = stop
     try:
-        if already_done:
-            extra = _hook_extra(epoch=epoch, lr=used_lr, step=steps)
-            extra.update(_timing())
-            fire_eval(extra)
-        else:
+        if not resumed_terminal:
             while True:
                 if stop:
                     break
@@ -460,15 +459,24 @@ def _run_supervised(
                 if steps >= budget.num_steps:
                     stop = True
         extra = _hook_extra(epoch=epoch, lr=used_lr, step=steps)
-        if eval_period <= 0 and not already_done:
+        if eval_period <= 0 and not resumed_terminal:
             fire_eval(extra)
             if keep_best and algo.last_improved:
                 fire_ckpt(extra=extra, improved=True, is_last=True)
                 wrote_last_ckpt = True
-        if not already_done and not wrote_last_ckpt:
+        if not resumed_terminal and not wrote_last_ckpt:
             fire_ckpt(extra=extra, improved=False, is_last=True)
-    finally:
-        tracker.flush_state()
+    except BaseException as primary:
+        try:
+            tracker.flush_state()
+        except BaseException as cleanup:
+            setattr(primary, 'tracker_cleanup_error', cleanup)
+            if hasattr(primary, 'add_note'):
+                primary.add_note(f'tracker finalization also failed: {cleanup!r}')
+        raise
+    else:
+        if not resumed_terminal:
+            tracker.flush_state()
 
     train_loss = tracker.segment_mean('train').get('Loss', 0.0)
     accuracy = tracker.segment_mean('test').get('Accuracy', 0.0)

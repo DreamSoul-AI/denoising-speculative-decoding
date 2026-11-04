@@ -10,16 +10,13 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-import platform
 import subprocess
 import time
 
 import torch
-from transformers import AutoTokenizer
 
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
 from spec_mtp.structure.algorithm.mask import build_mask_provider, calibrate_diagonal_gain
-from spec_mtp.structure.model.hf_causal import HFCausalLM
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -37,11 +34,6 @@ TAILS = (
     'a single page', 'the right margin', 'two fresh copies', 'the last stop',
     'one plain box', 'the middle line',
 )
-MODELS = {
-    '4b': Path(r'D:\models\Qwen3-4B'),
-    '0.6b': Path(r'D:\models\Qwen3-0.6B'),
-    '8b': Path('D' + ':' + '\\') / 'models' / 'Qwen3-8B',
-}
 EVAL = {'max_new_tokens': 64, 'temperature': 0.0, 'stop_on_eos': False}
 FIT = {'max_new_tokens': 24, 'temperature': 0.0, 'stop_on_eos': False}
 TREE = {'mode': 'static', 'branches': [4], 'pruning': True}
@@ -58,9 +50,7 @@ def templates():
     return texts
 
 
-def specbench_prompts():
-    path = ROOT / 'datasets/spec_bench/question.jsonl'
-    rows = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
+def specbench_prompts(rows):
     chosen = [row for row in rows if isinstance(row.get('question_id'), int) and 337 <= row['question_id'] <= 464]
     chosen.sort(key=lambda row: row['question_id'])
     if [row['question_id'] for row in chosen] != list(range(337, 465)):
@@ -73,26 +63,9 @@ def specbench_prompts():
     return prompts
 
 
-def load_dolly():
-    """Import the installed datasets package. The repo data directory has the same name."""
-    import sys
-    from importlib import import_module
-
-    sys.modules.pop('datasets', None)
-    root = ROOT.resolve()
-    kept = [entry for entry in sys.path if Path(entry or '.').resolve() != root]
-    saved = sys.path[:]
-    sys.path[:] = kept
-    try:
-        return import_module('datasets').load_dataset('databricks/databricks-dolly-15k', split='train')
-    finally:
-        sys.path[:] = saved
-
-
-def dolly_prompts():
-    data = load_dolly()
-    prompts = []
-    for item in data:
+def dolly_prompts(rows):
+    prompts: list[dict[str, object]] = []
+    for item in rows:
         if item['category'] != 'creative_writing':
             continue
         text = item['instruction']
@@ -110,11 +83,11 @@ def dolly_prompts():
     return prompts
 
 
-def prompts_for(name):
+def prompts_for(name, rows):
     if name == 'specbench':
-        return specbench_prompts()
+        return specbench_prompts(rows)
     if name == 'dolly':
-        return dolly_prompts()
+        return dolly_prompts(rows)
     raise ValueError(name)
 
 
@@ -259,7 +232,7 @@ def run_split(model, tokenizer, prompts, prior, output, split):
             replace_stream.flush()
             print(f"{split} {prompt['qid']} esp={esp['accepted']} replace={replaced['accepted']} "
                   f"nodes={replaced['max_nodes']} {time.perf_counter() - started:.1f}s", flush=True)
-    summarize(output, split, len(prompts))
+    return summarize(output, split, len(prompts))
 
 
 def summarize(output, split, expected):
@@ -284,39 +257,4 @@ def summarize(output, split, expected):
         }
     (output / f'{split}-summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(summary, ensure_ascii=False), flush=True)
-
-
-def main():
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--model', choices=sorted(MODELS), required=True)
-    parser.add_argument('--split', choices=('specbench', 'dolly'), required=True)
-    parser.add_argument('--output', type=Path, required=True)
-    args = parser.parse_args()
-    if not torch.cuda.is_available():
-        raise RuntimeError('this measurement requires CUDA')
-    output = args.output.resolve()
-    if 'DreamSoul' not in str(output) or output.is_relative_to(ROOT):
-        raise RuntimeError('write the measurement outside the repo, on D:')
-    output.mkdir(parents=True, exist_ok=True)
-    header = output / 'header.json'
-    if not header.exists():
-        header.write_text(json.dumps({
-            'protocol': PROTOCOL, 'source': identity(), 'torch': torch.__version__,
-            'python': platform.python_version(), 'eval': EVAL, 'tree': TREE,
-        }, ensure_ascii=False, indent=2), encoding='utf-8')
-    model_dir = output / args.model
-    model_dir.mkdir(parents=True, exist_ok=True)
-    print('load', args.model, flush=True)
-    model = HFCausalLM(str(MODELS[args.model]), local_files_only=True, torch_dtype='bfloat16', attn_implementation='eager')
-    model.hf.to('cuda')
-    if not str(model.device).startswith('cuda'):
-        raise RuntimeError(f'{args.model} is on {model.device}')
-    tokenizer = AutoTokenizer.from_pretrained(str(MODELS[args.model]), local_files_only=True)
-    prior = calibrate(model, tokenizer, model_dir)
-    run_split(model, tokenizer, prompts_for(args.split), prior, model_dir, args.split)
-
-
-if __name__ == '__main__':
-    main()
+    return summary

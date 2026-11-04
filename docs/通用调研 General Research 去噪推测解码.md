@@ -1,5 +1,5 @@
 **去噪推测解码 通用调研**
-更新日期：2026年11月3日。研究范围是免训练多 token 预测、ESP、输入/输出掩码和接受验证。本文维护机制、方案、直接来源和当前判断。历史数字在 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，职责在 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>)，待检验问题在 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。学术阅读深度在 [文献调研](<文献调研 Literature Review 去噪推测解码.md>)。
+更新日期：2026年11月5日。研究范围是免训练多 token 预测、ESP、输入/输出掩码和接受验证，以及支撑证据保全的运行机制。本文维护机制、方案、直接来源和当前判断。历史数字在 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，职责在 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>)，待检验问题在 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。学术阅读深度在 [文献调研](<文献调研 Literature Review 去噪推测解码.md>)。
 
 # 一、核心问题与结论
 本项目要回答：没有辅助训练或额外起草模型时，怎样从同一目标模型获得多个候选，哪些掩码与树结构能提高接受效率，以及什么证据足以支持正确性和收益判断。
@@ -8,7 +8,7 @@
 
 # 二、方法地图与已有实现
 ## （一）起草方式是主要分类轴
-自回归逐 token 生成先得到一个可靠参照。推测解码再把“提出多个候选”和“按目标模型确认候选”分开，让一次目标前向覆盖更多可能续写。Leviathan 等的原论文研究辅助模型与保持目标分布的采样方法，Chen 等采用修正拒绝采样，二者的分布论证都有算法与数值前提。本文此次只重读摘要，没有重证其理论。[Leviathan v2](https://arxiv.org/abs/2211.17192v2)、[Chen v1](https://arxiv.org/abs/2302.01318v1)
+自回归逐 token 生成先得到一个可靠参照。推测解码再把“提出多个候选”和“按目标模型确认候选”分开，让一次目标前向覆盖更多可能续写。Leviathan 等的原论文研究辅助模型与保持目标分布的采样方法，Chen 等采用修正拒绝采样，二者的分布论证都有算法与数值前提。本文对两篇的阅读范围为摘要，理论推导未复核。[Leviathan v2](https://arxiv.org/abs/2211.17192v2)、[Chen v1](https://arxiv.org/abs/2302.01318v1)
 
 | **路线** | **候选来自哪里** | **主要成本与限制** | **本项目位置与直接来源** |
 | --- | --- | --- | --- |
@@ -64,9 +64,9 @@ EMA 可平滑历史变化，但这本身不提供噪声观测模型、协方差�
 
 # 四、实现来源、取舍与当前证据链
 ## （一）三类实现严格分开
-本仓的 `spec_mtp` 是非作者官方研究实现；第三方 HF 代码固定为 `ad76f8da29f3bfc7faa20488193c6aa83a9f708c`，原 README、四份 code 和三份 results 全部保留，来源清单为 [ORIGIN.json](../src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/ORIGIN.json)。该来源历史未附 LICENSE，许可状态保留未确认，不据此扩大使用许可。2026年10月21日直开 HF 固定页失败，本轮未更新该远端状态。[HF 固定来源](https://huggingface.co/datasets/Harshvardhan-Mestha/esp-reproduction-artifacts/tree/ad76f8da29f3bfc7faa20488193c6aa83a9f708c)
+本仓的 `spec_mtp` 是非作者官方研究实现；第三方 HF 代码固定为 `ad76f8da29f3bfc7faa20488193c6aa83a9f708c`，原 README、四份 code 和三份 results 全部保留，来源清单为 [ORIGIN.json](../src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/ORIGIN.json)。该固定来源未附 LICENSE，许可状态保留未确认，不据此扩大使用许可。[HF 固定来源](https://huggingface.co/datasets/Harshvardhan-Mestha/esp-reproduction-artifacts/tree/ad76f8da29f3bfc7faa20488193c6aa83a9f708c)
 
-历史作者入口核查未取得可运行原生代码，后续已明确停止追找。2026年10月21日重读论文与代表方法公开入口用于技术调研，没有重启作者入口搜寻、下载模型或执行第三方算法。不能由“未核验到”断言作者从未开源。
+来源分类以实际取得的原件为准，不能由未取得可运行原码断言作者从未开源。论文主张、第三方复现和本仓测量分别定位到文献与运行记录。
 ## （二）当前源码职责与目标差距
 Study recipe 注册宿主的 Data、Model 和 Algorithm，默认 prepare/execute 复用阶段实现，专项 collect/summarize/write/process 计算和核验证据。专项 `sources.py` 记录被复用宿主与共享适配的源码锁。模型输入、权重 digest、tokenizer/runtime 和原始输出在最终验收前复核。[来源锁](../studies/_shared/structure/sources.py)、[证据](../studies/_shared/structure/evidence.py)、[验收门](../studies/_shared/flow/summarize/run.py)
 
@@ -82,21 +82,26 @@ Study recipe 注册宿主的 Data、Model 和 Algorithm，默认 prepare/execute
 | 先满足当前研究规模 | 尚无远程伸缩或多后端平台需求 | 单机模块和一个执行协调者，不建服务与通用插件市场 |
 
 # 五、来源、阅读范围与未验证事项
-公开资料实际访问日期为2026年10月21日。下表分别说明原文阅读、源码分析和历史引用，不把成功抓取页面当作全文精读。
+下表维护来源版本和实际阅读范围，原文、源码及历史测量分别解释；逐次访问与执行事实从日期记录追溯。
 
 | **来源** | **版本与阅读范围** | **用途与限制** |
 | --- | --- | --- |
 | [ESP 原文](https://arxiv.org/html/2603.17942v2) | v2，2026年5月28日，针对性读 §2/3、Algorithm 1、Table 1 与 G.2 定位，未全文重证附录 | 最近方法与论文合同，不能据作者性能数直接认定本仓速度 |
-| [Leviathan 原论文](https://arxiv.org/abs/2211.17192v2) | v2，2023年5月18日，本轮摘要与版本核对 | 辅助起草和分布目标，未重新证明采样论证 |
-| [Chen 原论文](https://arxiv.org/abs/2302.01318v1) | v1，2023年2月2日，本轮摘要 | 拒绝采样路线，与本仓 T0 门有范围差异 |
-| [Medusa 原论文](https://arxiv.org/abs/2401.10774v3) | v3，2024年6月14日，本轮摘要和两种训练范围 | 比较多头路线，未读/运行完整实现 |
+| [Leviathan 原论文](https://arxiv.org/abs/2211.17192v2) | v2，2023年5月18日，摘要与版本核对 | 辅助起草和分布目标，未重新证明采样论证 |
+| [Chen 原论文](https://arxiv.org/abs/2302.01318v1) | v1，2023年2月2日，摘要 | 拒绝采样路线，与本仓 T0 门有范围差异 |
+| [Medusa 原论文](https://arxiv.org/abs/2401.10774v3) | v3，2024年6月14日，摘要和两种训练范围 | 比较多头路线，未读/运行完整实现 |
 | [EAGLE 官方](https://github.com/SafeAILab/EAGLE#readme) | 滚动 README，针对性读特征外推与官方实现身份，未固定源码 commit | 说明公开实现路线，不声称基准条件相同 |
 | [PLD 原作者项目](https://github.com/apoorvumang/prompt-lookup-decoding#readme) | 滚动 README，概念与示例入口，未运行 notebook | 说明无额外模型的检索起草，不承诺宿主兼容版本 |
 | [Spec-Bench 官方](https://github.com/hemingkx/Spec-Bench#readme) | 滚动 README、数据目录和项目许可入口 | Benchmark 责任与数据来源，本地历史数据 commit 未确认，原数据字节另有 SHA；组成数据许可未逐项核查 |
 | 本仓源码及 H01–H09 | 固定基线 `b8b20b5`，读取入口、mask、decoder、来源/验收和相关历史报告 | 源码分析/历史测量，不是本轮模型或全仓审计 |
 | DreamSoul 架构方法四资料 | 本地2026年10月21日版：主报告、大纲、端侧案例、来源索引全文 | 采用质量场景、黑盒合同、源码/运行视图、状态唯一归属、取消与简约取舍；未重读全部原标准 |
-| CPU 内存清理样板 | `6938f10447b250958856a845fc5448aa1185b52d` 的 AGENTS 与三文档 | 采用文档粒度与证据/目标分离，不借用其 Windows 产品模块 |
+| [RPipe固定main](https://github.com/DreamSoul-AI/RPipe/tree/414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6) | AGENTS、README、train.py、resume.py、artifact/checkpoint.py全文 | 读取、准入、应用与快照提交机制；没有运行其测试或复制编码/API |
 
-2026年10月31日重读了本仓入口、当前源码和两份参考仓当时可取得的版本，记录在开发记录。飞书规范正文和会议逐字稿因用户令牌过期没有读到，不能把索引或会议摘要写成已经核对过的规范或结论。10月21日对论文和历史证据的阅读深度仍然有效，本轮没有重新打开这些论文。
+资料读取与环境访问的逐次事实从 [开发记录](<开发记录 Development Record/2026-11-05 宿主结构收束.md>) 追溯，不以历史认证状态推定当前资料是否可读。论文阅读范围仍从文献调研定位。
 
 后续研究范围由当前研究计划维护。既有 trajectory/observation 公式与测量按固定历史协议解释，已观察数据不能充当新算法的独立确认集。采样分布保证仍未完成。工程目录调整保持依赖版本和历史科学语义。
+
+# 六、训练快照的提交边界
+远端RPipe main固定为 `414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6`。实际阅读其AGENTS、README、train/resume与checkpoint源码：structure描述科学部件和持久化，flow拥有生命周期；训练状态读取、准入和应用分开，快照以文件原子替换为可见提交边界。其实现先将payload写入同目录独占临时文件，flush/fsync后替换目标；提交前失败保留旧文件，并保留首错及清理错误。[固定训练实现](https://github.com/DreamSoul-AI/RPipe/blob/414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6/src/rpipe/structure/algorithm/train.py)、[固定快照实现](https://github.com/DreamSoul-AI/RPipe/blob/414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6/src/rpipe/structure/artifact/checkpoint.py)
+
+RPipe当前编码为带schema/kind/payload的snapshot并使用weights_only读取，允许值域受显式校验约束。本仓既有bundle含NumPy RNG和诊断分片，不能直接换编码并声称旧格式兼容。采用同目录临时文件、完整文件同步及最后替换的机制，保留当前数据合同；分片仅供诊断，不能因文件存在就补签完整bundle。提交后诊断清理失败与提交前写入失败须分开处理。文件同步与原子替换不能单独证明硬件掉电场景的全部持久性，也不提供同Run/stem并发写入保证。[当前System](../src/spec_mtp/structure/system/factory.py)、[恢复准入](../src/spec_mtp/structure/algorithm/resume.py)
