@@ -4224,6 +4224,18 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_all_log_readers_reject_resolved_paths_outside_study",
+      "target": "spec_mtp.structure.artifact.readout.status",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

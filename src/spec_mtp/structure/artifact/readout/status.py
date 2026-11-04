@@ -57,10 +57,12 @@ def log_path(study_dir: Path, run: dict[str, Any], run_dir: str) -> Path | None:
         path = study_dir / RUNS_DIRNAME / run_dir / 'assets' / kinds.RUN_LOG
     else:
         return None
+    path.resolve().relative_to(study_dir.resolve())
     if path.is_file():
         return path
     if path.name in ('run.log', 'events.jsonl'):
         alternate = path.with_name('run.log' if path.name == 'events.jsonl' else 'events.jsonl')
+        alternate.resolve().relative_to(study_dir.resolve())
         if alternate.is_file():
             return alternate
     return path

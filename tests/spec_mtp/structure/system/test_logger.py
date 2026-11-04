@@ -41,9 +41,10 @@ def test_log_write_failure_is_reported_to_the_caller(tmp_path, monkeypatch):
     logger = Logger(tmp_path)
     def deny(*args, **kwargs):
         raise PermissionError('blocked')
-    monkeypatch.setattr(Path, 'open', deny)
-    with pytest.raises(PermissionError):
-        logger.info('cannot persist')
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, 'open', deny)
+        with pytest.raises(PermissionError):
+            logger.info('cannot persist')
 
 
 def test_new_and_legacy_logs_remain_readable_without_rewrite(tmp_path):
@@ -122,3 +123,24 @@ def test_loggers_in_one_process_share_runtime_but_keep_run_identity(tmp_path):
     second = Logger(tmp_path / 'runs' / 'r2' / 'assets')
     assert first.runtime_id == second.runtime_id
     assert first.run_id == 'r1' and second.run_id == 'r2'
+
+
+@pytest.mark.parametrize('escape', ['relative', 'absolute', 'resolved_link', 'fallback_link'])
+def test_all_log_readers_reject_resolved_paths_outside_study(tmp_path, monkeypatch, escape):
+    study = tmp_path / 'study'
+    study.mkdir()
+    outside = tmp_path / 'private.log'
+    outside.write_text('private content', encoding='utf-8')
+    if escape in ('relative', 'absolute'):
+        raw = '../private.log' if escape == 'relative' else str(outside)
+        with pytest.raises(ValueError):
+            log_path(study, {'log': raw}, 'r1')
+    else:
+        candidate = study / 'runs/r1/assets/logs' / ('run.log' if escape == 'fallback_link' else 'events.jsonl')
+        resolve = Path.resolve
+        def resolved(path, *args, **kwargs):
+            return outside if path == candidate else resolve(path, *args, **kwargs)
+        with monkeypatch.context() as patch:
+            patch.setattr(Path, 'resolve', resolved)
+            with pytest.raises(ValueError):
+                log_path(study, {}, 'r1')
