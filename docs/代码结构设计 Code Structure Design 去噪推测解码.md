@@ -136,7 +136,7 @@ denoising-speculative-decoding/
 `api` 不导入其他 structure 子层。`structure` 不导入 `flow`。`flow` 可以导入 `structure`。`spec_mtp` 不导入 `rpipe` 或 `studies`。
 
 # 四、历史遗留、门禁与分步迁移
-`studies/_shared/structure/` 里的历史分析脚本，以及各 Study 顶层的 `analyze_*` / `plot_*` 和其他顶层 `.py`，视为 legacy 冻结：保持原样可运行，不再新增，不再修改逻辑。修 bug 时一并迁到 `flow/process` 或宿主 `structure/algorithm/metric`。字节保护的 ESP upstream 树不进入这些清单，门禁也不扫描它的内容。
+`studies/_shared/structure/` 里的 `diagnose_*` / `analyze_*` / `audit_*` / `capture_*` / `reconcile_*` 一次性 CLI 已折进 `window_diagnostics`、`extension_diagnostics`、`q178_diagnostics`、`q241_diagnostics`、`sampling_diagnostics`、`geometry_4b`、`esp_diagnostics`。旧文件名只保留导入垫片，不再带 `main` / `argparse`，`structure_scripts` 清单随之缩小。各 Study 顶层的 `analyze_*` / `plot_*` 和其他顶层 `.py` 仍视为 legacy 冻结：不再新增，不再修改逻辑。修 bug 时一并迁到 `flow/process` 或宿主 `structure/algorithm/metric`。字节保护的 ESP upstream 树不进入这些清单，门禁也不扫描它的内容。
 
 CPU 门禁在 `tests/spec_mtp/test_structure_flow_gates.py`。清单在 `tests/spec_mtp/legacy_allowlists/`。每份清单与当时扫到的违规逐项相同：代码里多一条违规，或清单里留着已经不再违规的条目，测试都失败。清单因此只能缩小。`origin/dev` 上已经有同一份清单之后，再往清单里加条目也会失败。2026-11-03 在本分支上冻结的条数：
 
