@@ -68,6 +68,20 @@ def write_lock_for(argv: list[str]) -> Path | None:
     return write_lock(study)
 
 
+def check_study_inputs(study_dir: Path | str) -> dict:
+    """Admit saved Study inputs before any launch/revalidation side effects."""
+    from spec_mtp.structure.artifact.layout import validate_study_root
+    from spec_mtp.structure.make.expand import load_study_yaml
+    from spec_mtp.structure.artifact.provenance import check_frozen as check_host
+    from studies._shared.structure.sources import check_frozen, manifest
+
+    study = validate_study_root(study_dir)
+    declared = load_study_yaml(study)
+    check_frozen(study, declared, manifest())
+    check_host(study, declared)
+    return declared
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     from spec_mtp.flow.study_cli import prepare_study_argv
@@ -82,13 +96,7 @@ def main(argv: list[str] | None = None) -> int:
     if _command(argv) in ('run', 'launch', 'run-one', 'process', 'report'):
         study = _study_arg(argv)
         if study is not None:
-            from spec_mtp.structure.make.expand import load_study_yaml
-            from spec_mtp.structure.artifact.provenance import check_frozen as check_rpipe
-            from studies._shared.structure.sources import check_frozen, manifest
-
-            declared = load_study_yaml(study)
-            check_frozen(study, declared, manifest())
-            check_rpipe(study, declared)
+            check_study_inputs(study)
             if _command(argv) == 'report':
                 from spec_mtp.flow.context import StudyProcessContext
                 from spec_mtp.structure.artifact.readout.report import render_numbers

@@ -143,6 +143,15 @@ class ArtifactLayout:
         return self.study_dir / paths.DOCS_DIRNAME
 
     def ensure(self) -> None:
+        if self.root.resolve() != self.root.absolute():
+            raise ValueError('Run root must retain its admitted identity inside the Study')
+        for member in (self.config_path, self.result_path, self.assets_dir,
+                       self.assets_dir / 'logs', self.assets_dir / 'checkpoints'):
+            if not member.resolve().is_relative_to(self.root.resolve()):
+                raise ValueError('Run artifacts must remain inside their own Run root')
+        for member in (self.shared_data_dir, self.shared_model_dir, self.docs_dir):
+            if not member.resolve().is_relative_to(self.study_dir.resolve()):
+                raise ValueError('shared artifacts must remain inside the admitted Study root')
         self.root.mkdir(parents=True, exist_ok=True)
         self.assets_dir.mkdir(parents=True, exist_ok=True)
         self.shared_data_dir.mkdir(parents=True, exist_ok=True)
@@ -150,11 +159,21 @@ class ArtifactLayout:
         self.docs_dir.mkdir(parents=True, exist_ok=True)
 
 
-def ensure_study_layout(study_dir: Path | str) -> Path:
-    """Ensure Study skeleton: ``docs/``, ``shared/{data,model}/``, ``runs/``."""
+def validate_study_root(study_dir: Path | str) -> Path:
+    """Validate a runtime root without creating directories or updating evidence."""
     study = paths.validate_output_root(study_dir)
     _reject_source_checkout(study)
     check_study_snapshot(study)
+    for name in (paths.DOCS_DIRNAME, paths.SHARED_DIRNAME, paths.RUNS_DIRNAME,
+                 paths.SHARED_DIRNAME + '/data', paths.SHARED_DIRNAME + '/model'):
+        if (study / name).resolve() != (study / name).absolute():
+            raise ValueError('Study artifacts must remain inside the admitted runtime root')
+    return study
+
+
+def ensure_study_layout(study_dir: Path | str) -> Path:
+    """Ensure Study skeleton: ``docs/``, ``shared/{data,model}/``, ``runs/``."""
+    study = validate_study_root(study_dir)
     (study / paths.DOCS_DIRNAME).mkdir(parents=True, exist_ok=True)
     (study / paths.SHARED_DIRNAME / 'data').mkdir(parents=True, exist_ok=True)
     (study / paths.SHARED_DIRNAME / 'model').mkdir(parents=True, exist_ok=True)

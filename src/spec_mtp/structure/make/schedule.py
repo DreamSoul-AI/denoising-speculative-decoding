@@ -4,16 +4,18 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 from spec_mtp.structure.algorithm.resume import sibling_train_dependency
-from spec_mtp.structure.artifact import artifact_layout, load_config
+from spec_mtp.structure.artifact import load_config
 from spec_mtp.structure.artifact.index import load_index
-from spec_mtp.structure.artifact.layout import validate_run_directory
-from spec_mtp.structure.artifact.result import write_result
+from spec_mtp.structure.artifact.layout import validate_run_directory, validate_study_root
+from spec_mtp.structure.artifact.provenance import check_frozen
+from spec_mtp.structure.make.expand import load_study_yaml
 from spec_mtp.structure.artifact.result.format import STATUS_SUCCEEDED, decode_result
 from spec_mtp.structure.control.mapping import get_setting
 
@@ -68,17 +70,8 @@ def run_succeeded(study_dir: Path, run_id: str) -> bool:
         return False
 
 
-def _fail_result(study_dir: Path, run_id: str, error: str) -> None:
-    body = _run_result(study_dir, run_id)
-    body.update(status='failed', error=error)
-    write_result(artifact_layout(study_dir, run_id).result_path, body)
-
-
 def _job_fields(config_path: Path) -> tuple[str, str]:
-    try:
-        cfg = load_config(config_path)
-    except (OSError, ValueError):
-        return 'train', 'cpu'
+    cfg = load_config(config_path)
     algo = cfg.get('algorithm')
     system = cfg.get('system')
     mode = str(algo.get('mode') or 'train') if isinstance(algo, dict) else 'train'
@@ -169,6 +162,39 @@ def scripts_dir(study_dir: Path) -> Path:
     return path
 
 
+def validate_launch_jobs(study_dir: Path, jobs: list[dict[str, Any]]) -> None:
+    """Bind every persisted dispatch to the current index and canonical config."""
+    study = Path(study_dir).resolve()
+    index = load_index(study)
+    known = {str(run.get('run_dir') or run.get('id')): run
+             for exp in index.get('experiments') or [] for run in exp.get('runs') or []}
+    seen = set()
+    for job in jobs:
+        if not isinstance(job, dict) or not isinstance(job.get('run_id'), str):
+            raise ValueError('launch job requires a Run identity')
+        run_id = job['run_id']
+        validate_run_directory(run_id)
+        if run_id not in known or run_id in seen:
+            raise ValueError('unknown or duplicate Run in launch plan')
+        seen.add(run_id)
+        expected = study / 'runs' / run_id / 'config.yaml'
+        if (not expected.resolve().is_relative_to(study) or not expected.is_file()
+                or not job.get('config') or Path(str(job['config'])).resolve() != expected.resolve()
+                or (study / str(known[run_id].get('config', ''))).resolve() != expected.resolve()):
+            raise ValueError('launch config must match the indexed canonical Run config')
+        config = load_config(expected)
+        if config.get('id') != known[run_id].get('id'):
+            raise ValueError('launch config identity differs from the index')
+        mode, device = _job_fields(expected)
+        if mode != job.get('mode') or device != job.get('device'):
+            raise ValueError('launch job mode/device differs from its config')
+        gpu = job.get('gpu')
+        if device == 'cpu' and gpu is not None:
+            raise ValueError('CPU jobs cannot carry a CUDA assignment')
+        if device != 'cpu' and (type(gpu) not in (int, str) or not str(gpu).isdigit()):
+            raise ValueError('CUDA jobs require an explicit GPU assignment')
+
+
 def load_launch_plan(
     study_dir: Path | str,
     *,
@@ -177,58 +203,50 @@ def load_launch_plan(
     round_size: int,
     include_done: bool = False,
 ) -> dict[str, Any] | None:
-    """Reuse ``scripts/jobs.json`` from a prior make. None → caller should make.
-
-    ``include_done`` keeps already-succeeded jobs that are still listed in the
-    file. It does not invent Runs that were omitted from the original make;
-    those need ``--remake --include-done``.
-    """
+    """Resume a saved plan; absent means make, malformed or changed means reject."""
     study_dir = Path(study_dir).resolve()
     path = study_dir / SCRIPTS_DIRNAME / JOBS_NAME
     if not path.is_file():
         return None
     try:
         payload = json.loads(path.read_text(encoding='utf-8'))
-    except (OSError, json.JSONDecodeError, TypeError):
-        return None
-    if not isinstance(payload, dict) or not isinstance(payload.get('jobs'), list):
-        return None
-    if int(payload.get('init_gpu', 0)) != int(init_gpu):
-        return None
-    if int(payload.get('num_gpus', 1)) != int(num_gpus):
-        return None
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError('invalid saved launch plan') from exc
+    if (not isinstance(payload, dict) or not isinstance(payload.get('jobs'), list)
+            or Path(str(payload.get('study_dir', ''))).resolve() != study_dir):
+        raise ValueError('launch plan must identify this runtime and a job list')
+    if (any(type(payload.get(key)) is not int for key in ('init_gpu', 'num_gpus', 'round'))
+            or payload['init_gpu'] < 0 or payload['num_gpus'] < 0):
+        raise ValueError('launch resource fields must be nonnegative integers')
+    if int(payload.get('init_gpu', 0)) != int(init_gpu) or int(payload.get('num_gpus', 1)) != int(num_gpus):
+        raise ValueError('launch GPU assignment changed; use an explicit remake')
     stored_round = int(payload.get('round') or 1)
-    if int(round_size) > 0 and stored_round != int(round_size):
-        return None
+    if stored_round < 1 or (int(round_size) > 0 and stored_round != int(round_size)):
+        raise ValueError('launch round changed; use an explicit remake')
+    validate_launch_jobs(study_dir, payload['jobs'])
+    assigned = set(gpu_ids(int(payload['init_gpu']), int(payload['num_gpus'])))
     for job in payload['jobs']:
-        if isinstance(job, dict) and not include_done and run_succeeded(study_dir, str(job.get('run_id') or '')):
-            continue
-        if isinstance(job, dict) and str(job.get('device') or '').lower() == 'cpu' and job.get('gpu') is not None:
-            return None
-        if isinstance(job, dict) and job.get('config') and Path(str(job['config'])).is_file():
-            mode, device = _job_fields(Path(str(job['config'])))
-            if mode != job_mode(job) or device != str(job.get('device') or 'cuda').lower():
-                return None
+        if job['device'] != 'cpu' and str(job['gpu']) not in assigned:
+            raise ValueError('job GPU differs from the saved allocation')
 
-    def _keep(rows: list) -> list[dict[str, Any]]:
-        kept = [job for job in rows if isinstance(job, dict)]
-        if include_done:
-            return kept
-        return [job for job in kept if not run_succeeded(study_dir, str(job.get('run_id') or ''))]
+    def keep(rows):
+        return list(rows) if include_done else [job for job in rows if not run_succeeded(study_dir, job['run_id'])]
 
-    jobs = _keep(list(payload.get('jobs') or []))
-    raw_batches = payload.get('batches')
+    jobs = keep(payload['jobs'])
     batches = None
-    if isinstance(raw_batches, list) and raw_batches and isinstance(raw_batches[0], list):
-        batches = [kept for kept in (_keep(list(group)) for group in raw_batches) if kept]
-    return {
-        'jobs_json': path,
-        'job_list': jobs,
-        'round': stored_round,
-        'batches': batches,
-        'n_jobs': len(jobs),
-        'expand': {'study_dir': study_dir, 'index': study_dir / 'index.json', 'configs': []},
-    }
+    raw_batches = payload.get('batches')
+    if raw_batches is not None:
+        if not isinstance(raw_batches, list) or any(not isinstance(group, list) for group in raw_batches):
+            raise ValueError('invalid launch batches')
+        flat = [job for group in raw_batches for job in group]
+        validate_launch_jobs(study_dir, flat)
+        if sorted(json.dumps(job, sort_keys=True) for job in flat) != sorted(
+                json.dumps(job, sort_keys=True) for job in payload['jobs']):
+            raise ValueError('launch batches differ from the saved job list')
+        batches = [kept for group in raw_batches if (kept := keep(group))]
+    return {'jobs_json': path, 'job_list': jobs, 'round': stored_round, 'batches': batches,
+            'n_jobs': len(jobs),
+            'expand': {'study_dir': study_dir, 'index': study_dir / 'index.json', 'configs': []}}
 
 
 def write_jobs_json(
@@ -299,11 +317,13 @@ def render_bash(
         body = [
             'from pathlib import Path',
             'from spec_mtp.structure.make.schedule import launch_jobs, run_succeeded',
+            'from studies._shared.flow.cli import check_study_inputs',
             f'study = Path({str(study_dir.resolve())!r})',
+            'check_study_inputs(study)',
             f'groups = {part!r}',
             'jobs = [job for group in groups for job in group]',
-            f"launch_jobs(study, jobs, round_size={round_size}, batches=groups, console='shared')",
-            "failed = any(not run_succeeded(study, str(job['run_id'])) for job in jobs)",
+            f"codes = launch_jobs(study, jobs, round_size={round_size}, batches=groups, console='shared')",
+            "failed = any(codes) or any(not run_succeeded(study, str(job['run_id'])) for job in jobs)",
         ]
         if index == len(partitions) - 1:
             body.extend([
@@ -314,10 +334,14 @@ def render_bash(
             ])
         body.append('raise SystemExit(int(failed))')
         chunks.append('\n'.join([
-            '#!/bin/bash', f'cd "{repo_b}"', f'"{py_b}" - <<\'RPIPE_LAUNCH\'',
+            '#!/bin/bash', f'cd {shlex.quote(repo_b)}', f'{shlex.quote(py_b)} - <<\'RPIPE_LAUNCH\'',
             *body, 'RPIPE_LAUNCH', '',
         ]))
     return chunks
+
+
+def powershell_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
 
 
 def write_launch_scripts(
@@ -365,12 +389,13 @@ def write_launch_scripts(
         '\n'.join(
             [
                 '$ErrorActionPreference = "Stop"',
-                f'Set-Location -LiteralPath {json.dumps(str(repo_root_from(study_dir)))}',
-                f'& {json.dumps(py_win)} -m spec_mtp.flow.study_cli launch {json.dumps(study_win)}',
+                f'Set-Location -LiteralPath {powershell_literal(str(repo_root_from(study_dir)))}',
+                f'& {powershell_literal(py_win)} -m studies._shared.flow.cli launch {powershell_literal(study_win)} --console shared --init-gpu {int(init_gpu)} --num-gpus {int(num_gpus)} --round {int(round_size)}',
+                'exit $LASTEXITCODE',
                 '',
             ]
         ),
-        encoding='utf-8',
+        encoding='utf-8-sig',
         newline='\n',
     )
     return {
@@ -403,6 +428,9 @@ def resolve_console(mode: str = 'auto') -> str:
 
 def launch_job_env(job: dict[str, Any]) -> dict[str, str]:
     env = os.environ.copy()
+    owned = [str(Path(__file__).resolve().parents[3]), str(repo_root_from(Path(__file__)))]
+    inherited = env.get('PYTHONPATH', '').split(os.pathsep)
+    env['PYTHONPATH'] = os.pathsep.join(dict.fromkeys([*owned, *(p for p in inherited if p)]))
     gpu = job.get('gpu')
     if gpu is not None and str(job.get('device') or 'cuda').lower() != 'cpu':
         env['CUDA_VISIBLE_DEVICES'] = str(gpu)
@@ -417,11 +445,21 @@ def launch_jobs(
     python_exe: str | None = None,
     cwd: Path | None = None,
     batches: list[list[dict[str, Any]]] | None = None,
-    retry_failed: bool = True,
+    retry_failed: bool = False,
     console: str = 'auto',
 ) -> list[int]:
     if round_size < 1:
         raise ValueError('round must be >= 1')
+    study_dir = validate_study_root(study_dir)
+    declared = load_study_yaml(study_dir) if (study_dir / 'study.yaml').is_file() else {}
+    check_frozen(study_dir, declared)
+    validate_launch_jobs(study_dir, jobs)
+    if batches is not None:
+        flattened = [job for group in batches for job in group]
+        validate_launch_jobs(study_dir, flattened)
+        if sorted(json.dumps(job, sort_keys=True) for job in flattened) != sorted(
+                json.dumps(job, sort_keys=True) for job in jobs):
+            raise ValueError('dispatch batches differ from the admitted jobs')
     py = python_exe or sys.executable
     root = cwd or repo_root_from(study_dir)
     groups = wait_groups(jobs, round_size, batches)
@@ -444,9 +482,6 @@ def launch_jobs(
         if (run_id := str(run.get('run_dir') or run.get('id') or ''))
         if (parent := sibling_train_dependency(study_dir, run_id)) is not None
     }
-    for run_id, parent in dependencies.items():
-        if _run_result(study_dir, run_id).get('status') == STATUS_SUCCEEDED and not run_succeeded(study_dir, run_id):
-            _fail_result(study_dir, run_id, f'sibling train {parent} is unfinished or newer; re-evaluation required')
     # A supplied batch must not bypass the train/eval barrier either.
     waves = [
         [kept for group in groups if (kept := [job for job in group if (job_mode(job) == 'eval') == is_eval])]
@@ -477,42 +512,54 @@ def launch_jobs(
             position = f'{wait_index}/{total_waits}' if kind == 'wait' else f'{index}/{total}'
             print(f'launch: {kind} {position} mode={_group_mode(group)}', flush=True)
             procs: list[tuple[dict[str, Any], subprocess.Popen[str]]] = []
-            for job in group:
-                run_id = str(job['run_id'])
-                parent = dependencies.get(run_id)
-                if parent is not None and not run_succeeded(study_dir, parent):
-                    message = f'blocked: sibling train {parent} did not succeed'
-                    _fail_result(study_dir, run_id, message)
-                    print(f'error {run_id} {message}', flush=True)
-                    pairs.append((job, 1))
-                    continue
-                for eval_id, train_id in dependencies.items():
-                    if train_id == run_id and _run_result(study_dir, eval_id).get('status') == STATUS_SUCCEEDED:
-                        _fail_result(study_dir, eval_id, f'sibling train {run_id} is being rerun; re-evaluation required')
-                if _run_result(study_dir, run_id).get('status') == STATUS_SUCCEEDED:
-                    _fail_result(study_dir, run_id, 'rerun started; no successful result from this execution yet')
-                cmd = [py, '-m', 'spec_mtp.flow.study_cli', 'run-one', str(study_dir), run_id]
-                where = 'window' if console_mode == 'new' and os.name == 'nt' else 'here'
-                resource = f'gpu={job["gpu"]}' if job.get('gpu') is not None and str(job.get('device') or 'cuda').lower() != 'cpu' else 'cpu'
-                print(f'+ {resource} {job["run_id"]} ({where})', flush=True)
-                procs.append(
-                    (
-                        job,
-                        subprocess.Popen(
-                            cmd,
-                            cwd=str(root),
-                            env=launch_job_env(job),
-                            **popen_extra,
-                        ),
+            try:
+                for job in group:
+                    run_id = str(job['run_id'])
+                    parent = dependencies.get(run_id)
+                    if parent is not None and not run_succeeded(study_dir, parent):
+                        message = f'blocked: sibling train {parent} did not succeed'
+                        print(f'error {run_id} {message}', flush=True)
+                        pairs.append((job, 1))
+                        continue
+                    cmd = [py, '-m', 'studies._shared.flow.cli', 'run-one', str(study_dir), run_id]
+                    where = 'window' if console_mode == 'new' and os.name == 'nt' else 'here'
+                    resource = f'gpu={job["gpu"]}' if job.get('gpu') is not None and str(job.get('device') or 'cuda').lower() != 'cpu' else 'cpu'
+                    print(f'+ {resource} {job["run_id"]} ({where})', flush=True)
+                    procs.append(
+                        (
+                            job,
+                            subprocess.Popen(
+                                cmd,
+                                cwd=str(root),
+                                env=launch_job_env(job),
+                                **popen_extra,
+                            ),
+                        )
                     )
-                )
-            for job, proc in procs:
-                code = int(proc.wait())
-                pairs.append((job, code))
-                if code != 0:
-                    print(f'error {job["run_id"]} exit={code}', flush=True)
-                    if _run_result(study_dir, str(job['run_id'])).get('status') == STATUS_SUCCEEDED:
-                        _fail_result(study_dir, str(job['run_id']), f'run-one exited with code {code}')
+                for job, proc in procs:
+                    code = int(proc.wait())
+                    pairs.append((job, code))
+                    if code != 0:
+                        print(f'error {job["run_id"]} exit={code}', flush=True)
+            except BaseException:
+                for _job, proc in procs:
+                    try:
+                        if proc.poll() is None:
+                            proc.terminate()
+                    except Exception as cleanup:
+                        print(f'worker cleanup terminate failed: {type(cleanup).__name__}', flush=True)
+                for _job, proc in procs:
+                    try:
+                        proc.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        try:
+                            proc.kill()
+                            proc.wait(timeout=5)
+                        except Exception as cleanup:
+                            print(f'worker cleanup kill failed: {type(cleanup).__name__}', flush=True)
+                    except Exception as cleanup:
+                        print(f'worker cleanup wait failed: {type(cleanup).__name__}', flush=True)
+                raise
         return pairs
 
     for wave in waves:

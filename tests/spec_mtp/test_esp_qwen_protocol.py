@@ -36,22 +36,31 @@ def test_protocol_primary_cannot_be_selected_from_tau():
 @pytest.mark.parametrize('failure',[False,True])
 def test_launch_once_restores_native_scheduler(monkeypatch,failure):
     launch = load('launch_once_test',ROOT/'studies/_shared/flow/launch_once.py')
-    assert launch.native_main is launch.spec_mtp.flow.study_cli.main
-    original = launch.spec_mtp.flow.study_cli.launch_jobs
+    from studies._shared.flow.cli import main as study_main
+    import spec_mtp.flow.study_cli as host_cli
+    from studies._shared.flow import cli as shared_cli
+    assert launch.main is study_main
+    original = host_cli.launch_jobs
     def native(argv):
         assert argv==['launch','study']
-        patched=launch.spec_mtp.flow.study_cli.launch_jobs
-        assert patched.func is original and patched.keywords=={'retry_failed':False}
+        assert host_cli.launch_jobs is original
         if failure:
             raise RuntimeError('injected launcher failure')
         return 7
-    monkeypatch.setattr(launch,'native_main',native)
+    monkeypatch.setattr(shared_cli, 'write_lock_for', lambda argv: None)
+    monkeypatch.setattr(host_cli, 'main', native)
     if failure:
         with pytest.raises(RuntimeError,match='injected launcher failure'):
             launch.main(['launch','study'])
     else:
         assert launch.main(['launch','study'])==7
-    assert launch.spec_mtp.flow.study_cli.launch_jobs is original
+    assert host_cli.launch_jobs is original
+
+
+def test_launch_scheduler_does_not_retry_failed_runs_by_default():
+    import inspect
+    from spec_mtp.structure.make.schedule import launch_jobs
+    assert inspect.signature(launch_jobs).parameters['retry_failed'].default is False
 
 
 def test_corrected_studies_keep_full_coverage_and_mask_update():

@@ -76,3 +76,5 @@ flowchart TB
 | 显式外部运行根 | raw、日志、trace、输入与源码快照、验证和派生图 |
 
 `structure/algorithm/reference/esp_reproduction_artifacts/upstream/` 全树与旁侧 ORIGIN.json 保持字节，保留版权与许可证。历史记录中的旧路径、Run 和哈希按原执行身份解释，不回签。原始数据、模型与不明文件不因代码清理删除。
+
+独立worker与专用启动/重验证入口复用shared flow的check_study_inputs纯预检，先验外部根、原源/快照、来源锁、计划与输入，再允许运行态写入。scheduler固定当前宿主的导入根，worker走shared CLI，默认不自动重试；派发异常停止新派发并只清理本次已拥有的Popen对象，保存首错。保存jobs需与当前index及规范config路径一致；已完成Run调度恢复只跳过已完成项，不能外推checkpoint/RNG等价恢复。

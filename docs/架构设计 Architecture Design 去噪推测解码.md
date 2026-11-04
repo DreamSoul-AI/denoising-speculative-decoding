@@ -240,3 +240,5 @@ CLI、YAML/JSON、token 数据、Hub 文件和旧运行记录都校验形状、�
 K 工程 fixture 使用随机 tied tiny LLaMA、CPU FP32、eager；先拟合并独占写入 full K/b0，再提取 holdout/cross。collect 核文件 SHA、fit IDs/hash、模型空间和配对，summarize/process 拒绝缺三臂/缺 split/缺 seed。它只验证工程路径，原计划160对协议及真实接受收益未执行。完整外部运行根已由本仓布局与入口实现，强取消差距仍需独立验收；现有K夹具的CPU行为不冒充本轮CUDA验证。
 
 显式外部 Study 运行根承接新运行的声明快照、Run、共享制品和日志；源码 Study 作为只读输入。首次建立先核全部输入与目录分离，执行前复核原 Study 和快照，任何缺失或漂移均阻断，不把新根当旧 Run 的迁移或重签。CUDA 工程验证先确认设备可用并保存设备身份，CPU仅承担快速单元检查；设备忙时等待或缩小规模，研究路线仍由研究计划与 Enmao 确认。
+
+独立进程调度先验证外部根、来源与当前计划，再派发shared CLI worker；worker再次预检，实际PID和CUDA设备随运行证据保存。调度保存的jobs必须绑定index及规范config路径，空队列仍以聚合complete判断成功。派发异常只清理本次已取得的进程句柄并保留首错；默认不自动重试。pending调度恢复与checkpoint/RNG恢复分别验收。

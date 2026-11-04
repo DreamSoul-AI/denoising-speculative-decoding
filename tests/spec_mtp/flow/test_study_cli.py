@@ -29,3 +29,22 @@ def test_invalid_arguments_and_help_do_not_create_a_runtime(tmp_path, suffix):
     assert stopped.value.code == (0 if suffix == ['--help'] else 2)
     assert not output.exists()
     assert list(source.iterdir()) == [source / 'study.yaml']
+
+
+@pytest.mark.parametrize('empty_queue', [True, False])
+def test_launch_cannot_report_success_for_an_incomplete_saved_study(tmp_path, monkeypatch, empty_queue):
+    from argparse import Namespace
+    from spec_mtp.flow import study_cli
+
+    monkeypatch.setattr(study_cli, 'load_launch_plan', lambda *a, **k: {
+        'job_list': [] if empty_queue else [{'run_id': 'finished'}],
+        'jobs_json': tmp_path / 'jobs.json', 'n_jobs': 0 if empty_queue else 1,
+        'round': 1, 'batches': None, 'expand': {'study_dir': tmp_path}})
+    monkeypatch.setattr(study_cli, '_provenance_gate', lambda root: True)
+    monkeypatch.setattr(study_cli, 'launch_jobs', lambda *a, **k: [])
+    monkeypatch.setattr(study_cli, 'run_succeeded', lambda *a: True)
+    monkeypatch.setattr(study_cli, 'process_study', lambda root: {'complete': False})
+    monkeypatch.setattr(study_cli, '_print_launch_counts', lambda root: None)
+    args = Namespace(study_dir=tmp_path, remake=False, init_gpu=0, num_gpus=0,
+                     round=1, include_done=False, modes=None, console='shared')
+    assert study_cli._execute_launch(args) == 1

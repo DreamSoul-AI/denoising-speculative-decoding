@@ -4745,6 +4745,234 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_skips_completed_runs_without_recomputation",
+      "target": "spec_mtp.structure.make.schedule",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cuda"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_resumes_only_pending_runs",
+      "target": "spec_mtp.structure.make.schedule",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cuda"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_runtime_artifact_links_cannot_escape_the_admitted_root",
+      "target": "spec_mtp.structure.artifact.layout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_study_cli.py::test_launch_cannot_report_success_for_an_incomplete_saved_study",
+      "target": "spec_mtp.flow.study_cli",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_worker_environment_pins_actual_package_and_repository_before_inherited_paths",
+      "target": "spec_mtp.structure.make.schedule",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_launch_uses_shared_worker_once_and_preserves_shared_console",
+      "target": "spec_mtp.structure.make.schedule",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_dispatch_failure_cleans_only_owned_children_and_keeps_the_first_error",
+      "target": "spec_mtp.structure.make.schedule",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_admission_drift_precedes_dispatch_and_previous_result_rewrites",
+      "target": "spec_mtp.structure.make.schedule",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_saved_launch_plan_rejects_unbound_or_malformed_jobs",
+      "target": "spec_mtp.structure.make.schedule",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_missing_launch_plan_returns_none_without_creating_artifacts",
+      "target": "spec_mtp.structure.make.schedule",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_generated_powershell_stays_shared_and_propagates_worker_exit_status",
+      "target": "spec_mtp.structure.make.schedule",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/flow/test_revalidate.py::test_revalidation_rejects_source_checkout_before_validator_or_writes",
+      "target": "studies._shared.flow.revalidate",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/flow/test_revalidate.py::test_revalidation_source_snapshot_drift_precedes_validator",
+      "target": "studies._shared.flow.revalidate",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/flow/test_revalidate.py::test_revalidation_reuses_shared_preflight_before_loading_policy",
+      "target": "studies._shared.flow.revalidate",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/flow/test_revalidate.py::test_revalidation_process_restores_evidence_checker_after_guarded_dispatch",
+      "target": "studies._shared.flow.revalidate",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_launch_scheduler_does_not_retry_failed_runs_by_default",
+      "target": "spec_mtp.structure.make.schedule",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_rejects_source_drift_without_touching_completed_runs",
+      "target": "spec_mtp.structure.make.schedule",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cuda"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_worker_admission_failure_does_not_rewrite_a_previous_scientific_success",
+      "target": "spec_mtp.structure.make.schedule",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/flow/test_revalidate.py::test_validator_requires_a_loadable_python_module",
+      "target": "studies._shared.flow.revalidate",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {
@@ -4762,6 +4990,18 @@
         {
           "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd",
           "reason": "Requires a real CUDA device; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_skips_completed_runs_without_recomputation",
+          "reason": "Requires a real CUDA device and independent scheduler worker; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_resumes_only_pending_runs",
+          "reason": "Requires a real CUDA device and independent scheduler worker; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_rejects_source_drift_without_touching_completed_runs",
+          "reason": "Requires a real CUDA worker before the source admission rejection; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -4814,17 +5054,37 @@
         "tests/spec_mtp/test_structure_flow_gates.py::test_layer_import_direction_matches_legacy_allowlist",
         "tests/spec_mtp/test_structure_flow_gates.py::test_structure_has_no_unlisted_main_or_argparse",
         "tests/spec_mtp/test_structure_flow_gates.py::test_structure_flow_has_no_unlisted_drive_letter_paths",
-        "tests/spec_mtp/test_structure_flow_gates.py::test_structure_flow_has_no_unlisted_import_time_environ_mutation"
+        "tests/spec_mtp/test_structure_flow_gates.py::test_structure_flow_has_no_unlisted_import_time_environ_mutation",
+        "tests/spec_mtp/structure/artifact/test_layout.py::test_runtime_artifact_links_cannot_escape_the_admitted_root",
+        "tests/spec_mtp/flow/test_study_cli.py::test_launch_cannot_report_success_for_an_incomplete_saved_study",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_worker_environment_pins_actual_package_and_repository_before_inherited_paths",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_launch_uses_shared_worker_once_and_preserves_shared_console",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_dispatch_failure_cleans_only_owned_children_and_keeps_the_first_error",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_admission_drift_precedes_dispatch_and_previous_result_rewrites",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_saved_launch_plan_rejects_unbound_or_malformed_jobs",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_missing_launch_plan_returns_none_without_creating_artifacts",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_generated_powershell_stays_shared_and_propagates_worker_exit_status",
+        "tests/studies/shared/flow/test_revalidate.py::test_revalidation_rejects_source_checkout_before_validator_or_writes",
+        "tests/studies/shared/flow/test_revalidate.py::test_revalidation_source_snapshot_drift_precedes_validator",
+        "tests/studies/shared/flow/test_revalidate.py::test_revalidation_reuses_shared_preflight_before_loading_policy",
+        "tests/studies/shared/flow/test_revalidate.py::test_revalidation_process_restores_evidence_checker_after_guarded_dispatch",
+        "tests/spec_mtp/test_esp_qwen_protocol.py::test_launch_once_restores_native_scheduler",
+        "tests/spec_mtp/test_esp_qwen_protocol.py::test_launch_scheduler_does_not_retry_failed_runs_by_default",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_worker_admission_failure_does_not_rewrite_a_previous_scientific_success",
+        "tests/studies/shared/flow/test_revalidate.py::test_validator_requires_a_loadable_python_module"
       ],
       "exclude": []
     },
     "cuda-validation": {
-      "budget_seconds": 180,
+      "budget_seconds": 300,
       "cpu_only": false,
       "include": [
         "tests/spec_mtp/structure/model/test_cuda_validation.py::test_tiny_cuda_decode_preserves_committed_argmax_and_releases_memory",
         "tests/studies/output_space_followup/flow/process/test_run.py::test_followup_saved_scope_and_state_checks_on_cuda",
-        "tests/spec_mtp/structure/model/test_cuda_validation.py::test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd"
+        "tests/spec_mtp/structure/model/test_cuda_validation.py::test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd",
+        "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_skips_completed_runs_without_recomputation",
+        "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_resumes_only_pending_runs",
+        "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_rejects_source_drift_without_touching_completed_runs"
       ],
       "exclude": []
     }

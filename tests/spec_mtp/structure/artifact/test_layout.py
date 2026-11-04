@@ -224,3 +224,23 @@ def test_source_change_before_copy_leaves_no_new_runtime(source_study, tmp_path,
     with pytest.raises(ValueError, match='changed'):
         layout.materialize_study(source_study, output)
     assert not output.exists()
+
+
+@pytest.mark.parametrize('member', ['shared', 'runs/run-id', 'runs/run-id/assets',
+                                  'runs/run-id/assets/logs', 'runs/run-id/result.json'])
+@pytest.mark.parametrize('scope', ['outside', 'sibling'])
+def test_runtime_artifact_links_cannot_escape_the_admitted_root(source_study, tmp_path, monkeypatch, member, scope):
+    runtime = layout.materialize_study(source_study, tmp_path / 'runtime')
+    outside = tmp_path / 'outside' if scope == 'outside' else runtime / 'runs/other-run'
+    linked = runtime / member
+    original = Path.resolve
+
+    def resolve(path, *args, **kwargs):
+        if path == linked or path.is_relative_to(linked):
+            return outside / path.relative_to(linked)
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, 'resolve', resolve)
+    with pytest.raises(ValueError, match='inside'):
+        layout.artifact_layout(runtime, 'run-id')
+    assert not outside.exists()

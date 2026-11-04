@@ -293,11 +293,11 @@ def _execute_launch(args: argparse.Namespace) -> int:
         print(f'mode {"+".join(modes)}: {len(jobs)} jobs', flush=True)
     if not jobs:
         print('nothing to launch')
-        process_study(study_dir)
+        body = process_study(study_dir)
         print(process_path(study_dir))
         _print_launch_counts(study_dir)
-        return 0
-    launch_jobs(
+        return 0 if body.get('complete') else 1
+    codes = launch_jobs(
         study_dir,
         jobs,
         round_size=int(written.get('round') or 1),
@@ -316,7 +316,7 @@ def _execute_launch(args: argparse.Namespace) -> int:
     if not body.get('complete'):
         print('process partial', flush=True)
     _print_launch_counts(study_dir)
-    return 1 if still else 0
+    return 1 if any(codes) or still or not body.get('complete') else 0
 
 
 def _provenance_gate(study_dir: Path) -> bool:
