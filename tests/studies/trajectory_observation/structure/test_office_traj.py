@@ -928,3 +928,249 @@ def test_fp32_gate_does_not_load_when_the_resident_copy_does_not_fit(tmp_path):
     assert saved['status'] == 'not_loaded'
     kept = (tmp_path / f'{FORK_PREFIX}-full-{FORK_STAMP}.jsonl').read_text(encoding='utf-8')
     assert 'fp32_ar_equal' not in kept
+
+
+def _gap(arm, gap, index=10, matches=True, token=4):
+    return {
+        'arm': arm,
+        'gap': gap,
+        'first_divergence_index': index,
+        'top1_matches': matches,
+        'top1': token if matches else token + 1,
+        'top2': 1,
+        'reference_token': token,
+    }
+
+
+def _det_row(qid, double=True, path=True, gaps=None, length_ok=True):
+    return {
+        'qid': qid,
+        'double_run_equal': double,
+        'path_equal': path,
+        'length_ok': length_ok,
+        'gaps': [_gap('full', 3.5)] if gaps is None else gaps,
+    }
+
+
+def test_ar_determinism_labels_follow_the_registered_bands():
+    from studies.trajectory_observation.structure.office_traj import describe_ar_determinism
+
+    stable = describe_ar_determinism([_det_row(qid) for qid in range(4)])
+    assert stable['label'] == '差距大且路径稳定'
+    assert stable['noise_direction'] == 'negative'
+    assert stable['double_run_identity_rate'] == 1
+    assert stable['gap_median'] == 3.5
+    assert 'argmax_all_passed' not in stable
+
+    near = describe_ar_determinism([_det_row(qid, gaps=[_gap('full', 0.5)]) for qid in range(3)])
+    assert near['label'] == '分叉贴近并列'
+    assert near['noise_direction'] == 'positive'
+
+    flipped = describe_ar_determinism([_det_row(0, double=False), _det_row(1)])
+    assert flipped['label'] == 'AR路径不稳定'
+    assert flipped['noise_direction'] == 'positive'
+    assert flipped['gap_median'] == 3.5
+
+    replay = describe_ar_determinism([_det_row(0, gaps=[_gap('full', 4.0, matches=False)])])
+    assert replay['label'] == 'AR路径不稳定'
+    assert replay['replay_top1_match_rate'] == 0
+
+    middle = describe_ar_determinism([_det_row(qid, gaps=[_gap('full', 1.2)]) for qid in range(3)])
+    assert middle['label'] is None
+    assert middle['noise_direction'] is None
+    assert middle['gap_median'] == 1.2
+
+    tied_tail = describe_ar_determinism([
+        _det_row(0, gaps=[_gap('full', 0.1, index=10), _gap('traj', 0.1, index=11)]),
+        _det_row(1, gaps=[_gap('full', 3.0, index=12)]),
+        _det_row(2, gaps=[_gap('full', 4.0, index=13)]),
+        _det_row(3, gaps=[_gap('full', 5.0, index=14)]),
+    ])
+    assert tied_tail['gap_median'] == 3.0
+    assert tied_tail['near_gap_rate'] == 0.4
+    assert tied_tail['label'] is None
+
+    shared = describe_ar_determinism([
+        _det_row(0, gaps=[_gap('full', 3.0, index=10), _gap('traj', 3.0, index=10)]),
+    ])
+    assert shared['arm_gap_count'] == 2
+    assert shared['gap_count'] == 1
+    assert shared['label'] == '差距大且路径稳定'
+
+    clash = describe_ar_determinism([
+        _det_row(0, gaps=[_gap('full', 3.0, index=10), _gap('traj', 4.0, index=10)]),
+    ])
+    assert clash['status'] == 'unknown'
+    assert clash['reason'] == 'repeated fork disagrees'
+
+    short = describe_ar_determinism([_det_row(0, length_ok=False)])
+    assert short['status'] == 'invalid'
+    assert 'label' not in short
+    assert describe_ar_determinism([_det_row(0, gaps=[])])['reason'] == 'divergence gap missing'
+
+
+def _archive_arm(qid, equal, index=6, prompt_length=4, reference=None):
+    reference = list(reference or [1, 2, 3, 4, 5, 6, 9, 8])
+    row = {
+        'qid': qid,
+        'ar_equal': equal,
+        'prompt_length': prompt_length,
+        'reference_ids': reference,
+        'first_divergence_index': None if equal else index,
+    }
+    if not equal:
+        row['side_tokens'] = {'reference': reference[index], 'candidate': 1}
+    return row
+
+
+def test_gap_targets_require_the_archived_union(tmp_path):
+    from studies.trajectory_observation.structure.office_traj import (
+        gap_targets_for_qids, load_mismatch_targets,
+    )
+
+    full = {
+        0: _archive_arm(0, False),
+        1: _archive_arm(1, False),
+        2: _archive_arm(2, True),
+    }
+    traj = {
+        0: _archive_arm(0, True),
+        1: _archive_arm(1, False),
+        2: _archive_arm(2, False, index=5),
+    }
+    with pytest.raises(RuntimeError, match='archived union'):
+        gap_targets_for_qids(full, traj, [0, 1])
+    targets = gap_targets_for_qids(full, traj, [0, 1, 2])
+    assert [(item['qid'], item['arm'], item['first_divergence_index']) for item in targets] == [
+        (0, 'full', 6), (1, 'full', 6), (1, 'traj', 6), (2, 'traj', 5),
+    ]
+    inside = {0: traj[0], 1: traj[1], 2: _archive_arm(2, False, index=1)}
+    with pytest.raises(RuntimeError, match='outside the continuation'):
+        gap_targets_for_qids(full, inside, [0, 1, 2])
+
+    root = tmp_path
+    full_path = root / 'full.jsonl'
+    traj_path = root / 'traj.jsonl'
+    full_path.write_text(''.join(json.dumps(full[qid]) + '\n' for qid in (0, 1, 2)), encoding='utf-8')
+    traj_path.write_text(''.join(json.dumps(traj[qid]) + '\n' for qid in (0, 1, 2)), encoding='utf-8')
+    listed = root / 'mismatch.json'
+    listed.write_text(json.dumps({
+        'source_full': str(full_path),
+        'source_traj': str(traj_path),
+        'mismatch_qids': [0, 1, 2],
+    }), encoding='utf-8')
+    loaded = load_mismatch_targets(listed)
+    assert [item['qid'] for item in loaded] == [0, 1, 1, 2]
+
+
+def test_measure_records_path_inequality_and_the_replayed_gap():
+    import torch
+    from studies.trajectory_observation.structure.office_traj import measure_determinism_prompt
+
+    calls = []
+
+    def generate(model, ids, limit, prompt_tokenwise=False):
+        calls.append(prompt_tokenwise)
+        base = [7, 8, 9, 1, 2]
+        if prompt_tokenwise:
+            base = [7, 8, 9, 1, 0]
+        return base, {}
+
+    def logits_at(model, reference, prompt_length, index):
+        assert reference[index] == 4
+        assert prompt_length == 3
+        assert index == 5
+        row = torch.zeros(6)
+        row[4] = 3
+        row[2] = 1
+        return row
+
+    reference = [7, 8, 9, 3, 5, 4]
+    targets = [
+        {
+            'qid': 3, 'arm': 'full', 'prompt_length': 3, 'first_divergence_index': 5,
+            'reference_token': 4, 'reference_ids': reference,
+        },
+        {
+            'qid': 3, 'arm': 'traj', 'prompt_length': 3, 'first_divergence_index': 5,
+            'reference_token': 4, 'reference_ids': reference,
+        },
+    ]
+    row = measure_determinism_prompt(
+        None, torch.tensor([[7, 8, 9]]), targets, {'max_new_tokens': 2}, generate, logits_at)
+    assert calls == [False, False, True]
+    assert row['double_run_equal'] is True
+    assert row['path_equal'] is False
+    assert row['length_ok'] is True
+    assert row['gaps'][0]['gap'] == 2
+    assert row['gaps'][0]['top1'] == 4
+    assert row['gaps'][0]['top1_matches'] is True
+    assert row['gaps'][1]['gap'] == row['gaps'][0]['gap']
+    assert row['path_fork']['first_divergence_index'] == 4
+    with pytest.raises(RuntimeError, match='tokenizer length'):
+        measure_determinism_prompt(
+            None, torch.tensor([[7, 8]]), targets, {'max_new_tokens': 2}, generate, logits_at)
+
+
+def test_tokenwise_prompt_matches_only_when_the_prefill_width_does_not_matter():
+    from types import SimpleNamespace
+
+    import torch
+
+    from spec_mtp.structure.algorithm.decode.loop import ar_context_logits, ar_generate
+
+    class Session:
+        def __init__(self):
+            self.embedding_table = torch.eye(8)
+            self.device, self.dtype = torch.device('cpu'), torch.float32
+            self.vocab_size, self.max_positions = 8, 128
+
+        def embed(self, ids):
+            return self.embedding_table[ids]
+
+        def new_cache(self):
+            return SimpleNamespace(length=0)
+
+        def __call__(self, embeds, positions, *, past_key_values, **_):
+            tokens = (embeds.argmax(-1) + 1) % 8
+            logits = torch.nn.functional.one_hot(tokens, 8).float() * 20
+            past_key_values.length += embeds.shape[1]
+            return SimpleNamespace(logits=logits, past_key_values=past_key_values)
+
+    class Sensitive(Session):
+        def __call__(self, embeds, positions, *, past_key_values, **kwargs):
+            out = super().__call__(embeds, positions, past_key_values=past_key_values, **kwargs)
+            if embeds.shape[1] > 1:
+                out.logits = torch.zeros_like(out.logits)
+                out.logits[:, -1, 0] = 20
+            return out
+
+    limit = {'max_new_tokens': 3, 'temperature': 0.0, 'stop_on_eos': False}
+    prompt = torch.tensor([[1, 2, 3]])
+    model = Session()
+    whole, whole_stats = ar_generate(model, prompt, limit)
+    again, _stats = ar_generate(model, prompt, limit)
+    tokenwise, token_stats = ar_generate(model, prompt, limit, prompt_tokenwise=True)
+    assert torch.equal(whole, again)
+    assert torch.equal(whole, tokenwise)
+    assert whole_stats['ar_calls'] == 3
+    assert token_stats['ar_calls'] == 5
+    ids = whole[0].tolist()
+    for index in range(3, 6):
+        assert int(ar_context_logits(model, ids, 3, index).argmax()) == ids[index]
+    with pytest.raises(ValueError, match='outside the continuation'):
+        ar_context_logits(model, ids, 3, 2)
+
+    sensitive = Sensitive()
+    wide, _stats = ar_generate(sensitive, prompt, limit)
+    narrow, _stats = ar_generate(sensitive, prompt, limit, prompt_tokenwise=True)
+    assert not torch.equal(wide, narrow)
+    assert int(wide[0, 3]) == 0
+    assert int(narrow[0, 3]) == 4
+
+
+def test_ar_determinism_command_stops_without_the_mismatch_file(tmp_path):
+    from studies.trajectory_observation.structure.office_traj import run_ar_determinism_main
+
+    with pytest.raises(RuntimeError, match='mismatch'):
+        run_ar_determinism_main(tmp_path, None)
