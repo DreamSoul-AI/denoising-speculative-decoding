@@ -53,6 +53,9 @@ def write_lock_for(argv: list[str]) -> Path | None:
     study = _study_arg(argv)
     if study is None:
         return None
+    from spec_mtp.structure.artifact.layout import ensure_study_layout
+
+    ensure_study_layout(study)
     from studies._shared.structure.sources import load_lock, write_lock
 
     remake = command == 'launch' and '--remake' in argv
@@ -67,6 +70,12 @@ def write_lock_for(argv: list[str]) -> Path | None:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    from spec_mtp.flow.study_cli import prepare_study_argv
+
+    argv = prepare_study_argv(argv)
+    if any(item in ('-h', '--help') for item in argv):
+        from spec_mtp.flow.study_cli import main as rpipe_main
+        return int(rpipe_main(argv) or 0)
     lock = write_lock_for(argv)
     if lock is not None:
         print(f'spec_mtp sources: {lock}', flush=True)

@@ -4421,11 +4421,411 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/tools/test_run_tests.py::test_explicit_plan_selects_only_required_cases_and_rejects_missing_collection",
+      "target": "tests.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/tools/test_run_tests.py::test_phase_evidence_records_actual_plan_and_device_metrics",
+      "target": "tests.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/tools/test_run_tests.py::test_manifest_rejects_invalid_plan_selection",
+      "target": "tests.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/tools/test_run_tests.py::test_cuda_plan_records_unavailable_device_without_cpu_fallback",
+      "target": "tests.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_tiny_cuda_decode_preserves_committed_argmax_and_releases_memory",
+      "target": "spec_mtp.structure.model.hf_causal",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cuda"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_distinguishes_git_blob_and_runtime_execution_bytes",
+      "target": "studies.output_space_followup.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_rejects_computation_source_drift_before_output",
+      "target": "studies.output_space_followup.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_rejects_missing_or_unbound_inputs_without_output",
+      "target": "studies.output_space_followup.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_never_overwrites_an_existing_output",
+      "target": "studies.output_space_followup.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_output_root_is_separate_from_inputs_and_source",
+      "target": "studies.output_space_followup.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_cli_requires_every_input_and_output_identity",
+      "target": "studies.output_space_followup.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_refuses_cpu_fallback",
+      "target": "studies.output_space_followup.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_followup/flow/process/test_run.py::test_followup_saved_scope_and_state_checks_on_cuda",
+      "target": "studies.output_space_followup.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cuda"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_copies_declared_study_bytes_without_outputs_or_host_library",
+      "target": "spec_mtp.structure.artifact.layout",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_repeated_materialization_preserves_original_metadata_and_run_outputs",
+      "target": "spec_mtp.structure.artifact.layout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_rejects_changed_source_or_snapshot_without_overwriting",
+      "target": "spec_mtp.structure.artifact.layout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_rejects_damaged_metadata_without_repair",
+      "target": "spec_mtp.structure.artifact.layout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_rejects_source_overlap_before_creating_directories",
+      "target": "spec_mtp.structure.artifact.layout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_refuses_an_existing_unbound_directory",
+      "target": "spec_mtp.structure.artifact.layout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_rejects_resolved_member_escape_without_output",
+      "target": "spec_mtp.structure.artifact.layout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_rejects_static_size_limits_before_creating_output",
+      "target": "spec_mtp.structure.artifact.layout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_ensure_study_layout_rejects_a_source_checkout_before_mkdir",
+      "target": "spec_mtp.structure.artifact.layout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd",
+      "target": "spec_mtp.flow.study_cli",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cuda"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_runtime_root_cannot_use_another_checkout_even_with_a_binding",
+      "target": "spec_mtp.structure.artifact.layout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_study_cli.py::test_run_root_selection_preserves_source_and_selects_external_study",
+      "target": "spec_mtp.flow.study_cli",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_study_cli.py::test_invalid_arguments_and_help_do_not_create_a_runtime",
+      "target": "spec_mtp.flow.study_cli",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_source_change_before_copy_leaves_no_new_runtime",
+      "target": "spec_mtp.structure.artifact.layout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {
     "cpu-pr": {
       "budget_seconds": 420,
+      "exclude": [
+        {
+          "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_tiny_cuda_decode_preserves_committed_argmax_and_releases_memory",
+          "reason": "Requires a real CUDA device; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_followup/flow/process/test_run.py::test_followup_saved_scope_and_state_checks_on_cuda",
+          "reason": "Requires a real CUDA device; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd",
+          "reason": "Requires a real CUDA device; covered by cuda-validation."
+        }
+      ],
+      "cpu_only": true
+    },
+    "cpu-quick": {
+      "budget_seconds": 120,
+      "cpu_only": true,
+      "include": [
+        "tests/spec_mtp/test_readout_report.py::test_report_refuses_stale_or_invalid_identity_without_losing_numbers",
+        "tests/spec_mtp/test_readout_report.py::test_upstream_allows_identity_complete_partial_aggregate",
+        "tests/tools/test_run_tests.py::test_manifest_covers_all_declared_sources",
+        "tests/tools/test_run_tests.py::test_missing_outcomes_block_completion",
+        "tests/tools/test_run_tests.py::test_phase_evidence_failure_propagates",
+        "tests/tools/test_run_tests.py::test_expected_phase_identity_is_preserved_without_weakening_gate",
+        "tests/spec_mtp/test_readout_report.py::test_existing_output_preserves_prior_numbers_and_process",
+        "tests/spec_mtp/test_readout_report.py::test_report_write_failure_does_not_modify_saved_inputs",
+        "tests/spec_mtp/test_readout_report.py::test_report_rejects_output_that_overlaps_inputs_or_source",
+        "tests/spec_mtp/test_readout_report.py::test_report_quality_failure_does_not_rewrite_process_or_gate",
+        "tests/tools/test_run_tests.py::test_explicit_plan_selects_only_required_cases_and_rejects_missing_collection",
+        "tests/tools/test_run_tests.py::test_phase_evidence_records_actual_plan_and_device_metrics",
+        "tests/tools/test_run_tests.py::test_manifest_rejects_invalid_plan_selection",
+        "tests/tools/test_run_tests.py::test_cuda_plan_records_unavailable_device_without_cpu_fallback",
+        "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_distinguishes_git_blob_and_runtime_execution_bytes",
+        "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_rejects_computation_source_drift_before_output",
+        "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_rejects_missing_or_unbound_inputs_without_output",
+        "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_never_overwrites_an_existing_output",
+        "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_output_root_is_separate_from_inputs_and_source",
+        "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_cli_requires_every_input_and_output_identity",
+        "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_refuses_cpu_fallback",
+        "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_copies_declared_study_bytes_without_outputs_or_host_library",
+        "tests/spec_mtp/structure/artifact/test_layout.py::test_repeated_materialization_preserves_original_metadata_and_run_outputs",
+        "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_rejects_changed_source_or_snapshot_without_overwriting",
+        "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_rejects_damaged_metadata_without_repair",
+        "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_rejects_source_overlap_before_creating_directories",
+        "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_refuses_an_existing_unbound_directory",
+        "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_rejects_resolved_member_escape_without_output",
+        "tests/spec_mtp/structure/artifact/test_layout.py::test_materialization_rejects_static_size_limits_before_creating_output",
+        "tests/spec_mtp/structure/artifact/test_layout.py::test_ensure_study_layout_rejects_a_source_checkout_before_mkdir",
+        "tests/spec_mtp/structure/artifact/test_layout.py::test_runtime_root_cannot_use_another_checkout_even_with_a_binding",
+        "tests/spec_mtp/flow/test_study_cli.py::test_run_root_selection_preserves_source_and_selects_external_study",
+        "tests/spec_mtp/flow/test_study_cli.py::test_invalid_arguments_and_help_do_not_create_a_runtime",
+        "tests/spec_mtp/structure/artifact/test_layout.py::test_source_change_before_copy_leaves_no_new_runtime",
+        "tests/spec_mtp/test_docs_index.py::test_every_doc_is_linked_from_agents",
+        "tests/spec_mtp/test_docs_index.py::test_scientific_modules_match_the_design",
+        "tests/spec_mtp/test_docs_index.py::test_every_tool_has_a_usage_docstring",
+        "tests/spec_mtp/test_structure_flow_gates.py::test_legacy_allowlist_rejects_a_new_violation",
+        "tests/spec_mtp/test_structure_flow_gates.py::test_legacy_allowlist_rejects_a_stale_entry",
+        "tests/spec_mtp/test_structure_flow_gates.py::test_legacy_allowlist_rejects_growth_against_dev",
+        "tests/spec_mtp/test_structure_flow_gates.py::test_structure_flow_file_inventory_matches_legacy_allowlist",
+        "tests/spec_mtp/test_structure_flow_gates.py::test_layer_import_direction_matches_legacy_allowlist",
+        "tests/spec_mtp/test_structure_flow_gates.py::test_structure_has_no_unlisted_main_or_argparse",
+        "tests/spec_mtp/test_structure_flow_gates.py::test_structure_flow_has_no_unlisted_drive_letter_paths",
+        "tests/spec_mtp/test_structure_flow_gates.py::test_structure_flow_has_no_unlisted_import_time_environ_mutation"
+      ],
+      "exclude": []
+    },
+    "cuda-validation": {
+      "budget_seconds": 180,
+      "cpu_only": false,
+      "include": [
+        "tests/spec_mtp/structure/model/test_cuda_validation.py::test_tiny_cuda_decode_preserves_committed_argmax_and_releases_memory",
+        "tests/studies/output_space_followup/flow/process/test_run.py::test_followup_saved_scope_and_state_checks_on_cuda",
+        "tests/spec_mtp/structure/model/test_cuda_validation.py::test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd"
+      ],
       "exclude": []
     }
   }

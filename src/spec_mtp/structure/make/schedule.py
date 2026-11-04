@@ -23,7 +23,7 @@ JOBS_NAME = 'jobs.json'
 
 def repo_root_from(start: Path) -> Path:
     cur = start.resolve()
-    for candidate in (cur, *cur.parents):
+    for candidate in (cur, *cur.parents, *Path(__file__).resolve().parents):
         pyproject = candidate / 'pyproject.toml'
         if pyproject.is_file():
             return candidate

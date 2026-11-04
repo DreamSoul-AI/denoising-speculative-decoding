@@ -79,20 +79,11 @@ def _inside(study_dir: Path, raw: str) -> Path:
     return path
 
 
-def source_files(study_dir: Path | str, study: dict[str, Any]) -> dict[str, str]:
-    """Library and Study two-column sources, declarations, recipe, and extra inputs."""
-    import spec_mtp
+def study_source_paths(study_dir: Path | str, study: dict[str, Any]) -> dict[str, Path]:
+    """Declared static Study members, resolved inside their source root."""
     from spec_mtp.structure.make.recipe import study_phase_files
 
     study_dir = Path(study_dir).resolve()
-    package = Path(spec_mtp.__file__).resolve().parent
-    owned = []
-    for folder in ('flow', 'structure'):
-        for path in sorted((package / folder).rglob('*.py')):
-            if '__pycache__' in path.parts or 'reference' in path.parts:
-                continue
-            owned.append(path)
-    out = {'spec_mtp/' + path.relative_to(package).as_posix(): file_sha256(path) for path in owned}
     names = list(DECLARATION_FILES)
     names.extend(path.relative_to(study_dir).as_posix() for path in study_phase_files(study_dir, study))
     for folder in ('flow', 'structure'):
@@ -108,10 +99,28 @@ def source_files(study_dir: Path | str, study: dict[str, Any]) -> dict[str, str]
         if not matched:
             raise FileNotFoundError(f'provenance.include matched nothing: {pattern}')
         names.extend(path.relative_to(study_dir).as_posix() for path in matched if path.is_file())
+    out = {}
     for name in names:
         path = _inside(study_dir, name)
         if path.is_file():
-            out[path.relative_to(study_dir).as_posix()] = file_sha256(path)
+            out[path.relative_to(study_dir).as_posix()] = path
+    return out
+
+
+def source_files(study_dir: Path | str, study: dict[str, Any]) -> dict[str, str]:
+    """Library and Study two-column sources, declarations, recipe, and extra inputs."""
+    import spec_mtp
+
+    study_dir = Path(study_dir).resolve()
+    package = Path(spec_mtp.__file__).resolve().parent
+    owned = []
+    for folder in ('flow', 'structure'):
+        for path in sorted((package / folder).rglob('*.py')):
+            if '__pycache__' in path.parts or 'reference' in path.parts:
+                continue
+            owned.append(path)
+    out = {'spec_mtp/' + path.relative_to(package).as_posix(): file_sha256(path) for path in owned}
+    out.update({name: file_sha256(path) for name, path in study_source_paths(study_dir, study).items()})
     return out
 
 

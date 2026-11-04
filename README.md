@@ -24,7 +24,7 @@
 
 `python -m spec_mtp` / `spec-mtp` 由 `flow/cli.py` 提供 `decode/audit/compare`。Study 使用 `python -m studies._shared.flow.cli`，接入宿主 `flow/study_cli.py` 与默认六阶段。包初始化不加载模型或整套调度器。流程由本仓实现，不再内嵌 `src/rpipe/`。旧流程 API facade 已删除，构建直接使用所属层工厂。九个共用诊断再导出已清理，消费者直接导入真实模块。Study 顶层脚本仍有遗留，见代码结构设计与开发计划。
 
-算法由 Enmao 重新设计，当前进行结构整理与有界 CPU 验证。新算法实验、GPU 长跑、测速和模型下载暂停，旧协议仅作为历史证据。每轮从 dev 工作分支经 PR 集成，不直接修改 main。
+算法由 Enmao 重新设计，当前进行结构整理与有界 CPU 验证。新算法方向由 Enmao 确定，旧协议作为历史证据。正确性、优化和性能验证优先 CUDA，运行前确认可用并记录实际设备；CPU只做快速单元测试。GPU满载时等待或缩小规模，模型下载仍不在当前范围。每轮从 dev 工作分支经 PR 集成，不直接修改 main。
 
 第三方 ESP 来源树及 `ORIGIN.json` 保留，不能把它称为作者官方实现。原始 SpecBench 数据保留于 `datasets/spec_bench/question.jsonl`。
 
@@ -32,16 +32,18 @@
 
 旧逐条运行证据、日志、图和报告保留在固定历史/外部运行根，未恢复进 Git。历史读端测试从固定 Git 提交 `b8b20b5ada7fd860894114cbf224ce749af430cf` 按需提取原始 blob 到测试临时目录，核对对象哈希与写入字节；缺少 Git 对象直接失败，不下载或伪造原件。当前分析器和校验门读取这些不可变输入，不导入或执行归档源码，不修改原哈希与断言；相关15个参数项已恢复到 CPU 计划，不再排除。此验证只复核保存的历史观测与读端合同，不重新运行历史模型，也不代表全部历史结果已独立复验。
 
-离线报告使用 `python -m studies._shared.flow.cli report <Study> --out <外部新文件.md>`，输出路径必填，拒绝已有文件、输入目录和源码 checkout；报告检查不回写旧 process 或 gate。`output_space_extension` 的已保存槽位诊断迁入 `python -m studies.output_space_extension.flow.process.run --raw <保存张量目录> --execution <原运行矩阵.json> --repository <本地仓库> --commit <完整提交> --execution-git-sha256 <Git原件SHA256> --output-root <新外部目录>`。它只读原件并加载 CPU 张量，不载入模型；实际运行矩阵须匹配旧报告哈希，与固定 Git 原件分别记录字节身份并核对 JSON 内容。缺失或漂移直接失败，不自动修换行或重签旧来源。历史读件需要支持 `--no-lazy-fetch` 的本地 Git，当前验证版本为 `2.55.0.windows.3`，不支持时直接失败，不降级联网。其余旧完整分析器仍待逐项迁移。
+新建 Study 运行使用 `python -m studies._shared.flow.cli run studies/<name> --run-root <外部Study运行根>`，也可先 `make studies/<name> --run-root <外部Study运行根>`，再 `launch <外部Study运行根>`。使用 --run-root 时 Study 路径紧随命令。外部根保存声明与源码白名单快照、study_source.json、runs/shared/docs、index、锁与日志，源码 Study 保持只读；状态、日志、process 和 report 后续直接传该外部根。已绑定且逐文件摘要相同的根可继续使用，原 Study 或快照漂移会失败，须用新根与研究协议处理，不覆盖旧运行。原 Study 中的绝对导入仍需要原 checkout；静态快照限单成员16MiB、合计32MiB，不复制权重、旧 Run 或未声明生成物。
+
+离线报告使用 `python -m studies._shared.flow.cli report <Study> --out <外部新文件.md>`，输出路径必填，拒绝已有文件、输入目录和源码 checkout；报告检查不回写旧 process 或 gate。`output_space_extension` 的已保存槽位诊断迁入 `python -m studies.output_space_extension.flow.process.run --raw <保存张量目录> --execution <原运行矩阵.json> --repository <本地仓库> --commit <完整提交> --execution-git-sha256 <Git原件SHA256> --output-root <新外部目录>`。它只读原件并加载 CPU 张量，不载入模型；实际运行矩阵须匹配旧报告哈希，与固定 Git 原件分别记录字节身份并核对 JSON 内容。缺失或漂移直接失败，不自动修换行或重签旧来源。历史读件需要支持 `--no-lazy-fetch` 的本地 Git，当前验证版本为 `2.55.0.windows.3`，不支持时直接失败，不降级联网。followup 读端同样迁入 `studies.output_space_followup.flow.process.run`，参数与槽位读端一致，保存张量实际在 CUDA 分析并登记设备。其余旧完整分析器仍待逐项迁移。
 
 诊断日志新写 `assets/logs/events.jsonl`，状态、日志与报告读端兼容旧 `run.log`。应用启动与 Run 身份分开，普通日志不保存异常原文或模型输入。流式文件哈希兼容 Python 3.10 所需 API，但最低版本及全部依赖组合尚未实机验证。
 
 # 三、开发与验证
 工作分支经 PR 面向 `dev`，完成检查并按当次明确授权集成，不自动发布。当前 HEAD 的本地结果、历史红项和未覆盖范围记在 PR 正文，不用旧提交结果代替。
 
-执行离线 CPU 计划：`python tests/run.py --plan cpu-pr --output-root <源码树外的新验证目录>`。静态清单先验证必需项和精确排除，逐参数 setup/call/teardown 写独立记录，缺收集、缺终态、失败、跳过和证据写失败均非零。整批预算420秒，在测试边界检查；子进程测试各有有限超时，单个本地计算不支持强制中断。运行产物不进 Git。
+本机快速单元执行 `python tests/run.py --plan cpu-quick --output-root <外部新验证目录>`，CUDA 工程正确性执行 `python tests/run.py --plan cuda-validation --output-root <另一外部新验证目录>`。CUDA计划不可用即失败，回执保存实际设备、精度和显存；两计划分开报告。原 cpu-pr 计划保留既有用途，本轮不以其全量CPU结果替代CUDA验证。静态清单先验证必需项和精确排除，逐参数 setup/call/teardown 写独立记录，缺收集、缺终态、失败、跳过和证据写失败均非零。整批预算420秒，在测试边界检查；子进程测试各有有限超时，单个本地计算不支持强制中断。运行产物不进 Git。
 
-本轮不调整现有 Actions、CI/CD 或设置。远端结果仅作参考，本地 CPU 回归不覆盖 CUDA、真实权重/数据、吞吐或采样分布保证。已有 CUDA 环境保持原样，不下载模型或覆盖 torch。
+本轮不调整现有 Actions、CI/CD 或设置。远端结果仅作参考，本地微型CUDA工程验证覆盖既定合成夹具，不覆盖真实权重/数据、吞吐或采样分布保证。已有 CUDA 环境保持原样，不下载模型或覆盖 torch。
 
 ## 研发维护与文档现状
 

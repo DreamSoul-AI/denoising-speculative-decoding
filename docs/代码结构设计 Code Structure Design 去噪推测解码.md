@@ -59,7 +59,7 @@ flowchart TB
 # 四、约束与检查
 `tests/spec_mtp/test_structure_flow_gates.py` 扫描文件落点、导入方向、structure 内命令、盘符和 import 时环境写入。`legacy_allowlists` 必须与现状逐项相同，并且相对 dev 只能缩小。迁移不得靠移动违规字符串到新文件增加清单。`.importlinter` 与 CPU 依赖测试核对相同的核心边界，未运行的工具不记通过。
 
-派生输出根通过 artifact.paths.validate_output_root 显式校验，与输入及 checkout 双向分离。report 必须提供 --out，旧槽位分析必须提供 --output-root，目标文件独占创建，不默认写 Study/docs。历史文本读取由 provenance.read_historical_bytes 显式接收仓库、固定完整提交、相对成员及期望 SHA256，只查本地 Git blob，不执行归档代码或猜测换行变体。旧槽位读端还必须显式接收原运行矩阵及 Git 原件摘要，两者分别校验并比较 JSON 内容，字节哈希不混用。运行根主流程的剩余迁移由开发计划维护。
+派生输出根通过 artifact.paths.validate_output_root 显式校验，与输入及 checkout 双向分离。report 必须提供 --out，旧槽位分析必须提供 --output-root，目标文件独占创建，不默认写 Study/docs。历史文本读取由 provenance.read_historical_bytes 显式接收仓库、固定完整提交、相对成员及期望 SHA256，只查本地 Git blob，不执行归档代码或猜测换行变体。旧槽位读端还必须显式接收原运行矩阵及 Git 原件摘要，两者分别校验并比较 JSON 内容，字节哈希不混用。完整运行根采用外部 Study 工作目录：make/run/launch 接收 --run-root，将声明、两柱源码、recipe 与 provenance.include 白名单冻结到该根，以此根统一生成 runs/shared/docs/index/锁与诊断。artifact/layout.py 维护建立和校验，不新增全局路径映射；命令在写锁前转交外部根。study_source.json 记录原 Study 路径、逐文件摘要及 Git 身份，原 Study 与快照改动都阻断执行，重复相同绑定只校验不重签。绝对自 Study 导入仍来自当前 checkout，因此来源校验继续覆盖原 Study；快照不承诺独立脱离宿主运行。旧 Run 保持原路径只读。单个冻结静态成员限16MiB、总量32MiB，模型与大数据只引用既有来源清单。
 
 新诊断保存于 assets/logs/events.jsonl。status/logs/report 共用新旧路径读取，旧 run.log 只读保留。Logger 的运行身份在同进程实例间共用，task_id 区分 Run，异常不保存原始载荷。日志轮转、保留和失败隔离的剩余工作见开发计划。
 

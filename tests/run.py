@@ -1,4 +1,4 @@
-﻿"""Run the declared offline CPU plan and save per-case evidence outside the source tree.
+"""Run a declared offline validation plan and save per-case evidence outside the source tree.
 
 Usage: python tests/run.py --plan cpu-pr --output-root /external/new-validation-root
 """
@@ -31,11 +31,19 @@ def read_plan(path, name):
         if not (ROOT / row['test_id'].partition('::')[0]).is_file():
             raise ValueError('missing required test source: ' + row['test_id'])
     plan = body['plans'][name]
+    if type(plan.get('cpu_only', True)) is not bool:
+        raise ValueError('cpu_only must be a boolean')
+    included = plan.get('include')
+    declared = {row['test_id'] for row in entries}
+    if included is not None and (not included or len(included) != len(set(included)) or not set(included) <= declared):
+        raise ValueError('unknown/duplicate/empty inclusion')
     excluded = {row['test_id']: row for row in plan['exclude']}
     if len(excluded) != len(plan['exclude']) or not set(excluded).issubset(row['test_id'] for row in entries):
         raise ValueError('unknown/duplicate exclusion')
     if any(not row.get('reason') for row in excluded.values()):
         raise ValueError('exclusions require reasons')
+    if included is not None and set(included) & set(excluded):
+        raise ValueError('included test must not also be excluded')
     return body, plan
 
 
@@ -55,14 +63,15 @@ class Recorder:
     def pytest_collection_modifyitems(self, config, items):
         import pytest
         excluded = {row['test_id'] for row in self.plan['exclude']}
+        required = set(self.plan.get('include', self.entries))
         kept, dropped, found = [], [], set()
         for item in items:
             base = item.nodeid.partition('[')[0]
             if base not in self.entries:
                 raise pytest.UsageError('undeclared collected test: ' + item.nodeid)
             found.add(base)
-            (dropped if base in excluded else kept).append(item)
-        missing = set(self.entries) - found
+            (dropped if base in excluded or base not in required else kept).append(item)
+        missing = required - found
         if missing or not kept:
             raise pytest.UsageError('required collection missing: ' + repr(sorted(missing)))
         self.selected = {item.nodeid for item in kept}
@@ -74,7 +83,7 @@ class Recorder:
     def pytest_runtest_setup(self, item):
         import pytest
         if time.monotonic() - self.started > self.plan['budget_seconds']:
-            pytest.exit('CPU plan budget exhausted; remaining cases are missing', returncode=1)
+            pytest.exit('validation plan budget exhausted; remaining cases are missing', returncode=1)
 
     def pytest_runtest_logreport(self, report):
         base = report.nodeid.partition('[')[0]
@@ -86,12 +95,12 @@ class Recorder:
         self.failed |= verdict == 'failed'
         key = hashlib.sha256(report.nodeid.encode()).hexdigest()
         self.save(key + '.' + report.when + '.json', {
-            'run_id': self.environment['run_id'], 'plan_id': 'cpu-pr',
+            'run_id': self.environment['run_id'], 'plan_id': self.environment.get('plan_id', 'cpu-pr'),
             'attempt': 1, **metadata, 'test_id': report.nodeid, 'environment': self.environment,
             'phase': report.when, 'status': report.outcome, 'verdict': verdict,
             'native_status': native_status,
             **({'wasxfail': report.wasxfail} if hasattr(report, 'wasxfail') else {}),
-            'duration': report.duration, 'metrics': {}, 'cost': {},
+            'duration': report.duration, 'metrics': dict(getattr(report, 'user_properties', [])), 'cost': {},
             'failure': str(report.longrepr) if report.failed or report.skipped else None, 'artifacts': []})
         if report.when == 'teardown':
             self.finished.add(report.nodeid)
@@ -115,8 +124,11 @@ def main(argv=None):
         parser.error('validation output must be outside the source tree')
     body, plan = read_plan(ROOT / 'tests/manifest.json', args.plan)
     output.mkdir(parents=True, exist_ok=False)
-    env = {'HF_HUB_OFFLINE':'1','HF_DATASETS_OFFLINE':'1','CUDA_VISIBLE_DEVICES':'',
+    cpu_only = plan.get('cpu_only', True)
+    env = {'HF_HUB_OFFLINE':'1','HF_DATASETS_OFFLINE':'1',
            'OMP_NUM_THREADS':'1','MKL_NUM_THREADS':'1','PYTHONUTF8':'1'}
+    if cpu_only:
+        env['CUDA_VISIBLE_DEVICES'] = ''
     os.environ.update(env)
     os.environ['PYTHONPATH'] = os.pathsep.join((str(ROOT/'src'), str(ROOT)))
     sys.path[:0] = [str(ROOT/'src'), str(ROOT)]
@@ -124,10 +136,26 @@ def main(argv=None):
         return subprocess.check_output(['git','-c','safe.directory='+str(ROOT),*params],
             cwd=ROOT, text=True, timeout=20).strip()
     environment = {'run_id': output.name, 'python': sys.version, 'platform': platform.platform(),
-        'head': git('rev-parse','HEAD'), 'dirty': bool(git('status','--porcelain')), 'cpu_only': True}
+        'head': git('rev-parse','HEAD'), 'dirty': bool(git('status','--porcelain')),
+        'cpu_only': cpu_only, 'plan_id': args.plan}
+    if not cpu_only:
+        import torch
+        environment.update(torch=torch.__version__, cuda_runtime=torch.version.cuda,
+            cuda_available=torch.cuda.is_available(),
+            cuda_visible_devices=os.environ.get('CUDA_VISIBLE_DEVICES'),
+            cuda_devices=[{'index': index, 'name': torch.cuda.get_device_name(index),
+                'capability': list(torch.cuda.get_device_capability(index)),
+                'total_memory': torch.cuda.get_device_properties(index).total_memory}
+                for index in range(torch.cuda.device_count())])
     import pytest
     recorder = Recorder(body, plan, output, environment)
-    return int(pytest.main([str(ROOT/'tests'), '--basetemp', str(output/'pytest'),
+    recorder.save('environment.json', environment)
+    if not cpu_only and not environment['cuda_available']:
+        recorder.save('summary.json', {'exit_code': 1, 'reason': 'CUDA required but unavailable; no CPU fallback',
+                                      'environment': environment})
+        return 1
+    sources = sorted({str(ROOT / node.partition('::')[0]) for node in plan['include']}) if 'include' in plan else [str(ROOT/'tests')]
+    return int(pytest.main([*sources, '--basetemp', str(output/'pytest'),
         '-o', 'cache_dir='+str(output/'cache'), '--junitxml='+str(output/'junit.xml'), '-ra'], plugins=[recorder]))
 
 

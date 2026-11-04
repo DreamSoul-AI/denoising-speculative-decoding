@@ -19,6 +19,7 @@ from spec_mtp.structure.artifact.readout.compare import compare_runs, format_com
 from spec_mtp.flow.context import FlowContext
 from spec_mtp.flow.runner import FlowRunner
 from spec_mtp.structure.artifact import artifact_layout, load_config
+from spec_mtp.structure.artifact.layout import ensure_study_layout, materialize_study
 from spec_mtp.structure.artifact.activity import announce, clear_activity, read_activity
 from spec_mtp.structure.make import (
     expand_study,
@@ -46,7 +47,7 @@ from spec_mtp.structure.make.capacity import (
 
 
 def _prepare_shared(study_dir: Path | str, config_paths: list[Path]) -> None:
-    study = load_study_yaml(study_dir)
+    study = load_study_yaml(Path(study_dir))
     flow = study.get('flow') or {}
     enabled = flow.get('prepare_shared', True)
     if not isinstance(enabled, bool):
@@ -135,6 +136,7 @@ def _normalize_modes(raw: list[str] | None) -> list[str] | None:
 
 def _add_run_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('study_dir', type=Path, help='Path to studies/<name>/')
+    parser.add_argument('--run-root', type=Path, help='new external Study runtime root')
     parser.add_argument(
         '--skip-launch',
         action='store_true',
@@ -149,6 +151,7 @@ def _add_run_flags(parser: argparse.ArgumentParser) -> None:
 
 def _add_make_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('study_dir', type=Path, help='Path to studies/<name>/')
+    parser.add_argument('--run-root', type=Path, help='new external Study runtime root')
     parser.add_argument('--init-gpu', default=0, type=int)
     parser.add_argument('--num-gpus', default=1, type=int)
     parser.add_argument(
@@ -455,8 +458,28 @@ def _configure_stdio() -> None:
             pass
 
 
-def main(argv: list[str] | None = None) -> int:
-    _configure_stdio()
+def prepare_study_argv(argv: list[str]) -> list[str]:
+    """Select the external Study root before wrappers write locks or check freeze."""
+    if any(item in ('-h', '--help') for item in argv):
+        return argv
+    if not any(item == '--run-root' or item.startswith('--run-root=') for item in argv):
+        return argv
+    _build_parser().parse_args(argv)
+    options = argparse.ArgumentParser(add_help=False)
+    options.add_argument('--run-root', type=Path)
+    args, remaining = options.parse_known_args(argv)
+    if args.run_root is None:
+        return argv
+    offset = 2 if remaining[:2] == ['study', 'run'] else 1
+    if not remaining or remaining[0] not in ('study', 'run', 'make', 'launch'):
+        raise ValueError('--run-root is supported by make, run and launch')
+    if len(remaining) <= offset or remaining[offset].startswith('-'):
+        raise ValueError('with --run-root, put the Study path immediately after the command')
+    remaining[offset] = str(materialize_study(remaining[offset], args.run_root))
+    return remaining
+
+
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='spec_mtp.flow.study_cli',
         description='Run a Study: make configs, then flow phases',
@@ -531,7 +554,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     compare_p.add_argument('--out', type=Path, default=None, help='write the full comparison JSON')
 
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    _configure_stdio()
+    argv = prepare_study_argv(list(sys.argv[1:] if argv is None else argv))
+    args = _build_parser().parse_args(argv)
+    if args.cmd in ('run', 'study', 'make', 'launch', 'run-one', 'process', 'data'):
+        ensure_study_layout(args.study_dir)
     if args.cmd == 'run' or (args.cmd == 'study' and args.study_cmd == 'run'):
         return _execute_run(args)
     if args.cmd == 'make':

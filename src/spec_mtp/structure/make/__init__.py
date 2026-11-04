@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Any
 
-from spec_mtp.structure.artifact.layout import ensure_study_layout
+from spec_mtp.structure.artifact.layout import ensure_study_layout, materialize_study
 from spec_mtp.structure.artifact.provenance import write_provenance
 from spec_mtp.structure.make.expand import expand_patches, load_study_yaml
 from spec_mtp.structure.make.recipe import RecipeContext, apply_recipe, load_recipe
@@ -65,8 +65,10 @@ __all__ = [
 ]
 
 
-def expand_study(study_dir: Path | str) -> dict[str, Any]:
+def expand_study(study_dir: Path | str, *, run_root: Path | str | None = None) -> dict[str, Any]:
     """Write Run configs and index from ``study.yaml``."""
+    if run_root is not None:
+        study_dir = materialize_study(study_dir, run_root)
     study_dir = ensure_study_layout(Path(study_dir).resolve())
     study = load_study_yaml(study_dir)
     load_recipe(study_dir, study)
