@@ -380,10 +380,11 @@ qid 是 open_qa 非空文本流里的下标。已用文本按 `creative_writing`
 | 采样分布保证、独立 AR 等价 | 采样分布保证未完成，不能由 T0 推广。第十章只读分类的结论是可隔离的口径问题。`office-ar-first-fork-v1` 与 `office-ar-bf16-determinism-v1` 已跑，数字在同日运行记录 |
 | 端到端墙钟 | 协议 `office-8b-traj-wall-v1` 已跑完。summarization 128 条上接受数 `direction` 为 positive（97:17:14，差均值 +2.6640625，区间不含 0），`wall_direction` 为 shorter（99:29:0，差均值 −0.100136 秒，区间不含 0）。两者同向，并且一起离开了 0。这是探索。见第九章 A 与同日运行记录 |
 | 墙钟按长度 | 协议 `office-8b-traj-wall-by-length-v1` 已跑完。见 [2026-11-04 Qwen3-8B 墙钟按长度](<运行记录 Run Record/2026-11-04 Qwen3-8B 墙钟按长度.md>) |
+| observation 增益扫描 | 协议 `office-8b-traj-g-scan-v1` 已在第十二章写定，尚未运行 |
 | traj 失败模式 | 协议 `office-8b-traj-failset-v1` 已分析。八组 full 胜出子集的条数都等于已归档负。子集相对 traj 更高的字符均值，四组更高、四组更低，中位数也不跟均值同一边。不设通过线，不做跨类符号检验。见第九章 B 与同日运行记录 |
 
 # 八、和开发计划的关系
-研究计划决定要检验的主张和会改变判断的结果。开发计划决定代码、文档和工程验收。第九章的墙钟比较和 full 胜出子集已经有结果，数字留在该章和运行记录。第十章的只读分类已经做完。`office-ar-first-fork-v1`、`office-ar-bf16-determinism-v1` 与 `office-8b-traj-wall-by-length-v1` 的结果在同日运行记录。现有解码器、审计和 τ 口径的工程修改不能改变已归档 Run 的计数。
+研究计划决定要检验的主张和会改变判断的结果。开发计划决定代码、文档和工程验收。第九章的墙钟比较和 full 胜出子集已经有结果，数字留在该章和运行记录。第十章的只读分类已经做完。`office-ar-first-fork-v1`、`office-ar-bf16-determinism-v1` 与 `office-8b-traj-wall-by-length-v1` 的结果在同日运行记录。第十二章的 `office-8b-traj-g-scan-v1` 只写定协议，尚未运行。现有解码器、审计和 τ 口径的工程修改不能改变已归档 Run 的计数。
 
 # 九、下一高信息实验（运行前写定）
 2026年11月4日写定。Dolly 八个类别的办公室切片已经跑完，本章不再另起新类。主项是端到端墙钟，次项是从已归档结果界定 full 胜出的 prompt 子集。本章只写比较、计时口径和停止规则。它不授权实现，也不授权 GPU 运行。
@@ -710,3 +711,48 @@ p 值不设 0.05 门。方向与下表一致就记为该假设的正向证据。
 无论贴上哪一档，都不改 K、不改 0.5、不改树、不重选这 128 条、不把树改成 [2, 2] 或 [3, 1]、不换数据集、不跑结构步骤 5、不重开算子排查、不换 4B 或 0.6B、不并行第二份 GPU。不合并 `main`。
 
 这一组已经跑完。数字在 [2026-11-04 Qwen3-8B 墙钟按长度](<运行记录 Run Record/2026-11-04 Qwen3-8B 墙钟按长度.md>)。停止规则仍是上面写定的那些。
+
+# 十二、observation 增益扫描（运行前写定）
+2026年11月4日写定。协议名 `office-8b-traj-g-scan-v1`。第十一章的长度是 64、256、512，256 是中间一档。本章把生成长度固定在 256，四臂共用同一套 ESP 草稿 mask，只改 `spec.observation.gain`。本章只写比较和停止规则。它不授权实现，也不授权 GPU。实现和运行等本计划合并之后另行开工。
+
+### 问题
+同一条 summarization 上下文上，混合增益 0.25、0.5、0.75 相对 trajectory-only（g=0）的接受数如何变化。接受数记为 acc，指草稿被验证接受的个数，不是任务准确率。不测 g=1。不把任何一个 g 升成默认。
+
+### 假设与证伪
+不单列“某个 g 应当成为默认”的假设。已有 xcat7 在 64 token 上是 g=0 的接受数高于 g=0.5。那一结果不外推到 256，也不外推到 0.25 或 0.75。三对比较并列阅读。某一对高于、低于或等于 g=0，都只记成该对的探索方向。正式组无效，或运行时句子哈希对不上，这组就不读方向。p 不设 0.05 门，方向本身不算通过。
+
+### 臂
+四臂共用：`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。`condition` none，`form` mean，协议名 `trajectory-observation-blend-v1`。温度 0。`stop_on_eos` false。最大草稿节点数 4。块复杂度都是 \((1+1)\times(1+4)=10\)。
+
+增益按这个顺序冻结。看到结果之后不重排，不增删：
+
+| **臂** | **`spec.observation.gain`** | **角色** |
+| --- | --- | --- |
+| g0 | 0 | trajectory-only 基线 |
+| g025 | 0.25 | 混合 |
+| g05 | 0.5 | 混合。与已归档 xcat7 的 full 同一增益，长度改为 256 |
+| g075 | 0.75 | 混合 |
+
+g=1 是仅 observation，不在这四臂里。K 不进入这轮。卡尔曼保持关闭。
+
+模型只有 Qwen3-8B，BF16，CUDA，eager，`local_files_only`。权重只用 `D:\models\Qwen3-8B`，不下载，不加载 float32。显存大约 17–18GB。正式加载前确认没有别的 CUDA 计算占用显存。分词用 `tokenizer(text)`，不用 chat template。
+
+### 样本
+句子沿用 `office-8b-traj-xcat7-v1`。Dolly `databricks/databricks-dolly-15k` 的 train split，本机 `datasets` 5.0.0 离线缓存，类别 summarization。`TAKE` 128，qid 0–127，`SKIPPED` 为空。换行拼接的 SHA256 是 `f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a`。运行时条数、qid 或哈希对不上就中止，不另选句子。选句沿用 `office_traj.py` 的 `prompts_summarization` 与 `assert_registered_xcat7_slice`。不重抽。
+
+正式每条 `max_new_tokens` 256。不跑 64，不跑 512。冒烟用这 128 条里的前 2 条，每条 8 token，四个增益都跑。四臂 argmax 都要通过。冒烟不进入符号检验。冒烟失败就不跑正式。
+
+### 指标
+主比较是每个 g>0 对 g=0，同一 128 条配对。差是该臂接受数减去 g=0 的接受数。胜是该臂接受数更高，负是更低，平是相等，记成 胜:负:平。p 是不含平局的双侧二项符号检验，只作探索，不设 p<0.05 通过线。
+
+每臂报告 τ 均值。接受数差和 τ 差再各报 bootstrap 均值的 95% 区间，百分位，种子 0，10000 次。`wall_seconds` 若有，只作描述，不作为停止规则。缺失、非有限或为负的墙钟保持缺失，不写成 0，也不让接受数比较失效。
+
+任一条正式 prompt 的任一臂 argmax 未通过，或任一步草稿节点数不是 4，该组无效，不进入符号检验。独立 AR 不一致只作诊断。不重跑 `office-ar-bf16-determinism-v1`（PR #96）。
+
+### 判定与停止
+这是探索。三对比较并列报告。不设通过线，不选出默认增益，不按效应量把某个 g 写成后续协议的唯一增益。
+
+无论三对的方向如何，都不改 K、不改树、不把树改成 [2, 2] 或 [3, 1]、不重选这 128 条、不改 256、不加 g=1、不换数据集、不重开卡尔曼、不重跑 BF16 AR 自决定、不换 4B 或 0.6B。不合并 `main`。
+
+### 以后的代码位置
+只登记名字。本计划不写这些文件。助手放在 `studies/trajectory_observation/structure/office_traj_gscan.py`。命令留在 `studies/trajectory_observation/structure/office_traj.py`。不建垫片，不另写一次性脚本，不再拆文件。产物前缀 `sd-office-8b-traj-g-scan-v1`，戳在运行时写入，目录在源码树外。不覆盖 xcat7 或墙钟按长度的已归档文件。数字留空，直到以后的运行记录。
