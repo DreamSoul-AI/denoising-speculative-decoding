@@ -5222,7 +5222,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_data_resume.py::test_epoch_boundary_preserves_last_yield_and_next_epoch_order",
-      "target": "spec_mtp.structure.data.factory",
+      "target": "spec_mtp.structure.data.factory.Data.iter_batches",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5236,7 +5236,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_data_resume.py::test_invalid_data_state_leaves_live_and_pending_state_unchanged",
-      "target": "spec_mtp.structure.data.factory",
+      "target": "spec_mtp.structure.data.factory.Data.validate_training_state",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5250,7 +5250,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_data_resume.py::test_restored_state_is_owned_and_generator_alias_mismatch_is_rejected",
-      "target": "spec_mtp.structure.data.factory",
+      "target": "spec_mtp.structure.data.factory.Data.restore_training_state",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5264,7 +5264,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_data_resume.py::test_unsupported_worker_loader_rejects_exact_cursor_without_starting_workers",
-      "target": "spec_mtp.structure.data.factory",
+      "target": "spec_mtp.structure.data.factory.Data.validate_training_state",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5278,7 +5278,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_data_resume.py::test_budget_admission_is_pure_before_full_budget_rebind",
-      "target": "spec_mtp.structure.data.factory",
+      "target": "spec_mtp.structure.data.factory.Data.validate_training_state",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5292,7 +5292,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_data_resume.py::test_generator_restore_prevalidates_both_domains_before_mutation",
-      "target": "spec_mtp.structure.data.factory",
+      "target": "spec_mtp.structure.data.resume.restore_generators",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5306,7 +5306,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_data_resume.py::test_pending_restore_is_rechecked_before_loader_wrapping_or_rng_mutation",
-      "target": "spec_mtp.structure.data.factory",
+      "target": "spec_mtp.structure.data.factory.Data.iter_batches",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5320,7 +5320,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_data_resume.py::test_mid_epoch_cuda_batches_preserve_suffix_and_do_not_replay_transforms",
-      "target": "spec_mtp.structure.data.factory",
+      "target": "spec_mtp.structure.data.factory.Data.iter_batches",
       "level": "integration",
       "type": "content",
       "cost_class": "c2",

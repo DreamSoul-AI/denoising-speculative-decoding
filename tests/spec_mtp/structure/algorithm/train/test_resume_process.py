@@ -8,6 +8,8 @@ import random
 import sys
 import sysconfig
 
+import pytest
+
 
 def _worker(mode, output, checkpoint=None):
     import torch
@@ -54,6 +56,8 @@ def _worker(mode, output, checkpoint=None):
     data = Data(name='cr5-local', source='test', loaders={'train': loader},
         meta={'seed': 53, 'train_size': 32, 'batch_size': 2,
               'config': {'local_fixture': 'cr5', 'num_workers': 0}})
+    if os.environ['SD_TEST_REBIND'] == '1':
+        data._train_set = samples
     module = torch.nn.Sequential(torch.nn.Linear(4, 8), torch.nn.Dropout(.4), torch.nn.Linear(8, 2))
     initial = {key: value.detach().clone() for key, value in module.state_dict().items()}
     model = Model(name='cr5-dropout', source='test', module=module, meta={})
@@ -123,7 +127,8 @@ def _checkpoint_bytes(root):
             for path in root.rglob('*') if path.is_file()}
 
 
-def test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run(tmp_path, record_property):
+@pytest.mark.parametrize('rebind', [False, True])
+def test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run(tmp_path, record_property, rebind):
     import torch
     from conftest import _process_tree
 
@@ -135,7 +140,7 @@ def test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run(tmp
         'PYTHONUTF8': '1', 'HF_HUB_OFFLINE': '1', 'HF_DATASETS_OFFLINE': '1',
         'OMP_NUM_THREADS': '1', 'MKL_NUM_THREADS': '1', 'CUBLAS_WORKSPACE_CONFIG': ':4096:8',
         'TEMP': str(tmp_path), 'TMP': str(tmp_path), 'TORCH_HOME': str(tmp_path / 'torch-cache'),
-        'CUDA_CACHE_PATH': str(tmp_path / 'cuda-cache')}
+        'CUDA_CACHE_PATH': str(tmp_path / 'cuda-cache'), 'SD_TEST_REBIND': '1' if rebind else '0'}
 
     def invoke(mode, checkpoint=None):
         command = [sys.executable, '-S', '-B', str(Path(__file__).resolve()), mode, str(outputs[mode])]
@@ -164,6 +169,7 @@ def test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run(tmp
     assert control['pid'] == control_pid and interrupted['pid'] == interrupted_pid and resumed['pid'] == resumed_pid
     assert interrupted['step'] == 2 and interrupted['budget'] == 6 and interrupted['stopped'] is False
     assert interrupted['data']['consumed'] == 4 and interrupted['data']['exhausted'] is False
+    assert interrupted['data']['spec']['num_samples'] == (24 if rebind else 32)
     assert control['summary']['steps'] == resumed['summary']['steps'] == 6
     assert len(control['ids']) == 24 and len(interrupted['ids']) == 8 and len(resumed['ids']) == 16
     assert interrupted['ids'] + resumed['ids'] == control['ids']
@@ -188,6 +194,8 @@ def test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run(tmp
     for result in (control, resumed):
         _assert_same(result['module'], result['checkpoint']['model'])
         assert result['data']['consumed'] == 12 and result['data']['exhausted'] is False
+        assert result['data']['spec']['num_samples'] == (24 if rebind else 32)
+        assert (result['data']['start']['loader'] is None) is rebind
         assert result['checkpoint']['step'] == 6 and result['checkpoint']['training_state']['stopped'] is True
         assert result['device'] == 'cuda:0' and result['dtype'] == 'torch.float32'
     _assert_same(control['data'], resumed['data'])
@@ -196,6 +204,7 @@ def test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run(tmp
     record_property('cuda_device', control['gpu'])
     record_property('optimizer_steps', 6)
     record_property('checkpoint_step', 2)
+    record_property('data_rebind_steps', rebind)
     record_property('independent_worker_pids', [control_pid, interrupted_pid, resumed_pid])
     record_property('resume_scope', 'native TrainAlgorithm, zero-worker Data, shuffle, stochastic transforms, CUDA dropout')
 

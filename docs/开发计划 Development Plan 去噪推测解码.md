@@ -17,7 +17,7 @@
 表中当前源码状态与对应实际验证从 [开发记录](<开发记录 Development Record/2026-11-05 宿主结构收束.md>)、[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>) 定位。没有把完整原生重放或整个规范的落地写成已完成。
 
 # 三、下一轮优先级与验收
-1. 恢复准入：按架构CR0将checkpoint读取与contract/schema/Data/RNG只读校验前置，再装入model/optimizer/tracker/logger。拒绝路径检查活跃状态及checkpoint原字节不变；不承诺硬件故障时跨库事务回滚。Data在既有factory/resume内提供纯校验接口，检查cursor与generator后再挂起恢复，镜像测试覆盖中途shuffle与无漏批/重复消费。CR5用微型CUDA分类模型、固定预算与同一checkpoint，在独立PID比较连续执行及恢复后的样本、参数、优化器、调度器、tracker和RNG，结果与缺口进入日期运行记录，不外推HF Trainer、多worker或真实模型。
+1. 恢复后续：native读取、纯准入、应用及Data v2已按CR0/CR4接入，CR5步数预算的微型CUDA独立进程对照见日期运行记录。后续补epoch预算、早停和checkpoint写入故障边界；实际研究恢复仍须复用来源冻结机制绑定代码、模型与数据内容。HF Trainer、多worker及跨设备保持未验证范围，不从当前夹具扩大保证，也不承诺硬件故障时跨库事务回滚。
 2. 遗留模块：按消费者归并其余再导出与重复助手，分离 Study 组成和命令。保留来源字节，legacy 只减，CLI help 与单项测试可独立运行
 3. 测试合同：明确 Python 3.10 的测试依赖策略，逐项复核 level/target/成本及严格清单枚举，不能跳过必需项换取通过
 4. 日志可靠性：确定实际容量与保留要求，隔离诊断落盘故障和正式科学终态，保留首错及追加失败，不吞错或让日志代替结果
