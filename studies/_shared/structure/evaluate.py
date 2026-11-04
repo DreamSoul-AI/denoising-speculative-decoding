@@ -11,14 +11,14 @@ Reports the paper's metrics per SpecBench category and overall:
     seed, the losslessness audit.
 """
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 import torch
 from spec_mtp.analysis import _aggregate, prompt_tau
 
 from studies._shared.structure import csv_logger
 from studies._shared.structure.inputs import legacy_inputs, make_generator
-from spec_mtp.decode import SpecDecoder, ar_generate
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
 from spec_mtp.model import sync_device
 
 

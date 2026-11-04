@@ -38,8 +38,8 @@ COMPONENTS = [
     ('tree attention', ('tree_attention.py',)),
     ('tree build / prune', ('tree.py',)),
     ('kv cache', ('kv_cache.py',)),
-    ('mask providers', ('masks.py',)),
-    ('decoder loop', ('decode.py',)),
+    ('mask providers', ('algorithm/mask/',)),
+    ('decoder loop', ('algorithm/decode/loop.py',)),
     ('model forward (torch nn / transformers)', ('torch/nn/', 'transformers/')),
     ('other torch', ('torch/',)),
 ]

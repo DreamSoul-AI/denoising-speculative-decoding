@@ -112,8 +112,8 @@ def test_decode_trace_and_counts_must_match_stream(change):
 
 def test_budget_trimmed_acceptance_may_exceed_committed_count():
     from dataclasses import replace
-    from spec_mtp.decode import generate
-    from spec_mtp.masks import ESPMaskProvider
+    from spec_mtp.structure.algorithm.decode.loop import generate
+    from spec_mtp.structure.algorithm.mask import ESPMaskProvider
     from test_decode import FakeSession, MemorySink
 
     class MatchingMasks(ESPMaskProvider):

@@ -1,6 +1,6 @@
 """DynamicTreeAttentionCache is bit-identical to the naive builder on random dynamic trees."""
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 import pytest
 import torch
@@ -48,7 +48,7 @@ def test_returned_tensors_do_not_alias_the_cache():
 
 def test_decoder_uses_it_only_for_dynamic_trees():
     from studies._shared.structure.config import apply_variant
-    from spec_mtp.decode import SpecDecoder
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
     from studies._shared.structure.config import _convert
     from spec_mtp.model import HFCausalLM
 

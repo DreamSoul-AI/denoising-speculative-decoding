@@ -1,11 +1,11 @@
 """Context limit audit (option A): AR stops at the token count the speculative pass reached."""
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 import torch
 
 import studies._shared.structure.evaluate as esp_mtp
-from spec_mtp.decode import SpecDecoder, ar_generate
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
 from studies._shared.structure.smoke_variants import VARIANTS
 from studies._shared.structure.config import _convert
 from spec_mtp.model import HFCausalLM

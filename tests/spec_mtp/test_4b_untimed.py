@@ -1,12 +1,12 @@
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 from types import SimpleNamespace
 import time
 from unittest.mock import patch
 import pytest
 import torch
 from test_window_observer import ROOT, model as model, spec
-import spec_mtp.decode as decoding
+import spec_mtp.structure.algorithm.decode.loop as decoding
 from studies._shared.structure.config import _convert
 
 

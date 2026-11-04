@@ -2,8 +2,8 @@
 
 import torch
 
-from spec_mtp.decode import SpecDecoder, ar_generate
-from spec_mtp.masks import OutputHiddenHybridKalman, OutputHiddenMaskProvider, build_mask_provider
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
+from spec_mtp.structure.algorithm.mask import OutputHiddenHybridKalman, OutputHiddenMaskProvider, build_mask_provider
 from spec_mtp.model import HFCausalLM
 from studies._shared.structure.config import _convert
 

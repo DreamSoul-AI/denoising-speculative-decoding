@@ -91,7 +91,7 @@ flowchart TB
 
 箭头仅表示目标 import。`flow` 可以导入 `structure`。`structure` 不导入 `flow`。`api` 不导入其他 structure 子层。解码通过注入模型会话进入具体接入，源码不导入 HF 接入。`spec_mtp` 不导入 `rpipe` 或 `studies`。数据与模型不导入解码，审计与分析不导入模型。跨研究复用进入宿主公共入口，Study 内部私有函数不被宿主反向导入。
 
-这张图是搬迁完成后的方向。解码合同已经在 `structure/api/decode_api.py`，`contracts.py` 已删除。树已经在 `structure/algorithm/decode/`，`tree.py` 已删除。其余解码模块仍是扁平文件。`structure/api` 还会再导出 algorithm、data、model、system。那些边冻结在代码结构设计的 legacy 清单里。具体文件只在 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>) 维护。静态检查不证明动态导入、数据泄漏、状态或数值合同正确。`.importlinter` 在步骤 8 之前仍是扁平模块合同。
+这张图是搬迁完成后的方向。解码合同、树、解码循环和 mask 已经在 `structure/`，顶层 `contracts.py`、`tree.py`、`masks.py`、`decode.py` 已删除。`data.py`、`model.py`、`audit.py`、`analysis.py`、`cli.py` 仍是扁平文件。`structure/api` 还会再导出 algorithm、data、model、system。那些边冻结在代码结构设计的 legacy 清单里。具体文件只在 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>) 维护。静态检查不证明动态导入、数据泄漏、状态或数值合同正确。`.importlinter` 在步骤 8 之前仍混有扁平模块。
 ## （二）一次完整研究运行
 ```mermaid
 sequenceDiagram

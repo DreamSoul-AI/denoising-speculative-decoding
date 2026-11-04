@@ -1,6 +1,6 @@
 """Native magnitude controls keep the shared mean, fixed direction and argmax gate."""
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,7 +10,7 @@ import pytest
 import torch
 import yaml
 
-from spec_mtp.masks import EMAVelocityMaskProvider, ESPMaskProvider
+from spec_mtp.structure.algorithm.mask import EMAVelocityMaskProvider, ESPMaskProvider
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -59,7 +59,7 @@ def test_eight_preregistered_cells_and_immutable_inputs(monkeypatch):
 
 @pytest.mark.parametrize('scale', [.5, 2.])
 def test_native_tiny_bf16_argmax_audit_for_scaled_bias(monkeypatch, scale):
-    import spec_mtp.decode as decoding
+    import spec_mtp.structure.algorithm.decode.loop as decoding
     from studies._shared.structure.config import _convert
     from spec_mtp.model import HFCausalLM
     m = module(monkeypatch)

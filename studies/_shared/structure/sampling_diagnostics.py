@@ -1,7 +1,7 @@
 """Library helpers folded from one-shot structure scripts."""
 def conditional_acceptance(verifier_logits, candidates, temperature, seeds):
     import torch
-    from spec_mtp.decode import select_token
+    from spec_mtp.structure.algorithm.decode.loop import select_token
     assert temperature > 0 and verifier_logits.ndim == 1 and torch.isfinite(verifier_logits).all()
     probs = torch.softmax(verifier_logits.float() / temperature, dim=-1)
     draws = []

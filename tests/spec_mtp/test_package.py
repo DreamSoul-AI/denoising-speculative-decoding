@@ -38,7 +38,7 @@ def test_manifest_covers_package_sources():
     body = sources.manifest()
     assert {'studies/_shared/structure/recipe.py', 'studies/_shared/flow/collect/run.py',
             'studies/_shared/structure/validation.py',
-            'spec_mtp/decode.py'} <= set(body['files'])
+            'spec_mtp/structure/algorithm/decode/loop.py'} <= set(body['files'])
     assert not any(name.startswith('rpipe/') for name in body['files'])
     assert body['digest'] == sources.files_digest(body['files'])
 

@@ -18,7 +18,7 @@ from untimed_pairing import PairedUntimedEval, build_cuda  # noqa: E402
 from direction_control import control  # noqa: E402
 from norm_admission import wait_for_admission  # noqa: E402
 from studies._shared.structure import evaluate as assembly
-import spec_mtp.decode as decoding  # noqa: E402
+import spec_mtp.structure.algorithm.decode.loop as decoding  # noqa: E402
 from spec_mtp.structure.algorithm.factory import AlgorithmRegistry  # noqa: E402
 from spec_mtp.structure.model.factory import ModelRegistry  # noqa: E402
 

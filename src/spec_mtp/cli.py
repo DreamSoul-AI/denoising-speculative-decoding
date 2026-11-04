@@ -15,8 +15,8 @@ def _json(path: str) -> Any:
 def _decode(args: argparse.Namespace) -> dict[str, Any]:
     from spec_mtp.audit import JsonlSink, verify_model_files
     from spec_mtp.structure.api.decode_api import DecodeRequest, Prompt
-    from spec_mtp.decode import generate
-    from spec_mtp.masks import build_mask_provider
+    from spec_mtp.structure.algorithm.decode.loop import generate
+    from spec_mtp.structure.algorithm.mask import build_mask_provider
     from spec_mtp.model import HFCausalLM
 
     body = _json(args.request)

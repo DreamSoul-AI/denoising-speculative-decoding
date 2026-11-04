@@ -5,7 +5,7 @@ import json
 import pytest
 import torch
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 from studies.trajectory_observation.structure.office_qwen8b import ESP
 from studies.trajectory_observation.structure.office_tree import SMOKE
 from studies.trajectory_observation.structure.office_traj import (
@@ -501,7 +501,7 @@ def test_measure_generate_syncs_around_one_call_and_drops_a_bad_clock(monkeypatc
 
 
 def test_measured_prompt_times_full_then_traj_and_leaves_ar_outside(monkeypatch):
-    import spec_mtp.decode as decode_mod
+    import spec_mtp.structure.algorithm.decode.loop as decode_mod
     from studies.trajectory_observation.structure import office_traj
 
     events = []

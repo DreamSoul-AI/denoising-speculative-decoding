@@ -413,7 +413,7 @@ def test_revalidation_keeps_failure_and_execute_bytes_and_is_idempotent(tmp_path
     (run/'result.json').write_text(json.dumps(body))
     previous=(run/'result.json').read_bytes()
     raw=(run/'assets/decode_observations.json').read_bytes()
-    import spec_mtp.decode as decoding
+    import spec_mtp.structure.algorithm.decode.loop as decoding
     monkeypatch.setattr(decoding.SpecDecoder,'generate',lambda *a:pytest.fail('execute must not rerun'))
     result=tool.revalidate_run(ctx.study_dir,'run_a',Path(validation.__file__))
     assert result['status']=='succeeded' and result['spec_mtp']['argmax_all_passed']

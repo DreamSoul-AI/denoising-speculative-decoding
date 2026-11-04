@@ -1,6 +1,6 @@
 """CPU-only contracts for the separately authorized paired repeat."""
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
@@ -92,7 +92,7 @@ def test_unmade_repeat_writes_pending_only(modules, monkeypatch, tmp_path):
 def test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token():
     import torch
     from spec_mtp.model import HFCausalLM
-    from spec_mtp.decode import SpecDecoder
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
     from studies._shared.structure.config import _convert
     from studies._shared.structure.validation import _check_argmax
     torch.manual_seed(7)

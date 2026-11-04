@@ -16,8 +16,8 @@ import torch
 
 from studies._shared.structure import csv_logger
 from studies._shared.structure.inputs import legacy_inputs, select_prompts
-from spec_mtp.decode import ar_generate
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.decode.loop import ar_generate
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 
 @torch.no_grad()

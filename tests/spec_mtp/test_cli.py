@@ -199,7 +199,7 @@ def test_cli_rejects_model_manifest_before_constructing_model(tmp_path, monkeypa
 @pytest.mark.parametrize('damage', ['modify', 'add', 'remove'])
 def test_cli_model_drift_cannot_write_completed_end(tmp_path, monkeypatch, damage):
     from spec_mtp.cli import _decode
-    from spec_mtp.decode import DecodeFailure
+    from spec_mtp.structure.algorithm.decode.loop import DecodeFailure
     from spec_mtp.audit import audit_run
     from test_decode import FakeSession
     import spec_mtp.model

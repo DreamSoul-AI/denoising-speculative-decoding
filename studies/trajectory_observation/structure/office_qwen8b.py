@@ -198,7 +198,7 @@ def replay_block(model, prompt_ids, full_ids):
     """Diagonal pairs along an AR continuation. Same rows as fair_branch.calibrate."""
     import torch
 
-    from spec_mtp.masks import build_mask_provider
+    from spec_mtp.structure.algorithm.mask import build_mask_provider
 
     prompt_len = int(prompt_ids.shape[1])
     embeds = model.embed(full_ids)[0]
@@ -219,7 +219,7 @@ def replay_block(model, prompt_ids, full_ids):
 
 
 def prior_from_triples(predicted, observed, target, prompts):
-    from spec_mtp.masks import calibrate_diagonal_gain
+    from spec_mtp.structure.algorithm.mask import calibrate_diagonal_gain
 
     prior = calibrate_diagonal_gain(predicted, observed, target)
     prior['prompts'] = int(prompts)
@@ -230,8 +230,8 @@ def prior_from_triples(predicted, observed, target, prompts):
 
 def collect_last_pairs(model, tokenizer, text, tokens):
     """ESP rounds on one calibration sentence. y is the last committed token."""
-    from spec_mtp.decode import SpecDecoder
-    from spec_mtp.masks import build_mask_provider
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
+    from spec_mtp.structure.algorithm.mask import build_mask_provider
 
     spec = esp_spec()
     spec['hybrid_gain'] = {'mode': 'collect', 'observe': 'last'}
@@ -246,8 +246,8 @@ def collect_last_pairs(model, tokenizer, text, tokens):
 
 
 def arm_row(model, spec, ids, limit):
-    from spec_mtp.decode import SpecDecoder
-    from spec_mtp.masks import build_mask_provider
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
+    from spec_mtp.structure.algorithm.mask import build_mask_provider
 
     policy = build_mask_provider(spec, model.embedding_table)
     output, stats = SpecDecoder(model, spec, limit, mask_policy=policy).generate(ids)
@@ -274,7 +274,7 @@ def arm_row(model, spec, ids, limit):
 
 
 def decode_prompt(model, tokenizer, prompt, specs, limit):
-    from spec_mtp.decode import ar_generate
+    from spec_mtp.structure.algorithm.decode.loop import ar_generate
 
     ids = tokenizer(prompt['text'], return_tensors='pt').input_ids
     reference, _stats = ar_generate(model, ids, limit)
@@ -362,7 +362,7 @@ def _write_prior(path, prior):
 
 
 def _fit(model, tokenizer, dest):
-    from spec_mtp.decode import ar_generate
+    from spec_mtp.structure.algorithm.decode.loop import ar_generate
 
     replace_path = _file(dest, 'fit-replace', 'json')
     kalman_path = _file(dest, 'fit-kalman', 'json')

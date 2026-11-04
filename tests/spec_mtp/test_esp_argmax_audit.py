@@ -1,11 +1,11 @@
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 import importlib.util
 import json
 from pathlib import Path
 import pytest
 import torch
-import spec_mtp.decode as decoding
+import spec_mtp.structure.algorithm.decode.loop as decoding
 from studies._shared.structure.config import _convert
 from spec_mtp.model import HFCausalLM
 

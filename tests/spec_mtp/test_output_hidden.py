@@ -1,12 +1,12 @@
 """Output-space state math, final-norm observation and real tiny lossless loop."""
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 import pytest
 import torch
 
-from spec_mtp.masks import OutputHiddenMaskProvider
-from spec_mtp.decode import SpecDecoder, ar_generate
+from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
 from studies._shared.structure.config import _convert
 from spec_mtp.model import HFCausalLM
 
@@ -145,7 +145,7 @@ def test_output_sampling_eos_truncation_matches_ar(model):
 @pytest.mark.parametrize('mode,budget', [('dynamic',30), ('dynamic',60), ('static',15)])
 def test_bf16_branching_siblings_share_depth_masks_without_mutating_state(model, monkeypatch, order, mode, budget):
     from copy import deepcopy
-    import spec_mtp.decode as decoding
+    import spec_mtp.structure.algorithm.decode.loop as decoding
 
     m = deepcopy(model).to(torch.bfloat16)
     trees, blocks = [], []
@@ -188,7 +188,7 @@ def test_bf16_branching_siblings_share_depth_masks_without_mutating_state(model,
 
 
 def test_nonfirst_sibling_updates_actual_hidden_path_and_cache(model, monkeypatch):
-    import spec_mtp.decode as decoding
+    import spec_mtp.structure.algorithm.decode.loop as decoding
     from spec_mtp.structure.algorithm.decode.tree import DraftTree
 
     prompt = torch.tensor([[2,4,6,8]])

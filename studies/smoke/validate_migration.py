@@ -7,7 +7,7 @@ Compare old/current JSON cells (not environment metadata). No weights downloaded
 
 from __future__ import annotations
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 import argparse
 import hashlib
@@ -21,7 +21,7 @@ def probe():
     import torch
 
     try:
-        decode = importlib.import_module('spec_mtp.decode')
+        decode = importlib.import_module('spec_mtp.structure.algorithm.decode.loop')
         variants = importlib.import_module('studies._shared.structure.smoke_variants')
         named = importlib.import_module('studies._shared.structure.config')
         models = importlib.import_module('spec_mtp.model')

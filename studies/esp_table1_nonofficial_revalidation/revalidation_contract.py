@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 from unittest.mock import patch
 
-import spec_mtp.decode as decoding
+import spec_mtp.structure.algorithm.decode.loop as decoding
 from studies._shared.structure import evidence
 from untimed_bf16 import UntimedEval, build_cuda
 from resource_admission import wait_for_admission

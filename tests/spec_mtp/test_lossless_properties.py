@@ -3,7 +3,7 @@ random prompts, budgets, temperatures and seeds, plus the context-limit audit in
 
 Tests only; the decoder is unchanged. Vocab 256 covers every preset's token range."""
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 import pytest
 import torch
@@ -11,7 +11,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from studies._shared.structure.config import apply_variant
-from spec_mtp.decode import SpecDecoder, ar_generate
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
 from studies._shared.structure.paper_variants import PAPER_VARIANTS
 from studies._shared.structure.smoke_variants import VARIANTS
 from studies._shared.structure.config import _convert
@@ -120,8 +120,8 @@ def test_sample_init_is_token_identical_at_temperature_zero():
 def test_sample_init_noise_is_unchanged_by_the_fork():
     """The fork starts from the sampling generator's state, so the mask noise equals the old
     shared-generator draw; only the later token sampling stream differs (now equal to AR)."""
-    from spec_mtp.decode import _fork_generator
-    from spec_mtp.masks import build_mask_provider
+    from spec_mtp.structure.algorithm.decode.loop import _fork_generator
+    from spec_mtp.structure.algorithm.mask import build_mask_provider
 
     table = torch.randn(64, 8, generator=torch.Generator().manual_seed(3))
     spec = apply_variant({}, 'llama3/init_sample_bc30')

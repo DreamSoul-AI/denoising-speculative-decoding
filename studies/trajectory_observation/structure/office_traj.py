@@ -707,7 +707,7 @@ def _store_clock(row, stats, wall):
 
 def _measured_arm(model, spec, ids, limit):
     """One new decoder. The wall covers only this arm's generate."""
-    import spec_mtp.decode as decode_mod
+    import spec_mtp.structure.algorithm.decode.loop as decode_mod
     from studies.trajectory_observation.structure.office_tree import arm_row
 
     captured = {}
@@ -730,7 +730,7 @@ def _measured_arm(model, spec, ids, limit):
 
 def decode_measured_prompt(model, tokenizer, prompt, specs, limit):
     """Independent AR, then full, then traj. Only the two arms get a wall clock."""
-    from spec_mtp.decode import ar_generate
+    from spec_mtp.structure.algorithm.decode.loop import ar_generate
     from studies.trajectory_observation.structure.office_tree import token_hash
 
     ids = tokenizer(prompt['text'], return_tensors='pt').input_ids

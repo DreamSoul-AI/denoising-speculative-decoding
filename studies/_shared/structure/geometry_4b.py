@@ -206,7 +206,7 @@ def rank_interval(logits, target, banned):
     return (greater + 1, greater + equal)
 
 def coverage(logits, root, truth, budget=9, tree=None):
-    from spec_mtp.decode import tree_probs
+    from spec_mtp.structure.algorithm.decode.loop import tree_probs
     from spec_mtp.structure.algorithm.decode.tree import build_dynamic_tree
     if tree is None:
         tree = build_dynamic_tree(tree_probs(logits, 0.0), budget, root, pruning=True)
@@ -307,7 +307,7 @@ def plot(body, path):
         fig.savefig(path, dpi=160)
     finally:
         plt.close(fig)
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 import os
 import subprocess
 from types import SimpleNamespace
@@ -361,8 +361,8 @@ def raw_output_slots(anchor, velocity, proxies, order, beta_prime):
 
 def observe(model, prompt, spec, eval_cfg, eos, seed):
     import torch
-    import spec_mtp.decode as decoding
-    from spec_mtp.masks import OutputHiddenMaskProvider
+    import spec_mtp.structure.algorithm.decode.loop as decoding
+    from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
     from studies._shared.structure.config import _convert
     original_provider, original_tree = (build_mask_provider, decoding.build_tree)
     original_masks = OutputHiddenMaskProvider.masks_per_owner
@@ -507,7 +507,7 @@ def intervention_masks(shadow, proxies, zero):
     return masks
 
 def walk(tree, logits):
-    from spec_mtp.decode import select_token
+    from spec_mtp.structure.algorithm.decode.loop import select_token
     owner, accepted, chosen = (0, [], [])
     while True:
         token = select_token(logits[owner], 0.0, None)
@@ -527,7 +527,7 @@ def active_predecessor(trace, prompt_length):
 
 @torch.no_grad()
 def input_control(model, prompt, generated_prefix, spec, velocity_mode='native', random_seed=None, content_start=None, state_report=None):
-    from spec_mtp.masks import build_mask_provider
+    from spec_mtp.structure.algorithm.mask import build_mask_provider
     from studies._shared.structure.config import _convert
     provider = build_mask_provider(_convert(spec), model.embedding_table)
     embeds = model.embed(prompt)[0]
@@ -573,8 +573,8 @@ class WindowCaptured(Exception):
 
 @torch.no_grad()
 def capture_window(model, prompt, spec, eval_cfg, eos, seed, minimum=8):
-    import spec_mtp.decode as decoding
-    from spec_mtp.masks import OutputHiddenMaskProvider
+    import spec_mtp.structure.algorithm.decode.loop as decoding
+    from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
     from studies._shared.structure.config import _convert
     original_build, original_tree = (build_mask_provider, decoding.build_tree)
     original_observe, original_masks = (OutputHiddenMaskProvider.observe_committed, OutputHiddenMaskProvider.masks_per_owner)
@@ -632,8 +632,8 @@ def capture_window(model, prompt, spec, eval_cfg, eos, seed, minimum=8):
 
 @torch.no_grad()
 def capture_input_window(model, prompt, spec, eval_cfg, eos, seed, minimum):
-    import spec_mtp.decode as decoding
-    from spec_mtp.masks import OutputHiddenMaskProvider
+    import spec_mtp.structure.algorithm.decode.loop as decoding
+    from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
     from spec_mtp.structure.algorithm.decode.tree_attention import mask_indices_of
     from studies._shared.structure.config import _convert
     original_tree = decoding.build_tree
@@ -685,7 +685,8 @@ def capture_input_window(model, prompt, spec, eval_cfg, eos, seed, minimum):
 
 @torch.no_grad()
 def probe_window(model, packet, spec, reference, variants=VARIANTS, control='zero'):
-    from spec_mtp import decode as decoding, model as kv_cache
+    import spec_mtp.structure.algorithm.decode.loop as decoding
+    from spec_mtp import model as kv_cache
     from spec_mtp.structure.algorithm.decode.tree_attention import DynamicTreeAttentionCache, mask_indices_of
     from studies._shared.structure.config import _convert
     tree, baseline = (packet['tree'], packet['baseline'])

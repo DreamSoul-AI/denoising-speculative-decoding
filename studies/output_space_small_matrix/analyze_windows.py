@@ -14,7 +14,7 @@ def main():
     parser.add_argument('--raw', required=True, type=Path)
     args = parser.parse_args()
     import torch
-    from spec_mtp.masks import OutputHiddenMaskProvider
+    from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
     from studies._shared.structure.sources import manifest
 
     study = Path(__file__).resolve().parent

@@ -7,8 +7,8 @@ import torch
 
 from spec_mtp.audit import audit_run
 from spec_mtp.structure.api.decode_api import DecodeRequest, Prompt
-from spec_mtp.decode import DecodeFailure, ar_generate, generate, select_token, tree_probs
-from spec_mtp.masks import ESPMaskProvider
+from spec_mtp.structure.algorithm.decode.loop import DecodeFailure, ar_generate, generate, select_token, tree_probs
+from spec_mtp.structure.algorithm.mask import ESPMaskProvider
 
 
 class FakeSession:
@@ -116,7 +116,7 @@ def test_sink_first_commit_failure_preserves_committed_fact_and_stops_next_forwa
 @pytest.mark.parametrize('tokens', [torch.empty((1, 0), dtype=torch.long), torch.ones((2, 2), dtype=torch.long),
                                     torch.ones((1, 2)), torch.tensor([[-1]]), torch.tensor([[8]])])
 def test_invalid_prompt_is_rejected_before_forward(tokens):
-    from spec_mtp.decode import SpecDecoder
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
     model = FakeSession()
     decoder = SpecDecoder(model, request().spec, {'max_new_tokens': 3},
                           mask_policy=ESPMaskProvider(1, model.embedding_table))

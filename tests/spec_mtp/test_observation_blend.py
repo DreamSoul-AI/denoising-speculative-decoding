@@ -4,8 +4,8 @@ import pytest
 import torch
 
 from spec_mtp.analysis import round_split
-from spec_mtp.decode import SpecDecoder, ar_generate
-from spec_mtp.masks import (BonusSlotMaskProvider, ESPMaskProvider, ObservationBlendMaskProvider,
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
+from spec_mtp.structure.algorithm.mask import (BonusSlotMaskProvider, ESPMaskProvider, ObservationBlendMaskProvider,
                             OutputHiddenMaskProvider, PreforwardSignalCollector, apply_lowrank_delta,
                             build_mask_provider, centered_r2, fit_lowrank_delta)
 from spec_mtp.model import HFCausalLM
@@ -260,7 +260,7 @@ def test_observation_rejects_hidden_providers_and_bad_logits():
 
 
 def test_scalar_kalman_step_steady_gain_and_lossless_decode():
-    from spec_mtp.masks import KalmanMaskProvider
+    from spec_mtp.structure.algorithm.mask import KalmanMaskProvider
 
     provider = KalmanMaskProvider(2, torch.zeros(4, 3), mode='online', forget=1.0, r_min=1e-8, q_min=1e-12)
     provider.init_from_prompt(torch.zeros(2, 3))
@@ -290,7 +290,7 @@ def test_scalar_kalman_step_steady_gain_and_lossless_decode():
 
 
 def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
-    from spec_mtp.masks import ESPMaskProvider, VerifyCorrectionMaskProvider, fit_mask_correction
+    from spec_mtp.structure.algorithm.mask import ESPMaskProvider, VerifyCorrectionMaskProvider, fit_mask_correction
 
     mhat = torch.zeros(6, 3)
     observed = torch.tensor([[1.0, 0.0, 0.0]]).repeat(6, 1)
@@ -328,7 +328,7 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     guess = torch.randn(30, 4, generator=generator)
     delta = zed - guess
     truth = guess + delta * 0.3
-    from spec_mtp.masks import fit_affine_ridge, select_affine_ridge
+    from spec_mtp.structure.algorithm.mask import fit_affine_ridge, select_affine_ridge
     recovered = fit_affine_ridge(guess, zed, truth, 1e-6)
     assert torch.allclose(torch.tensor(recovered['A']), torch.eye(4) * 0.3, atol=1e-4)
     blocks = [(guess[start:start + 6], zed[start:start + 6], truth[start:start + 6]) for start in range(0, 30, 6)]
@@ -345,7 +345,7 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     ridge_online.on_token_committed(truth[0].clone(), torch.zeros(4))
     ridge_online.init_from_prompt(torch.zeros(2, 4))
     assert torch.equal(ridge_online._A, frozen_A) and ridge_online.diagnostics()['online_updates'] == 0
-    from spec_mtp.masks import fit_lowrank_ridge, lowrank_replay_mse, select_lowrank_ridge
+    from spec_mtp.structure.algorithm.mask import fit_lowrank_ridge, lowrank_replay_mse, select_lowrank_ridge
     gen = torch.Generator().manual_seed(1)
     raw = torch.randn(48, 6, generator=gen)
     guess_l = torch.randn(48, 6, generator=gen)
@@ -373,7 +373,7 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     reference, _ = ar_generate(model, prompt, {'max_new_tokens': 20, 'temperature': 0, 'stop_on_eos': False})
     output, stats = _decode(model, spec, prompt, 0, 0)
     assert torch.equal(output, reference) and stats['verification_argmax_audit']['passed']
-    from spec_mtp.masks import OnlineVerifyKalman
+    from spec_mtp.structure.algorithm.mask import OnlineVerifyKalman
     p0, q0, r0, forget = 1.0, 0.01, 1.0, 0.95
     p_pred = p0 + q0
     gain = p_pred / (p_pred + r0)
@@ -399,7 +399,7 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     untouched.init_from_prompt(torch.zeros(2, 1))
     untouched.base._masks = torch.tensor([[7.0]])
     assert float(untouched.masks()) == 7.0
-    from spec_mtp.masks import AlignedResidualKalman
+    from spec_mtp.structure.algorithm.mask import AlignedResidualKalman
     aligned = AlignedResidualKalman(ESPMaskProvider(1, torch.zeros(4, 2)), 'full')
     aligned.init_from_prompt(torch.zeros(2, 2))
     aligned.base._masks = torch.zeros(1, 2)
@@ -417,7 +417,7 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     assert torch.allclose(corrected[0], torch.tensor([gain * 3.0, 0.0]))
     aligned.init_from_prompt(torch.ones(2, 2))
     assert aligned._f == 0.0 and aligned._nu is None
-    from spec_mtp.masks import HybridGainKalman, calibrate_diagonal_gain
+    from spec_mtp.structure.algorithm.mask import HybridGainKalman, calibrate_diagonal_gain
     guessed = torch.zeros(6, 2)
     observed = torch.tensor([[2.0, 0.0]]).repeat(6, 1)
     target = guessed + 0.25 * (observed - guessed)
@@ -498,7 +498,7 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
 
 
 def test_bonus_aligned_gain_learns_the_last_commit_and_stays_lossless():
-    from spec_mtp.masks import HybridGainKalman
+    from spec_mtp.structure.algorithm.mask import HybridGainKalman
     payload = {'k': [0.2], 'p': [0.01], 'r': [0.04], 'q': [0.0001], 'boost': 64, 'observe': 'last'}
     aligned = HybridGainKalman(ESPMaskProvider(1, torch.zeros(4, 1)), 'opened', payload)
     aligned.init_from_prompt(torch.zeros(2, 1))

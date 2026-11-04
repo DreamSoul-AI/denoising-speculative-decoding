@@ -21,8 +21,8 @@ from pathlib import Path
 import torch
 
 from spec_mtp.analysis import compare, prompt_tau, round_split
-from spec_mtp.decode import SpecDecoder, ar_generate
-from spec_mtp.masks import build_mask_provider, fit_mask_correction, select_affine_ridge
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
+from spec_mtp.structure.algorithm.mask import build_mask_provider, fit_mask_correction, select_affine_ridge
 from spec_mtp.model import HFCausalLM
 
 PROTOCOL = 'trajectory-observation-pilot-v2'

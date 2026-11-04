@@ -5,7 +5,7 @@ import torch
 from types import SimpleNamespace
 from unittest.mock import patch
 from argmax_audit import observe_argmax
-import spec_mtp.decode as decoding
+import spec_mtp.structure.algorithm.decode.loop as decoding
 from studies._shared.structure.algorithm import SpecMtpEvalAlgorithm
 from studies._shared.structure.model import _build_hf
 from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
