@@ -41,7 +41,7 @@ denoising-speculative-decoding/
 │   │   └── flow/
 │   │       ├── prepare/ execute/ collect/ summarize/ write/ process/
 │   │       └── cli.py                       # decode/audit/compare 的命令实现
-│   │   # 搬迁完成后，顶层不再保留 cli/contracts/data/model/decode/masks/tree/audit/analysis.py
+│   │   # 顶层仍保留 cli/data/model/decode/masks/audit/analysis.py；contracts 已在 structure/api/decode_api.py，tree 已在 structure/algorithm/decode/
 ├── studies/
 │   └── k_affine_residual/        # 合成夹具；协议 postcommit-final-norm-v1
 │       ├── study.yaml
