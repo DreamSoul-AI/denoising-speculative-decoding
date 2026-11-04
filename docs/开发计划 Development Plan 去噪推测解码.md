@@ -17,7 +17,7 @@
 | 首分叉与 fp32 参照 | 研究计划第十章 `office-ar-first-fork-v1`。助手在 `office_traj_fork.py`，命令仍在 `office_traj.py` | 已跑。见 [2026-11-04 Qwen3-8B 首分叉](<运行记录 Run Record/2026-11-04 Qwen3-8B 首分叉.md>) |
 | BF16 AR 自决定 | 研究计划第十章 `office-ar-bf16-determinism-v1`。助手在 `office_traj_determinism.py`。`prompt_tokenwise` 在 `loop.py` 的 `ar_generate` | 已跑。见 [2026-11-04 Qwen3-8B BF16自决定](<运行记录 Run Record/2026-11-04 Qwen3-8B BF16自决定.md>) |
 | 墙钟按长度 | 研究计划第十一章 `office-8b-traj-wall-by-length-v1`。助手在 `office_traj_length.py`。`draft_seconds` 与 `verify_seconds` 在 `loop.py` | 已跑。见 [2026-11-04 Qwen3-8B 墙钟按长度](<运行记录 Run Record/2026-11-04 Qwen3-8B 墙钟按长度.md>)。结构步骤 5 本次仍不搬迁 |
-| observation 增益扫描 | 研究计划第十二章已写定 `office-8b-traj-g-scan-v1`。四臂只改 `spec.observation.gain`，g 为 0、0.25、0.5、0.75。实现和 GPU 等本计划合并后再排。将来的助手是 `studies/trajectory_observation/structure/office_traj_gscan.py`，命令仍留在 `office_traj.py` | 本行只登记计划已写入。尚未实现，尚未运行 |
+| observation 增益扫描 | 研究计划第十二章已写定 `office-8b-traj-g-scan-v1`。四臂只改 `spec.observation.gain`，g 为 0、0.25、0.5、0.75。助手在 `studies/trajectory_observation/structure/office_traj_gscan.py`，命令仍留在 `office_traj.py` 的 `--protocol gscan` | 代码已落地。尚未运行。数字留空，等以后的 GPU 命令 |
 
 不新增插件注册、通用校正框架或第二套测试运行器。
 
