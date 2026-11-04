@@ -82,3 +82,5 @@ flowchart TB
 独立worker与专用启动/重验证入口复用shared flow的check_study_inputs纯预检，先验外部根、原源/快照、来源锁、计划与输入，再允许运行态写入。scheduler固定当前宿主的导入根，worker走shared CLI，默认不自动重试；派发异常停止新派发并只清理本次已拥有的Popen对象，保存首错。保存jobs需与当前index及规范config路径一致；已完成Run调度恢复只跳过已完成项，不能外推checkpoint/RNG等价恢复。
 
 trajectory的office三类命令集中于flow/execute/office.py，structure保留协议、纯统计与已有测量实现。新专用协议运行须显式本地模型目录/完整来源清单、Dolly JSONL、固定计划SHA和新外部输出，载模前完成来源与正式dirty检查，输入与代码读后复核；不续写历史root。它没有study.yaml，故不称通用Study快照，原协议旧prefix保留，运行绑定另记实际源码/输入/模型/设备。永久停止的BF16/独立AR机理入口拒绝新派发。
+
+native训练恢复沿现有职责实现，不新建恢复框架：`algorithm/base.py` 分离只读 `load_resume` 与 `apply_resume`，`algorithm/resume.py` 负责持久化状态准入与RNG校验，`algorithm/train/` 先构造合同并准入、再应用；`system/factory.py` 的 `checkpoint_path` 与读取共用只读路径规则，保存仍由原System维护。`data/factory.py` 的 `validate_training_state` 纯校验v2数据状态，`data/resume.py` 维护游标及sampler/loader generator关系。测试在 `tests/spec_mtp/structure/{algorithm/train,data,system}/` 镜像，独立进程夹具只在测试内，不成为生产入口。分工参考本地RPipe的读取、准入、应用机制，未复制其整套库。

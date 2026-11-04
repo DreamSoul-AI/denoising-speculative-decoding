@@ -40,8 +40,14 @@ class Algorithm(AlgorithmHook):
         tracker: AlgorithmTracker,
         extra: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
-        extra = extra if extra is not None else {}
         del data
+        extra = extra if extra is not None else {}
+        payload = self.load_resume(system, extra)
+        self.apply_resume(payload, model, system, tracker, extra)
+        return payload
+
+    def load_resume(self, system: Any, extra: dict[str, Any]) -> dict[str, Any] | None:
+        """Read the selected checkpoint without applying scientific state."""
         stem = resume_stem(self.config, mode=self.mode)
         extra['resume_stem'] = stem
         if stem is None:
@@ -49,18 +55,38 @@ class Algorithm(AlgorithmHook):
         target = resolve_checkpoint_ref(stem, system, mode=self.mode)
         extra['resume_path'] = target
         loader = getattr(system, 'load_checkpoint', None)
-        payload = loader(target) if callable(loader) else None
-        logger = getattr(system, 'logger', None)
+        resolver = getattr(system, 'checkpoint_path', None)
+
+        def read(reference):
+            from spec_mtp.structure.artifact.provenance import file_sha256
+
+            selected = Path(resolver(reference)) if callable(resolver) else None
+            sha = file_sha256(selected) if selected is not None and selected.is_file() else None
+            value = loader(reference) if callable(loader) else None
+            if selected is not None and sha is not None:
+                if file_sha256(selected) != sha:
+                    raise ValueError('checkpoint bytes changed during reading')
+                extra['resume_sources'] = {'path': str(selected.resolve()), 'sha256': sha}
+            return value
+
+        payload = read(target)
         if payload is None and self.mode == 'eval':
             fallback = sibling_train_checkpoint(system, stem=Path(str(target)).stem)
             if fallback is not None and callable(loader):
-                payload = loader(str(fallback))
+                payload = read(str(fallback))
                 extra['resume_path'] = str(fallback)
         if payload is None:
-            if self.mode == 'eval':
-                raise FileNotFoundError(f'eval resume missing checkpoint {stem!r}')
+            if self.mode == 'eval' or self.config.setting('resume_from'):
+                raise FileNotFoundError(f'resume missing checkpoint {stem!r}')
             extra['resume_skipped'] = stem
             return None
+        return payload
+
+    def apply_resume(self, payload, model, system, tracker, extra) -> None:
+        """Apply a checkpoint only after the caller's admission has completed."""
+        if payload is None:
+            return
+        logger = getattr(system, 'logger', None)
         apply_module_state(getattr(model, 'module', None), payload)
         extra['resume_payload'] = payload
         if self.mode == 'train':
@@ -74,10 +100,9 @@ class Algorithm(AlgorithmHook):
                 logger.load_state_dict(logger_state)
         if logger is not None:
             logger.info(
-                f"target={target} epoch={payload.get('epoch')} step={payload.get('step')}",
+                f"target={extra.get('resume_path')} epoch={payload.get('epoch')} step={payload.get('step')}",
                 event='resume',
             )
-        return payload
 
     def run(self, data: Any, model: Any, system: Any, tracker: AlgorithmTracker) -> dict[str, Any]:
         raise NotImplementedError

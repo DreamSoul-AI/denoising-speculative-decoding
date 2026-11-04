@@ -98,18 +98,18 @@ class System:
             pass  # The bundle is committed; leftover diagnostics cannot turn this into a failed save.
         return bundle
 
-    def load_checkpoint(self, name: str) -> dict[str, Any] | None:
-        """Read a ``.pt`` bundle, a checkpoint directory, or a path."""
-        import json
-        import torch
-
+    def checkpoint_path(self, name: str) -> Path:
+        """Resolve committed checkpoint material without creating output directories."""
         raw = str(name)
         candidate = Path(raw)
         path = candidate
         if not (candidate.suffix.lower() == '.pt' or candidate.is_file() or candidate.is_dir() or '/' in raw or '\\' in raw):
             stem = raw.replace('/', '_').replace('\\', '_')
-            bundle = self.checkpoint_dir() / f'{stem}.pt'
-            folder = self.checkpoint_dir() / stem
+            from spec_mtp.structure.artifact.asset import kinds
+
+            root = Path(self.assets_dir) / kinds.CHECKPOINTS
+            bundle = root / f'{stem}.pt'
+            folder = root / stem
             if bundle.is_file():
                 path = bundle
             elif folder.is_dir():
@@ -123,6 +123,14 @@ class System:
                 path = bundle
             elif (folder.parent / f'.{folder.name}.incomplete').exists():
                 raise OSError(f'incomplete checkpoint without a committed bundle: {folder}')
+        return path
+
+    def load_checkpoint(self, name: str) -> dict[str, Any] | None:
+        """Read a ``.pt`` bundle, a checkpoint directory, or a path."""
+        import json
+        import torch
+
+        path = self.checkpoint_path(name)
         if path.is_dir():
             payload_path = path / 'payload.pt'
             if payload_path.is_file():

@@ -38,7 +38,9 @@
 
 trajectory 专用协议入口改为 `python -m studies.trajectory_observation.flow.execute.office <qwen8b|tree|traj> --help` 与 `python -m studies.trajectory_observation.flow.execute.fresh_replace --help`。它们要求显式本地模型目录、目录外完整模型SHA清单、Dolly JSONL、计划文件及其SHA、新外部输出；旧研究root只读，命令存在不表示获准重跑旧矩阵。office正式运行先验干净源码，CPU设备与已停止的独立AR数值机理协议拒绝。协议常量和数学留structure，四个旧structure命令及折叠例外移除，不保留反向wrapper。真实研究权重和完整流程本轮未执行。
 
-checkpoint/RNG的独立合同见架构设计CR0–CR5。当前CUDA验证覆盖全局RNG、独立generator边界、损坏输入拒绝及受控单步optimizer/scheduler恢复；Data/Trainer与跨进程完整训练恢复仍待单独验证。
+checkpoint/RNG的独立合同见架构设计CR0–CR5。native `TrainAlgorithm` 将读取、准入与应用分开：先核合同、模型状态、数据游标和RNG，再改活跃训练状态；实际bundle载入前后核SHA，来源进入恢复摘要。`algorithm.config.resume_from` 显式指定文件时，缺失即失败；默认latest不存在仍可新建训练。Data子状态使用v2，冻结sampler/loader generator及其共享关系；旧v1不能自动当exact恢复，原件保留。无完整training_state的旧checkpoint继续明确警告partial。
+
+微型CUDA回归已覆盖零worker标准DataLoader、shuffle、随机transform、Dropout、梯度累积，以及第2步保存后新进程恢复至同一6步预算；逐批样本、模型/优化器/调度器、tracker数值、游标与后续RNG均与连续执行比较。该范围不包含HF Trainer、多worker、分布式、真实模型或跨设备等价；数据身份按元数据核对，尚无数据内容哈希保证。
 
 诊断日志新写 `assets/logs/events.jsonl`，状态、日志与报告读端兼容旧 `run.log`。应用启动与 Run 身份分开，普通日志不保存异常原文或模型输入。流式文件哈希兼容 Python 3.10 所需 API，但最低版本及全部依赖组合尚未实机验证。
 
