@@ -5,7 +5,7 @@
 科学包 `spec_mtp` 在 2026-11-03 之前按 CLI、数据、模型、解码、mask、树、审计和分析落在扁平模块。该布局现在是冻结遗留。目标目录改为 `structure` / `flow` 两柱，规则在 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)。Study 通过 `studies/_shared` 调用解码器。K Study 的 `postcommit-final-norm-v1` 夹具能在合成输入上拟合和拒绝错误协议名。τ 的零调用口径已收束到 `prompt_tau`。时钟或设备同步失败时，解码仍返回 token 和接受计数，并且不补写 0 时长。文档入口已按职责分开。
 
 # 二、剩余工程项
-2026年11月3日的目录规则已经写入代码结构设计。步骤 0 是文档和 CPU 门禁，已经完成。步骤 1 已把 `contracts.py` 迁到 `structure/api/decode_api.py`，旧路径再导出已删除，不改数学。步骤 2 已把 `tree.py` 拆到 `structure/algorithm/decode/`，旧路径再导出已删除。步骤 3–7（masks、decode、data/model/audit/analysis、trajectory_observation、cli）尚未开始。步骤 8 里测试镜像改路径和 `.importlinter` 按两柱重写仍未做，也未另行批准。那些步骤只搬位置，不改数学。本计划不因为文档改了就授权后续搬迁。
+2026年11月3日的目录规则已经写入代码结构设计。步骤 0 是文档和 CPU 门禁，已经完成。步骤 1 已把 `contracts.py` 迁到 `structure/api/decode_api.py`，旧路径再导出已删除，不改数学。步骤 2 已把 `tree.py` 拆到 `structure/algorithm/decode/`，旧路径再导出已删除。步骤 3 已把 `masks.py` 拆到 `structure/algorithm/mask/`，顶层 `masks.py` 仍是临时再导出。步骤 4–7（decode、data/model/audit/analysis、trajectory_observation、cli）尚未开始。步骤 8 里测试镜像改路径和 `.importlinter` 按两柱重写仍未做，也未另行批准。那些步骤只搬位置，不改数学。本计划不因为文档改了就授权后续搬迁。
 
 | **事项** | **原因** | **验收** |
 | --- | --- | --- |
