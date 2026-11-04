@@ -19,11 +19,13 @@ def test_untimed_decoder_preserves_tokens_semantics_and_calls(model, order):
     with patch.object(decoding,'time',SimpleNamespace(perf_counter=lambda:0.)):
         actual,untimed=decoding.SpecDecoder(model,spec(order),cfg, mask_policy=build_mask_provider(spec(order), model.embedding_table)).generate(prompt)
         assert untimed['prefill_time'] == untimed['decode_time'] == 0
+        assert untimed['draft_seconds'] == untimed['verify_seconds'] == 0
         reference,ar_stats=decoding.ar_generate(model,prompt,cfg)
         assert ar_stats['ar_time'] == 0
     assert torch.equal(actual,expected) and torch.equal(actual,reference)
-    assert {k:v for k,v in stats.items() if k not in ('prefill_time','decode_time')} == {
-        k:v for k,v in untimed.items() if k not in ('prefill_time','decode_time')}
+    clocks = ('prefill_time', 'decode_time', 'draft_seconds', 'verify_seconds')
+    assert {k:v for k,v in stats.items() if k not in clocks} == {
+        k:v for k,v in untimed.items() if k not in clocks}
     assert decoding.time is original is time and time.perf_counter() > 0
 
 

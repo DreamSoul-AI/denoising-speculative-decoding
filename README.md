@@ -16,7 +16,7 @@
 | [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 研究问题、假设、对照和停止规则 |
 | [开发计划 Development Plan 去噪推测解码](<docs/开发计划 Development Plan 去噪推测解码.md>) | 剩余工程、验收和待确认的来源策略 |
 | [缺陷记录 Bug Report 去噪推测解码](<docs/缺陷记录 Bug Report 去噪推测解码.md>) | 尚未关闭的问题 |
-| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-04 BF16 AR自决定.md>) | BF16 自决定记在 `office_traj.py`，见 [2026-11-04 BF16 AR自决定](<docs/开发记录 Development Record/2026-11-04 BF16 AR自决定.md>)。首分叉见 [2026-11-04 首分叉记录](<docs/开发记录 Development Record/2026-11-04 首分叉记录.md>)。此前顶层再导出删除见 [2026-11-04 删除 masks 与 decode 顶层再导出](<docs/开发记录 Development Record/2026-11-04 删除 masks 与 decode 顶层再导出.md>)。完整目录见 [INDEX](<docs/开发记录 Development Record/INDEX.md>)。 |
+| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-04 墙钟按长度.md>) | 墙钟按长度的计时在 `office_traj.py` 与 `loop.py`，见 [2026-11-04 墙钟按长度](<docs/开发记录 Development Record/2026-11-04 墙钟按长度.md>)。BF16 自决定见 [2026-11-04 BF16 AR自决定](<docs/开发记录 Development Record/2026-11-04 BF16 AR自决定.md>)。首分叉见 [2026-11-04 首分叉记录](<docs/开发记录 Development Record/2026-11-04 首分叉记录.md>)。完整目录见 [INDEX](<docs/开发记录 Development Record/INDEX.md>)。 |
 | [运行记录 Run Record](<docs/运行记录 Run Record/2026-11-04 Qwen3-8B BF16自决定.md>) | 最近一次是 `office-ar-bf16-determinism-v1`：64 条不一致上双运行一致率 1，路径一致率 0.3125，差距中位数 0.0625，贴「AR路径不稳定」。见 [2026-11-04 Qwen3-8B BF16自决定](<docs/运行记录 Run Record/2026-11-04 Qwen3-8B BF16自决定.md>)。此前首分叉在 [2026-11-04 Qwen3-8B 首分叉](<docs/运行记录 Run Record/2026-11-04 Qwen3-8B 首分叉.md>)。此前失败子集在 [2026-11-04 Qwen3-8B trajectory失败子集](<docs/运行记录 Run Record/2026-11-04 Qwen3-8B trajectory失败子集.md>)。完整目录见 [INDEX](<docs/运行记录 Run Record/INDEX.md>)。 |
 
 # 二、当前实现与使用边界

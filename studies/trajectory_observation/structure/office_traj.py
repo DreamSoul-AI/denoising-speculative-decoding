@@ -15,6 +15,10 @@ BF16 AR reference. A float32 AR load runs only when the resident copy fits in fr
 ``office-ar-bf16-determinism-v1`` reuses this command on the archived mismatch prompts.
 It compares two BF16 ``ar_generate`` runs, the whole-prompt path with prompt-tokenwise
 decoding, and the top1-top2 gap at each archived fork. It does not load float32 weights.
+``office-8b-traj-wall-by-length-v1`` reuses this command on the summarization slice.
+It records ``wall_seconds`` at 64, 256 and 512 tokens. ``overhead_seconds`` is
+``prefill_time``. ``draft_seconds`` and ``verify_seconds`` come from the decode loop.
+``residual_seconds`` is wall minus those three buckets and may be negative.
 """
 
 from __future__ import annotations
@@ -96,6 +100,15 @@ FORK_STAMP = '20261104-1244'
 FORK_RESERVE_MIB = 4096
 PROTOCOL_DET = 'office-ar-bf16-determinism-v1'
 DET_PREFIX = 'sd-office-ar-bf16-determinism-v1'
+PROTOCOL_LENGTH = 'office-8b-traj-wall-by-length-v1'
+LENGTH_PREFIX = 'sd-office-8b-traj-wall-by-length-v1'
+LENGTH_STAMP = '20261104-1420'
+LENGTHS = (64, 256, 512)
+LENGTH_FLAT_RATIO = 1.5
+LENGTH_BUCKET_SHARE = 0.5
+LENGTH_BUCKET_ORDER = (
+    'draft_seconds', 'verify_seconds', 'overhead_seconds', 'residual_seconds',
+)
 DET_NEAR_GAP = 0.5
 DET_LARGE_GAP = 2.0
 DET_NEAR_SHARE_MAX = 0.20
@@ -588,6 +601,102 @@ def wall_report(full_rows, traj_rows):
     }
 
 
+def row_buckets(row):
+    """Split one arm into the pre-registered buckets.
+
+    ``overhead_seconds`` is the existing unsynced ``prefill_time``.
+    ``residual_seconds`` is wall minus overhead, draft and verify. It may be
+    negative and is not rewritten to zero.
+    """
+    wall = finite_wall(row.get('wall_seconds'))
+    overhead = finite_wall(row.get('prefill_time'))
+    draft = finite_wall(row.get('draft_seconds'))
+    verify = finite_wall(row.get('verify_seconds'))
+    if wall is None or overhead is None or draft is None or verify is None:
+        return None
+    return {
+        'wall_seconds': wall,
+        'overhead_seconds': overhead,
+        'draft_seconds': draft,
+        'verify_seconds': verify,
+        'residual_seconds': wall - overhead - draft - verify,
+    }
+
+
+def bucket_report(full_rows, traj_rows):
+    """Paired bucket deltas. An incomplete bucket is not a share."""
+    full_buckets = [row_buckets(row) for row in full_rows]
+    traj_buckets = [row_buckets(row) for row in traj_rows]
+    if any(item is None for item in full_buckets + traj_buckets):
+        return {'complete': False}
+    report = {'complete': True}
+    for key in LENGTH_BUCKET_ORDER:
+        deltas = [traj[key] - full[key] for traj, full in zip(traj_buckets, full_buckets)]
+        report[key] = {
+            'delta': f'{key}_traj - {key}_full',
+            'difference': bootstrap_mean_ci(deltas),
+        }
+    return report
+
+
+def _decomp_label(piece, wall_mean):
+    if wall_mean == 0:
+        return 'decomp-split'
+    means = {key: piece['buckets'][key]['difference']['mean'] for key in LENGTH_BUCKET_ORDER}
+    same = {
+        key: value for key, value in means.items()
+        if value != 0 and (value < 0) == (wall_mean < 0)
+    }
+    if not same:
+        return 'decomp-split'
+    best = max(LENGTH_BUCKET_ORDER, key=lambda key: abs(same[key]) if key in same else -1.0)
+    if abs(same[best]) < LENGTH_BUCKET_SHARE * abs(wall_mean):
+        return 'decomp-split'
+    return {
+        'draft_seconds': 'decomp-draft',
+        'verify_seconds': 'decomp-verify',
+        'overhead_seconds': 'decomp-overhead',
+        'residual_seconds': 'decomp-residual',
+    }[best]
+
+
+def length_decision(pieces):
+    """Length label, then the bucket label on the largest absolute wall gap.
+
+    A partial or failed length stays ``incomplete`` and does not pick a bucket.
+    """
+    if [piece.get('length') for piece in pieces] != list(LENGTHS):
+        return {'length_label': 'incomplete', 'decomp_label': None, 'decomp_length': None}
+    if any(not piece.get('complete') for piece in pieces):
+        return {'length_label': 'incomplete', 'decomp_label': None, 'decomp_length': None}
+    directions = [piece['wall']['wall_direction'] for piece in pieces]
+    means = [piece['wall']['wall_difference']['mean'] for piece in pieces]
+    absolutes = [abs(mean) for mean in means]
+    ratio = None if min(absolutes) == 0 else max(absolutes) / min(absolutes)
+    growing = absolutes[0] < absolutes[1] < absolutes[2]
+    if (
+        all(direction == 'shorter' for direction in directions)
+        and growing
+        and ratio is not None
+        and ratio >= LENGTH_FLAT_RATIO
+    ):
+        label = 'length-dependent'
+    elif len(set(directions)) == 1 and (
+        directions[0] == 'flat' or (ratio is not None and ratio < LENGTH_FLAT_RATIO)
+    ):
+        label = 'length-flat'
+    elif directions[1] != 'shorter' and directions[2] != 'shorter':
+        label = 'dead-metric'
+    else:
+        label = 'mixed'
+    host = max(range(len(pieces)), key=lambda index: absolutes[index])
+    return {
+        'length_label': label,
+        'decomp_label': _decomp_label(pieces[host], means[host]),
+        'decomp_length': pieces[host]['length'],
+    }
+
+
 def ablation_summary(rows_by_name, protocol=PROTOCOL, digest=EVAL_SHA256, skipped=SKIPPED_QIDS, take=TAKE):
     if set(rows_by_name) != {name for name, _gain in ARMS}:
         raise RuntimeError('summary is missing a registered arm')
@@ -700,6 +809,16 @@ def round_config(protocol):
             'check': assert_registered_xcat7_slice,
             'take': TAKE_XCAT7,
         }
+    if protocol == 'wall_by_length':
+        return {
+            'protocol': PROTOCOL_LENGTH,
+            'prefix': LENGTH_PREFIX,
+            'stamp': LENGTH_STAMP,
+            'select': prompts_summarization,
+            'check': assert_registered_xcat7_slice,
+            'take': TAKE_XCAT7,
+            'lengths': LENGTHS,
+        }
     raise RuntimeError(f'unknown trajectory protocol {protocol}')
 
 
@@ -721,7 +840,7 @@ def _store_clock(row, stats, wall):
     if kept is not None:
         row['wall_seconds'] = kept
     if isinstance(stats, dict):
-        for key in ('prefill_time', 'decode_time'):
+        for key in ('prefill_time', 'decode_time', 'draft_seconds', 'verify_seconds'):
             if key not in stats:
                 continue
             kept = finite_wall(stats[key])
@@ -880,7 +999,7 @@ def _smoke_view(row):
     wall = finite_wall(row.get('wall_seconds'))
     if wall is not None:
         recorded['wall_seconds'] = wall
-    for key in ('prefill_time', 'decode_time'):
+    for key in ('prefill_time', 'decode_time', 'draft_seconds', 'verify_seconds'):
         if key in row and finite_wall(row[key]) is not None:
             recorded[key] = row[key]
     for key in ('prompt_length', 'first_divergence_index', 'common_prefix_length'):
@@ -909,12 +1028,23 @@ def _smoke(model, tokenizer, prompts, dest, cfg):
                'wall_all_recorded': all('wall_seconds' in arm for item in rows for arm in item.values())}
     if cfg['protocol'] == PROTOCOL_XCAT7:
         payload['wall_protocol'] = PROTOCOL_WALL
+    if cfg['protocol'] == PROTOCOL_LENGTH:
+        payload['wall_protocol'] = PROTOCOL_LENGTH
+        payload['lengths'] = list(LENGTHS)
     _file(dest, 'smoke', 'json', cfg['prefix'], cfg['stamp']).write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
     if not payload['argmax_all_passed']:
         raise RuntimeError('smoke argmax failed')
     if not payload['wall_all_recorded']:
         raise RuntimeError('smoke wall clock missing')
+    if cfg['protocol'] == PROTOCOL_LENGTH:
+        needed = ('wall_seconds', 'prefill_time', 'draft_seconds', 'verify_seconds')
+        recorded = all(
+            finite_wall(arm.get(key)) is not None
+            for item in rows for arm in item.values() for key in needed
+        )
+        if not recorded:
+            raise RuntimeError('smoke bucket missing')
     print('smoke passed', flush=True)
     return payload
 
@@ -971,6 +1101,117 @@ def _formal(model, tokenizer, prompts, skipped, digest, dest, cfg):
     print(json.dumps(summary, ensure_ascii=False), flush=True)
     return summary
 
+
+def _length_path(dest, name, length, suffix):
+    return dest / f'{LENGTH_PREFIX}-{name}-{length}-{LENGTH_STAMP}.{suffix}'
+
+
+def _length_piece(full_rows, traj_rows, length, digest, skipped):
+    if len(full_rows) != TAKE_XCAT7 or len(traj_rows) != TAKE_XCAT7:
+        return {'length': length, 'complete': False, 'prompts': len(full_rows)}
+    inner = ablation_summary(
+        {'full': full_rows, 'traj': traj_rows},
+        protocol=PROTOCOL_LENGTH, digest=digest, skipped=skipped, take=TAKE_XCAT7,
+    )
+    buckets = bucket_report(full_rows, traj_rows)
+    walls = [finite_wall(row.get('wall_seconds')) for row in full_rows]
+    full_mean = None if any(value is None for value in walls) else statistics.mean(walls)
+    wall_mean = inner['wall']['wall_difference']['mean'] if inner['wall'].get('complete') else None
+    relative = None
+    if full_mean not in (None, 0) and wall_mean is not None:
+        relative = abs(wall_mean) / full_mean
+    return {
+        'length': length,
+        'complete': bool(inner['argmax_all_passed'] and inner['wall'].get('complete') and buckets.get('complete')),
+        'prompts': TAKE_XCAT7,
+        'argmax_all_passed': inner['argmax_all_passed'],
+        'comparison': inner['comparison'],
+        'wall': inner['wall'],
+        'buckets': buckets,
+        'relative_abs_delta': relative,
+    }
+
+
+def _write_length_summary(dest, pieces, digest, skipped):
+    payload = {
+        'protocol': PROTOCOL_LENGTH,
+        'role': ROLE,
+        'confirmatory': False,
+        'prompts': TAKE_XCAT7,
+        'prompt_sha256': digest,
+        'skipped_qids': list(skipped),
+        'lengths': list(LENGTHS),
+        'by_length': {str(piece['length']): piece for piece in pieces},
+    }
+    payload.update(length_decision(pieces))
+    _file(dest, 'summary', 'json', LENGTH_PREFIX, LENGTH_STAMP).write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+    print(json.dumps({
+        'length_label': payload['length_label'],
+        'decomp_label': payload['decomp_label'],
+        'decomp_length': payload['decomp_length'],
+    }, ensure_ascii=False), flush=True)
+    return payload
+
+
+def _formal_by_length(model, tokenizer, prompts, skipped, digest, dest, cfg):
+    """One warmup, then lengths 64, 256, 512. An incomplete length stops the rest."""
+    if cfg['protocol'] != PROTOCOL_LENGTH:
+        raise RuntimeError('length formal is only for the length protocol')
+    pieces = []
+    _warmup_arms(model, tokenizer, prompts[0])
+    for length in LENGTHS:
+        paths = {name: _length_path(dest, name, length, 'jsonl') for name, _gain in ARMS}
+        done = {name: {row['qid'] for row in read_rows(path)} for name, path in paths.items()}
+        if len(set(map(frozenset, done.values()))) != 1:
+            raise RuntimeError('arms resumed at different prompts')
+        header = _length_path(dest, 'header', length, 'json')
+        if not header.exists():
+            header.write_text(json.dumps({
+                'protocol': PROTOCOL_LENGTH,
+                'role': 'exploration',
+                'source': _run_identity(),
+                'length': length,
+                'lengths': list(LENGTHS),
+                'eval': {**EVAL, 'max_new_tokens': length},
+                'arms': {name: spec for name, spec in _specs()},
+                'prompt_sha256': digest,
+                'qids': [prompt['qid'] for prompt in prompts],
+                'skipped_qids': list(skipped),
+                'delta': 'accepted_traj - accepted_full',
+                'wall_seconds': 'sync_device and perf_counter around this arm SpecDecoder.generate',
+                'wall_delta': 'wall_seconds_traj - wall_seconds_full',
+                'overhead_seconds': 'prefill_time',
+                'draft_seconds': 'unsynced tree build and block assembly before the decode forward',
+                'verify_seconds': 'unsynced decode forward plus the sample-matching walk',
+                'residual_seconds': 'wall_seconds - overhead_seconds - draft_seconds - verify_seconds',
+                'bootstrap': {'seed': 0, 'resamples': 10000},
+            }, ensure_ascii=False, indent=2), encoding='utf-8')
+        limit = dict(EVAL)
+        limit['max_new_tokens'] = length
+        finished = done['full']
+        for prompt in prompts:
+            if prompt['qid'] in finished:
+                continue
+            started = time.perf_counter()
+            decoded = decode_measured_prompt(model, tokenizer, prompt, _specs(), limit)
+            for name, row in decoded.items():
+                row['max_new_tokens'] = length
+                _append(paths[name], row)
+            print(
+                f"eval {length} {prompt['qid']} full={decoded['full']['accepted']} "
+                f"traj={decoded['traj']['accepted']} nodes={decoded['full']['max_nodes']} "
+                f"wall={_shown_wall(decoded['full'])}/{_shown_wall(decoded['traj'])} "
+                f"{time.perf_counter() - started:.1f}s",
+                flush=True,
+            )
+        piece = _length_piece(read_rows(paths['full']), read_rows(paths['traj']), length, digest, skipped)
+        pieces.append(piece)
+        _write_length_summary(dest, pieces, digest, skipped)
+        if not piece['complete']:
+            print(f'length {length} incomplete', flush=True)
+            return pieces
+    return pieces
 
 
 # Offline analysis of archived jsonl. No command entry.
@@ -2061,7 +2302,7 @@ def main(argv=None):
         '--protocol',
         choices=(
             'ablate', 'xcat', 'xcat2', 'xcat3', 'xcat4', 'xcat5', 'xcat6', 'xcat7',
-            'first_fork', 'ar_determinism',
+            'first_fork', 'ar_determinism', 'wall_by_length',
         ),
         default='ablate')
     args = parser.parse_args(argv)
@@ -2082,7 +2323,10 @@ def main(argv=None):
     if args.only in ('all', 'formal'):
         if _run_identity()['dirty']:
             raise RuntimeError('formal run requires a clean worktree')
-        _formal(model, tokenizer, prompts, skipped, digest, dest, cfg)
+        if args.protocol == 'wall_by_length':
+            _formal_by_length(model, tokenizer, prompts, skipped, digest, dest, cfg)
+        else:
+            _formal(model, tokenizer, prompts, skipped, digest, dest, cfg)
     print('torch', torch_version, flush=True)
     if args.protocol == 'first_fork':
         from spec_mtp.structure.algorithm.decode.loop import ar_generate

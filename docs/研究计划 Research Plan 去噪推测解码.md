@@ -703,7 +703,7 @@ p 值不设 0.05 门。方向与下表一致就记为该假设的正向证据。
 3. **dead-metric**。256 和 512 的 `wall_direction` 都不是 shorter。短长度上的优势没有延伸到更长生成。
 4. **mixed**。其余。
 
-分解档另贴，不覆盖长度档。宿主是墙钟差均值绝对值最大的那一档。与墙钟差同号的四个桶里，取绝对值最大的一个；并列时按 draft、verify、overhead、residual 的顺序取先出现的。该绝对值达到宿主墙钟差绝对值的一半时，分别记为 **decomp-draft**、**decomp-verify**、**decomp-overhead**、**decomp-residual**。前两个是 H_decomp 的正向证据。后两个算开销主导，H_decomp 被反驳。达不到一半，或没有同号桶，记为 **decomp-split**。墙钟差均值为 0 时直接是 decomp-split。
+分解档另贴，不覆盖长度档。宿主是墙钟差均值绝对值最大的那一档；绝对值并列时取较短的那一档。与墙钟差同号的四个桶里，取绝对值最大的一个；并列时按 draft、verify、overhead、residual 的顺序取先出现的。该绝对值达到宿主墙钟差绝对值的一半时，分别记为 **decomp-draft**、**decomp-verify**、**decomp-overhead**、**decomp-residual**。前两个是 H_decomp 的正向证据。后两个算开销主导，H_decomp 被反驳。达不到一半，或没有同号桶，记为 **decomp-split**。墙钟差均值为 0 时直接是 decomp-split。
 
 任一档的墙钟不完整、argmax 未全部通过，或该档进程中断：该档记为不完整，长度档记为 **incomplete**，不贴分解档，并且不开始更长的档。不因为已经看到的差的方向而删 prompt、改 N、改长度或改增益。
 
