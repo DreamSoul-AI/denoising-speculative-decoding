@@ -1,6 +1,6 @@
 # 2026-11-04 observation 增益扫描
 
-协议 `office-8b-traj-g-scan-v1` 已写入 [研究计划](<../研究计划 Research Plan 去噪推测解码.md>) 第十二章。计划先合并。随后的代码落在 `studies/trajectory_observation/structure/office_traj_gscan.py`，命令仍是 `office_traj.py --protocol gscan`。产物前缀 `sd-office-8b-traj-g-scan-v1`，文件戳 `20261104-1813`，写到源码树外。没有 GPU 运行。数字留空，等以后的运行记录。
+协议 `office-8b-traj-g-scan-v1` 已写入 [研究计划](<../研究计划 Research Plan 去噪推测解码.md>) 第十二章。计划先合并。四臂、冒烟、正式和汇总在 `studies/trajectory_observation/structure/office_traj.py`，命令是 `office_traj.py --protocol gscan`。产物前缀 `sd-office-8b-traj-g-scan-v1`，文件戳 `20261104-1813`，写到源码树外。没有 GPU 运行。数字留空，等以后的运行记录。
 
 四臂共用 xcat7 的 ESP 草稿 mask，只改 `spec.observation.gain`。g 为 0、0.25、0.5、0.75。g=0 是 trajectory-only。0.25、0.5、0.75 是混合。不测 g=1。
 

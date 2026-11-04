@@ -755,4 +755,4 @@ g=1 是仅 observation，不在这四臂里。K 不进入这轮。卡尔曼保�
 无论三对的方向如何，都不改 K、不改树、不把树改成 [2, 2] 或 [3, 1]、不重选这 128 条、不改 256、不加 g=1、不换数据集、不重开卡尔曼、不重跑 BF16 AR 自决定、不换 4B 或 0.6B。不合并 `main`。
 
 ### 以后的代码位置
-只登记名字。本计划不写这些文件。助手放在 `studies/trajectory_observation/structure/office_traj_gscan.py`。命令留在 `studies/trajectory_observation/structure/office_traj.py`。不建垫片，不另写一次性脚本，不再拆文件。产物前缀 `sd-office-8b-traj-g-scan-v1`，戳在运行时写入，目录在源码树外。不覆盖 xcat7 或墙钟按长度的已归档文件。数字留空，直到以后的运行记录。
+只登记名字。本计划不写这些文件。四臂、冒烟、正式和汇总在 `studies/trajectory_observation/structure/office_traj.py`，命令是 `--protocol gscan`。不建垫片，不另写一次性脚本，不再拆文件。产物前缀 `sd-office-8b-traj-g-scan-v1`，戳在运行时写入，目录在源码树外。不覆盖 xcat7 或墙钟按长度的已归档文件。数字留空，直到以后的运行记录。
