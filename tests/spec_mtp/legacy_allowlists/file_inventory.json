@@ -45,7 +45,6 @@
   "studies/output_space_extension/analyze_kernels.py",
   "studies/output_space_extension/analyze_numerics.py",
   "studies/output_space_extension/analyze_operators.py",
-  "studies/output_space_extension/analyze_results.py",
   "studies/output_space_extension/kernel_common.py",
   "studies/output_space_followup/analyze_results.py",
   "studies/output_space_prerequisite/plot_results.py",

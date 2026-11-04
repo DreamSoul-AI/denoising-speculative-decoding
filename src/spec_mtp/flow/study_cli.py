@@ -362,7 +362,7 @@ def _print_launch_counts(study_dir: Path) -> None:
 def _execute_report(args: argparse.Namespace) -> int:
     study_dir = Path(args.study_dir).resolve()
     try:
-        path = write_numbers(study_dir)
+        path = write_numbers(study_dir, args.out)
     except FileNotFoundError:
         print(f'missing process: {process_path(study_dir)}', file=sys.stderr)
         return 2
@@ -497,8 +497,9 @@ def main(argv: list[str] | None = None) -> int:
     proc_p = sub.add_parser('process', help='Study-level process: mean/std/min/max history')
     proc_p.add_argument('study_dir', type=Path, help='Path to studies/<name>/')
 
-    report_p = sub.add_parser('report', help='write docs/NUMBERS.md from process.json')
+    report_p = sub.add_parser('report', help='export saved numbers to a new explicit external file')
     report_p.add_argument('study_dir', type=Path, help='Path to studies/<name>/')
+    report_p.add_argument('--out', type=Path, required=True, help='new report file outside the Study and source roots')
 
     logs_p = sub.add_parser('logs', help='print diagnostic events in time order (JSONL and legacy text)')
     logs_p.add_argument('study_dir', type=Path, help='Path to studies/<name>/')

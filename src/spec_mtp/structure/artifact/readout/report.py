@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from urllib.parse import quote
 from typing import Any
 
-from spec_mtp.structure.artifact._atomic import atomic_write_text
-from spec_mtp.structure.artifact.asset import kinds
 from spec_mtp.structure.artifact.errors import CorruptArtifactError
 from spec_mtp.structure.artifact.index import index_path, load_index
-from spec_mtp.structure.artifact.paths import DOCS_DIRNAME, PROCESS_NAME
+from spec_mtp.structure.artifact.paths import PROCESS_NAME, validate_output_root
 from spec_mtp.structure.artifact.result import load_result
 from spec_mtp.structure.artifact.readout.status import log_path
-
-
-def numbers_path(study_dir: Path | str) -> Path:
-    return Path(study_dir) / DOCS_DIRNAME / 'NUMBERS.md'
 
 
 def _fmt(value: Any) -> str:
@@ -49,7 +45,7 @@ def _planned_runs(body: dict[str, Any]) -> dict[str, Any]:
     return planned
 
 
-def _log_links(index: dict[str, Any], study_dir: Path) -> dict[str, str]:
+def _log_links(index: dict[str, Any], study_dir: Path, output: Path | None = None) -> dict[str, str]:
     links: dict[str, str] = {}
     for exp in index.get('experiments') or []:
         for run in exp.get('runs') or []:
@@ -59,11 +55,17 @@ def _log_links(index: dict[str, Any], study_dir: Path) -> dict[str, str]:
             path = log_path(study_dir, run, str(run.get('run_dir') or run_id))
             if path is not None:
                 relative = path.resolve().relative_to(study_dir.resolve())
-                links[run_id] = '../' + relative.as_posix()
+                if output is None:
+                    links[run_id] = '../' + relative.as_posix()
+                else:
+                    try:
+                        links[run_id] = quote(Path(os.path.relpath(path.resolve(), output.parent)).as_posix(), safe='/.:')
+                    except ValueError:
+                        links[run_id] = path.resolve().as_uri()
     return links
 
 
-def render_numbers(study_dir: Path | str) -> str:
+def render_numbers(study_dir: Path | str, *, output: Path | None = None) -> str:
     study_dir = Path(study_dir)
     try:
         body = load_result(study_dir / PROCESS_NAME)
@@ -82,11 +84,11 @@ def render_numbers(study_dir: Path | str) -> str:
     except (TypeError, ValueError) as exc:
         raise ValueError(f'process does not match the current index: {exc}; '
                          'check the plan and rerun process before report') from exc
-    links = _log_links(index, study_dir)
+    links = _log_links(index, study_dir, output)
     lines = [
         f'# Numbers: {body.get("study") or study_dir.name}',
         '',
-        'Generated from `process.json`. The conclusion stays in `STUDY_REPORT.md`.',
+        'Derived from the saved process.json and index.json. Research interpretation belongs in the project records.',
         '',
         '## Experiments',
         '',
@@ -131,7 +133,7 @@ def render_numbers(study_dir: Path | str) -> str:
             run_id = str(run.get('id') or '')
             metrics = run.get('metrics') or {}
             metric_text = ', '.join(f'{key}={_fmt(metrics[key])}' for key in sorted(metrics)) or '-'
-            href = links.get(run_id) or f'../runs/{run_id}/assets/{kinds.RUN_LOG}'
+            href = links[run_id]
             seed = '' if run.get('seed') is None else str(run.get('seed'))
             lines.append(
                 f'| {factors} | {seed} | `{run_id}` | {metric_text} | [log]({href}) |'
@@ -140,5 +142,18 @@ def render_numbers(study_dir: Path | str) -> str:
     return '\n'.join(lines)
 
 
-def write_numbers(study_dir: Path | str) -> Path:
-    return atomic_write_text(numbers_path(study_dir), render_numbers(study_dir))
+def write_numbers(study_dir: Path | str, output: Path | str) -> Path:
+    """Export to an explicit, new target separate from inputs and source roots."""
+    study = Path(study_dir).resolve()
+    requested = Path(output)
+    if requested.exists() or requested.is_symlink():
+        raise FileExistsError(requested)
+    target = requested.resolve()
+    validate_output_root(target.parent, study)
+    if target.exists():
+        raise FileExistsError(target)
+    text = render_numbers(study, output=target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open('x', encoding='utf-8', newline='\n') as handle:
+        handle.write(text)
+    return target

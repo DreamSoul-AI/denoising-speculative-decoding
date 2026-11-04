@@ -214,18 +214,19 @@ def test_nested_config_axis_validates_effective_factors_and_rejects_subsets(stud
     study = study_copy(patch, name='nested_config_axis')
     cli('make', study, '--num-gpus', '0', check=True)
     cli('launch', study, '--num-gpus', '0', '--console', 'shared', check=True)
-    cli('report', study, check=True)
+    output = study.parent / 'nested-report/numbers.md'
+    cli('report', study, '--out', output, check=True)
     process = json.loads((study / 'process.json').read_text())
     assert process['complete'] and process['spec_mtp']['expected_factors_match']
     index = json.loads((study / 'index.json').read_text())
     assert all('eval' in exp['factors']['algorithm.config'] for exp in index['experiments'])
-    previous = (study / 'docs/NUMBERS.md').read_bytes()
+    previous = output.read_bytes()
     index['experiments'] = index['experiments'][:1]
     (study / 'index.json').write_text(json.dumps(index))
     result = cli('process', study)
     assert result.returncode != 0 and 'incomplete' in result.stdout + result.stderr
-    result = cli('report', study)
-    assert result.returncode != 0 and (study / 'docs/NUMBERS.md').read_bytes() == previous
+    result = cli('report', study, '--out', study.parent / 'rejected-report/numbers.md')
+    assert result.returncode != 0 and output.read_bytes() == previous
 
 
 def test_output_hidden_real_cli_and_tampered_owner_evidence(study_copy):
@@ -243,7 +244,7 @@ def test_output_hidden_real_cli_and_tampered_owner_evidence(study_copy):
     study = study_copy(patch, name='output_hidden_cli')
     cli('make', study, '--num-gpus', '0', check=True)
     cli('launch', study, '--num-gpus', '0', '--console', 'shared', check=True)
-    cli('report', study, check=True)
+    cli('report', study, '--out', study.parent / 'output-hidden-report/numbers.md', check=True)
     process = json.loads((study / 'process.json').read_text())
     assert process['complete'] and process['spec_mtp']['passed']
     run_id = json.loads((study / 'index.json').read_text())['experiments'][0]['runs'][0]['id']

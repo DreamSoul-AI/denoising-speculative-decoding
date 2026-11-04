@@ -31,6 +31,45 @@ def file_sha256(path: Path | str) -> str:
     return digest.hexdigest()
 
 
+
+def read_historical_bytes(
+    repo_root: Path | str, commit: str, relative: Path | str, expected_sha256: str,
+) -> bytes:
+    """Read a pinned local Git member, at most 16 MiB, without filters or lazy fetch."""
+    if (not isinstance(commit, str) or len(commit) != 40
+            or any(char not in '0123456789abcdef' for char in commit)):
+        raise ValueError('historical source requires a full lowercase commit SHA')
+    if (not isinstance(expected_sha256, str) or len(expected_sha256) != 64
+            or any(char not in '0123456789abcdef' for char in expected_sha256)):
+        raise ValueError('historical source requires a lowercase SHA256')
+    if not isinstance(relative, (str, Path)):
+        raise ValueError('historical member must be a repository-relative path')
+    member = Path(relative)
+    name = member.as_posix()
+    if (not member.parts or member.is_absolute() or member.anchor or member.drive or '..' in member.parts
+            or ':' in name or '\\' in name or any(ord(char) < 32 for char in name)):
+        raise ValueError('historical member must be a repository-relative path')
+    root = Path(repo_root).resolve(strict=True)
+    command = ['git', '--no-lazy-fetch', '--no-replace-objects', '-c', 'safe.directory=' + str(root),
+               '-C', str(root)]
+    options: dict[str, Any] = {'timeout': 20, 'stderr': subprocess.DEVNULL}
+    top = subprocess.check_output(command + ['rev-parse', '--show-toplevel'],
+                                  text=True, encoding='utf-8', **options).strip()
+    if Path(top).resolve() != root:
+        raise ValueError('repo_root must identify the Git top-level directory')
+    kind = subprocess.check_output(command + ['cat-file', '-t', commit], **options).strip()
+    if kind != b'commit':
+        raise ValueError('historical source object must be a commit')
+    source = commit + ':' + name
+    size = int(subprocess.check_output(command + ['cat-file', '-s', source], **options))
+    if not 0 <= size <= 16 * 1024 * 1024:
+        raise ValueError('historical member exceeds the 16 MiB bound')
+    data = subprocess.check_output(command + ['cat-file', 'blob', source], **options)
+    if len(data) != size or hashlib.sha256(data).hexdigest() != expected_sha256:
+        raise ValueError('historical member SHA256 mismatch')
+    return data
+
+
 def _inside(study_dir: Path, raw: str) -> Path:
     path = (study_dir / raw).resolve()
     try:

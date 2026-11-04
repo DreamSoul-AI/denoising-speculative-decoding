@@ -1,11 +1,11 @@
 """Fixed window fallback must retain null prompts and both baseline paths."""
 
-import importlib.util
-
 import pytest
 import torch
 
-from test_window_observer import ROOT
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def row(root, accepted=(), stopped=False):
@@ -40,9 +40,7 @@ def test_unused_owner_and_no_continuing_window_are_explicit(monkeypatch):
 
 @pytest.mark.parametrize('first_correct,has_second', [(True, True), (False, True), (True, False)])
 def test_second_slot_ar_path_requires_correct_first_and_available_target(first_correct, has_second):
-    definition = importlib.util.spec_from_file_location('extension_analysis', ROOT / 'studies/output_space_extension/analyze_results.py')
-    analysis = importlib.util.module_from_spec(definition)
-    definition.loader.exec_module(analysis)
+    from studies._shared.structure import extension_diagnostics as analysis
     tokens = [0, 1, 2, 0] if has_second else [0, 1, 2]
     first = [0., 1., 3.] if first_correct else [3., 1., 0.]
     sample = {'seed_logits': torch.tensor([first, [3., 1., 0.]])}

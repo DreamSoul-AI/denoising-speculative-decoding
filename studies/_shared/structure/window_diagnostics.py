@@ -2,10 +2,6 @@
 
 from spec_mtp.structure.artifact.provenance import file_sha256
 from spec_mtp.structure.algorithm.mask import build_mask_provider
-import hashlib
-import json
-import subprocess
-from pathlib import Path
 from unittest.mock import patch
 SEMANTIC_KEYS = ('accepted', 'new_tokens', 'committed', 'decode_calls', 'hit_context_limit', 'attempt_by_depth', 'accept_by_depth')
 TRACE_KEYS = ('root_position', 'cache_before', 'cache_after', 'accepted_nodes', 'committed_tokens', 'stopped')
@@ -88,21 +84,8 @@ def observe(model, prompt, spec, eval_cfg, eos, reference, targets, seed=124):
     assert actual_trace == expected_trace and sorted(samples) == sorted(targets)
     return (samples, {'replayed_output_equal': True, 'semantic_trace_equal': True, 'decode_calls': stats['decode_calls'], 'observer_target_forward_calls': calls, 'expected_target_forward_calls': 1 + stats['decode_calls']})
 
-def file_hash(path):
-    path = Path(path)
-    if path.exists():
-        return file_sha256(path)
-    root = Path(__file__).resolve().parents[3]
-    relative = path.resolve().relative_to(root).as_posix()
-    manifest = json.loads((root / 'docs/research/plan-consolidation-manifest.json').read_text(encoding='utf-8'))
-    item = next((x for x in manifest['plans'] if x['source_path'] == relative), None)
-    if item is None:
-        raise FileNotFoundError(path)
-    blob = subprocess.check_output(['git', 'show', item['source_commit'] + ':' + relative], cwd=root)
-    assert hashlib.sha256(blob).hexdigest() == item['git_blob_sha256']
-    candidates = (blob, blob.replace(b'\n', b'\r\n'))
-    assert item['source_sha256'] in {hashlib.sha256(data).hexdigest() for data in candidates}
-    return item['source_sha256']
+file_hash = file_sha256
+
 
 def transfer(model, prompt, spec, eval_cfg, eos, reference, donor, original_masks, root, targets, placebo=False, seed=124):
     import torch

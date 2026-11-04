@@ -2039,13 +2039,6 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_readout_report.py::test_failed_atomic_replace_preserves_prior_numbers_and_process",
-      "target": "spec_mtp",
-      "tags": [
-        "offline_cpu"
-      ]
-    },
-    {
       "test_id": "tests/spec_mtp/test_readout_report.py::test_spec_cli_report_keeps_upstream_identity_and_specialized_evidence_gates",
       "target": "spec_mtp",
       "tags": [
@@ -4228,6 +4221,186 @@
     {
       "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_all_log_readers_reject_resolved_paths_outside_study",
       "target": "spec_mtp.structure.artifact.readout.status",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_readout_report.py::test_existing_output_preserves_prior_numbers_and_process",
+      "target": "spec_mtp.structure.artifact.readout.report",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_readout_report.py::test_report_write_failure_does_not_modify_saved_inputs",
+      "target": "spec_mtp.structure.artifact.readout.report",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_readout_report.py::test_report_rejects_output_that_overlaps_inputs_or_source",
+      "target": "spec_mtp.structure.artifact.readout.report",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_readout_report.py::test_report_quality_failure_does_not_rewrite_process_or_gate",
+      "target": "studies._shared.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_provenance.py::test_historical_bytes_preserve_pinned_git_member_without_worktree_reads",
+      "target": "spec_mtp.structure.artifact.provenance",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_provenance.py::test_historical_bytes_reject_unpinned_or_escaping_requests",
+      "target": "spec_mtp.structure.artifact.provenance",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_provenance.py::test_historical_bytes_fail_closed_on_missing_or_mismatched_evidence",
+      "target": "spec_mtp.structure.artifact.provenance",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_provenance.py::test_historical_bytes_reject_oversized_member_before_blob_read",
+      "target": "spec_mtp.structure.artifact.provenance",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_provenance.py::test_historical_bytes_require_the_explicit_repository_root",
+      "target": "spec_mtp.structure.artifact.provenance",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_run.py::test_analysis_distinguishes_git_blob_and_runtime_execution_bytes",
+      "target": "studies.output_space_extension.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_run.py::test_analysis_rejects_missing_or_unbound_inputs_without_output",
+      "target": "studies.output_space_extension.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_run.py::test_analysis_never_overwrites_an_existing_output",
+      "target": "studies.output_space_extension.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_run.py::test_analysis_output_root_is_separate_from_inputs_and_source",
+      "target": "studies.output_space_extension.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_run.py::test_analysis_cli_requires_every_input_and_output_identity",
+      "target": "studies.output_space_extension.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_run.py::test_saved_transfer_analysis_preserves_skipped_prompts_and_second_slot_validity",
+      "target": "studies._shared.structure.extension_diagnostics",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",

@@ -86,10 +86,10 @@ def main(argv: list[str] | None = None) -> int:
                 from spec_mtp.structure.artifact.result import load_result
                 from studies._shared.flow.process.run import study_gate
 
-                # Reject stale identity before the quality gate can update the envelope.
+                # Validate saved identity before reading the scientific evidence.
                 render_numbers(study)
                 context = StudyProcessContext(study, state={'process': load_result(study / 'process.json')})
-                study_gate(context)
+                study_gate(context, persist=False)
     from spec_mtp.flow.study_cli import main as rpipe_main
 
     return int(rpipe_main(argv) or 0)

@@ -185,7 +185,7 @@ CLI、YAML/JSON、token 数据、Hub 文件和旧运行记录都校验形状、�
 # 六、Study、科学包与固定副本
 宿主和每个 Study 都按 `structure/`、`flow/` 组织。`study.yaml` 说明因素、seed、扩展及冻结声明，`experiment_config.yaml` 提供基础配置。`structure/` 放该研究确需的组成与纯计算，`flow/` 只覆盖实际特有阶段，并包含命令实现。顶层不放独立脚本。prepare/execute/collect/summarize/write/process 六阶段继续复用，缺职责不创建空文件或复制全库。`trajectory_observation` 的声明和 `flow/` 尚未补齐，现有脚本保持原样并列入 legacy 清单。
 
-研究问题和实验安排只在唯一中文研究计划按 Study 分章，结果只在通用调研保留必要摘要与固定原件定位，执行 raw 和可重建报告在外部运行根。Study、测试和工具不再规划 README、PLAN、NUMBERS 或逐事报告。测试排除项和入口说明留本文与代码结构设计。
+研究问题和实验安排只在唯一中文研究计划按 Study 分章，实际结果从运行记录定位，执行 raw 和可重建报告在外部运行根。Study、测试和工具不再规划 README、PLAN、NUMBERS 或逐事报告。测试排除项和入口说明留本文与代码结构设计。
 
 共同合同对齐2026年10月21日 RPipe 文档重设计固定提交 `057666b432661694575d91150c232e63254e96bd` 的 [研究流水线 架构设计](https://github.com/DreamSoul-AI/RPipe/blob/057666b432661694575d91150c232e63254e96bd/docs/研究流水线%20架构设计.md) 第五章。其目标语义不是 SD 当前固定副本能力，后续采用仍需实现与评审。2026年11月1日起本仓不再内嵌该副本，Study 流程由 `spec_mtp` 实现，并以上游仓库为结构模板持续对齐。
 

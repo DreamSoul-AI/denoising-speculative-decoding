@@ -12,8 +12,8 @@ from studies._shared.structure.validation import (
 def _normalised(items: list[dict[str, Any]]) -> list[str]:
     return sorted(json.dumps(item, sort_keys=True) for item in items)
 
-def study_gate(ctx: StudyProcessContext | FlowContext, expected_factors: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-    """Study process hook (``ctx.scope == 'study'``); writes ``spec_mtp_study_check.json``."""
+def study_gate(ctx: StudyProcessContext | FlowContext, expected_factors: list[dict[str, Any]] | None = None, *, persist: bool = True) -> dict[str, Any]:
+    """Validate Study evidence; report callers may disable persisted gate/envelope updates."""
     from spec_mtp.structure.artifact._atomic import atomic_write_text
     from spec_mtp.structure.artifact.index import load_index
 
@@ -85,10 +85,11 @@ def study_gate(ctx: StudyProcessContext | FlowContext, expected_factors: list[di
         'declared_seeds_match': seeds_ok,
         'sources_digests': sorted(digests),
     }
-    atomic_write_text(study_dir / STUDY_CHECK_NAME, json.dumps(body, indent=2, ensure_ascii=False) + '\n')
+    if persist:
+        atomic_write_text(study_dir / STUDY_CHECK_NAME, json.dumps(body, indent=2, ensure_ascii=False) + '\n')
     ctx.state[GATE_KEY] = body
     process = ctx.state.get('process')
-    if isinstance(process, dict):
+    if persist and isinstance(process, dict):
         from spec_mtp.structure.artifact.result.format import encode_result
 
         process[GATE_KEY] = body
@@ -96,7 +97,8 @@ def study_gate(ctx: StudyProcessContext | FlowContext, expected_factors: list[di
         atomic_write_text(study_dir / 'process.json', encode_result(process))
     if not body['passed']:
         state = 'incomplete' if not complete else 'failed'
-        raise SpecMtpGateError(f'SpecMTP Study gate {state}; see {study_dir / STUDY_CHECK_NAME}')
+        detail = f'see {study_dir / STUDY_CHECK_NAME}' if persist else 'read-only evidence check'
+        raise SpecMtpGateError(f'SpecMTP Study gate {state}; {detail}')
     return body
 
 run = study_gate
