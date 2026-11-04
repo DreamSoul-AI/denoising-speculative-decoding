@@ -14,7 +14,7 @@
 | 飞书规范正文 | 用户令牌过期时只读了索引和参考仓 | 下次能读取时核对冲突段落，不预先改写成“已符合全文” |
 | 下一高信息实验的逐臂墙钟 | 研究计划第九章已写定 `office-8b-traj-wall-v1`。`office_traj.py` 已逐臂记录 `wall_seconds`，缺失不写成 0。外层打印仍不进入比较 | 已跑。接受数 `direction` 为 positive，`wall_direction` 为 shorter，两区间都不含 0。见 [2026-11-04 Qwen3-8B trajectory墙钟](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory墙钟.md>)。次项 B `office-8b-traj-failset-v1` 已分析，见 [2026-11-04 Qwen3-8B trajectory失败子集](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory失败子集.md>) |
 | 独立 AR 不一致的只读分类 | 研究计划第十章 `office-ar-inconsistency-v1`。已有行含 `ar_equal`、`output_sha256`、`argmax_passed`、`accepted`、`tau`。没有首分叉下标、共同前缀长度或两侧 token。八组与墙钟 jsonl 在运行记录所指目录 | 已完成。`classify_pair` 与 `classify_archive` 在 `office_traj.py`。旧行缺字段保持缺失。结论见开发记录 |
-| 首分叉与 fp32 参照 | 研究计划第十章 `office-ar-first-fork-v1`。这一次小规模 GPU 已批准。记录臂相对 BF16 AR 的首分叉；float32 AR 只在常驻权重放得进空闲显存时加载 | 字段和离线描述加在 `office_traj.py` 的 `decode_measured_prompt`、`first_fork`、`describe_first_fork`。`arm_row` 只多一个可选的输出 token 列表，用完即取走。不新脚本，不增加 legacy。argmax 与 `ar_equal`、首分叉分开断言。产物在源码树外，戳 `20261104-1244`。浮点门挡住时不加载，状态写 `not_loaded` |
+| 首分叉与 fp32 参照 | 研究计划第十章 `office-ar-first-fork-v1`。这一次小规模 GPU 已批准。记录臂相对 BF16 AR 的首分叉；float32 AR 只在常驻权重放得进空闲显存时加载 | 已跑 128 条。共享分叉比例 0.546875，不贴两档。fp32 状态 `not_loaded`。见 [2026-11-04 Qwen3-8B 首分叉](<运行记录 Run Record/2026-11-04 Qwen3-8B 首分叉.md>) |
 
 不新增插件注册、通用校正框架或第二套测试运行器。
 
