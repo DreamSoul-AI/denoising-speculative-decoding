@@ -458,9 +458,13 @@ class SpecDecoder:
 
 
 @torch.no_grad()
-def ar_generate(model, prompt_ids, eval_cfg, eos_ids=(), generator=None):
+def ar_generate(model, prompt_ids, eval_cfg, eos_ids=(), generator=None, *, prompt_tokenwise=False):
     """Plain KV-cached autoregressive decoding: the tau/speedup reference and
-    the lossless audit target (identical sampling semantics as SpecDecoder)."""
+    the lossless audit target (identical sampling semantics as SpecDecoder).
+
+    The default prefills the whole prompt in one forward. ``prompt_tokenwise``
+    feeds that prompt one token at a time, then continues with the same rule.
+    """
     temperature = float(eval_cfg.get('temperature', 0.0))
     max_new_tokens = int(eval_cfg.get('max_new_tokens', 100))
     stop_on_eos = bool(eval_cfg.get('stop_on_eos', True))
@@ -481,12 +485,24 @@ def ar_generate(model, prompt_ids, eval_cfg, eos_ids=(), generator=None):
     start = _clock()
 
     cache = model.new_cache()
-    position_ids = torch.arange(t, device=device).unsqueeze(0)
-    out = model(model.embed(prompt_ids), position_ids, attention_mask_4d=None,
-                past_key_values=cache)
-    cache = out.past_key_values
+    if prompt_tokenwise:
+        out = None
+        for index in range(t):
+            out = model(
+                model.embed(prompt_ids[:, index:index + 1]),
+                torch.tensor([[index]], dtype=torch.long, device=device),
+                attention_mask_4d=None,
+                past_key_values=cache,
+            )
+            cache = out.past_key_values
+        calls = t
+    else:
+        position_ids = torch.arange(t, device=device).unsqueeze(0)
+        out = model(model.embed(prompt_ids), position_ids, attention_mask_4d=None,
+                    past_key_values=cache)
+        cache = out.past_key_values
+        calls = 1
     committed = [select_token(out.logits[0, -1], temperature, generator)]
-    calls = 1
 
     while len(committed) < max_new_tokens:
         if stop_on_eos and committed[-1] in eos:
@@ -509,6 +525,49 @@ def ar_generate(model, prompt_ids, eval_cfg, eos_ids=(), generator=None):
         torch.tensor([committed], dtype=torch.long, device=device),
     ], dim=1)
     return output, stats
+
+
+@torch.no_grad()
+def ar_context_logits(model, token_ids, prompt_length, index):
+    """Logits that select ``token_ids[index]`` on the whole-prompt KV path.
+
+    The prompt is one forward. Archived continuation tokens before ``index``
+    are teacher-forced. This matches ``ar_generate`` with ``prompt_tokenwise``
+    left at its default.
+    """
+    if not torch.is_tensor(token_ids):
+        token_ids = torch.tensor([list(token_ids)], dtype=torch.long)
+    elif token_ids.ndim == 1:
+        token_ids = token_ids.unsqueeze(0)
+    _validate_prompt(token_ids, model.vocab_size)
+    length = int(token_ids.size(1))
+    prompt_length = int(prompt_length)
+    index = int(index)
+    if prompt_length < 1 or prompt_length > length:
+        raise ValueError('prompt_length is outside the reference sequence')
+    if index < prompt_length or index >= length:
+        raise ValueError('divergence index is outside the continuation')
+    device = model.device
+    token_ids = token_ids.to(device)
+    cache = model.new_cache()
+    out = model(
+        model.embed(token_ids[:, :prompt_length]),
+        torch.arange(prompt_length, device=device).unsqueeze(0),
+        attention_mask_4d=None,
+        past_key_values=cache,
+    )
+    cache = out.past_key_values
+    logits = out.logits[0, -1]
+    for cursor in range(prompt_length, index):
+        out = model(
+            model.embed(token_ids[:, cursor:cursor + 1]),
+            torch.tensor([[cursor]], dtype=torch.long, device=device),
+            attention_mask_4d=None,
+            past_key_values=cache,
+        )
+        cache = out.past_key_values
+        logits = out.logits[0, -1]
+    return logits
 
 
 def _validate_prompt(prompt_ids, vocab_size):

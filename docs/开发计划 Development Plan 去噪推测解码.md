@@ -15,6 +15,7 @@
 | 下一高信息实验的逐臂墙钟 | 研究计划第九章已写定 `office-8b-traj-wall-v1`。`office_traj.py` 已逐臂记录 `wall_seconds`，缺失不写成 0。外层打印仍不进入比较 | 已跑。接受数 `direction` 为 positive，`wall_direction` 为 shorter，两区间都不含 0。见 [2026-11-04 Qwen3-8B trajectory墙钟](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory墙钟.md>)。次项 B `office-8b-traj-failset-v1` 已分析，见 [2026-11-04 Qwen3-8B trajectory失败子集](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory失败子集.md>) |
 | 独立 AR 不一致的只读分类 | 研究计划第十章 `office-ar-inconsistency-v1`。已有行含 `ar_equal`、`output_sha256`、`argmax_passed`、`accepted`、`tau`。没有首分叉下标、共同前缀长度或两侧 token。八组与墙钟 jsonl 在运行记录所指目录 | 已完成。`classify_pair` 与 `classify_archive` 在 `office_traj.py`。旧行缺字段保持缺失。结论见开发记录 |
 | 首分叉与 fp32 参照 | 研究计划第十章 `office-ar-first-fork-v1`。这一次小规模 GPU 已批准。记录臂相对 BF16 AR 的首分叉；float32 AR 只在常驻权重放得进空闲显存时加载 | 已跑 128 条。共享分叉比例 0.546875，不贴两档。fp32 状态 `not_loaded`。见 [2026-11-04 Qwen3-8B 首分叉](<运行记录 Run Record/2026-11-04 Qwen3-8B 首分叉.md>) |
+| BF16 AR 自决定 | 研究计划第十章 `office-ar-bf16-determinism-v1`。这一次小规模 GPU 已批准。在 `office_traj.py` 做双运行、整段路径对逐 token prompt，以及归档下标上的 top1−top2。`ar_generate` 增加默认关闭的 `prompt_tokenwise`。产物在源码树外。不加载 fp32，不跑墙钟按长度 | 已跑 64 条。双运行一致率 1，路径一致率 0.3125，差距中位数 0.0625，贴「AR路径不稳定」。见 [2026-11-04 Qwen3-8B BF16自决定](<运行记录 Run Record/2026-11-04 Qwen3-8B BF16自决定.md>)。fp32 未加载 |
 
 不新增插件注册、通用校正框架或第二套测试运行器。
 
@@ -24,4 +25,4 @@
 2026年11月1日 Enmao 决定：仓库不再内嵌 `src/rpipe/`，顶层不再有 `tools/`。Study 流程由 `spec_mtp.flow` 与 `spec_mtp.structure` 自己实现，目录以 https://github.com/DreamSoul-AI/RPipe 为结构模板持续对齐。此前“继续固定 v0.3.1”的默认假设作废。来源提交 `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5` 只说明被吸收的那一版流程代码从哪来，不再是本仓的固定副本。
 
 # 四、明确不做
-不下载模型，不恢复范数矩阵、配对矩阵和 ESP 长矩阵，不恢复 BF16 相对独立 AR 的算子数值机理排查，不合并 `dev` 或 `main`，不改 Actions 和仓库保护，不把运行产物提交进 Git。`office-ar-first-fork-v1` 的这一次小规模 GPU 已经批准。除此以外的 GPU 测量、GPU 测速和复跑仍须另行批准。
+不下载模型，不恢复范数矩阵、配对矩阵和 ESP 长矩阵，不恢复 BF16 相对独立 AR 的算子数值机理排查，不合并 `dev` 或 `main`，不改 Actions 和仓库保护，不把运行产物提交进 Git。`office-ar-first-fork-v1` 和 `office-ar-bf16-determinism-v1` 的 GPU 都已经跑完。除此以外的 GPU 测量、GPU 测速和复跑仍须另行批准。墙钟按长度这次没有跑。
