@@ -10,10 +10,11 @@ slice and records per-arm ``wall_seconds`` for ``office-8b-traj-wall-v1``.
 This module does not fit K. Import does not mutate the process environment.
 Offline helpers for ``office-8b-traj-failset-v1`` and ``office-ar-inconsistency-v1``
 live here. They do not load a generator or start a decode, and they have no command entry.
-``office-ar-first-fork-v1``, ``office-ar-bf16-determinism-v1`` and
-``office-8b-traj-wall-by-length-v1`` reuse this command. Their helpers live in
-``office_traj_fork``, ``office_traj_determinism`` and ``office_traj_length``.
-``draft_seconds`` and ``verify_seconds`` stay in the decode loop.
+``office-ar-first-fork-v1``, ``office-ar-bf16-determinism-v1``,
+``office-8b-traj-wall-by-length-v1`` and ``office-8b-traj-g-scan-v1`` reuse this
+command. Their helpers live in ``office_traj_fork``, ``office_traj_determinism``,
+``office_traj_length`` and ``office_traj_gscan``. ``draft_seconds`` and
+``verify_seconds`` stay in the decode loop.
 """
 
 from __future__ import annotations
@@ -611,6 +612,9 @@ def round_config(protocol):
     from studies.trajectory_observation.structure.office_traj_fork import (
         FORK_PREFIX, FORK_STAMP, PROTOCOL_FORK,
     )
+    from studies.trajectory_observation.structure.office_traj_gscan import (
+        GSCAN_PREFIX, GSCAN_STAMP, PROTOCOL_GSCAN,
+    )
     from studies.trajectory_observation.structure.office_traj_length import (
         LENGTHS, LENGTH_PREFIX, LENGTH_STAMP, PROTOCOL_LENGTH,
     )
@@ -705,6 +709,15 @@ def round_config(protocol):
             'check': assert_registered_xcat7_slice,
             'take': TAKE_XCAT7,
             'lengths': LENGTHS,
+        }
+    if protocol == 'gscan':
+        return {
+            'protocol': PROTOCOL_GSCAN,
+            'prefix': GSCAN_PREFIX,
+            'stamp': GSCAN_STAMP,
+            'select': prompts_summarization,
+            'check': assert_registered_xcat7_slice,
+            'take': TAKE_XCAT7,
         }
     raise RuntimeError(f'unknown trajectory protocol {protocol}')
 
@@ -1426,6 +1439,7 @@ def main(argv=None):
         _load_fp32_model, finish_first_fork, gpu_free_mib, release_session,
         resident_parameter_count,
     )
+    from studies.trajectory_observation.structure.office_traj_gscan import gscan_formal, gscan_smoke
     from studies.trajectory_observation.structure.office_traj_length import _formal_by_length
 
     parser = argparse.ArgumentParser()
@@ -1436,7 +1450,7 @@ def main(argv=None):
         '--protocol',
         choices=(
             'ablate', 'xcat', 'xcat2', 'xcat3', 'xcat4', 'xcat5', 'xcat6', 'xcat7',
-            'first_fork', 'ar_determinism', 'wall_by_length',
+            'first_fork', 'ar_determinism', 'wall_by_length', 'gscan',
         ),
         default='ablate')
     args = parser.parse_args(argv)
@@ -1453,12 +1467,17 @@ def main(argv=None):
     print('load 8b', flush=True)
     model, tokenizer, torch_version = _load_model('8b')
     if args.only in ('all', 'smoke'):
-        _smoke(model, tokenizer, prompts, dest, cfg)
+        if args.protocol == 'gscan':
+            gscan_smoke(model, tokenizer, prompts, dest, cfg)
+        else:
+            _smoke(model, tokenizer, prompts, dest, cfg)
     if args.only in ('all', 'formal'):
         if _run_identity()['dirty']:
             raise RuntimeError('formal run requires a clean worktree')
         if args.protocol == 'wall_by_length':
             _formal_by_length(model, tokenizer, prompts, skipped, digest, dest, cfg)
+        elif args.protocol == 'gscan':
+            gscan_formal(model, tokenizer, prompts, skipped, digest, dest, cfg)
         else:
             _formal(model, tokenizer, prompts, skipped, digest, dest, cfg)
     print('torch', torch_version, flush=True)
