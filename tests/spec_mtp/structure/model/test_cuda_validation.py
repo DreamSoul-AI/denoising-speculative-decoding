@@ -56,6 +56,8 @@ def test_tiny_cuda_decode_preserves_committed_argmax_and_releases_memory(backend
         peak = torch.cuda.max_memory_allocated(device) - baseline
         assert 0 < peak < 256 * 1024 * 1024
         record_property('cuda_device', torch.cuda.get_device_name(device))
+        record_property('cuda_dtype', str(model.embedding_table.dtype))
+        record_property('attention_backend', model.hf.config._attn_implementation)
         record_property('cuda_peak_allocated_bytes', peak)
         record_property('committed_tokens', len(result.committed))
     finally:

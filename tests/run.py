@@ -155,8 +155,10 @@ def main(argv=None):
                                       'environment': environment})
         return 1
     sources = sorted({str(ROOT / node.partition('::')[0]) for node in plan['include']}) if 'include' in plan else [str(ROOT/'tests')]
+    junit_options = [] if cpu_only else ['-o', 'junit_family=xunit1']
     return int(pytest.main([*sources, '--basetemp', str(output/'pytest'),
-        '-o', 'cache_dir='+str(output/'cache'), '--junitxml='+str(output/'junit.xml'), '-ra'], plugins=[recorder]))
+        '-o', 'cache_dir='+str(output/'cache'), '--junitxml='+str(output/'junit.xml'),
+        *junit_options, '-ra'], plugins=[recorder]))
 
 
 if __name__ == '__main__':
