@@ -120,7 +120,7 @@ denoising-speculative-decoding/
 | `first_fork` | 同一 summarization 128 条 | `office-ar-first-fork-v1`。助手在 `office_traj_fork.py`，命令仍在 `office_traj.py` |
 | `ar_determinism` | 上一协议里 `ar_equal` 为假的并集 | `office-ar-bf16-determinism-v1`。助手在 `office_traj_determinism.py`。`prompt_tokenwise` 在 `loop.py` 的 `ar_generate` |
 | `wall_by_length` | 同一 summarization 128 条，长度 64、256、512 | `office-8b-traj-wall-by-length-v1`。助手在 `office_traj_length.py`。`draft_seconds` 与 `verify_seconds` 在 `loop.py` |
-| `gscan` | 同一 summarization 128 条，长度 256 | `office-8b-traj-g-scan-v1`。四臂只改 `spec.observation.gain`。逻辑在 `office_traj.py` 的 `--protocol gscan`。尚未运行 |
+| `gscan` | 同一 summarization 128 条，长度 256 | `office-8b-traj-g-scan-v1`。四臂只改 `spec.observation.gain`。逻辑在 `office_traj.py` 的 `--protocol gscan`。已跑，数字在运行记录 |
 
 full 胜出子集的离线描述在 `structure/office_traj.py`，选句和 SHA256 仍用该文件里已经冻结的函数。这些离线函数没有单独的 `main`，也不增加 legacy 条目。四个旧脚本的拆分仍未做。
 

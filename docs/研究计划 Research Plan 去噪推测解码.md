@@ -380,11 +380,11 @@ qid 是 open_qa 非空文本流里的下标。已用文本按 `creative_writing`
 | 采样分布保证、独立 AR 等价 | 采样分布保证未完成，不能由 T0 推广。第十章只读分类的结论是可隔离的口径问题。`office-ar-first-fork-v1` 与 `office-ar-bf16-determinism-v1` 已跑，数字在同日运行记录 |
 | 端到端墙钟 | 协议 `office-8b-traj-wall-v1` 已跑完。summarization 128 条上接受数 `direction` 为 positive（97:17:14，差均值 +2.6640625，区间不含 0），`wall_direction` 为 shorter（99:29:0，差均值 −0.100136 秒，区间不含 0）。两者同向，并且一起离开了 0。这是探索。见第九章 A 与同日运行记录 |
 | 墙钟按长度 | 协议 `office-8b-traj-wall-by-length-v1` 已跑完。见 [2026-11-04 Qwen3-8B 墙钟按长度](<运行记录 Run Record/2026-11-04 Qwen3-8B 墙钟按长度.md>) |
-| observation 增益扫描 | 协议 `office-8b-traj-g-scan-v1` 已在第十二章写定，尚未运行 |
+| observation 增益扫描 | 协议 `office-8b-traj-g-scan-v1` 已跑完。长度 256。三个 g>0 相对 g=0 的接受数方向都是 negative。见第十二章与 [2026-11-04 Qwen3-8B observation增益扫描](<运行记录 Run Record/2026-11-04 Qwen3-8B observation增益扫描.md>) |
 | traj 失败模式 | 协议 `office-8b-traj-failset-v1` 已分析。八组 full 胜出子集的条数都等于已归档负。子集相对 traj 更高的字符均值，四组更高、四组更低，中位数也不跟均值同一边。不设通过线，不做跨类符号检验。见第九章 B 与同日运行记录 |
 
 # 八、和开发计划的关系
-研究计划决定要检验的主张和会改变判断的结果。开发计划决定代码、文档和工程验收。第九章的墙钟比较和 full 胜出子集已经有结果，数字留在该章和运行记录。第十章的只读分类已经做完。`office-ar-first-fork-v1`、`office-ar-bf16-determinism-v1` 与 `office-8b-traj-wall-by-length-v1` 的结果在同日运行记录。第十二章的 `office-8b-traj-g-scan-v1` 只写定协议，尚未运行。现有解码器、审计和 τ 口径的工程修改不能改变已归档 Run 的计数。
+研究计划决定要检验的主张和会改变判断的结果。开发计划决定代码、文档和工程验收。第九章的墙钟比较和 full 胜出子集已经有结果，数字留在该章和运行记录。第十章的只读分类已经做完。`office-ar-first-fork-v1`、`office-ar-bf16-determinism-v1` 与 `office-8b-traj-wall-by-length-v1` 的结果在同日运行记录。第十二章的 `office-8b-traj-g-scan-v1` 已经跑完，数字在同日运行记录。现有解码器、审计和 τ 口径的工程修改不能改变已归档 Run 的计数。
 
 # 九、下一高信息实验（运行前写定）
 2026年11月4日写定。Dolly 八个类别的办公室切片已经跑完，本章不再另起新类。主项是端到端墙钟，次项是从已归档结果界定 full 胜出的 prompt 子集。本章只写比较、计时口径和停止规则。它不授权实现，也不授权 GPU 运行。
@@ -754,5 +754,7 @@ g=1 是仅 observation，不在这四臂里。K 不进入这轮。卡尔曼保�
 
 无论三对的方向如何，都不改 K、不改树、不把树改成 [2, 2] 或 [3, 1]、不重选这 128 条、不改 256、不加 g=1、不换数据集、不重开卡尔曼、不重跑 BF16 AR 自决定、不换 4B 或 0.6B。不合并 `main`。
 
+这一组已经跑完。比较和停止规则仍是上面写定的那些。三对相对 g=0 的接受数 `direction` 都是 negative。数字在 [2026-11-04 Qwen3-8B observation增益扫描](<运行记录 Run Record/2026-11-04 Qwen3-8B observation增益扫描.md>)。
+
 ### 以后的代码位置
-只登记名字。本计划不写这些文件。四臂、冒烟、正式和汇总在 `studies/trajectory_observation/structure/office_traj.py`，命令是 `--protocol gscan`。不建垫片，不另写一次性脚本，不再拆文件。产物前缀 `sd-office-8b-traj-g-scan-v1`，戳在运行时写入，目录在源码树外。不覆盖 xcat7 或墙钟按长度的已归档文件。数字留空，直到以后的运行记录。
+只登记名字。本计划不写这些文件。四臂、冒烟、正式和汇总在 `studies/trajectory_observation/structure/office_traj.py`，命令是 `--protocol gscan`。不建垫片，不另写一次性脚本，不再拆文件。产物前缀 `sd-office-8b-traj-g-scan-v1`，戳 `20261104-1813`，目录在源码树外。不覆盖 xcat7 或墙钟按长度的已归档文件。数字在同日运行记录。
