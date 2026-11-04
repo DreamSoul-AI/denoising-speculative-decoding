@@ -21,8 +21,16 @@ def setup(monkeypatch, tmp_path):
     entries = [dict(factors={'algorithm.config': {'direction': name, 'spec': {'ema': {'step_scale': scale}}}}, runs=[{'id': str(i)}])
                for i, (name, scale) in enumerate((n, s) for n in ('template', 'random0', 'random1', 'random2') for s in (.5, 2.))]
     (study / 'index.json').write_text(json.dumps({'experiments': entries}))
-    monkeypatch.setattr(m, 'STUDY', study)
-    monkeypatch.setattr(m, 'READER', reader)
+    # Helpers live in the theme module. Patch the globals audit_once reads,
+    # including names disambiguated when several scripts were folded together.
+    space = m.audit_once.__globals__
+    for public in ('STUDY', 'READER'):
+        current = getattr(m, public)
+        matched = [key for key, value in space.items() if value is current]
+        assert matched, public
+        for key in matched:
+            space[key] = study if public == 'STUDY' else reader
+        setattr(m, public, study if public == 'STUDY' else reader)
     return m, study, tmp_path / 'out'
 
 
