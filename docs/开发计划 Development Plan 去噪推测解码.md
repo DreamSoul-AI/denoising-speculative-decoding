@@ -17,7 +17,7 @@
 | 首分叉与 fp32 参照 | 研究计划第十章 `office-ar-first-fork-v1`。助手在 `office_traj_fork.py`，命令仍在 `office_traj.py` | 已跑。见 [2026-11-04 Qwen3-8B 首分叉](<运行记录 Run Record/2026-11-04 Qwen3-8B 首分叉.md>) |
 | BF16 AR 自决定 | 研究计划第十章 `office-ar-bf16-determinism-v1`。助手在 `office_traj_determinism.py`。`prompt_tokenwise` 在 `loop.py` 的 `ar_generate` | 已跑。见 [2026-11-04 Qwen3-8B BF16自决定](<运行记录 Run Record/2026-11-04 Qwen3-8B BF16自决定.md>) |
 | 墙钟按长度 | 研究计划第十一章 `office-8b-traj-wall-by-length-v1`。助手在 `office_traj_length.py`。`draft_seconds` 与 `verify_seconds` 在 `loop.py` | 已跑。见 [2026-11-04 Qwen3-8B 墙钟按长度](<运行记录 Run Record/2026-11-04 Qwen3-8B 墙钟按长度.md>)。结构步骤 5 本次仍不搬迁 |
-| observation 增益扫描 | 研究计划第十二章已写定 `office-8b-traj-g-scan-v1`。四臂只改 `spec.observation.gain`，g 为 0、0.25、0.5、0.75。逻辑在 `office_traj.py` 的 `--protocol gscan` | 代码已落地。尚未运行。数字留空，等以后的 GPU 命令 |
+| observation 增益扫描 | 研究计划第十二章已写定 `office-8b-traj-g-scan-v1`。四臂只改 `spec.observation.gain`，g 为 0、0.25、0.5、0.75。逻辑在 `office_traj.py` 的 `--protocol gscan` | 已跑。三对相对 g=0 的接受数方向都是 negative。见 [2026-11-04 Qwen3-8B observation增益扫描](<运行记录 Run Record/2026-11-04 Qwen3-8B observation增益扫描.md>) |
 
 不新增插件注册、通用校正框架或第二套测试运行器。
 
@@ -27,4 +27,4 @@
 2026年11月1日 Enmao 决定：仓库不再内嵌 `src/rpipe/`，顶层不再有 `tools/`。Study 流程由 `spec_mtp.flow` 与 `spec_mtp.structure` 自己实现，目录以 https://github.com/DreamSoul-AI/RPipe 为结构模板持续对齐。此前“继续固定 v0.3.1”的默认假设作废。来源提交 `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5` 只说明被吸收的那一版流程代码从哪来，不再是本仓的固定副本。
 
 # 四、明确不做
-不下载模型，不恢复范数矩阵、配对矩阵和 ESP 长矩阵，不恢复 BF16 相对独立 AR 的算子数值机理排查，不合并 `main`，不改 Actions 和仓库保护，不把运行产物提交进 Git。`office-ar-first-fork-v1`、`office-ar-bf16-determinism-v1` 和 `office-8b-traj-wall-by-length-v1` 的 GPU 都已经跑完，数字在对应运行记录。结构步骤 5 本次仍不搬迁。除此以外的 GPU 测量、GPU 测速和复跑仍须另行批准。
+不下载模型，不恢复范数矩阵、配对矩阵和 ESP 长矩阵，不恢复 BF16 相对独立 AR 的算子数值机理排查，不合并 `main`，不改 Actions 和仓库保护，不把运行产物提交进 Git。`office-ar-first-fork-v1`、`office-ar-bf16-determinism-v1`、`office-8b-traj-wall-by-length-v1` 和 `office-8b-traj-g-scan-v1` 的 GPU 都已经跑完，数字在对应运行记录。结构步骤 5 本次仍不搬迁。除此以外的 GPU 测量、GPU 测速和复跑仍须另行批准。
