@@ -5693,6 +5693,20 @@
         "offline_cuda",
         "recovery_boundary"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_serialization_error_survives_a_second_stream_close_failure",
+      "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "recovery_boundary"
+      ]
     }
   ],
   "plans": {
@@ -5785,6 +5799,10 @@
         },
         {
           "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch",
+          "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_serialization_error_survives_a_second_stream_close_failure",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         }
       ],
@@ -5932,7 +5950,8 @@
         "tests/spec_mtp/structure/system/test_factory.py::test_complete_but_unpublished_cuda_temporary_never_becomes_resume_source",
         "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_resume_preserves_stall_and_terminal_checkpoints_do_no_work",
         "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_checkpoint_failure_keeps_primary_error_when_tracker_cleanup_also_fails",
-        "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch"
+        "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch",
+        "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_serialization_error_survives_a_second_stream_close_failure"
       ],
       "exclude": []
     }

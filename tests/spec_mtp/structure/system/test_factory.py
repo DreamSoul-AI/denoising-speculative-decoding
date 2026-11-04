@@ -306,3 +306,44 @@ def test_complete_but_unpublished_cuda_temporary_never_becomes_resume_source(cud
     with pytest.raises(OSError, match='unpublished checkpoint'):
         case.system.load_checkpoint(str(temporary))
     assert case.system.load_checkpoint('latest') is None
+
+
+def test_checkpoint_serialization_error_survives_a_second_stream_close_failure(cuda_checkpoint, monkeypatch):
+    import tempfile
+    import torch
+
+    case = cuda_checkpoint
+    bundle = case.system.save_checkpoint(case.payload(1), 'latest')
+    before = bundle.read_bytes()
+    original_temporary = tempfile.NamedTemporaryFile
+    primary, cleanup = OSError('primary serialization failure'), OSError('secondary stream close failure')
+
+    class FailedClose:
+        def __init__(self, *args, **options):
+            self.stream = original_temporary(*args, **options)
+
+        def __getattr__(self, name):
+            return getattr(self.stream, name)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.close()
+
+        def close(self):
+            self.stream.close()
+            raise cleanup
+
+    def fail(value, stream, **options):
+        stream.write(b'partial serialization')
+        raise primary
+
+    with monkeypatch.context() as patch:
+        patch.setattr(tempfile, 'NamedTemporaryFile', FailedClose)
+        patch.setattr(torch, 'save', fail)
+        with pytest.raises(OSError) as caught:
+            case.system.save_checkpoint(case.payload(2), 'latest')
+    assert caught.value is primary and cleanup in primary.cleanup_errors
+    assert bundle.read_bytes() == before
+    assert case.system.load_checkpoint('latest')['epoch'] == 1

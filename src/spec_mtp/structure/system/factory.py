@@ -59,12 +59,21 @@ class System:
         pending_bundle: Path | None = None
         tmp: Path | None = None
         try:
-            with tempfile.NamedTemporaryFile(mode='wb', prefix=f'.{stem}.', suffix='.pt.writing',
-                                             dir=root, delete=False) as handle:
-                pending_bundle = Path(handle.name)
+            handle = tempfile.NamedTemporaryFile(mode='wb', prefix=f'.{stem}.', suffix='.pt.writing',
+                                                 dir=root, delete=False)
+            pending_bundle = Path(handle.name)
+            try:
                 torch.save(payload, handle)
                 handle.flush()
                 os.fsync(handle.fileno())
+            except BaseException as primary:
+                try:
+                    handle.close()
+                except BaseException as cleanup:
+                    setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
+                raise
+            else:
+                handle.close()
             tmp = Path(tempfile.mkdtemp(prefix=f'.{stem}.', suffix='.writing', dir=root))
             torch_keys = ('model', 'optimizer', 'scheduler')
             for key in torch_keys:
