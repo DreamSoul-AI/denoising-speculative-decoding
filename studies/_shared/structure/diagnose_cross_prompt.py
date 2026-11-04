@@ -1,4 +1,7 @@
-"""Re-export shim; helpers live in window_diagnostics."""
+"""Re-export shim; helpers live in window_diagnostics.
+
+    python studies/_shared/structure/diagnose_cross_prompt.py
+"""
 try:
     from window_diagnostics import select_window, compare_window
 except ImportError:

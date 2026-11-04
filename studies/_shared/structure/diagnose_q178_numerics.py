@@ -1,4 +1,7 @@
-"""Re-export shim; helpers live in q178_diagnostics."""
+"""Re-export shim; helpers live in q178_diagnostics.
+
+    python studies/_shared/structure/diagnose_q178_numerics.py
+"""
 try:
     from q178_diagnostics import canonical_states, synchronized_transfer, tensor_equal
 except ImportError:

@@ -1,4 +1,7 @@
-"""Re-export shim; helpers live in esp_diagnostics."""
+"""Re-export shim; helpers live in esp_diagnostics.
+
+    python studies/_shared/structure/analyze_esp_repeat_roots.py
+"""
 try:
     from esp_diagnostics import ROOT, count_repeats
 except ImportError:

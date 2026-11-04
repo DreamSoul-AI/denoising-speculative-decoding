@@ -1,4 +1,7 @@
-"""Re-export shim; helpers live in window_diagnostics."""
+"""Re-export shim; helpers live in window_diagnostics.
+
+    python studies/_shared/structure/diagnose_output_windows.py
+"""
 try:
     from window_diagnostics import SEMANTIC_KEYS, TRACE_KEYS, margin, cosine, observe, file_hash
 except ImportError:

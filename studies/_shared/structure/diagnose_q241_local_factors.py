@@ -1,4 +1,7 @@
-"""Re-export shim; helpers live in q241_diagnostics."""
+"""Re-export shim; helpers live in q241_diagnostics.
+
+    python studies/_shared/structure/diagnose_q241_local_factors.py
+"""
 try:
     from q241_diagnostics import capture_frames, fixed_masks, replay_fixed_block
 except ImportError:

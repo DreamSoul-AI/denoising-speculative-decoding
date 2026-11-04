@@ -1,4 +1,7 @@
-"""Re-export shim; helpers live in geometry_4b."""
+"""Re-export shim; helpers live in geometry_4b.
+
+    python studies/_shared/structure/audit_4b_norm_queue.py
+"""
 import subprocess  # noqa: F401
 try:
     from geometry_4b import ROOT, STUDY__audit_4b_norm_queue as STUDY, READER, read, sha__audit_4b_norm_queue as sha, audit_once

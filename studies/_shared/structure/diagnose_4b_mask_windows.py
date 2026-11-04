@@ -1,4 +1,7 @@
-"""Re-export shim; helpers live in geometry_4b."""
+"""Re-export shim; helpers live in geometry_4b.
+
+    python studies/_shared/structure/diagnose_4b_mask_windows.py
+"""
 import os  # noqa: F401
 import subprocess  # noqa: F401
 try:

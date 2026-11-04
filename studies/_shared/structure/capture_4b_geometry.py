@@ -1,4 +1,7 @@
-"""Re-export shim; helpers live in geometry_4b."""
+"""Re-export shim; helpers live in geometry_4b.
+
+    python studies/_shared/structure/capture_4b_geometry.py
+"""
 import hashlib  # noqa: F401
 from pathlib import Path  # noqa: F401
 import subprocess  # noqa: F401

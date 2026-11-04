@@ -1,4 +1,7 @@
-"""Re-export shim; helpers live in esp_diagnostics."""
+"""Re-export shim; helpers live in esp_diagnostics.
+
+    python studies/_shared/structure/analyze_esp_table1_gap.py
+"""
 try:
     from esp_diagnostics import ROOT, MT_CATEGORIES, FILES, summarize, paired, group_summary
 except ImportError:

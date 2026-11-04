@@ -1,4 +1,7 @@
-"""Re-export shim; helpers live in sampling_diagnostics."""
+"""Re-export shim; helpers live in sampling_diagnostics.
+
+    python studies/_shared/structure/diagnose_sampling_paths.py
+"""
 try:
     from sampling_diagnostics import conditional_acceptance
 except ImportError:

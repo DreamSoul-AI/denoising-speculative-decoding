@@ -1,4 +1,7 @@
-"""Re-export shim; helpers live in esp_diagnostics."""
+"""Re-export shim; helpers live in esp_diagnostics.
+
+    python studies/_shared/structure/reconcile_esp_table1_contract.py
+"""
 try:
     from esp_diagnostics import ROOT, STUDY, accounting, prefix_accounting
 except ImportError:
