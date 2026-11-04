@@ -12,12 +12,12 @@
 | 会议方法的 CPU 合成检查 | 已完成。top1 确认未通过，oracle 空间全在槽 1，停止在合成设置上换形式 | 见运行记录 |
 | observation 上的仿射 K | 研究计划把完整 K 与仅 bias 列为对照 | 合成检查有结论后再定 z→Az+b 的拟合数据 |
 | 飞书规范正文 | 用户令牌过期时只读了索引和参考仓 | 下次能读取时核对冲突段落，不预先改写成“已符合全文” |
-| 下一高信息实验的逐臂墙钟 | 研究计划第九章已写定 `office-8b-traj-wall-v1`。`office_traj.py` 已逐臂记录 `wall_seconds`，缺失不写成 0。外层打印仍不进入比较 | 已跑。接受数 `direction` 为 positive，`wall_direction` 为 shorter，两区间都不含 0。见 [2026-11-04 Qwen3-8B trajectory墙钟](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory墙钟.md>)。次项 B `office-8b-traj-failset-v1` 已分析，见 [2026-11-04 Qwen3-8B trajectory失败子集](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory失败子集.md>) |
-| 独立 AR 不一致的只读分类 | 研究计划第十章 `office-ar-inconsistency-v1`。已有行含 `ar_equal`、`output_sha256`、`argmax_passed`、`accepted`、`tau`。没有首分叉下标、共同前缀长度或两侧 token。八组与墙钟 jsonl 在运行记录所指目录 | 已完成。`classify_pair` 与 `classify_archive` 在 `office_traj.py`。旧行缺字段保持缺失。结论见开发记录 |
-| 首分叉与 fp32 参照 | 研究计划第十章 `office-ar-first-fork-v1`。助手在 `office_traj_fork.py`，命令仍在 `office_traj.py` | 已跑。见 [2026-11-04 Qwen3-8B 首分叉](<运行记录 Run Record/2026-11-04 Qwen3-8B 首分叉.md>) |
-| BF16 AR 自决定 | 研究计划第十章 `office-ar-bf16-determinism-v1`。助手在 `office_traj_determinism.py`。`prompt_tokenwise` 在 `loop.py` 的 `ar_generate` | 已跑。见 [2026-11-04 Qwen3-8B BF16自决定](<运行记录 Run Record/2026-11-04 Qwen3-8B BF16自决定.md>) |
-| 墙钟按长度 | 研究计划第十一章 `office-8b-traj-wall-by-length-v1`。助手在 `office_traj_length.py`。`draft_seconds` 与 `verify_seconds` 在 `loop.py` | 已跑。见 [2026-11-04 Qwen3-8B 墙钟按长度](<运行记录 Run Record/2026-11-04 Qwen3-8B 墙钟按长度.md>)。结构步骤 5 本次仍不搬迁 |
-| observation 增益扫描 | 研究计划第十二章已写定 `office-8b-traj-g-scan-v1`。四臂只改 `spec.observation.gain`，g 为 0、0.25、0.5、0.75。逻辑在 `office_traj.py` 的 `--protocol gscan` | 已跑。三对相对 g=0 的接受数方向都是 negative。见 [2026-11-04 Qwen3-8B observation增益扫描](<运行记录 Run Record/2026-11-04 Qwen3-8B observation增益扫描.md>) |
+| 下一高信息实验的逐臂墙钟 | 研究计划「结论总表」已写入 `office-8b-traj-wall-v1`。`office_traj.py` 已逐臂记录 `wall_seconds`，缺失不写成 0。外层打印仍不进入比较 | 已跑。接受数 `direction` 为 positive，`wall_direction` 为 shorter，两区间都不含 0。见 [2026-11-04 Qwen3-8B trajectory墙钟](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory墙钟.md>)。次项 B `office-8b-traj-failset-v1` 已分析，见 [2026-11-04 Qwen3-8B trajectory失败子集](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory失败子集.md>) |
+| 独立 AR 不一致的只读分类 | 研究计划「结论总表」`office-ar-inconsistency-v1`。已有行含 `ar_equal`、`output_sha256`、`argmax_passed`、`accepted`、`tau`。没有首分叉下标、共同前缀长度或两侧 token。八组与墙钟 jsonl 在运行记录所指目录 | 已完成。`classify_pair` 与 `classify_archive` 在 `office_traj.py`。旧行缺字段保持缺失。结论见开发记录 |
+| 首分叉与 fp32 参照 | 研究计划「结论总表」`office-ar-first-fork-v1`。助手在 `office_traj_fork.py`，命令仍在 `office_traj.py` | 已跑。见 [2026-11-04 Qwen3-8B 首分叉](<运行记录 Run Record/2026-11-04 Qwen3-8B 首分叉.md>) |
+| BF16 AR 自决定 | 研究计划「结论总表」`office-ar-bf16-determinism-v1`。助手在 `office_traj_determinism.py`。`prompt_tokenwise` 在 `loop.py` 的 `ar_generate` | 已跑。见 [2026-11-04 Qwen3-8B BF16自决定](<运行记录 Run Record/2026-11-04 Qwen3-8B BF16自决定.md>) |
+| 墙钟按长度 | 研究计划「结论总表」`office-8b-traj-wall-by-length-v1`。助手在 `office_traj_length.py`。`draft_seconds` 与 `verify_seconds` 在 `loop.py` | 已跑。见 [2026-11-04 Qwen3-8B 墙钟按长度](<运行记录 Run Record/2026-11-04 Qwen3-8B 墙钟按长度.md>)。结构步骤 5 本次仍不搬迁 |
+| observation 增益扫描 | 研究计划「结论总表」已写入 `office-8b-traj-g-scan-v1`。四臂只改 `spec.observation.gain`，g 为 0、0.25、0.5、0.75。逻辑在 `office_traj.py` 的 `--protocol gscan` | 已跑。三对相对 g=0 的接受数方向都是 negative。见 [2026-11-04 Qwen3-8B observation增益扫描](<运行记录 Run Record/2026-11-04 Qwen3-8B observation增益扫描.md>) |
 
 不新增插件注册、通用校正框架或第二套测试运行器。
 

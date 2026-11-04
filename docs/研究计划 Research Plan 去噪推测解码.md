@@ -1,760 +1,115 @@
 **去噪推测解码 研究计划**
-更新日期：2026年11月4日。这是唯一中文研究计划。旧英文计划和冻结子计划只从固定 Git 历史取证。研究计划规范的飞书正文本次没有读到，下面按本仓已采用的六方面裁剪，并保留规范的建议采用状态。工程任务见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。机制见 [通用调研](<通用调研 General Research 去噪推测解码.md>)，已有数字见 [历史证据归位](<运行记录 Run Record/2026-10-31 历史证据归位.md>)。
+更新日期：2026年11月4日。这是唯一中文研究计划。本文对照当前代码写算法，并把已跑实验收成一张结论表。逐次预注册、旧英文计划和运行日志从 Git 历史与 [运行记录](<运行记录 Run Record/INDEX.md>) 取证，不在这里重写。工程待办见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。
 
-# 一、这次要回答的问题
-2026年10月31日 Speculative Decoding 会议的背景是：把历史 trajectory 的预测和本轮 verify 得到的 observation 结合起来。会议记录为 [妙记](https://dreamsoul.feishu.cn/minutes/obcnxg184e211uydnt8zyi4g)。本次用户令牌已过期，没有读到逐字稿。下面采用的是会议背景摘要，不是已验证结论，也不是投稿截止日期或可发表性判断。
+# 一、当前算法与数学
+行号对应当前 `origin/dev` 上的源码。正式办公室比较用的是 ESP 轨迹加 observation 混合；卡尔曼类是同一解码循环上的其它 mask。
 
-主问题：在固定模型和固定验证规则下，联合使用历史 trajectory 与本轮 observation 的状态更新，是否比只用其中一侧更能提高接受效率，并且这种提高不能仅由“多利用了最后提交 token”解释。
+## 解码循环
+`SpeculativeDecoder.generate`（`src/spec_mtp/structure/algorithm/decode/loop.py` 第 196–465 行）按模块文档（第 5–22 行）做两段：
 
-## 默认公式 `trajectory-observation-blend-v1`
-会议没有给出公式。2026年11月1日按下面的默认定义推进，这是执行者的假设，负责人可以替换；替换后用新协议名，旧结果不改签。
+- **Prefill。** prompt 嵌入与 k 个 mask 拼成一次因果前向（第 231–243 行）。最后一个 prompt 位置选出第一枚提交 token，作为下一棵树的根；k 个 mask 位置的 logits 留下，用来建第一棵草稿树。mask 的 KV 随后裁掉（第 264 行）。
+- **静态树。** 每轮用上一轮 mask logits 的 softmax 建树（第 291–292 行）。正式配置走 `build_static_tree`（`src/spec_mtp/structure/algorithm/decode/tree.py` 第 75–107 行）：`branches` 的长度不超过 k；每一层只让该层概率最高的节点继续生孩子；剪枝打开时，子 token 不取父 token。`impl=efficient` 要求 `tree.mode=static`（`loop.py` 第 159–164 行）。
+- **树注意力块。** 一块的顺序是根、草稿节点、每个 owner 的 k 个 mask（`loop.py` 第 320–336 行）。块内注意力在 `tree_attention.py` 的 `block_layout`（第 8–34 行）：根只看自己；草稿节点看祖先链和自己；某个 owner 的 mask 看该 owner 的注意力集合，以及同一 owner 上排在自己前面的 mask。`efficient` 把这块结构缓存下来（第 77–83 行）。下一轮的 mask logits 取自最深接受节点；没有接受草稿时取根（`loop.py` 第 450–453 行，`mask_indices_of` 第 37–41 行）。
+- **贪心验证。** 温度 ≤ 0 时 `select_token` 取 argmax（`loop.py` 第 96–100 行）。验证从根往下走，预测 token 与某个子节点相同就接受该节点，否则停下（第 356–377 行）。停下的那一枚是 bonus。`stats['accepted']` 在 EOS 或长度截断之前累加匹配到的草稿节点（第 380–381 行）。
+- **τ。** `prompt_tau` 是提交数除以 `decode_calls`；调用数为 0 时没有 τ（`src/spec_mtp/analysis.py` 第 10–16 行）。解码循环里的 `stats['committed']` 只在解码轮写入（`loop.py` 第 394–400 行），不含 prefill 交出的第一枚 token。模块文档写的是：τ = 每个 decode call 的提交 token（接受的草稿加 bonus）（第 22 行）。办公室行用的就是 `stats['committed'] / decode_calls`（`studies/trajectory_observation/structure/office_tree.py` 第 182 行）。
 
-第 r 轮解码有 k 个 mask 槽。槽 j 在本轮代表“下一棵树第 j 层”的 token。
+温度 ≤ 0 时，每个提交 token 记下当次前向的 argmax，整段生成结束后做审计（`loop.py` 第 246–250、473–484 行）。这是 T0 的 argmax 审计。它不提供采样分布保证。独立 AR 是否逐 token 相同，另计，只作诊断。
 
-- trajectory 预测 \(\hat m_j^{(r)}\)：现有 provider（ESP Eq 5 均值或 EMA 外推）的 mask，只由已提交 token 的嵌入更新，寿命为整次生成。
-- observation \(z_j^{(r)} = \mathrm{softmax}(\ell_j^{(r-1)})^\top E\)：上一次验证前向（第一轮用 prefill）在最深接受节点第 j 个 mask 槽上的 logits，对输入嵌入表 E 取期望。这组 logits 预测的正是槽 j 在本轮所代表的位置，不是刚提交的 token。寿命为一轮，不写回 trajectory 状态。
-- 联合：\(m_j^{(r)} = \hat m_j^{(r)} + g\,(z_j^{(r)} - \hat m_j^{(r)})\)，g 是评测前冻结的标量。
+## ESP 基线 mask
+`ESPMaskProvider`（`src/spec_mtp/structure/algorithm/mask/providers.py` 第 83–137 行）。默认 `init='mean_prompt'`、`lam=0.1`。
 
-g=0 为仅 trajectory，与原 provider 逐 token 相同；g=1 为仅 observation（prefill 仍用 trajectory 初值）；0<g<1 为联合。验证规则不变，所以 T0 输出与独立 AR 的关系和原方法相同。它与 `postcommit-final-norm-v1` 的差别是：observation 来自尚未提交位置的预测分布，而不是已提交 token 的最终 hidden；没有拟合 A、b，也没有协方差递推，不是 Kalman。仿射 K 作用在 z 上（z→Az+b）是下一步差距，目前不实现。
+- 初值：\(m_0=\frac{1}{t}\sum_j e_j\)，k 个槽共用这一条均值（第 104–107 行）。
+- 每提交一枚 token 更新一次，含 prefill 的第一枚和随后每一枚解码提交（`loop.py` 第 272–274、394–397 行）：
 
-### 变体 `trajectory-observation-rejection-v1`
-v1 合成结果（第七章）提示一个结构问题：某个 owner 的 mask logits 只有在它成为最深接受节点时才会进入下一棵树，而这时它的所有子节点 token 都已被拒绝。v1 却把集中在这些 token 上的边际分布当作 observation。变体用验证结果条件化：深度 d 的 owner 若有子节点 C，其槽 1 用
-\(\tilde z = (z_{d+1} - \sum_{c\in C} p_c e_c) / (1 - \sum_{c\in C} p_c)\)，即排除被拒 token 后重新归一化的期望嵌入；剩余质量不超过 \(10^{-6}\) 时退回 trajectory。其他槽与 v1 相同。入口为 `spec.observation.condition: rejection`。它把“本轮 verify 的拒绝”当作观测去更新“历史预测的分布”，是对会议思路更直接的一种读法，仍不是 Kalman。
+\[
+m \leftarrow (1-\lambda)m + \lambda e_{\mathrm{new}},\qquad \lambda=0.1
+\]
 
-### 变体 `form: top1`
-未来 token oracle（运行记录）表明，把 mask 输入换成真实 token 嵌入时 τ 可接近 k+1，而期望嵌入只拿到约 1–2% 的空间。一个解释是期望嵌入落在 token 流形之外。`spec.observation.form: top1` 把 z 换成最可能 token 的嵌入；与拒绝条件化合用时取最可能的非子节点 token。协议名为 `trajectory-observation-top1-v1` 与 `trajectory-observation-top1-rejection-v1`。先在种子 11/12/13 上探索，有希望再按同样的写前判据在新种子上确认。
+代码写成 \(m \leftarrow m+\lambda(e_{\mathrm{new}}-m)\)（`providers.py` 第 133–137 行）。\(e_{\mathrm{new}}\) 是该 token 的输入嵌入。`update=false` 时不改 m。
 
-A1 的检验口径是 `analysis.round_split`：按上一轮是否接受草稿，把解码轮分成 prefill 后、接受后和拒绝后三组，各自给出轮数、接受数、提交数和 τ。代码入口为 `spec.observation.gain`，实现与测试见 [2026-11-01 trajectory 与 observation 联合 mask](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>)。
+## Observation 与增益混合
+`ObservationBlendMaskProvider`（`providers.py` 第 285–398 行）包住上面的轨迹。正式臂是 `condition='none'`、`form='mean'`。
 
-真实模型比较仍需另行批准。公式就位后，先做 CPU 合成检查。
+\[
+z=\sum_v p(v)\,e_v,\qquad p=\mathrm{softmax}(\ell)
+\]
 
-# 二、假设、替代解释和反驳条件
-| **编号** | **主张** | **会被什么结果反驳** |
+实现是 `softmax(logits.float())` 再乘嵌入表（第 343–346 行）。`form='top1'` 时 z 改成该行 argmax 的嵌入。z 只活一轮，`on_token_committed` 只转给基线，不把 z 写进轨迹（第 397–398 行）。
+
+混合是
+
+\[
+m=(1-g)\hat m+g z=\hat m+g(z-\hat m),\qquad g\in[0,1]
+\]
+
+`g=0` 时直接返回轨迹（第 356–357 行）。**k=1 时只有根上的那个 mask 被混合。** `masks_by_depth` 的循环是 `for depth in range(k)`，`slots=k-depth`（第 359–361 行）。k=1 时 depth 只有 0，只改根的槽 0；深度 1 的草稿 owner 保持轨迹。正式运行的 `num_masks` 就是 1，所以增益只加在根 mask 上。
+
+### 代码与 docstring 不一致
+类文档（第 290–292 行）写：深度 d 的槽 j 在 \(d+j\le k\) 时改用 \(z_{d+j}\)，否则保持 \(\hat m_j\)。代码用 0 起计的 depth、槽下标，只改写 `j < k-depth`，也就是 \(d+j<k\)。张量有 k+1 行 owner（第 352–355 行），深度 k 的那一行不进循环，不会被混合。
+
+拒绝条件化的文档（第 296–301 行）写槽 1 使用 \(z_{d+1}\)。`masks_for_tree` 取的是 `_probs[depth]` 和 `_observation[depth]`，depth 为该 owner 的树深度，根记 0（第 373–391 行）。用的是 \(z_d\)，不是 \(z_{d+1}\)。正式八类和 g-scan 的 `condition` 都是 `none`，这条分支没有进那些比较。
+
+## 卡尔曼变体（按现实现）
+都在 `providers.py`。除特别写出的槽以外，只改槽 0，其余槽仍是基线 mask。
+
+| **类** | **公式** | **位置** |
 | --- | --- | --- |
-| H1 | 同一干预位置上，trajectory 与 observation 联合更新优于仅 trajectory、仅 observation 和现有 EMA | 在拟合与评测隔离后，联合臂的接受数或 τ 不高于两侧单独臂，或差异能由输出长度解释 |
-| A1 | 收益只是多利用了最后一次提交的 token | 若把比较限制在没有新提交信息的轮次后收益消失，A1 成立，H1 不成立。会议摘要称限制到起草失败后仍有收益，这仍待代码和原始结果核验 |
-| A2 | 收益来自在线重估 K，而不是冻结后的状态更新 | 同模型跨数据上，在线调整 K 相对冻结 K 没有额外收益时，不把在线调整写成必要机制。会议摘要称暂未看到额外收益，尚未核验 |
-| A3 | 仿射 K 的增益就是 Kalman 最优增益 | 当前没有过程噪声、观测噪声和协方差递推。出现仿射形式不能称为已实现 Kalman |
-
-Jason 汇报的“K 校正初步有效”和“同模型跨数据拟合/测试接近”是待核验的口述结果。本计划不把它们写成已测量事实。核验需要当时的代码版本、冻结 K、数据划分和原始接受/调用计数。
-
-# 三、和现有 K Study 不是同一协议
-`studies/k_affine_residual` 的协议名是 `postcommit-final-norm-v1`。它在已经提交的位置比较连续均值 embedding 与刚提交 token 的最终归一化 hidden，用 float64 中心化 ridge（λ=.001，截距不正则）拟合 `A` 和 `b`，并单独拟合 `b0`。它不读取未来 token，也不进入推测解码的起草循环。
-
-| **对象** | **现有 Study** | **本次主问题** |
-| --- | --- | --- |
-| 干预位置 | 已提交 token 的隐藏状态，解码器之外 | 起草循环中的状态更新，位置待公式定义 |
-| 状态 | 一次拟合后冻结的 A、b、b0 | trajectory 与 observation 的寿命待定义 |
-| 数据 | 合成 token 工程夹具；160 对协议未执行 | 待指定的拟合集与隔离评测集 |
-| 成功标准 | hidden MSE 与泄漏检查 | 接受、调用、长度、正确性和速度分开 |
-| 名称边界 | 不是 Kalman，也不是 trajectory+observation | 不能把本 Study 的通过测试当成主问题的证据 |
-
-合成 tiny 模型的工程测试不能证明真实模型收益。固定仿射回归不能称为已实现 Kalman 滤波。仿射 Study 对 `kalman`、`trajectory`、`observation`、`trajectory_observation` 这些协议名仍然拒绝。mask 侧的 `method: kalman` 是另一条协议，见下面的标量滤波。
-
-# 四、六方面约束
-| **方面** | **本次主问题的约束** |
-| --- | --- |
-| 文献 | ESP v2 仍是最近的同模型 embedding 基线。投机验证、训练式头和检索起草只作机制对照。阅读深度见文献调研。本轮没有重读论文 |
-| 数据 | 拟合文档与评测文档、拟合 prompt 与评测 prompt 必须隔离。同模型跨数据集和跨模型迁移分开报告。开发集反复使用的 SpecBench 480 条不能称为新的 holdout。划分在公式冻结后写入新 version，不按结果挑选 |
-| 模型 | 主比较先固定一个已有本地模型身份，记录 config、backend、device、dtype 和权重摘要。跨模型是后续问题。本次不下载权重，不把 tiny 随机模型的结果外推 |
-| 算法 | 唯一干预是状态更新。树预算、mask 槽、剪枝、EOS 和验证规则保持与所选基线相同。原 ESP、已有 EMA、仅 trajectory、仅 observation、二者联合必须能指向同一解码入口 |
-| 指标 | τ、解码调用数、输出长度、T0 argmax 覆盖和实际速度分别记录。独立 AR 一致率只诊断。τ 定义为解码阶段提交 token 数除以 decode calls；decode calls 为 0 时没有 τ |
-| 实验 | 先写公式和伪代码，再做最小消融。接受候选的轮次和发生拒绝、需要纠正的轮次分开统计。没有公式就不增加真实前向 |
-
-旧 ESP 长矩阵、七格范数和 11 格独立配对继续暂停。BF16 相对独立 AR 的算子数值机理排查保持停止。这些暂停不因主问题存在而自动恢复。
-
-# 五、必须能够互相比较的条件
-公式冻结后，下面各组才有资格比较。现在它们还不是可运行配置。
-
-| **臂** | **状态里有什么** | **不能和谁直接比** |
-| --- | --- | --- |
-| 原 ESP | 输入均值，按已提交 embedding 更新 | 树预算或 mask 槽数不同的 EMA 运行 |
-| 已有 EMA | 输入或输出的零阶/一阶，提交后更新 | 改变了树或温度的运行 |
-| 仅 trajectory | 只使用历史预测，不写入本轮 observation | 同时改了最后提交 token 用法的运行 |
-| 仅 observation | 只使用本轮 verify 的观测 | 没有同等验证前向的离线拟合 |
-| 二者联合 | trajectory 与 observation 按同一公式更新 | 拟合数据与评测数据重叠的运行 |
-| 仅 bias | 冻结的 b0，不用 A | 从完整 K 里拆出 b 冒充独立 bias |
-| 完整 K | 冻结的 A 和 b | 评测时重新拟合或在线改 K，除非该臂被单独命名 |
-
-接受候选的轮次记录“验证接受了哪些草稿”。拒绝纠正的轮次记录“草稿失败后状态如何改、下一步是否因此接受更多”。两类轮次的 τ 可以分列，不能加总后声称同一机制。
-
-K 的拟合只使用拟合划分。评测划分、同模型的另一数据集、另一模型，按这个顺序单独判断。同模型跨数据接近，不能推出跨模型迁移。在线调整 K 若要比较，必须与冻结 K 使用同一评测集，并保留调整轨迹。
-
-# 六、最小实验、扩展和停止
-本次计划不授权下载权重、恢复暂停矩阵或 GPU 测速。
-
-| **阶段** | **完成标准** | **停止** |
-| --- | --- | --- |
-| 公式 | 默认定义 `trajectory-observation-blend-v1` 已写在第一章，已实现于同一解码入口（2026年11月1日） | 负责人替换公式时改用新协议名 |
-| 合成检查 | CPU、合成输入、无网络。检查拟合/评测隔离、接受轮与拒绝轮的计数、仅 bias 与完整 K 的增量 | 泄漏、非有限值或计数口径分叉 |
-| 最小真实比较 | 在另行批准后，固定一个已有本地模型和一份隔离划分，跑上表中能够实现的臂 | 正确性门失败，或输出长度差异大到不能解释接受差异 |
-| 扩展 | 同模型另一数据集，然后才是另一模型；长距离外推、中间层校正、diffusion/flow matching 只在主问题有稳定结论后单独立项 | 用扩展结果回头修改主问题的成功标准 |
-
-**合成确认判据（2026年11月1日，运行前写定）**：用同一提交的 pilot，换训练种子 21/22/23，其余配置不变。主比较为 EMA 联合·拒绝 对 EMA 轨迹，按 prompt 把三棵树的接受数差相加，双侧符号检验 p<0.05 且胜多于负，才算合成层面确认；次要比较 EMA 联合·拒绝 对 ESP 轨迹 只报告不判定。不通过时，把拒绝条件化记为未确认，不再在合成设置上调参追结果。即使通过，也只是进入“最小真实比较”的候选，仍需另行批准。
-
-**第二个合成确认判据（2026年11月1日，运行前写定）**：同一 pilot，`--variants top1:rejection`，训练种子 21/22/23。主比较为 ESP 联合·top1·拒绝 对 ESP 轨迹，判定方式同上（prompt 级三树接受数差，双侧符号检验 p<0.05 且胜多于负）。不通过则记为未确认，不再在合成设置上换形式追结果。该确认已失败，合成 observation 形式不再更换。
-
-### 默认干预 `bonus-slot-hard-v1`
-oracle 按槽拆分说明接受数的空间全在 mask 槽 0：模型在 bonus 位置读到的输入嵌入。真实 token 嵌入能把 τ 抬到接近 k+1；只替换更深层则与 trajectory 相同。默认方案不增加前向：深度 d 的 owner 的槽 0 换成上一轮验证前向第 d 行 mask logits 的 argmax token 嵌入（草稿自己对这个 bonus 位置的预测），其余槽保持 trajectory。协议名 `bonus-slot-hard-v1`，配置 `spec.bonus_slot.mode: hard`。它不与 `spec.observation` 混用。假设：这个硬 token 足够接近 oracle 所用的真实 token，使下一棵树第 1 层更常被接受。若 top-1 经常错误，硬嵌入会差于轨迹均值，接受数下降。
-
-**第三个合成确认判据（2026年11月1日，运行前写定）**：同一 pilot，`--bonus-slot`，训练种子 21/22/23。主比较为 ESP `bonus-slot-hard-v1` 对 ESP 轨迹，判定方式与 top1 相同（prompt 级三树接受数差，双侧符号检验 p<0.05 且胜多于负）。探索先用种子 11/12/13。探索若胜不多于负，不跑确认，并停止在合成设置上再改 bonus 槽的做法。确认不通过同样停止。通过也只是真实模型候选，仍需另行批准。该探索已失败（79:99），确认未跑。
-
-### 候选 `bonus-slot-topk-v1`
-硬 argmax 失败后，按新指令只再试一个不增加前向、针对同一槽的候选。槽 0 改为上一轮该行 logits 在草稿宽度 w（该层 `branches`）上重新归一化后的期望嵌入，其余槽仍是 trajectory。假设：真 token 若常落在草稿 top-w 内，这个期望比单词嵌入更不怕 top-1 选错，又比全词表均值更靠近 token 流形，从而更接近 oracle 所用的真实嵌入。协议名 `bonus-slot-topk-v1`，配置 `spec.bonus_slot.mode: topk`。
-
-**第四个合成确认判据（2026年11月1日，运行前写定）**：同一 pilot，`--bonus-slot topk`，种子 21/22/23。主比较为 ESP `bonus-slot-topk-v1` 对 ESP 轨迹，判定方式与 top1 相同。探索用种子 11/12/13。探索若胜不多于负，不跑确认，并停止再改合成 bonus 槽。确认不通过同样停止。这是 hard 失败之后的单独一次候选，不把已关闭的 observation 形式重新打开。该探索已失败（78:96），确认未跑。合成 bonus 槽变体到此停止。
-
-### 真实小模型比较（Qwen3-0.6B，CPU）
-合成方向停止后，只在本机已缓存的 Qwen3-0.6B 上做。不用 1.7B/4B，不下载，不用 GPU。假设：沿用 4 条 prompt 那次的树（k=1，`branches` [4]，T=0，`stop_on_eos` false），把样本扩到 32 条固定短 prompt、每条 16 个新 token。树不再改。prompt 在开跑前写死，见运行配置。
-
-**真实模型判据（2026年11月1日，运行前写定）**：三条臂为 ESP 默认、`bonus-slot-hard-v1`、`bonus-slot-topk-v1`，同一批 prompt，各自与独立 AR 比 token。任一臂与 AR 不一致或 argmax 审计失败，该臂的 τ 不解释成接受收益。功效比较是 prompt 级 τ（解码提交数 / 解码调用数），hard 对 ESP、topk 对 ESP 各做一次双侧符号检验：τ 更高为胜，p<0.05 且胜多于负才算该臂更高。两次比较不做校正，这个限制随结果写明。τ 均值用 prompt 为单元的 10000 次百分位自助法 95% 区间（种子 0）。接受长度是每轮 `accepted_nodes` 的长度分布。每 token 前向次数为（prefill 与 decode 调用之和）/ 新 token 数，墙钟按整段 `generate` 计。这些是描述，不另设通过线。不通过不改树、不换模型、不再加合成变体。
-
-### 标量卡尔曼 mask（`kalman-mask-scalar-v1`）
-bonus 槽不再改。v6 第 5.9 节的状态是高阶 hidden 和 \((n+1)\times(n+1)\) 协方差。这里的默认是更小的一条，假设写明：观测用现有 `on_token_committed` 的输入嵌入，不是末层 hidden；状态是各维共享的标量随机游走（\(F=1\)），\(q,r,P,K\) 都是标量。在线臂用 Sage–Husa，遗忘因子 0.95，\(r_{\min}=10^{-6}\)，\(q_{\min}=10^{-8}\)，初始 \(q=0.01r\)。冻结臂在 prompt 预热结束时锁定 \(K\)。mask 是滤波后的水平，重复到每个槽。它不与 observation 或 bonus 槽混用。命题 8 的 \(\beta^\star\) 属于 \(n=1\)、\(R\to 0\) 的局部线性趋势；把本实现的 \(q/r\) 代入该闭式只作对照，不相等只说明这不是那个模型。标量稳态本身有恒等式：固定增益 \(\lambda\) 是 \(q/r=\lambda^2/(1-\lambda)\) 的稳态卡尔曼增益，ESP 的 \(\lambda=0.1\) 因此对应某一个稳态增益。
-
-**卡尔曼合成判据（2026年11月2日，运行前写定）**：同一 pilot，`--kalman`，探索种子 11/12/13。臂为 ESP 轨迹、固定 EMA（\(\beta=0.9\)）、blend-v1（增益固定 0.5，不再在拟合集上重选）、在线卡尔曼、冻结 \(K\)。主比较是在线卡尔曼对 ESP 轨迹，prompt 级三树接受数差，双侧符号检验，p<0.05 且胜多于负才算通过，然后才跑种子 21/22/23。探索若胜不多于负，不跑确认，也不上 Qwen3-0.6B。A2 是同一次运行里在线对冻结 \(K\) 的同一检验，只报告，不代替主比较；在线不优于冻结，就不把收益写成来自在线重估 \(K\)。A1 用拒绝后轮次的提交数做同一符号检验：主比较通过但拒绝后轮次不通过，则不能排除“只是多用了已提交 token”。固定 EMA 与命题 8 的 \(\beta^\star(q/r)\) 只记录差距，不设通过线。确认通过之后才在本机 Qwen3-0.6B 上做小比较，树与 32 条 prompt 那次相同。该确认已失败（101:83，p=0.210）。它只对应下面 formulation 的 trajectory、没有观测项，不据此改会议方案，也不再调这条标量滤波。
-
-### 10 月 31 日会议的合并（formulation）
-会议原话，不是本仓已经测过的结论。Jason：把 input difference 乘上学习得到的 K，作为 correction 加到最后的猜测上；收益主要来自最后 commit 的 token，只在猜错时用最后的 next token 仍有一点作用；K 更像 model specific，在线调 K 没有额外收益，倾向先收集数据再离线拟合。Enmao：两路合并，状态是 trajectory（ESP/EMA 那种长程 model predict），观测是本轮 verify 的当前结果，卡尔曼是这个合并的 closed form；要消融掉观测项，先写公式和伪代码。会上没有给出 K 的维度和完整公式。
-
-本仓据此写下的公式，其中维度、拟合和槽位是假设：
-
-\[m = \hat m + K(z-\hat m)\]
-
-- \(\hat m\)：ESP 或 EMA 的 mask 轨迹，只改槽 0。假设槽 0 是“最后那个猜测”。
-- \(z\)：最近一次已提交 token 的输入嵌入。假设这就是本轮 verify 结果，不用末层 hidden，也不再做一次前向。
-- \(K\)：在语言 A 的拟合 prompt 上，用 AR 参考续写重放轨迹，最小二乘让槽 0 接近下一 token 的嵌入。评测集不重选。标量、对角、仿射三种都拟合；主比较用对角。仿射是 \(m=\hat m+A(z-\hat m)+b\)。在线臂只延续标量最小二乘，初值来自同一次拟合。
-- 已测过的 `kalman-mask-scalar-v1` 没有 \(z\)，只重写轨迹本身，对应消融里的 trajectory-only，不是这条公式的失败。
-
-```text
-Fit(fit sequences): replay trajectory; collect (m_hat, z=last commit, y=next embed); least squares
-Decode step:
-  m_hat <- trajectory masks
-  if reject-only baseline and previous round committed exactly one token:
-      m[0] <- z
-  else if correction and z exists:
-      m[0] <- m_hat[0] + K(z - m_hat[0])
-  draft and verify
-  on each committed embed: update trajectory; z <- that embed; online scalar may update K
-```
-
-**观测修正的合成判据（2026年11月2日，运行前写定）**：同一 pilot，`--correction`，探索种子 11/12/13。四档为 (a) ESP 与固定 EMA；(b) 现有标量卡尔曼在线臂，不改参数；(c) ESP 加冻结的标量、对角、仿射 K；(d) 只在上一解码轮恰好提交一个 token 时，把槽 0 换成该 token 的嵌入。主比较是 (c) 的对角 K 对 ESP 轨迹，prompt 级三树接受数差，双侧符号检验，p<0.05 且胜多于负才跑种子 21/22/23。探索若胜不多于负，不跑确认，也不上 Qwen3-0.6B。A1 看对角对 (d)：对角不更高，就不把收益写成超出“拒绝轮用最后 token”。A2 看标量在线对标量冻结：在线不更高，就不把在线调 K 写成必要。确认通过后才在 Qwen3-0.6B 上做 CPU 小比较。对角主比较已失败（91:80，p=0.445），不再做对角变体。仿射在同一次探索里是次要臂，111:70（p=0.003），不能把这次结果当成主比较已通过。
-
-**仿射 K 主比较（2026年11月2日，看过 11/12/13 次要臂之后才升级，运行前写定）**：升级发生在看到该次要臂之后。种子 11/12/13 不再使用。探索改用 31/32/33。主比较是冻结仿射 K 对 ESP 轨迹，仍是 prompt 级三树接受数差的双侧符号检验，p<0.05 且胜多于负。只有探索通过才跑确认种子 21/22/23。两段都通过才在本机 Qwen3-0.6B 上做 CPU 小比较。拟合只用语言 A 的 fit，holdout、cross 和 fit 上的解码都不重选 K。fit 上的符号检验只用来看过拟合，不计入主比较。A1 是冻结仿射对“拒绝轮把槽 0 换成最后提交 token”。仿射不高于该基线，就不把收益写成超出最后提交 token。A2 是仿射在线对仿射冻结。假设：在线是在拟合的 Gram 上逐轮加一行再解，冻结臂仍用无岭的最小二乘；在线重解加 \(10^{-8}\) 只为了数值，不改变冻结解。在线不更高，就不把在线调 K 写成必要。同时报告参数量 \(d^2+d\)、拟合行数，以及 fit/holdout/cross 的重放均方误差和解码 τ。holdout τ 升、cross τ 降如果在新种子上还在，就按 split 写明，不把合并后的胜负说成两个 split 同向。该探索已失败（101:85，p=0.271）。cross 重放误差约 \(10^7\)，holdout 与 fit 同量级。
-
-**混合语言岭仿射（2026年11月2日，看过 31/32/33 之后才设计，运行前写定）**：上一条无岭仿射只在语言 A 上拟合，跨语言把 mask 推坏。会议原话是 K 更像 model specific。本比较检验：拟合集同时包含两种语言时，冻结仿射是否在两种语言的未见 prompt 上都还能用。探索种子 41/42/43，不复用 11/12/13、21/22/23 或 31/32/33。主比较是冻结岭仿射对 ESP 轨迹，prompt 级三树接受数差的双侧符号检验，合并两种语言的未见 prompt，p<0.05 且胜多于负。分语言的胜负同时报告，不另设通过线。只有探索通过才跑确认种子 21/22/23。两段都通过才在本机 Qwen3-0.6B 上做 CPU 小比较。
-
-假设：fit 与两种语言的评测各 32 条，条数沿用现有 prompt 计划。岭只罚 \(A\)，不罚 \(b\)。\(\lambda\) 取 \(10^{-4}\) 到 \(10^{4}\) 的 9 档，不含 0。5 折按 prompt 划分，只在 fit 的两种语言内部做，分数是重放均方误差，平局取更大的 \(\lambda\)。评测集不重选 \(\lambda\)，也不重选 \(A,b\)。参数量仍是 \(d^2+d\)。同时报告拟合行数，以及 fit、语言 A 评测、语言 B 评测的重放误差。语言 B 的重放误差若仍远高于 fit，就记为没有回到正常量级。
-
-A2 用同一批种子重跑：在线岭仿射对冻结岭仿射。在线从拟合的 Gram 出发，每条 prompt 开始时回到该 Gram，重解用同一个 \(\lambda\)，不再另加 \(10^{-8}\)。上轮 114:67 针对的是只在语言 A 上拟合的无岭冻结 K。泄漏按下面三条核对，不另做通过线：本轮 mask 已经发出之后，才用本轮刚提交的那个 token 更新 K；不使用尚未提交的 token；一条评测 prompt 的更新不留到下一条。三条都成立时，上轮优势写成评测 prompt 内部的在线适应，不是拟合看过评测集。A2 不代替主比较。在线不更高，就不把在线调 K 写成必要。Qwen3-0.6B 上该冻结臂是 14:8（p=0.286），τ 从 1.355 到 1.368。
-
-**Qwen3-0.6B 余量上界（2026年11月2日，看过 14:8 之后才做，运行前写定）**：同一 32 条评测 prompt、同一棵树。oracle 用这 32 条自己的 AR 续写拟合岭仿射，再在这 32 条上解码。它是这个函数类的上界，不能当成通过。假设：这里的 \(\lambda\) 在这 32 条的样本内重放误差上从同一 9 档网格选取，不用交叉验证，避免 480 行对 1025 个坐标参数时把上界缩没；平局仍取更大的 \(\lambda\)。可观余量定义为下面任一成立：对 ESP 的接受数差均值不少于 1，或 τ 均值增量不少于 0.05，或这 32 条上的符号检验已经 p<0.05 且胜多于负。三条都不成立记为几乎不涨，不再预注册 128 条比较，并改看拒绝轮占比。本仓的 draft 与 target 是同一个 Qwen3-0.6B，没有第二套模型；差距用解码轮里接受长度为 0 的比例来记。同一批 prompt 上同时跑 A1（拒绝轮把槽 0 换成最后提交 token）和 A2（192 条拟合集上的冻结岭对在线岭，评测集不重选）。A1、A2 不代替上界判定。该上界已达到可观余量：oracle 对 ESP 为 25 胜 1 负 6 平，接受数差均值 1.47，τ 从 1.355 到 1.526。
-
-**Qwen3-0.6B 128 条（2026年11月2日，上界达到可观余量之后才预注册，运行前写定）**：评测 128 条，由下面 16 个句首与 8 个句尾按句首外层、句尾内层的顺序拼接，中间一个空格。这 128 条与已用的 32 条、以及 192 条拟合句逐字不重合。拟合仍用那 192 条、每条 AR 24 个 token。岭只在拟合集上按原来的 5 折选择，打乱种子 0，评测集不重选。树仍是 k=1、`branches` [4]、T=0、每条 16 个 token。主比较只跑冻结岭仿射对 ESP，逐 prompt 接受数，p<0.05 且胜多于负。不跑在线，oracle 不计入这次通过。假设：拟合句式保持不动，用来区分“32 条功效不够”和“换一批评测仍然没有接受收益”。
-
-句首：Name the color of；A compiler turns；The Pacific Ocean is；After the rain；Please sort these；An electron has；The word for cat in；When the loop ends；A rectangle with sides；The train leaves at；Binary 1010 equals；Salt dissolves in；The author of Hamlet is；Click the button to；Gravity pulls objects；A dictionary maps。句尾：a common example；the next word；two equal parts；the empty page；one short line；the left side；three small items；the final step。
-
-**Qwen3-4B 低秩 K（2026年11月2日，0.6B 收尾之后，运行前写定）**：0.6B 不再加 prompt。模型实验改在本机 CUDA 上跑，CPU 只留单元测试和合成 pilot。本机已缓存 `D:\models\Qwen3-4B`（Qwen3ForCausalLM，36 层，hidden 2560，词表 151936，BF16，safetensors 合计 8044936192 字节，三份分片都在），不下载。加载用 BF16、eager attention，device 必须是 cuda。
-
-假设：主比较用低秩而不是对角加偏置。合成对角主比较已经失败；0.6B 的全矩阵 oracle 又说明跨维项有余量。形式是 \(m=\hat m+UV^\top(z-\hat m)+b\)，\(U,V\) 为 \(d\times 4\)。秩固定为 4，不在评测集上选。参数量 \(2dr+d=23040\)。岭只罚 \(U,V\)，不罚 \(b\)，网格仍是 \(10^{-4}\) 到 \(10^{4}\)，5 折按 prompt，只在拟合集内，平局取更大的 \(\lambda\)。拟合用交替最小二乘 8 步，\(V\) 的初值是 delta 的前 4 个右奇异向量。在线臂每来一个已提交 token 只再交替 1 步，每条 prompt 开始时回到拟合因子。
-
-拟合句和评测句用同一套句首、句尾拼接，句首外层、句尾内层，全文不重合。句首沿用上面 16 个。句尾在上面 8 个之后再加：a closed door；the first row；four quiet notes；the open window；a single page；the right margin；two fresh copies；the last stop；one plain box；the middle line。共 16×18=288 条。前 128 条做拟合，每条 AR 24 个 token。接下来 32 条做探索评测，每条 16 个 token。后 128 条只有探索通过才做确认，拟合和岭都不重选。树仍是 k=1、`branches` [4]、T=0、`stop_on_eos` false。主比较是冻结低秩对 ESP，逐 prompt 接受数，p<0.05 且胜多于负。同一批探索 prompt 上同时报 A1（拒绝轮基线）、A2（在线对冻结）和 oracle 上界。oracle 用评测句自己做样本内岭选择，不能当成通过。探索未通过：15 胜 10 负 7 平，p=0.424。后 128 条不跑。这条离线拟合到此停止。
-
-**在线卡尔曼（2026年11月2日，离线拟合停止之后，运行前写定）**：不再做拟合集、岭、低秩或 oracle。主比较是在线卡尔曼对 ESP。逐 prompt 接受数的双侧符号检验，p<0.05 且胜多于负。消融两臂各自对 ESP 用同一次检验：trajectory 臂关掉 verify 更新；observation 臂保留 verify 更新，但先验均值不用 ESP。公式和与 `kalman-mask-scalar-v1` 的差别写在同日开发记录，这里不另写一套。
-
-假设：\(P,Q,R,K\) 各维独立，初值 \(P=1\)、\(Q=0.01\)、\(R=1\)，遗忘因子 0.95，与 prompt 无关。只改槽 0。一轮只用第一个已提交嵌入更新一次。合成探索种子 51/52/53，不复用 11/12/13、21/22/23、31/32/33、41/42/43。合成主比较通过才跑确认种子 61/62/63。合成符号检验不作为上真实模型的门；单元测试确认递推和重置之后就上模型。真实模型用 CUDA。优先本机已缓存的 Qwen3-4B，BF16，树 k=1、`branches` [4]、T=0、每条 16 个 token。评测用 4B 低秩那次的第 129–160 条，共 32 条，不拟合。Qwen3-0.6B 用同一 32 条做对照，也走 CUDA。两条都不下载。合成或 4B 的探索未通过，都不加 prompt、不改初值。确认未通过，4B 为 2:24，0.6B 为 1:28。
-
-**对齐残差（2026年11月2日，看过上述 32 条的逐轮诊断之后，运行前写定）**：不回到拟合，也不改嵌入尺度上的 \(P,Q,R\) 去凑这 32 条。诊断见同日开发记录：增益被推到 1，上一枚 token 和当前 ESP 不是同一个状态。新的主比较是对齐残差卡尔曼对 ESP，逐 prompt 接受数，p<0.05 且胜多于负。trajectory 臂与 observation 臂各自对 ESP 用同一次检验。
-
-假设：\(F\) 是标量相关系数，初值 0，\(P=1\)、\(Q=0.01\)、\(R=1\)，都在余弦尺度上。\(R\) 按余弦 innovation 的平方更新，不减 \(P\)。合成探索种子 71/72/73。只有合成主比较通过才跑确认种子 81/82/83。合成符号检验不是上 4B 的门。4B 用本机缓存，BF16，CUDA。评测是同一 288 句式里的第 161–192 条，不复用诊断用的第 129–160 条，也不拟合。0.6B 用这同一组新的 32 条做对照。诊断预期 \(F\) 靠近 0；若主比较接近打平，不改 \(Q/R\)，不加 prompt。合成 94:71（p=0.086），4B 新 32 条 5:9（p=0.424）。从零在线收住。
-
-**混合增益（2026年11月2日，从零在线收住之后，运行前写定）**：离线校准给出 model specific 的初始 K 和 \(P,Q,R\)，每条 prompt 从这里开始，再用本轮 verify 更新 K。公式在同日开发记录。主比较是这条对 ESP，逐 prompt 接受数，p<0.05 且胜多于负。同时报告冻结 K、从零在线、以及关掉 verify 的 trajectory，各自对 ESP，不另设通过线。
-
-假设：K 逐维。校准用 288 句式的前 128 条、每条 24 token。\(P\) 取最小二乘方差 \(R/\sum x^2\)，不是 1。\(Q=0.01P\)。评测是 SpecBench `question.jsonl` 按 `question_id` 升序的前 32 条第一轮，与校准句不重合，数据集也不同。树仍是 k=1、`branches` [4]、T=0、每条 16 token。4B 与 0.6B 各自校准，都用本机缓存和 CUDA。不下载。校准集不改，评测集不重选 K。主比较未通过则不改 \(Q/P\)。
-
-**混合增益 128 条（2026年11月2日，看过 32 条的逐轮诊断之后，运行前写定）**：32 条主比较已经未通过，诊断也说明公式就是会议形式。这一次只加大评测条数，不改 K 的形式、不改 \(Q/P\)、不重选校准句。主比较仍是校准初值加在线更新对 ESP，逐 prompt 接受数，p<0.05 且胜多于负。冻结 K、从零在线、trajectory 各自对 ESP，不另设通过线。评测是 SpecBench 按 `question_id` 升序的前 128 条第一轮，含已经看过的 81–112。判据用这 128 条整体，不把后 96 条单独拿来决定是否通过。校准仍是句式前 128 条，和 SpecBench 逐字不重合，也不是同一个数据集。4B 与 0.6B 都用本机缓存和 CUDA。未通过则停，不改 \(Q/P\)，也不再加 prompt。
-
-**放开在线权重与额外分支（2026年11月2日，看过 128 条和逐轮权重之后，运行前写定）**：已看过的 SpecBench 81–112 上，375 轮的观测权重均值是 \(4.0\times10^{-4}\)，\(P/R\) 均值 1.26。\(R\) 并不比 \(P\) 大。\(P\) 是 2944 行上的最小二乘方差，所以先验太强，在线项几乎不动 K。不改 \(R\)。新的在线版本把每条 prompt 的 \(P\) 和 \(Q\) 乘 64，K 和 \(R\) 仍用校准值。64 等于这次的生成长度，不在评测集上选。另一条变体不改槽 0，ESP 的 `branches` [4] 原样保留，把修正后的 mask 前向得到的 top-1 作为额外的深度 1 分支；已在树里或与根 token 相同就不加。这条用冻结的校准 K。预算按实际节点数另报，不把 ESP 改成 5 条分支。
-
-两条都对 ESP，逐 prompt 接受数，p<0.05 且胜多于负。冻结 K 只作对照，不另设通过线。评测是 `question_id` 大于 208 的前 128 条第一轮，即 209–336，不包含 81–208。每条 64 token，`stop_on_eos` false。校准仍是句式前 128 条。4B 为主，0.6B 对照，本机缓存，CUDA。不下载。未通过则不改 64，不加 prompt。
-
-**输出 hidden 混合卡尔曼（2026年11月2日，嵌入空间混合增益收住之后，运行前写定）**：观测改到最终归一化 hidden。状态仍是 output hidden 的 anchor 加 velocity。公式、和原版以及嵌入空间混合增益的差别，写在同日开发记录，协议 `output-hidden-hybrid-kalman-v1`。这里不另写一套。
-
-主比较有两条，都要过：hybrid 对 ESP，以及 hybrid 对 output hidden 原版。逐 prompt 接受数，双侧符号检验，p<0.05 且胜多于负。冻结 K、从零在线、trajectory 同时报告，不另设通过线。trajectory 对原版应当全平；不平就是实现错了，不解释成方法差异。
-
-假设：K 逐维。修正在 FP32 里加到 hidden 上，范数缩放之后才转成 BF16。hybrid 把校准 P 和 Q 乘 64，64 等于生成长度，不在评测集上选。R 不乘。K 只按 root 的槽 0 更新；deep owner 只记误差。校准用 288 句式的前 128 条、每条 24 token，在不乘 K 的轨迹上收集 \((h,z,y)\)。\(Q=0.01P\)。主评测是 SpecBench `question_id` 209–336，128 条，每条 64 token，与校准句不重合，数据集也不同。另一组是同一 288 句式下标 128–159（第 129–160 条），32 条，每条 64 token，紧接校准之后，与校准不重合。树是 k=1、`branches` [4]、T=0、`stop_on_eos` false。4B 与 0.6B 各自校准。权重只用本机缓存：4B 为 `D:\models\Qwen3-4B`，0.6B 为 `studies/input_mask_baseline/shared/model/modelscope/Qwen/Qwen3-0.6B`。两份 config 都是 `tie_word_embeddings=true`。加载后若指针未绑但数值相同，只在内存里绑到同一存储；数值不同就停。不下载。未通过则不改 64，不加 prompt，也不回到嵌入空间那条 K。
-
-这条在测完后收为负结果消融，不再作为当前主比较。两条主比较都没有通过。0.6B 相对 ESP 的损失在不乘 K 的 output hidden 轨迹上已经出现。对角 K 把 root hidden 拉近了，没有把接受数拉过原版，也没有拉过 ESP。不再乘 boost，不加 prompt，也不把这条 hidden 对角 K 接回后面的比较。数字在第七章和 [2026-11-02 开发记录](<开发记录 Development Record/2026-11-02 输出hidden混合卡尔曼.md>)。
-
-**同节点预算的额外分支（2026年11月3日，运行前写定）**：协议 `extra-branch-replace-v1`。2026年11月2日的额外分支在 SpecBench 209–336、每条 64 token 上，4B 为 35:11（p=5.4e-4），0.6B 为 38:10（p=6.2e-5）。那次 ESP 保持 `branches` [4]，修正 token 是追加的深度 1 节点。节点数多出来的轮次上，接受数上升不能单独归到候选本身。
-
-这次主比较是替换臂对 ESP。两边都是 k=1、`branches` [4]、剪枝开、T=0、`impl` efficient。替换臂沿用冻结的校准 K，槽 0 仍是 ESP mask。修正后的嵌入做一次单 token 前向，它的 top-1 若还不是深度 1 子节点、也不是根 token，就换掉累计概率最低的那个无子节点的深度 1 叶；概率相同则换更靠后的叶。节点数保持这次 `build_static_tree` 给出的数量。解码若发现替换改变了节点数，直接中止，这次比较不能记为通过。已经在树里或等于根 token 时不换。给 ESP 改成 `branches` [5] 会在修正 token 已经落在前四名时让两边节点数再次不等，所以不作为主比较。修正嵌入那一次前向仍在，它不计入节点预算。
-
-K 的校准与 11 月 2 日额外分支相同：288 句式的前 128 条，每条自回归 24 token，在不乘 K 的 ESP 轨迹上收集 \((\hat m,z,y)\)，对角最小二乘，\(Q=0.01P\)。评测不重拟合。4B 权重是 `D:\models\Qwen3-4B`，0.6B 是 `D:\models\Qwen3-0.6B`，BF16，CUDA，eager，只读本地文件。分词与那次额外分支相同，直接 `tokenizer(text)`，不用 chat template。
-
-主评测是 SpecBench `question_id` 337–464，128 条第一轮原文，含 qa 337–400 与 math_reasoning 401–464。它不包含 81–336，因此不包含额外分支用过的 209–336，也与校准句逐字不重合。每条生成 64 token，`stop_on_eos` false。跨数据集复验用本仓已支持的 Dolly `databricks/databricks-dolly-15k` train split、类别 `creative_writing`，按库的迭代顺序取前 128 条非空文本；有 context 时拼在 instruction 前面，中间空一行。K 不在 Dolly 上重估。两个数据集分开下结论。
-
-判据：逐 prompt 接受数，双侧符号检验，p<0.05 且胜多于负。4B 和 0.6B 都要过，该数据集上的同预算主张才算通过。只过一个模型就只报告该模型，不把联合主张写成通过。τ 报告每条 prompt 的均值，以及提交数除以解码调用数的合计；两者都不是通过线。独立 AR 不一致只诊断。argmax 自检必须通过。未通过则不改树宽、不改 K、不加 prompt，也不把 ESP 改成五条分支后再测。
-
-**bonus 对齐的混合增益（2026年11月3日，输出 hidden 混合卡尔曼未通过之后，运行前写定）**：协议 `hybrid-gain-bonus-aligned-v1`。公式和与 `hybrid-gain-kalman-v1` 的差别写在同日开发记录。这里不另写一套。不重复家里 PC 上 `cursor/extra-branch-fair-20261103` 的额外分支同预算对照、跨数据集复验、输出 hidden 消融和 `src/rpipe` 清理。
-
-主比较是对齐后的在线臂对 ESP。逐 prompt 接受数，双侧符号检验，同时报告 τ。Enmao 2026-11-03：不要把 p<0.05 当成唯一门槛，两个模型胜多于负、方向一致，就记为正向。方向相反记为负。一正一负记为分裂，不把对齐写成已经补上缺口。冻结臂和“仍观测第一个提交 token”的在线臂同时报告，不另设通过线。对齐后的在线臂还要和这条旧观测比：只有它相对旧观测也是两个模型同向更好，才把收益归到观测对齐，而不是归到这批评测句或重新校准。
-
-假设：K 仍逐维。k=1 时同一条 mask 发给每个 owner。下一棵树用的是最深接受节点上的那条 mask，它站在 bonus（本轮最后提交的 token）的位置。旧更新把本轮第一个提交 token 当成 y。新更新和校准都把 y 换成这个 bonus。z 仍是发出修正时的上一枚 token。修正写回槽 0，不另做前向，不增加节点。树保持 k=1、`branches` [4]、T=0，所以不需要再给 ESP 配 `branches` [5]。boost 仍是 64，等于生成长度，不在评测集上选。校准是同一 288 句式的前 128 条、每条 24 token，在不乘 K 的 ESP 上同时记下第一个和最后一个提交 token。\(Q=0.01P\)。评测是 SpecBench `question_id` 465–560，96 条，每条 64 token，`stop_on_eos` false。81–336 已经用于这条混合增益，337–464 留给家里的额外分支对照，这两段都不用。校准句和 SpecBench 不重合。4B 与 0.6B 各自校准，权重只用本机缓存，CUDA，不下载。未通过则不改 64，不加节点，也不按这次结果重选评测句。
-
-**前向前信号的离线 \(R^2\)（2026年11月3日，bonus 对齐只剩弱同向之后，运行前写定）**：协议 `preforward-signal-r2-v1`。要找的是前向之前已经在手的向量，和 bonus 残差 \(y-m\) 有没有共享方差。对角 \(K\) 用的 \(z-m\) 只解释 0.01–0.03，所以先做离线回归，过了门再决定要不要接 Kalman。公式、信号顺序和门写在同日开发记录。这里不另写一套。不重复家里 `cursor/extra-branch-fair-20261103` 的额外分支对照。
-
-本地 `question.jsonl` 的 `question_id` 只有 81–560。本轮评测用 81–208 的第一轮，128 条，每条 64 token。这段不在 209–560 里。它在 2026-11-02 以 16 token 解码过，旧接受数不参与本轮判据，也不用来选信号、秩或 ridge。拟合只用 288 句式的前 128 条、每条 24 token。树仍是 k=1、`branches` [4]、T=0、`stop_on_eos` false。先跑 0.6B。门不过就不跑 4B，也不接 Kalman，不改 64，不加节点。0.6B 已跑完：四个低秩留出 \(R^2\) 都是负的，门没有开。
-
-**同预算替换的独立复现（2026年11月3日，前向前信号留出 \(R^2\) 为负之后，运行前写定）**：协议 `extra-branch-replace-fresh-v1`。要复现的是家里 PC 的同节点替换，不是再拟合一个 K。比较代码用 `dev` 上 PR #61 的 `fair_branch.run_split`：两边都是 k=1、`branches` [4]、剪枝开、T=0、`impl` efficient；替换臂冻结校准 K，槽 0 仍是 ESP mask，修正嵌入的 top-1 换掉累计概率最低的无子节点深度 1 叶。不改 boost，不改 token 下标的取法，不把 ESP 改成五条分支。预注册时的入口是 `studies/trajectory_observation/structure/fresh_replace.py`，只负责选句和效应量。合并进带两柱门禁的 `dev` 之后，同一段命令实现放在 `studies/trajectory_observation/flow/fresh_replace.py`；选句、哈希和效应量仍留在 structure，公式不另写。
-
-假设：在从未用于这条替换的 prompt 上，同预算替换相对 ESP 提高每条 prompt 的接受 token 数，方向为正。τ 与“每轮接受的草稿 token 数”一起报告。
-
-本地 SpecBench `question_id` 是 81–560 共 480 条，没有缺号。81–208、209–336、337–464、465–560 都已经用过，没有剩余 id。改用本机重新装入缓存的 Dolly `databricks/databricks-dolly-15k` train split。`datasets` 5.0.0。类别 `creative_writing` 的非空文本按库迭代顺序有 709 条。前 128 条就是 `extra-branch-replace-v1` 已经测过的样本，qid 0–127，文本互不重复，这次整段排除。其后按同一顺序取下 128 条，文本若与已用前缀或已选新句重复就跳过。这样跳过下标 144。留下的 qid 是 128–143 与 145–256。128 条文本以换行拼接后的 SHA256 是 `e37e3be985b5356acedeffc22a83b00a0484b1983d44ef6e67eebfe0c3f36a20`。运行时哈希或 qid 序列对不上就中止，不另选句子。校准句仍是 288 句式的前 128 条、每条 24 token，与这 128 条逐字不重合才开跑。K 不在新句子上重估。
-
-主评测是 Qwen3-4B，权重 `D:\models\Qwen3-4B`，与 `fair_branch.MODELS` 相同。BF16，CUDA，eager，`local_files_only`。分词 `tokenizer(text)`，不用 chat template。每条 64 token，`stop_on_eos` false。0.6B 是次要复现：本机没有 `D:\models\Qwen3-0.6B`，若时间允许就用仓库里的 `studies/input_mask_baseline/shared/model/modelscope/Qwen/Qwen3-0.6B`，同一批 prompt，不重拟合。0.6B 不改变 4B 的结论。
-
-主指标是逐 prompt 的 `accepted`（与原先符号检验同一字段）。胜负平来自替换减 ESP，双侧符号检验的 p 照报，p<0.05 不是门槛。效应量是这条差的均值，以及 bootstrap 95% 区间：百分位，种子 0，10000 次。τ（提交数除以解码调用数）和 `accepted/decode_calls`（每轮接受的草稿 token）用同一组 bootstrap。独立 AR 不一致只诊断。argmax 必须通过。草稿节点数必须保持 4，变了就由原入口中止，不能记成正向。
-
-4B 的判读：胜多于负且接受数差均值大于 0，记为正趋势。这时区间若不包含 0，再记为拉开了零；区间包含 0 仍是正趋势，只是没有拉开零。胜少于负且均值小于 0，复现失败。一正一负或全平，记为 mixed 或 flat，不支持这条主张。不按这次结果改 K、改树、改 64，也不重选这 128 条。树分配的探索只在主结果提交之后、换一批句子再做，并标明探索。4B 与 0.6B 都已跑完：两边都是正趋势，接受数差的 95% 区间都不含 0。这一轮不另开树分配探索。数字在第七章和同日运行记录。
-
-**Qwen3-8B 上的同预算替换与冻结卡尔曼（2026年11月3日，运行前写定）**：协议 `office-qwen3-8b-v1`。模型只有 Qwen3-8B，BF16，CUDA，eager，`local_files_only`。权重只用 `D:\models\Qwen3-8B`，模型表键 `8b` 指向这一目录，不用 Hugging Face 缓存里的另一份，也不下载。显存大约 17–18GB，这一轮不和其他 GPU 计算并行。分词 `tokenizer(text)`，不用 chat template。树是 k=1、`branches` [4]、剪枝开、T=0、`impl` efficient。每条正式生成 64 token，`stop_on_eos` false。正式 128 条之前先用校准句式的前 2 条、每条 8 token 做冒烟，ESP、替换、卡尔曼都要 argmax 通过。冒烟不进入符号检验。
-
-两组都对同一批 ESP 行。
-
-（a）同预算替换，沿用 `fair_branch` 的 `hybrid_gain.mode=replace`。槽 0 仍是 ESP mask，冻结 K 修正后的 top-1 换掉累计概率最低的无子节点深度 1 叶。节点数保持 4。这支 K 的拟合与 `fair_branch.calibrate` 相同：288 句式的前 128 条，每条自回归 24 token，在不乘 K 的轨迹上做对角最小二乘，\(Q=0.01P\)。评测不重估。
-
-（b）卡尔曼校正。K 按这台 8B 离线拟合，观测 y 用一轮里最后一个已提交 token。拟合走 `hybrid_gain.mode=collect`，同一 128 条句式、每条 24 token，记下 \((\hat m,z,y_{\mathrm{last}})\)，对角最小二乘，\(Q=0.01P\)。评测用 `mode=frozen`、`observe=last`：槽 0 写成 \(\hat m+K(z-\hat m)\)，K 在解码中保持拟合值。不另跑 EMA 速度外推，也不做在线重估或 boost。\(\hat m\) 仍是 ESP mask 的当前状态，这是这条校正的先验，不是把臂换成 EMA。这支 K 与（a）的 K 分开保存，因为 y 的定义不同。两支拟合句都与下面的 Dolly 评测逐字不重合才开跑，评测集不重估。
-
-评测是 Dolly `databricks/databricks-dolly-15k` train split、`creative_writing` 的非空文本流。本机缓存是 `datasets` 5.0.0，离线读取，709 条。qid 0–256 已经用过或落在用过的前缀里：0–127 是 `extra-branch-replace-v1`，128–143 与 145–256 是 `extra-branch-replace-fresh-v1`，144 当时因与更早文本重复而跳过。这次从 qid 257 起向后取满 128 条。文本若与 qid 0–256 的任一文本相同，或与已经选入的新句相同，就跳过。实际跳过 289（与 198 相同）、304（与 198 相同）、365（与 2 相同）。留下的 qid 是 257–288、290–303、305–364、366–387。换行拼接的 SHA256 是 `f4c5423ce250ae517abfe8ae04b3356f7bf725f66766d4f9ce323b30554766f4`。运行时条数、qid 或哈希对不上就中止，不另选句子。
-
-主指标仍是逐 prompt 的 `accepted`。每一组单独报告胜:负:平、双侧二项符号检验的 p、ESP 与该方法的 τ（每条均值，以及提交数除以解码调用数的合计）、接受数差的均值和 bootstrap 95% 区间（百分位，种子 0，10000 次）。p<0.05 不是门槛。胜多于负且接受数差均值大于 0，记为正趋势；这与 4B、0.6B 同预算替换的方向相同即可算正趋势。区间不含 0 再记为拉开了零，含 0 仍只是正趋势。胜少于负且均值小于 0，这组不支持。一正一负或全平记为 mixed 或 flat。效应量按算出来的数写。独立 AR 不一致只诊断。任一条 argmax 不通过，整组结果无效。替换臂的最大草稿节点数必须是 4。不按结果改 K、改树、改 64，也不重选这 128 条。两组都已跑完，都是正趋势，接受数差的 95% 区间都含 0，所以都没有拉开零。替换对 ESP 为 12:7:109（p=0.359），差均值 +0.0234，区间 [−0.0625, 0.109]，τ 均值 1.351→1.352。冻结卡尔曼对 ESP 为 51:41:36（p=0.348），差均值 +0.195，区间 [−0.0547, 0.445]，τ 均值 1.351→1.359。方向与 4B、0.6B 的同预算替换同向，8B 替换的效应小得多。最大草稿节点数是 4。argmax 全部通过。数字在第七章和同日运行记录。
-
-**同预算树形探索（2026年11月3日，运行前写定，标明探索）**：协议 `office-tree-shape-v1`。这是探索，不是主确认。不设 p<0.05 通过线，也不把某一种形状写成下一轮的默认树。K 不进入这轮：不拟合、不乘、不按结果再估。生成长度保持 64。下面的句子写死，不按结果重选。
-
-问题是：最大草稿节点数保持 4 时，静态树的形状会不会改变逐条 prompt 的接受数。基线是现有 ESP：`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。温度 0。
-
-`build_static_tree` 要求 `len(branches)` 不超过 `num_masks`。第 d 层用第 d 条 mask 的分布，并且只让该层 top-1 继续长子节点。备选形状因此把 `num_masks` 设成层数。本轮只加入口已经支持的两个形状：`branches` [2, 2] 与 [3, 1]，`num_masks` 都是 2，其余配置与基线相同。草稿节点数分别是 2+2 和 3+1，都是 4。不使用动态树，不把基线改成 `branches` [5]，也不编入口会拒绝的写法。块复杂度是 \((k+1)\times(1+4)\)：基线为 10，两个备选为 15。比较的量是接受数。不把备选的块复杂度调回 10，因为那会改掉节点预算。
-
-任一步草稿节点数不是 4，该形状中止，这一组不进入符号检验。
-
-模型是 Qwen3-4B，BF16，CUDA，eager，`local_files_only`。权重只读 `D:\models\Qwen3-4B`，不下载。分词用 `tokenizer(text)`，不用 chat template。
-
-冒烟用正式 128 条里的前 2 条，每条 8 token。三个形状都要 argmax 通过。冒烟不进入符号检验。冒烟失败就不跑正式。
-
-评测是 Dolly `databricks/databricks-dolly-15k` 的 train split，`datasets` 5.0.0，离线缓存。`creative_writing` 非空文本流共 709 条，qid 是这条流里的下标。0–127、128–256（144 因重复跳过）、257–387（289、304、365 因重复跳过）已经用过。这次从 qid 388 起向后取满 128 条。文本与 qid 0–387 的任一文本相同，或与已经选入的新句相同，就跳过并记下来。实际扫描 388–515，没有一处重复，所以没有跳过。qid 是 388–515。这 128 条文本以换行拼接后的 SHA256 是 `123702e2294e9339665cf752ab286297b670cc06e6af632d9b6912399b6cc4e3`。运行时条数、qid 或哈希对不上就中止，不另选句子。
-
-正式每条 64 token，`stop_on_eos` false。三个形状的 argmax 都要通过，否则该组无效。独立 AR 不一致只作诊断。
-
-主比较是 [2, 2] 对 [4]，以及 [3, 1] 对 [4]。差值是备选的 `accepted` 减去基线。每组报告胜:负:平、双侧二项符号检验的 p、两边的 τ（每条均值，以及提交数除以解码调用数）、接受数差的均值和 bootstrap 95% 区间（百分位，种子 0，10000 次）。τ 的差用同一组 bootstrap，只作伴随描述。p 不卡 0.05。效应量按算出来的数写。胜多于负且均值大于 0，只记为这次探索里的正方向，不记成确认。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 64、不重选这 128 条，也不再加第三种形状。
-
-两组都已跑完。已提交的 `direction` 对两组都返回 negative：胜少于负，接受数差均值小于 0。接受数差的 95% 区间都不含 0，差离开了 0，方向是更少的接受。[2, 2] 对 [4] 为 22:94:12（p=8.66e-12），差均值 −1.945，区间 [−2.438, −1.438]，τ 均值 1.299→1.252。[3, 1] 对 [4] 为 36:71:21（p=0.000923），差均值 −0.430，区间 [−0.805, −0.0313]，τ 均值 1.299→1.289。[2, 2] 的 τ 差区间不含 0；[3, 1] 的 τ 差区间含 0。最大草稿节点数都是 4。块复杂度基线为 10，两个备选为 15。argmax 全部通过。不改 K，不改 64，不重选这 128 条，不加第三种形状，也不把任一形状写成默认树。数字在第七章和同日运行记录。
-
-选句、形状、汇总和命令都在 `studies/trajectory_observation/structure/office_tree.py`。
-
-**Qwen3-8B 上的同预算树形探索（2026年11月3日，运行前写定，标明探索）**：协议 `office-8b-tree-shape-v1`。这是探索，不是主确认。不设 p<0.05 通过线，也不把某一种形状写成默认树。要看的是：Qwen3-4B 上 [2, 2] 与 [3, 1] 对 [4] 都是负方向之后，换到 Qwen3-8B、换一批句子，方向会不会变。K 不进入这轮：不拟合、不乘、不按结果再估。生成长度保持 64。下面的句子写死，不按结果重选。
-
-问题与形状沿用 `office-tree-shape-v1`。最大草稿节点数保持 4。基线是现有 ESP：`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。温度 0。备选只使用入口已经支持的 [2, 2] 与 [3, 1]，`num_masks` 都是 2。草稿节点数都是 4。不使用动态树，不把基线改成 `branches` [5]。块复杂度仍是基线 10、两个备选 15。比较的量是接受数。不把备选的块复杂度调回 10。任一步草稿节点数不是 4，该形状中止，这一组不进入符号检验。
-
-模型只有 Qwen3-8B，BF16，CUDA，eager，`local_files_only`。权重只用 `D:\models\Qwen3-8B`，模型表键 `8b` 指向这一目录，不下载。显存大约 17–18GB。正式加载前确认没有别的 CUDA 计算占用显存，空闲显存够放下这一份权重。分词用 `tokenizer(text)`，不用 chat template。
-
-冒烟用正式 128 条里的前 2 条，每条 8 token。三个形状都要 argmax 通过。冒烟不进入符号检验。冒烟失败就不跑正式。
-
-评测是 Dolly `databricks/databricks-dolly-15k` 的 train split，本机 `datasets` 5.0.0 离线缓存。`creative_writing` 非空文本流共 709 条，qid 是这条流里的下标。已用文本按 qid 0–515 的全部文本计算，其中包含办公室此前的 8B 切片（257–288、290–303、305–364、366–387）和 4B 树形切片（388–515）。从 qid 516 起向后取满 128 条。文本与 qid 0–515 的任一文本相同，或与已经选入的新句相同，就跳过。实际跳过 597（与本切片已选入的 554 相同）、608（与 226 相同）、626（与 198 相同）。留下的 qid 是 516–596、598–607、609–625、627–646。换行拼接的 SHA256 是 `d4596e4f7404f47ac53e327d711f70edb7d49298b7583155c8050bfe27bed4dd`。运行时条数、qid 或哈希对不上就中止，不另选句子。
-
-正式每条 64 token，`stop_on_eos` false。三个形状的 argmax 都要通过，否则该组无效。独立 AR 不一致只作诊断。
-
-主比较是 [2, 2] 对 [4]，以及 [3, 1] 对 [4]。差值是备选的 `accepted` 减去基线。每组报告胜:负:平、双侧二项符号检验的 p、两边的 τ（每条均值，以及提交数除以解码调用数）、接受数差的均值和 bootstrap 95% 区间（百分位，种子 0，10000 次）。τ 的差用同一组 bootstrap，只作伴随描述。p 不卡 0.05。效应量按算出来的数写。胜多于负且均值大于 0，只记为这次探索里的正方向，不记成确认。胜少于负且均值小于 0，记为这次探索里的负方向。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 64、不重选这 128 条，也不再加第三种形状，不把任一形状写成默认树。
-
-选句常量、形状、汇总和命令仍在 `studies/trajectory_observation/structure/office_tree.py`，8B 用 `--model 8b`。默认不带该参数时仍是已经跑完的 4B 切片，不改那一组哈希。
-
-两组都已跑完。已提交的 `direction` 对两组都返回 negative：胜少于负，接受数差均值小于 0。[2, 2] 对 [4] 为 21:98:9（p=4.403e-13），差均值 −1.765625，区间 [−2.1875, −1.3515625]，τ 均值 1.326833→1.282968。这一组的区间不含 0。[3, 1] 对 [4] 为 40:58:30（p=0.08541），差均值 −0.3125，区间 [−0.671875, 0.0546875]，τ 均值 1.326833→1.319737。这一组的区间含 0。[3, 1] 的 τ 差区间也含 0。[2, 2] 的 τ 差区间不含 0。最大草稿节点数都是 4。块复杂度基线为 10，两个备选为 15。argmax 全部通过。换到 8B 没有把方向改成正：[2, 2] 仍是明显更少的接受，幅度与 4B 那次接近；[3, 1] 仍是胜少于负、均值小于 0，但这 128 条上的区间含 0。不改 K，不改 64，不重选这 128 条，不加第三种形状，也不把任一形状写成默认树。数字在第七章和同日运行记录。4B 与 8B 的并列见 [2026-11-04 同预算树形阴性结果](<开发记录 Development Record/2026-11-04 同预算树形阴性结果.md>)。
-
-**Qwen3-8B 上 trajectory-only 对完整联合 mask 的消融（2026年11月3日，运行前写定，标明探索）**：协议 `office-8b-traj-ablate-v1`。这是探索，不是主确认。不设 p<0.05 通过线。树形方向不再继续：两边都不用 [2, 2] 或 [3, 1]。K 不进入这轮：不拟合、不乘、不按结果再估。生成长度保持 64。下面的句子写死，不按结果重选。
-
-问题是：在当前 8B 正式基线上，把 observation 联合进 mask，相对只走 trajectory，接受数是否还更高。正式基线是现有 ESP：`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。温度 0。最大草稿节点数保持 4。块复杂度两边都是 \((1+1)\times(1+4)=10\)。这个基线配置本身没有 `spec.observation`。已实现的联合开关就是 `spec.observation`：`gain` 为 0 时与被包装的 provider 逐 token 相同，只走 trajectory；\(0<g<1\) 才把上一轮验证前向的 mask logits 期望嵌入联合进 mask。本轮不新写 provider，也不把 `mask.update` 关掉。关掉 `update` 会冻住 prompt 均值，不是 trajectory-only。
-
-两臂共用上面的基线，都设置 `condition` none、`form` mean，协议名都是 `trajectory-observation-blend-v1`。
-
-- full：`gain` 0.5。这是合成 pilot 里单次冻结联合增益的默认 `blend_gain`，也是已有联合增益网格 0.25、0.5、0.75 的中点。不在这批句子上重选，也不用 `gain` 1，因为 1 是仅 observation。
-- traj：`gain` 0。这是关闭联合 mask 里 observation 一侧的现有开关。
-
-任一步草稿节点数不是 4，该臂中止，这一组不进入符号检验。
-
-模型只有 Qwen3-8B，BF16，CUDA，eager，`local_files_only`。权重只用 `D:\models\Qwen3-8B`，模型表键 `8b` 指向这一目录，不下载。显存大约 17–18GB。正式加载前确认没有别的 CUDA 计算占用显存。分词用 `tokenizer(text)`，不用 chat template。
-
-冒烟用正式句子里的前 2 条，每条 8 token。两臂都要 argmax 通过。冒烟不进入符号检验。冒烟失败就不跑正式。
-
-评测是 Dolly `databricks/databricks-dolly-15k` 的 train split，本机 `datasets` 5.0.0 离线缓存。`creative_writing` 非空文本流共 709 条，qid 是这条流里的下标，最后一条是 708。已用文本按 qid 0–646 的全部文本计算，其中包含第六轮 516–646，以及当时跳过、但文本已经出现在更早 qid 的 597、608、626。从 qid 647 起向后取未用过的句子。文本与 qid 0–646 的任一文本相同，或与已经选入的新句相同，就跳过。实际跳过 658（与 408 相同）、678（与 198 相同，该文本也出现在 289、304、626）。流在 708 结束。去掉这两条之后只剩 60 条，凑不满 128。不回用 0–646 来补满 128，也不另造句子。留下的 qid 是 647–657、659–677、679–708。换行拼接的 SHA256 是 `d23ad590c45307fa7c1981b272adaec243bfaca5a2e390eda394bf2fe42a4cca`。运行时条数、qid 或哈希对不上就中止，不另选句子。
-
-正式每条 64 token，`stop_on_eos` false。两臂的 argmax 都要通过，否则该组无效。独立 AR 不一致只作诊断。
-
-主比较是 traj 对 full。差值是 traj 的 `accepted` 减去 full。胜是 traj 更高，负是 full 更高，平是相等。同时报告完整版相对 traj 的接受增益，即 full 减去 traj，它是同一组差值的相反数。两边的 τ 用每条均值，以及提交数除以解码调用数的合计。接受数差的均值和 bootstrap 95% 区间用百分位，种子 0，10000 次。完整版增益的区间用同一规则、同一组配对再算一次。τ 的差用同一组 bootstrap，只作伴随描述。p 是双侧二项符号检验，不卡 0.05。效应量按算出来的数写。代码里的 `direction` 作用在 traj−full 上：胜多于负且均值大于 0 是 positive，表示这次探索里 trajectory-only 接受更多；胜少于负且均值小于 0 是 negative，表示 full 接受更多。完整版相对 traj 的增益是否为正，看 full−traj 的均值，不另设通过线，也不记成确认。区间不含 0，只说明这 60 条上的差离开了 0。无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 60 条，也不把树改回 [2, 2] 或 [3, 1]。
-
-选句常量、两臂、汇总和命令都在 `studies/trajectory_observation/structure/office_traj.py`。
-
-这一组已经跑完。已提交的 `direction` 作用在 traj−full 上，返回 positive：胜多于负，接受数差均值大于 0。traj 对 full 为 47:5:8（p=1.285e-09），差均值 +3.616667，区间 [2.733333, 4.550000]，τ 均值 1.267772→1.361124。区间不含 0。完整版相对 traj 的接受增益是这个差的相反数，均值 −3.616667，区间 [−4.550000, −2.733333]，也不含 0。τ 差均值 +0.093352，区间 [0.069798, 0.117705]，不含 0。最大草稿节点数是 4。块复杂度两边都是 10。argmax 全部通过。这是探索：gain 0.5 的联合 mask 在这 60 条上接受更少，不是 trajectory-only 的增益，也不记成确认。不改 K，不改 0.5，不改 64，不重选这 60 条，也不把树改成 [2, 2] 或 [3, 1]。数字在第七章和同日运行记录。
-
-**Qwen3-8B 上 trajectory-only 对完整 ESP 的跨类复现（2026年11月3日，运行前写定，标明探索）**：协议 `office-8b-traj-xcat-v1`。这是探索复现，不是主确认。不设 p<0.05 通过线。树形方向不再继续：两边都不用 [2, 2] 或 [3, 1]。K 不进入这轮：不拟合、不乘、不按结果再估。生成长度保持 64。下面的句子写死，不按结果重选。
-
-问题是：第七轮在 `creative_writing` 剩余 60 条上，traj 对 full 为 47:5:8。换一个办公室没有用过的 Dolly 类别之后，同一对开关下，trajectory-only 的接受数是否仍然更高。两臂与第七轮相同。正式基线是现有 ESP：`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。温度 0。最大草稿节点数保持 4。块复杂度两边都是 \((1+1)\times(1+4)=10\)。这个基线配置本身没有 `spec.observation`。已实现的联合开关就是 `spec.observation`：`gain` 为 0 时与被包装的 provider 逐 token 相同，只走 trajectory。本轮不新写 provider，也不把 `mask.update` 关掉。
-
-两臂共用上面的基线，都设置 `condition` none、`form` mean，协议名都是 `trajectory-observation-blend-v1`。
-
-- full：`gain` 0.5，与第七轮 full 一致。不在这批句子上重选。
-- traj：`gain` 0，与第七轮 traj 一致。这是关闭联合 mask 里 observation 一侧的现有开关。
-
-任一步草稿节点数不是 4，该臂中止，这一组不进入符号检验。
-
-模型只有 Qwen3-8B，BF16，CUDA，eager，`local_files_only`。权重只用 `D:\models\Qwen3-8B`，模型表键 `8b` 指向这一目录，不下载。显存大约 17–18GB。正式加载前确认没有别的 CUDA 计算占用显存。分词用 `tokenizer(text)`，不用 chat template。
-
-冒烟用正式 128 条里的前 2 条，每条 8 token。两臂都要 argmax 通过。冒烟不进入符号检验。冒烟失败就不跑正式。
-
-评测是 Dolly `databricks/databricks-dolly-15k` 的 train split，本机 `datasets` 5.0.0 离线缓存，15011 行。办公室既往切片用过的 Dolly 文本都在 `creative_writing`。该类非空流 709 条已经用尽，本轮不回用。其余类别按非空条数从大到小是 open_qa 3742、general_qa 2191、classification 2136、closed_qa 1773、brainstorming 1766、information_extraction 1506、summarization 1188。这些类别都没有作为办公室切片用过。最大的是 open_qa，本轮用它。
-
-qid 是 open_qa 非空文本流里的下标。已用文本按 `creative_writing` 全部 709 条计算，办公室此前各切片都包含在这 709 条里。另核对了本仓 SpecBench `datasets/spec_bench/question.jsonl` 的各轮原文，以及 288 句校准模板。open_qa 全流与这两处已用字符串没有相同文本。从 qid 0 起取满 128 条。文本与 `creative_writing` 任一文本相同，或与 SpecBench 原文、校准模板、已经选入的新句相同，就跳过。实际扫描 0–127，没有一处相同，所以没有跳过。qid 是 0–127。这 128 条文本以换行拼接后的 SHA256 是 `f6e6b1c71a20f1170692e22a2c2bd79fb31eaeb810b861553f7c76a41df25231`。open_qa 更后面另有 5 条与 `creative_writing` 相同、36 条类内重复，没有进入这 128 条。运行时条数、qid 或哈希对不上就中止，不另选句子。
-
-正式每条 64 token，`stop_on_eos` false。两臂的 argmax 都要通过，否则该组无效。独立 AR 不一致只作诊断。
-
-主比较是 traj 对 full。差值是 traj 的 `accepted` 减去 full。胜是 traj 更高，负是 full 更高，平是相等。同时报告完整版相对 traj 的接受增益，即 full 减去 traj，它是同一组差值的相反数。两边的 τ 用每条均值，以及提交数除以解码调用数的合计。接受数差的均值和 bootstrap 95% 区间用百分位，种子 0，10000 次。完整版增益的区间用同一规则、同一组配对再算一次。τ 的差用同一组 bootstrap，只作伴随描述。p 是双侧二项符号检验，不卡 0.05。效应量按算出来的数写。代码里的 `direction` 作用在 traj−full 上：胜多于负且均值大于 0 是 positive，表示这次探索里 trajectory-only 接受更多；胜少于负且均值小于 0 是 negative，表示 full 接受更多。这是探索复现，不记成确认。区间不含 0，只说明这 128 条上的差离开了 0。无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。
-
-选句常量和命令仍在 `studies/trajectory_observation/structure/office_traj.py`，本轮加 `--protocol xcat`。默认不带该参数时仍是已经跑完的 creative_writing 尾段，不改那一组哈希。
-
-这一组已经跑完。已提交的 `direction` 作用在 traj−full 上，返回 positive：胜多于负，接受数差均值大于 0。traj 对 full 为 103:12:13（p=3.351e-19），差均值 +3.2421875，区间 [2.71875, 3.765625]，τ 均值 1.253489→1.338024。区间不含 0。完整版相对 traj 的接受增益是这个差的相反数，均值 −3.2421875，区间 [−3.765625, −2.71875]，也不含 0。τ 差均值 +0.084534，区间 [0.071050, 0.098127]，不含 0。最大草稿节点数是 4。块复杂度两边都是 10。argmax 全部通过。换到 open_qa 之后，gain 0.5 的联合 mask 仍然接受更少。这是探索复现，不是确认。不改 K，不改 0.5，不改 64，不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。数字在第七章和同日运行记录。
-
-第二次到第七次跨类复现沿用上面 `office-8b-traj-xcat-v1` 的两臂、模型、冒烟、64 token 和比较规则。都是探索，不设 p<0.05 通过线，不用 [2, 2] 或 [3, 1]，不拟合 K，不重选句子。命令在 `studies/trajectory_observation/structure/office_traj.py`，协议参数为 `xcat2` 到 `xcat7`。general_qa 跳过与 open_qa qid 93 相同的 91（“What is the English Premier League?”），留下 qid 0–90、92–128。其余五类扫描 0–127，没有跳过。类内重复都在选入区间之后，没有进入这 128 条；brainstorming 的 qid 75 已在选入区间，其后的 239 与 671 不再进入。summarization 是最后一个未用类别，八类到此用完。
-
-| **协议** | **类别** | **SHA256** | **traj:full 胜负平** | **接受数差** | **τ** |
+| `KalmanMaskProvider` | 标量随机游走。\(P^-=P+q\)，\(K=P^-/(P^-+R)\)，\(m\leftarrow m+K(e-m)\)。online 用 Sage–Husa 更新标量 \(q,r\)（遗忘因子默认 0.95）；frozen 锁住 prompt 结束时的 K。没有本轮 verify 的 z | 第 531–556 行 |
+| `VerifyCorrectionMaskProvider` | \(m=\hat m+K(z-\hat m)\)，z 是上一枚已提交嵌入。标量、对角、仿射 \( \hat m+(z-\hat m)A^\top+b \)、低秩 \( \hat m+(z-\hat m)V U^\top+b \) | 第 688–720 行 |
+| `OnlineVerifyKalman` | 逐维 \(K=(P+Q)/(P+Q+R)\)。full：槽 0 为 \(\hat m+K(z-\hat m)\)。trajectory 臂原样返回 ESP。observation 臂把先验换成随机游走状态 | 第 785–823 行 |
+| `AlignedResidualKalman` | 状态是标量相关系数 F。槽 0 为 \(\hat m+F\cdot\nu_{\mathrm{prev}}\)。F 朝相邻残差的余弦更新，并夹到 \([-1,1]\)。R 用余弦残差的平方更新，不减 P | 第 884–918 行 |
+| `HybridGainKalman` | \(m=\hat m+K\odot(z-\hat m)\)。创新 \((y-\hat m)-K\odot(z-\hat m)\)，步长 \(P^-\odot r/(R+P^-\odot r^{\odot 2})\)，\(P^-=P+Q\)。`observe='last'` 改到本轮 bonus 上学习 | 第 1022–1102 行 |
+| `OutputHiddenHybridKalman` | 在 output-hidden 轨迹上，\(h\leftarrow h+(z-h)\odot K\)，再按嵌入表平均范数缩放。trajectory 模式不乘 K | 第 1229–1244 行；缩放在第 74–78 行 |
+
+这些类都不是 `studies/k_affine_residual` 里、解码循环之外的 `postcommit-final-norm-v1`。
+
+## 正式运行配置
+八类 trajectory 消融、墙钟和 g-scan 共用（`studies/trajectory_observation/structure/office_traj.py` 第 110–133、898–910 行；`office_tree.py` 第 40、341 行）：
+
+- 模型：Qwen3-8B，权重 `D:\models\Qwen3-8B`，BF16，CUDA，eager，`local_files_only`
+- mask：`method=esp`，`num_masks=1`，`init=mean_prompt`，`lam=0.1`，`update=true`
+- 树：static，`branches` [4]，剪枝开，`impl=efficient`。块复杂度 \((1+1)\times(1+4)=10\)
+- 解码：温度 0，`stop_on_eos` false
+- 数据：Dolly `databricks/databricks-dolly-15k` train。八类与墙钟按长度的 64 token 档是每条 64 token；g-scan 与墙钟的 256/512 档见下表
+- 混合：`condition=none`，`form=mean`，协议名 `trajectory-observation-blend-v1`。traj / g0 的增益是 0；八类里的 full 是 0.5
+
+# 二、结论总表
+差值方向在表内写明。胜负平是逐条符号检验的胜:负:平。p 是双侧符号检验。区间是 bootstrap 百分位，种子 0，10000 次。这些办公室比较标明探索，不另设确认线。原始 jsonl 在运行记录所指目录，不进 Git。
+
+八类的问题相同：增益 0.5 的联合 mask，是否比关掉 observation（增益 0）接受更多。设置就是上一节的正式配置，每类一条 Dolly 切片，64 token。效应是 traj 减 full 的接受数均值；τ 箭头是 full→traj。
+
+| **名称** | **问题** | **设置** | **效应量** | **PR** | **结论** |
 | --- | --- | --- | --- | --- | --- |
-| `office-8b-traj-xcat2-v1` | general_qa | `a6a306ea868767da6cf8b6006bb4d91c5360387ae8b16ba1a20142cdd35ec677` | 101:17:10（p=1.006e-15） | +3.1484375，区间 [2.6171875, 3.6796875] | 1.265720→1.350626，差 +0.084906，区间 [0.070639, 0.099335] |
-| `office-8b-traj-xcat3-v1` | classification | `01c21dbf4a774b2395bed3a8606d3fe20d92a0cb7d2562ff8e8d965b9f2bd35e` | 93:23:12（p=3.597e-11） | +4.0546875，区间 [3.09375, 5.015625] | 1.243178→1.352919，差 +0.109740，区间 [0.084222, 0.135928] |
-| `office-8b-traj-xcat4-v1` | closed_qa | `55ad2a82a6853587c7f28a641ba5acbdcc66d374c1b2cc3924c1563ce3fafdf9` | 95:22:11（p=5.314e-12） | +2.4921875，区间 [1.9765625, 3.03125] | 1.357949→1.431103，差 +0.073154，区间 [0.058284, 0.088805] |
-| `office-8b-traj-xcat5-v1` | brainstorming | `3dcf4c093d586cd329f7393213009962308365098a9790b009cafc32c7f37869` | 95:17:16（p=2.508e-14） | +2.6171875，区间 [2.1328125, 3.1171875] | 1.290219→1.358632，差 +0.068413，区间 [0.055728, 0.081630] |
-| `office-8b-traj-xcat6-v1` | information_extraction | `b7094d9ecf62a73e299d742016a3fdfcf4608ef5a7a32f7adc7703b86706d7c3` | 106:10:12（p=2.164e-21） | +3.046875，区间 [2.5234375, 3.6015625] | 1.326882→1.415774，差 +0.088892，区间 [0.074741, 0.103290] |
-| `office-8b-traj-xcat7-v1` | summarization | `f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a` | 97:17:14（p=8.636e-15） | +2.6640625，区间 [2.125, 3.203125] | 1.340886→1.418055，差 +0.077169，区间 [0.062001, 0.092411] |
-
-六组 `direction` 都是 positive，区间都不含 0。gain 0.5 的联合 mask 接受更少。argmax 全部通过，最大草稿节点数是 4，块复杂度是 10。数字在第七章和同日运行记录。
-
-资源需求在公式和最小比较的输入规模确定前不编造预算。历史“GPU 不空闲”不能当作新的执行许可。取消时保留已写出的部分观测，不把未完成矩阵记为成功。
-
-# 七、已完成研究的有效范围
-下列事项保持原结论，细节和原件在历史证据归位，不在本文重列数字。
-
-| **事项** | **状态** |
-| --- | --- |
-| 8B 非官方 Table 1 三格 | 数学自检完成，论文 BC30/60 目标未复现，不重跑 |
-| 4B 五方法与方向六格 | 完成；输入一阶总量较好，输出一阶没有稳定联合优势；随机方向反驳“只有 e2−e1” |
-| 范数七格与 11 格配对 | 暂停 |
-| `postcommit-final-norm-v1` | 工程夹具已实现；160 对与真实接受收益未执行 |
-| `trajectory-observation-blend-v1` CPU 合成三臂 | 完成；没有一致收益，ESP 仅观测 6 格全低于轨迹；小模型 mask 作用弱，功效有限 |
-| `trajectory-observation-rejection-v1` CPU 合成 | 探索运行 EMA 联合·拒绝对 EMA 轨迹 104:68；新种子确认 102:71（p=0.022），主判据通过。但对 ESP 轨迹 88:94，ESP 上联合无益，H1 对最强基线未获支持 |
-| `trajectory-observation-top1-rejection-v1` 确认 | 未通过。ESP 联合·top1·拒绝对 ESP 轨迹 74:103（p=0.035），方向与探索相反。停止在合成设置上更换形式 |
-| oracle 按槽拆分 | 全部槽 oracle 的 τ 接近 k+1；只给 bonus 之后的槽真实嵌入时 τ 与轨迹相同。可得空间都在槽 1（当轮 bonus token），更深 mask 不能补上 |
-| `bonus-slot-hard-v1` | 探索未通过。种子 11/12/13，ESP bonus 对 ESP 轨迹 79 胜 99 负（p=0.154），方向为更差。不跑确认 |
-| `bonus-slot-topk-v1` | 探索未通过。种子 11/12/13，ESP top-k 对 ESP 轨迹 78 胜 96 负（p=0.197）。不跑确认，停止再改合成 bonus 槽 |
-| Qwen3-0.6B CPU 真实比较 | 32 条 prompt 三条臂都与 AR token 相同。hard 对 ESP 的 τ 为 5 胜 20 负（p=0.004），方向更低。topk 为 5 胜 14 负（p=0.064），判据未通过，均值差区间也在 0 以下。不改树、不换模型 |
-| `kalman-mask-scalar-v1` | 确认未通过。探索 117:59（p=1.5e-5），新种子 21/22/23 为 101 胜 83 负（p=0.210）。这只是 trajectory、不加本轮 verify 观测的一档，不代表否定 10 月 31 日的合并方案。不上 Qwen3-0.6B |
-| 轨迹加 verify 观测修正 | 探索未通过。种子 11/12/13，对角 K 对 ESP 轨迹 91 胜 80 负（p=0.445）。不跑确认，不上 Qwen3-0.6B。仿射是预先写下的次要臂，111:70（p=0.003），不因看到结果改当时的主比较 |
-| 仿射 K 主比较 | 看过 11/12/13 次要臂后升级，探索改用 31/32/33。冻结仿射对 ESP 轨迹 101 胜 85 负 6 平，p=0.271。未通过。不跑确认，不上 Qwen3-0.6B |
-| 混合语言岭仿射 | 合成探索 129:50、确认 124:58 都通过。Qwen3-0.6B 上 32 条是 14:8（p=0.286），预注册的 128 条是 50 胜 40 负 38 平（p=0.343），未通过。0.6B 不再扩展。oracle 上界 25:1 只说明函数类在被拟合的句子上还有余量 |
-| Qwen3-4B 低秩 K | 探索未通过。32 条上冻结秩 4 对 ESP 为 15 胜 10 负 7 平，p=0.424。不跑后 128 条。oracle 上界 16:8（p=0.152）。离线拟合到此停止，不再追秩或拟合集 |
-| 在线卡尔曼 | 合成确认未通过。探索 111:67（p=0.0012），确认种子 61/62/63 为 97 胜 86 负 9 平，p=0.460。Qwen3-4B 32 条为 2 胜 24 负，p=1.0e-5，τ 1.361→1.218。0.6B 同一 32 条为 1:28，p=1.1e-7。trajectory 臂与 ESP 全平。逐轮诊断：K 被推到 1，观测和 ESP 先验差一拍 |
-| 对齐残差 | 未通过。合成 94:71（p=0.086），不跑确认。Qwen3-4B 新 32 条 5 胜 9 负 18 平，p=0.424，\(F\) 均值 −0.036。0.6B 同一 32 条 5:9（p=0.424）。去掉 ESP 先验后 4B 为 5:20。从零在线收住 |
-| 混合增益 | 原混合未通过。128 条上 4B 为 33:28（p=0.609），0.6B 为 38:27（p=0.215）。观测权重 \(4.0\times10^{-4}\)，\(P/R\) 为 1.26。\(P,Q\) 乘 64 之后，未见过的 209–336、64 token 上 4B 为 46:54（p=0.484），0.6B 为 59:32（p=0.0061）。额外分支两边都通过：4B 35:11（p=5.4e-4），0.6B 38:10（p=6.2e-5）。该分支多一个节点，同预算比较另记一行。不改 64，不加 prompt |
-| 输出 hidden 混合卡尔曼 | 负结果消融，已关闭。SpecBench 209–336、64 token 上，4B hybrid 对 ESP 为 60:51:17（p=0.448），对 output hidden 原版为 57:50:21（p=0.562），τ 1.413→1.425。0.6B 对 ESP 为 1:125（p=3.0e-36），τ 1.485→1.279；对原版 53:59（p=0.637）。模板留出 32 条同向。trajectory 与原版全平。校准 K 均值为正（4B +0.482，0.6B +0.442），在线权重约 0.025。不改 64，不加 prompt，不接回主比较 |
-| 同节点额外分支 | 联合主张未通过。SpecBench 337–464 上 4B 为 17:4:107（p=0.0072），0.6B 为 12:4:112（p=0.0768）。Dolly creative_writing 前 128 条上 4B 为 15:13:100（p=0.851），0.6B 为 21:12:95（p=0.163）。最大草稿节点数都是 4。不改树宽，不改 K，不加 prompt |
-| bonus 对齐的混合增益 | 方向正向，不是稳定优势，也不能归到对齐。SpecBench 465–560、64 token 上，在线且 y 为 bonus 对 ESP：4B 44:37:15（p=0.505），τ 1.423→1.428；0.6B 38:29:29（p=0.328），τ 1.503→1.515。相对旧观测，0.6B 为 57:19（p=1.5e-5），4B 为 25:38（p=0.130）。对角 K 的残差 \(R^2\) 为 0.01–0.03。不改 64，不加节点 |
-| 前向前信号的离线 \(R^2\) | 门没有开。0.6B 上句式拟合、SpecBench 81–208 留出。低秩留出 \(R^2\)：\(z-m\) −0.036，期望嵌入 −1.083，hidden −0.620，top-4 −0.198。对角仍约 0.01。不接 Kalman，不跑 4B |
-| 同预算替换的独立复现 | 正趋势，区间不含 0。未见过的 Dolly creative_writing 128 条（qid 128–143、145–256）上，4B 为 21:6:101（p=0.0059），接受数差均值 +0.172，95% 区间 [0.055, 0.313]，τ 1.310→1.315。0.6B 同向，23:9:96（p=0.020），差均值 +0.125，区间 [0.016, 0.234]，τ 1.366→1.370。最大草稿节点数都是 4。不在这 128 条上改树 |
-| Qwen3-8B 同预算替换与冻结卡尔曼 | 正趋势，两组区间都含 0。Dolly creative_writing qid 257 之后的 128 条上，替换 12:7:109（p=0.359），接受数差 +0.0234，区间 [−0.0625, 0.109]，τ 1.351→1.352。冻结卡尔曼 51:41:36（p=0.348），差 +0.195，区间 [−0.0547, 0.445]，τ 1.351→1.359。方向与 4B、0.6B 替换同向，8B 替换没有拉开零。不改 K，不改树 |
-| 同预算树形探索 | 标明探索，负方向。Dolly creative_writing qid 388–515 上，Qwen3-4B。[2, 2] 对 [4] 为 22:94:12（p=8.66e-12），接受数差 −1.945，区间 [−2.438, −1.438]，τ 1.299→1.252。[3, 1] 对 [4] 为 36:71:21（p=0.000923），差 −0.430，区间 [−0.805, −0.0313]，τ 1.299→1.289。节点数都是 4。不改 K，不改 64，不加第三种形状 |
-| Qwen3-8B 同预算树形探索 | 标明探索，负方向。Dolly creative_writing 从 qid 516 起的 128 条上，[2, 2] 对 [4] 为 21:98:9（p=4.403e-13），接受数差 −1.765625，区间 [−2.1875, −1.3515625]，τ 1.326833→1.282968。[3, 1] 对 [4] 为 40:58:30（p=0.08541），差 −0.3125，区间 [−0.671875, 0.0546875]，τ 1.326833→1.319737。节点数都是 4。方向仍是负的；[3, 1] 的区间含 0。不改 K，不改 64，不加第三种形状 |
-| Qwen3-8B trajectory 消融 | 标明探索。流在 qid 708 结束，从 647 起只剩 60 条未用文本。traj（gain 0）对 full（gain 0.5）为 47:5:8（p=1.285e-09），接受数差 +3.616667，区间 [2.733333, 4.550000]，τ 1.267772→1.361124。完整版相对 traj 的增益是 −3.616667，区间不含 0。联合 mask 接受更少。不改 0.5，不改 64，不重选句子 |
-| Qwen3-8B trajectory 跨类复现 | 标明探索。Dolly open_qa 非空流 qid 0–127，128 条，没有跳过。traj（gain 0）对 full（gain 0.5）为 103:12:13（p=3.351e-19），接受数差 +3.2421875，区间 [2.71875, 3.765625]，τ 1.253489→1.338024。完整版相对 traj 的增益是 −3.2421875，区间不含 0。换类别后联合 mask 仍然接受更少。不改 0.5，不改 64，不重选句子 |
-| Qwen3-8B trajectory 第二次跨类复现 | 标明探索。Dolly general_qa 非空流 qid 0–90、92–128，128 条，跳过与 open_qa qid 93 相同的 91。traj（gain 0）对 full（gain 0.5）为 101:17:10（p=1.006e-15），接受数差 +3.1484375，区间 [2.6171875, 3.6796875]，τ 1.265720→1.350626 |
-| Qwen3-8B trajectory 第三次跨类复现 | 标明探索。Dolly classification 非空流 qid 0–127，128 条，没有跳过。traj（gain 0）对 full（gain 0.5）为 93:23:12（p=3.597e-11），接受数差 +4.0546875，区间 [3.09375, 5.015625]，τ 1.243178→1.352919 |
-| Qwen3-8B trajectory 第四次跨类复现 | 标明探索。Dolly closed_qa 非空流 qid 0–127，128 条，没有跳过。traj（gain 0）对 full（gain 0.5）为 95:22:11（p=5.314e-12），接受数差 +2.4921875，区间 [1.9765625, 3.03125]，τ 1.357949→1.431103 |
-| Qwen3-8B trajectory 第五次跨类复现 | 标明探索。Dolly brainstorming 非空流 qid 0–127，128 条，没有跳过。traj（gain 0）对 full（gain 0.5）为 95:17:16（p=2.508e-14），接受数差 +2.6171875，区间 [2.1328125, 3.1171875]，τ 1.290219→1.358632 |
-| Qwen3-8B trajectory 第六次跨类复现 | 标明探索。Dolly information_extraction 非空流 qid 0–127，128 条，没有跳过。traj（gain 0）对 full（gain 0.5）为 106:10:12（p=2.164e-21），接受数差 +3.046875，区间 [2.5234375, 3.6015625]，τ 1.326882→1.415774 |
-| Qwen3-8B trajectory 第七次跨类复现 | 标明探索。Dolly summarization 非空流 qid 0–127，128 条，没有跳过。这是最后一个未用 Dolly 类别。traj（gain 0）对 full（gain 0.5）为 97:17:14（p=8.636e-15），接受数差 +2.6640625，区间 [2.125, 3.203125]，τ 1.340886→1.418055 |
-| 采样分布保证、独立 AR 等价 | 采样分布保证未完成，不能由 T0 推广。第十章只读分类的结论是可隔离的口径问题。`office-ar-first-fork-v1` 与 `office-ar-bf16-determinism-v1` 已跑，数字在同日运行记录 |
-| 端到端墙钟 | 协议 `office-8b-traj-wall-v1` 已跑完。summarization 128 条上接受数 `direction` 为 positive（97:17:14，差均值 +2.6640625，区间不含 0），`wall_direction` 为 shorter（99:29:0，差均值 −0.100136 秒，区间不含 0）。两者同向，并且一起离开了 0。这是探索。见第九章 A 与同日运行记录 |
-| 墙钟按长度 | 协议 `office-8b-traj-wall-by-length-v1` 已跑完。见 [2026-11-04 Qwen3-8B 墙钟按长度](<运行记录 Run Record/2026-11-04 Qwen3-8B 墙钟按长度.md>) |
-| observation 增益扫描 | 协议 `office-8b-traj-g-scan-v1` 已跑完。长度 256。三个 g>0 相对 g=0 的接受数方向都是 negative。见第十二章与 [2026-11-04 Qwen3-8B observation增益扫描](<运行记录 Run Record/2026-11-04 Qwen3-8B observation增益扫描.md>) |
-| traj 失败模式 | 协议 `office-8b-traj-failset-v1` 已分析。八组 full 胜出子集的条数都等于已归档负。子集相对 traj 更高的字符均值，四组更高、四组更低，中位数也不跟均值同一边。不设通过线，不做跨类符号检验。见第九章 B 与同日运行记录 |
-
-# 八、和开发计划的关系
-研究计划决定要检验的主张和会改变判断的结果。开发计划决定代码、文档和工程验收。第九章的墙钟比较和 full 胜出子集已经有结果，数字留在该章和运行记录。第十章的只读分类已经做完。`office-ar-first-fork-v1`、`office-ar-bf16-determinism-v1` 与 `office-8b-traj-wall-by-length-v1` 的结果在同日运行记录。第十二章的 `office-8b-traj-g-scan-v1` 已经跑完，数字在同日运行记录。现有解码器、审计和 τ 口径的工程修改不能改变已归档 Run 的计数。
-
-# 九、下一高信息实验（运行前写定）
-2026年11月4日写定。Dolly 八个类别的办公室切片已经跑完，本章不再另起新类。主项是端到端墙钟，次项是从已归档结果界定 full 胜出的 prompt 子集。本章只写比较、计时口径和停止规则。它不授权实现，也不授权 GPU 运行。
-
-## A. 端到端墙钟 `office-8b-traj-wall-v1`
-这是探索，不是主确认。不设 p<0.05 通过线。
-
-问题：在 trajectory-only 的接受数已经高于 gain 0.5 的同一协议上，逐条墙钟是否也是 trajectory-only 更短。切片锁定为已经跑完的 summarization，即 `office-8b-traj-xcat7-v1` 的 128 条。这一类是八类里最后写定的切片，不在八类里按效应量再挑一类。
-
-两臂、树和长度与该切片相同。正式基线是现有 ESP：`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。温度 0。最大草稿节点数保持 4。块复杂度两边都是 \((1+1)\times(1+4)=10\)。
-
-两臂都设置 `condition` none、`form` mean，协议名都是 `trajectory-observation-blend-v1`。
-
-- full：`gain` 0.5。与已归档 xcat7 的 full 一致。
-- traj：`gain` 0。与已归档 xcat7 的 traj 一致。
-
-K 不进入这轮。不改 0.5，不改树，不改 64。
-
-模型只有 Qwen3-8B，BF16，CUDA，eager，`local_files_only`。权重只用 `D:\models\Qwen3-8B`，模型表键 `8b` 指向这一目录，不下载。显存大约 17–18GB。正式加载前确认没有别的 CUDA 计算占用显存。分词用 `tokenizer(text)`，不用 chat template。
-
-句子沿用 summarization 非空流 qid 0–127，128 条，没有跳过。换行拼接的 SHA256 是 `f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a`。运行时条数、qid 或哈希对不上就中止，不另选句子。
-
-正式每条 64 token，`stop_on_eos` false。两臂的 argmax 都要通过，否则该组无效。独立 AR 不一致只作诊断。任一步草稿节点数不是 4，该臂中止，这一组不进入符号检验。
-
-计时口径：
-
-主墙钟是逐臂、逐 prompt 的 `wall_seconds`，单位秒。该臂调用 `SpecDecoder.generate` 之前，先调用现有 `sync_device`（CUDA 上即 `torch.cuda.synchronize`），用 `time.perf_counter` 记下起点；`generate` 返回后再次 `sync_device`，再记下终点。`wall_seconds` 是这两次读数的差。它只包住这一臂的 generate，并等到这次调用已经提交的 CUDA 工作结束。它不包含另一臂，也不包含独立 AR。
-
-解码器内部的 `prefill_time` 与 `decode_time` 可以附在同一行。它们在 `generate` 里面分段读取 `perf_counter`，分段两端没有再同步。二者之和只作伴随描述。同向判断只用 `wall_seconds`。
-
-已归档的 office 正式行没有逐臂墙钟。命令外层把 full、traj 和独立 AR 包在同一次 `perf_counter` 里的打印，不进入比较。
-
-缺失、非有限或为负的 `wall_seconds` 保持缺失，不写成 0。任一条正式 prompt 的任一臂缺墙钟，墙钟汇总记为不完整，不解释成同向或反向。该条的接受数仍按原口径保留。
-
-臂的顺序与现有 `office_traj` 相同：先做独立 AR，只供 `ar_equal` 诊断，不计入 `wall_seconds`；然后 full；然后 traj。每一臂使用新的解码器。预热也使用单独构造、随后丢弃的解码器，不把预热后的 mask 状态带进正式行。
-
-冒烟用正式 128 条里的前 2 条，每条 8 token。两臂 argmax 都要通过，并且两臂都写出有限、非负的 `wall_seconds`。冒烟不进入符号检验。冒烟失败就不跑正式。正式开始前，用第 1 条正式 prompt、8 token、两臂各做一次不计时预热，预热后同步。预热不写入正式 jsonl。预热时同步失败或 argmax 失败，就不跑正式。
-
-主比较仍是 traj 对 full。接受数差是 traj 的 `accepted` 减去 full。墙钟差是 traj 的 `wall_seconds` 减去 full。接受数沿用现有 `direction`，作用在接受数差上：胜是 traj 的接受数更高，负是 full 更高，平是相等。墙钟另记 `wall_direction`，不把墙钟差送进现有 `direction`，以免把更长的时间记成 positive。`wall_direction` 为 shorter：墙钟差均值小于 0，且 traj 更短的条数多于 traj 更长的条数。为 longer：墙钟差均值大于 0，且 traj 更长的条数更多。其余记为 mixed 或 flat。
-
-两边都报告胜:负:平、双侧二项符号检验的 p、均值和 bootstrap 95% 区间（百分位，种子 0，10000 次）。墙钟的“胜”按上面的 shorter 计数，也就是 traj 更短的条数。p 不卡 0.05。效应量按算出来的数写。
-
-同向的操作定义：接受数的 `direction` 为 positive，并且 `wall_direction` 为 shorter。两个区间都不含 0，记为这 128 条上接受数与墙钟同向离开了 0。只有一个区间不含 0，记为没有一起离开 0。接受数的 `direction` 为 positive 且 `wall_direction` 为 longer，记为接受更多但墙钟更长。这是探索，不记成确认。
-
-已归档 xcat7 的接受数是 97:17:14，差均值 +2.6640625。这次若接受数的 `direction` 不是 positive，墙钟仍按上面的规则报告，同时写明接受数没有保持已归档的方向。不因为方向不同而重选句子或改增益。
-
-无论方向如何，都不改 K、不改 0.5、不改 64、不重选这 128 条、不把树改成 [2, 2] 或 [3, 1]，也不另起 Dolly 类别。
-
-选句常量、两臂和汇总仍在 `studies/trajectory_observation/structure/office_traj.py`，句子沿用 `--protocol xcat7`。不另建脚本，不增加 legacy 条目。
-
-这一组已经跑完。测量在办公室另行批准之后进行，上面的停止规则没有改。接受数的 `direction` 为 positive：97:17:14（p=8.636e-15），差均值 +2.6640625，区间 [2.125, 3.203125]，不含 0，与已归档 xcat7 同向。`wall_direction` 为 shorter：99:29:0（p=3.842e-10），墙钟差均值 −0.100136 秒，区间 [−0.130013, −0.069424]，不含 0。接受数与墙钟同向，并且在这 128 条上一起离开了 0。这是探索，不记成确认。数字在 [2026-11-04 Qwen3-8B trajectory墙钟](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory墙钟.md>)。不改 K，不改 0.5，不改 64，不重选这 128 条，也不把树改成 [2, 2] 或 [3, 1]。
-
-## B. traj 失败模式 `office-8b-traj-failset-v1`
-这是对已归档 office 结果的分析协议。默认不加载生成模型，不新跑解码。
-
-full 胜出子集：同一协议、同一 qid 上，`accepted_full` 大于 `accepted_traj` 的 prompt。相等不进入子集。traj 更高不进入子集。八组各自定义。不同类别的 qid 不合成一条流，也不做跨类的符号检验。
-
-归档 jsonl 不进 Git。分析时到运行记录所指的输出目录读取下表的成对文件。文件名是 `{前缀}-{full|traj}-{戳}.jsonl`。每组子集的条数必须等于该组已归档的“负”（full 的接受数更高）。对不上就停在该组，不补造条数，也不改已归档汇总。
-
-| **协议** | **类别** | **条数** | **SHA256** | **已归档负** | **前缀与戳** |
-| --- | --- | --- | --- | --- | --- |
-| `office-8b-traj-ablate-v1` | creative_writing | 60 | `d23ad590c45307fa7c1981b272adaec243bfaca5a2e390eda394bf2fe42a4cca` | 5 | `sd-office-8b-traj-ablate` / `20261103-0905` |
-| `office-8b-traj-xcat-v1` | open_qa | 128 | `f6e6b1c71a20f1170692e22a2c2bd79fb31eaeb810b861553f7c76a41df25231` | 12 | `sd-office-8b-traj-xcat` / `20261103-0929` |
-| `office-8b-traj-xcat2-v1` | general_qa | 128 | `a6a306ea868767da6cf8b6006bb4d91c5360387ae8b16ba1a20142cdd35ec677` | 17 | `sd-office-8b-traj-xcat2` / `20261103-0958` |
-| `office-8b-traj-xcat3-v1` | classification | 128 | `01c21dbf4a774b2395bed3a8606d3fe20d92a0cb7d2562ff8e8d965b9f2bd35e` | 23 | `sd-office-8b-traj-xcat3` / `20261103-1024` |
-| `office-8b-traj-xcat4-v1` | closed_qa | 128 | `55ad2a82a6853587c7f28a641ba5acbdcc66d374c1b2cc3924c1563ce3fafdf9` | 22 | `sd-office-8b-traj-xcat4` / `20261104-032457` |
-| `office-8b-traj-xcat5-v1` | brainstorming | 128 | `3dcf4c093d586cd329f7393213009962308365098a9790b009cafc32c7f37869` | 17 | `sd-office-8b-traj-xcat5` / `20261104-035230` |
-| `office-8b-traj-xcat6-v1` | information_extraction | 128 | `b7094d9ecf62a73e299d742016a3fdfcf4608ef5a7a32f7adc7703b86706d7c3` | 10 | `sd-office-8b-traj-xcat6` / `20261104-042546` |
-| `office-8b-traj-xcat7-v1` | summarization | 128 | `f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a` | 17 | `sd-office-8b-traj-xcat7` / `20261104-045236` |
-
-每组报告四项，都是描述，不另设通过线：
-
-1. 子集里的 qid，以及每条的 `accepted_full - accepted_traj`。
-2. 用该组已经冻结的选句函数取回文本，先核对 SHA256。然后在子集、traj 更高的 prompt、以及打平的 prompt 之间，比较字符长度的均值和中位数。本机已有 Qwen3-8B 分词器、且 `tokenizer(text)` 不触发下载时，再用同一分词、不用 chat template，报告 token 长度的均值和中位数。分词器不可用时，token 长度保持未计算，只保留字符长度。
-3. 子集里 `ar_equal` 为假的条数，以及同组其余 prompt 里 `ar_equal` 为假的条数。这只作诊断。
-4. 子集上 `accepted_full - accepted_traj` 的条数、最小值、中位数、最大值和均值。
-
-分析不改 K、不改 0.5、不改树、不改 64，也不因子集的长相另起 Dolly 类别。
-
-某一组 jsonl 缺失时，该组记为未知。不新跑模型来补这组。句子和哈希已经冻结在 `studies/trajectory_observation/structure/office_traj.py`。条数、qid 或哈希对不上就中止。
-
-这一项已经分析。八组 jsonl 都在，子集条数都等于上表的已归档负。描述在 [2026-11-04 Qwen3-8B trajectory失败子集](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory失败子集.md>)。上面的停止规则和表格没有改。
-
-## C. 仍不足时才换数据集
-A 回答锁定切片上墙钟和接受数是否同向。B 回答已归档八组里 full 胜出的 prompt 如何分布。两项都有结果之后，若仍然不能判断接受数优势是否对应更短的墙钟，也不能判断 full 胜出是否集中在可描述的长度或类别差异上，才另写一版计划，考虑 SpecBench 或其他数据集。本轮不选那些句子，不改 0.5，不改树。
-
-# 十、独立 AR 不一致的性质（运行前写定）
-2026年11月4日写定。协议名 `office-ar-inconsistency-v1`。第九章 A 已经在 summarization 128 条上看到接受数与墙钟同向离开 0。第九章 B 已经看到 full 胜出子集没有统一的长度方向。第九章 C 要换数据集的条件因此没有出现。第七章仍把独立 AR 等价记为未完成：T0 的验证前向 argmax 可以通过，整段输出哈希仍然经常不等于独立 AR。办公室切片只把这个布尔值留在诊断计数里。本章回答它是正确性风险、诊断噪声，还是可隔离的审计口径。
-
-## 问题
-BF16 路径上，Spec、ESP、trajectory 这些臂相对独立 AR 的 token 不一致，究竟是哪一种。
-
-正确性门仍是每个提交 token 等于其验证前向 logits 的 argmax。独立 AR 是另一条比较：同一模型、同一输入、同一温度 0 和同一长度预算下，`ar_generate` 的整段输出哈希是否等于该臂输出哈希。现有 office 行把这个比较记成 `ar_equal`。两条门分开记。哈希不等不改写成 argmax 失败。接受数、τ 和墙钟也不把不一致条数加进分子或分母。
-
-现在做，是因为第九章已经把墙钟和失败子集收口，而等价仍然开着。历史 BF16 上不一致很多，argmax 自检同时通过：8B 非官方 Table 1 的 AR exact 是 BC10 188/480、BC30 175/480、BC60 185/480；4B 五方法的 AR 一致范围是 161–184/480。办公室 8B 的八组诊断计数是：creative_writing（60 条）full 34、traj 33；open_qa 56/54；general_qa 58/60；classification 63/60；closed_qa 54/49；brainstorming 67/69；information_extraction 59/55；summarization 57/52。墙钟那一次 summarization 也是 full 57、traj 52。8B 同预算替换是 ESP 73、替换 73、冻结卡尔曼 70（128 条）。4B 同预算替换是 ESP 71、替换 72；0.6B 两边都是 89。这些数字只说明布尔计数经常开火、臂与臂之间差几个 prompt。它们还没有回答稳定性、臂间分离，以及不一致是否跟着接受数走。
-
-2026年11月1日的合成 CPU 检查里，各臂输出与独立 AR 相同。4B FP32 小链的历史记录也是 AR 一致。本章不把这两条背景重跑成 dtype 或 kernel 对照。
-
-## 假设与替代解释
-三条假设都用下面的离线规则证伪。替代解释不单独开实验。
-
-| **编号** | **主张** | **会被什么结果反驳** |
-| --- | --- | --- |
-| H1 | 现有 `ar_equal` 为假主要是诊断噪声：同一句子两次归档对不上，臂与臂也不分开 | summarization 上同一臂的不一致 qid 在 xcat7 与墙钟之间稳定，并且多组出现臂间分离或接受数差随分组变动 |
-| H2 | 这是正确性风险：argmax 通过的同时，不一致稳定地跟着方法走，不能再只留在诊断计数里 | summarization 上不一致 qid 不稳定，或者八组里臂间不分离且接受数差不随分组变动 |
-| H3 | 这是可隔离的审计口径：整段哈希把后段翻转让整条 prompt 记失败，现有行没有首分叉位置 | 离线规则直接落到「保持诊断」或「正确性风险需处理」。缺首分叉时，H3 只表示口径还没拆开，不表示已经定位到某一算子 |
-
-替代解释，本协议只保留到分类为止：
-
-- 树验证前向和逐 token AR 的浮点路径不同，整段哈希可以不等，同时 argmax 自检仍通过。
-- 行里只有布尔和 `output_sha256`，一次后段翻转和首 token 分叉看起来一样。
-- 方法真的让提交序列离开了独立 AR 的贪心序列。这是 H2。
-- 两次归档之间同一臂自己就变了。这是 H1 的运行间部分。
-
-## 指标
-每条正式行沿用已有字段：`qid`、`ar_equal`、`argmax_passed`、`accepted`、`tau`。`tau` 仍是提交数除以解码调用数；解码调用数为 0 时没有 τ。
-
-分开报告，不合成一个分数：
-
-1. 不一致计数：该臂 `ar_equal` 为假的 prompt 数，以及占该组条数的比例。
-2. argmax：该组全部 `argmax_passed` 为真，才进入分类。有一条为假，该组无效。
-3. 接受数与 τ：在「至少一臂不一致」和「两臂都一致」两组上，并列写出接受数差的均值，以及两臂 τ 的均值。判定只用接受数差。τ 不参与三条结论的分支，也不与墙钟混写。
-
-这一步读到的 jsonl 没有首分叉下标、共同前缀长度，也没有两侧 token。这三个量在只读分类里保持缺失，不从哈希反推，也不补 0。新的记录写在下一节，不回填旧文件。
-
-## 样本
-第一步只读已经归档的办公室 jsonl，不加载模型。目录以运行记录为准。
-
-主样本是第九章 B 表里的八对 full/traj。summarization 再加墙钟那一对，文件名戳 `20261104-0758`，句子仍是 SHA256 `f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a` 的 128 条。qid 对不齐或条数对不上，该比较记为未知。
-
-同预算替换、树形和 4B、0.6B 的已发表不一致计数留在上文，当作背景。那些 jsonl 不在第九章 B 的表里。缺文件就不补跑。本地权重目录仍是 `D:\models\` 下的 Qwen3-8B、Qwen3-4B、Qwen3-0.6B。本章不读取它们。
-
-下一节的第一批就是这 128 条 summarization、Qwen3-8B、温度 0、64 token。4B 和 0.6B 不自动接上。
-
-## 判定与停止
-一组的条数记为 \(n\)。两臂不一致条数的差记为 \(|n_a-n_b|\)。只在一臂为假的条数、两边都为假的条数分开数。
-
-- 分离：\(|n_a-n_b|\ge\lceil n/8\rceil\)，并且只在一臂为假的条数也 \(\ge\lceil n/8\rceil\)。
-- 重叠：两边都为假的条数不少于只在一臂为假的条数，并且 \(|n_a-n_b|<\lceil n/16\rceil\)。
-- 其余不贴这两档。两边都是 0 时记为全一致，不进入分离或重叠。
-
-稳定性只在 summarization、同一臂、xcat7 对墙钟上计算。\(M\) 是该臂 `ar_equal` 为假的 qid 集合。两边都空时 Jaccard 为 1。否则 Jaccard 为交集除以并集。Jaccard \(\ge 0.80\) 为稳定，\(<0.50\) 为不稳定，中间不贴这两档。
-
-接受数差是 traj 的 `accepted` 减去 full。不一致组是至少一臂为假的 prompt，一致组是两臂都为真的 prompt。某一组不足 8 条时只写均值，不贴标签。两组都够 8 条时：均值同号且绝对差 \(<0.5\)，记为不随分组变动；反号，或绝对差 \(\ge 1\)，记为随分组变动。绝对差落在中间则不贴这两档。
-
-三条结论按这个顺序取第一条成立的：
-
-1. **保持诊断**。八组里没有分离，也没有随分组变动，并且 summarization 两臂的 Jaccard 都 \(<0.50\)。布尔计数留在诊断里。不升格为正确性门。
-2. **正确性风险需处理**。summarization 至少一臂 Jaccard \(\ge 0.80\)，并且至少四组分离，或至少四组随分组变动。argmax 在这些组全部通过。下一步另写计划，决定验证规则或审计字段怎么改。本章不改解码。
-3. **可隔离的口径问题**。前两条都不成立，而且没有落到下面的未知或无效。整段哈希还不能区分首 token 分叉和后段翻转。
-
-未知：summarization 的 xcat7 或墙钟文件缺失、qid 对不齐，或八组里超过两组未知。无效：所涉比较里任一条 argmax 失败，或 summarization 任一对无效。未知和无效都不贴上面三条。不新跑模型来补文件。
-
-无论贴上哪一条，都不改 K、不改 0.5、不改树、不改 64、不重选句子、不把不一致的 prompt 从母数里删掉、不因不一致自动重跑。
-
-## 与已停止的算子排查的边界
-第四节的停止继续有效：BF16 相对独立 AR 的算子数值机理排查保持停止。旧 ESP 长矩阵、七格范数和 11 格独立配对继续暂停。
-
-本协议做的是：用已归档行里的 `ar_equal`、argmax、接受数和 τ，把不一致分成上面三类。
-
-本协议不做的是：比较 kernel、拆 matmul 累加顺序、改 dtype、升温、重跑 FP32 小链、把不一致并进 τ 或墙钟、把采样分布保证并进本协议、恢复范数矩阵。历史里「数值微差不能唯一归因 kernel」仍然有效。本章的分类结果也不把那条排查打开。
-
-## 最小下一步
-1. 只读分类规则已经执行。八组重叠、接受数差不随分组变动、summarization 两臂 Jaccard 都是 1.0，结论是可隔离的口径问题。argmax 全部通过。摘要在开发记录所指的源码树外 json。
-2. 分类函数在 `studies/trajectory_observation/structure/office_traj.py`。旧行的缺字段保持缺失。
-3. 首分叉和这一次小规模 GPU 只批准给下一节的 `office-ar-first-fork-v1`。这一句替换旧的「另一次批准」范围。4B、0.6B 和算子排查都不在这次批准里。
-4. 首分叉已经跑完。BF16 自决定和这一次小规模 GPU 只批准给再下一节的 `office-ar-bf16-determinism-v1`。这一句替换上一句的批准范围。4B、0.6B、算子排查和墙钟按长度都不在这次批准里。
-
-## 首分叉与 fp32 参照（运行前写定）
-2026年11月4日写定。协议名 `office-ar-first-fork-v1`。上一节说明整段哈希分不开首 token 分叉和后段翻转，full 与 traj 的不一致 qid 又几乎重合。这一节问：两条 BF16 臂是在同一位置离开同一条独立 AR，还是各自走了不同的解码。
-
-### 问题
-比较对象有三条序列，温度都是 0，长度预算相同：BF16 full、BF16 traj，以及独立 `ar_generate`。BF16 参照是现有 office 路径上的那次 `ar_generate`。fp32 参照是同一本地权重、同一 prompt 上另一次 `ar_generate`，权重 dtype 为 float32。
-
-正确性门仍是验证前向 argmax。`ar_equal`、首分叉和 fp32 对照都是诊断。哈希不等不改写成 argmax 失败。接受数、τ 和墙钟不把这些条数加进分子或分母。
-
-这次批准覆盖本协议的首分叉字段，以及这一次小规模 GPU。不恢复 kernel、matmul 累加顺序或 dtype 扫描。BF16 相对独立 AR 的算子数值机理排查继续停止。
-
-### 假设与证伪
-p 值不设 0.05 门。方向与预先写的一侧一致，就记为该假设的正向证据。效应量按下面的比例和中位数原样报告。
-
-| **编号** | **主张** | **会被什么结果反驳** |
-| --- | --- | --- |
-| H1 | 不一致主要是共享参照：两条臂在同一下标离开 BF16 AR，分叉处的臂 token 和参照 token 都相同 | 不一致 prompt 里，同下标且两侧 token 相同的比例 \(<0.50\)，或任一条分叉落在 prompt 内部 |
-| H2 | 臂离开了贪心序列，而且不是同一条参照在作怪 | 上述比例 \(\ge 0.80\)，分叉都在 prompt 之后，并且 argmax 全部通过 |
-| H3 | float32 AR 才是对得齐的参照，BF16 AR 是离开的那一条 | fp32 没有跑成，或两条臂对 fp32 的一致率并不比各自对 BF16 AR 的一致率至少高出 0.10 |
-
-三条可以只成立其中一条。H1 成立并不自动证明 H3。fp32 没跑成时，H3 记为未执行，不把缺测写成 0，也不用 H1 代替它。
-
-### 指标
-每条臂相对 BF16 AR 记录 `prompt_length`、`first_divergence_index`、`common_prefix_length`。序列全同时，下标为空，不补 0；共同前缀长度等于序列长度。有分叉时再记 `side_tokens`，键是 `reference` 和 `candidate`，缺的一侧不补 0。下标指被哈希的那条完整 token 序列，含 prompt。落在 `prompt_length` 之前的分叉单独计数。
-
-相对 fp32 AR 用前缀 `fp32_` 记同样三个量，并记 `fp32_ar_equal`。BF16 AR 对 fp32 AR 用前缀 `ar_fp32_`。fp32 没跑成时这些键不出现。
-
-分开报告：不一致 prompt 上的共享分叉比例、两条臂输出哈希相同的比例、分叉处相对 prompt 末尾的中位偏移、argmax 是否全部通过。fp32 跑成时再报告 BF16 AR 与 fp32 AR 的一致率，以及每条臂的两种一致率之差。
-
-### 样本与显存边界
-句子沿用上一节的 summarization 128 条，SHA256 `f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a`。模型是本地 `D:\models\Qwen3-8B`，不下载。臂是现有 BF16 full 与 traj，温度 0，正式长度 64，`stop_on_eos` 为 false。先做 2 条、8 token 的冒烟。冒烟的 argmax 失败就停，不进入 128 条。
-
-产物戳 `20261104-1244`，前缀 `sd-office-ar-first-fork-v1`，目录在源码树外。不回写旧的八组 jsonl。
-
-float32 对照是卸掉 BF16 会话之后，单独加载同一检查点再跑 `ar_generate`。加载前用 BF16 会话里的参数量计算 float32 常驻权重：\(4\) 字节乘参数量，再加 4096 MiB 余量。这个和大于当时空闲显存，就不调用加载。本机 GPU 总显存 24455 MiB，放不下一份常驻 float32 8B。门挡住时 `fp32` 状态是 `not_loaded`，原因写明常驻权重大于空闲显存。不用 4B 或 0.6B 顶替，也不把 BF16 权重上的 fp32 autocast 记成 fp32 AR。
-
-### 判定与停止
-不一致 prompt 指至少一臂 `ar_equal` 为假。共享分叉指两条臂的 `first_divergence_index` 相同，且 `side_tokens` 的 `reference` 与 `candidate` 都相同。
-
-1. **共享参照**。共享分叉比例 \(\ge 0.80\)，prompt 内分叉条数是 0，argmax 全部通过。这是 H1 的正向证据。
-2. **分叉分开**。该比例 \(<0.50\)。这是 H2 的正向证据。
-3. 比例落在中间，或两边都没有不一致，只报告比例和条数，不贴这两档。全一致时 H1 和 H2 都不算被这次样本证实。
-
-fp32 跑成之后另贴，不覆盖上面的档：
-
-- 两条臂的（fp32 一致率 − BF16 一致率）都 \(\ge 0.10\)：记为 **bf16参照离开fp32**，这是 H3 的正向证据。
-- BF16 AR 与 fp32 AR 的一致率 \(\ge 0.80\)，且两条差的绝对值都 \(<0.10\)：记为 **fp32解释不了这条不一致**。
-- 其余不贴。未加载时没有这两档。
-
-无论贴上哪一档，都不改 K、不改 0.5、不改树、不改 64、不重选句子、不把不一致的 prompt 从母数里删掉、不因此重开算子排查。argmax 有一条失败，整组无效，不贴上面的档。
-
-## BF16 上 AR 是否自己会翻（运行前写定）
-2026年11月4日写定。协议名 `office-ar-bf16-determinism-v1`。上一节 128 条里有 64 条至少一臂 `ar_equal` 为假，共享分叉比例 0.546875，落在两档中间。fp32 参照是 `not_loaded`。这一节问这些分叉能不能由 BF16 独立 AR 自己的运行差或路径差解释。
-
-### 问题
-样本是那 64 条。温度 0，长度预算 64，`stop_on_eos` 为 false。每条做三件事。
-
-1. 现有 `ar_generate` 连跑两次。这是整段 prompt 一次前向，再按 KV 逐 token 延续。两次完整 token 序列是否相同。
-2. 同一次预算下，把 prompt 改成逐 token 前向，延续规则不变（`prompt_tokenwise`）。这条序列是否与第 1 次整段路径相同。
-3. 在归档行的每个 `first_divergence_index` 上，用归档 `reference_ids` 按整段 KV 路径重放，记录该步 logits 的 top1−top2。下标和参照 token 只从归档行读取。
-
-正确性门仍是验证前向 argmax。本协议不跑 full 和 traj，不算接受数，不算 τ。`ar_equal`、双运行、路径和 logit 差距都是诊断。
-
-这次批准覆盖本协议的这一次小规模 GPU。权重是本地 Qwen3-8B 的 bfloat16。不加载 float32。不恢复 kernel、matmul 累加顺序或 dtype 扫描。BF16 相对独立 AR 的算子数值机理排查继续停止。墙钟按长度留在本协议有结论之后。
-
-### 假设与证伪
-p 值不设 0.05 门。方向与预先写的一侧一致，就记为该假设的正向证据。效应量按下面的比例、条数和分位数原样报告。
-
-| **编号** | **主张** | **会被什么结果反驳** |
-| --- | --- | --- |
-| H1 | BF16 数值噪声足以解释这些不一致：AR 随运行或路径翻转，或分叉处 top1 与 top2 接近 | 双运行一致率、路径一致率和重放 top1 一致率都是 1，并且差距中位数 \(>2.0\)，同时差距 \(\le 0.5\) 的比例 \(<0.20\) |
-| H2 | 差距大，而且 AR 路径稳定，噪声解释不了，口径风险仍要查 | 任一一致率 \(<1\)，或差距中位数 \(\le 0.5\) |
-
-两条里先看 H1 的失败条件。那个条件成立时记为 H2 的正向证据，同时是 H1 的反驳。H1 的其余正向情形（路径翻转，或中位数 \(\le 0.5\)）不自动证明某一个算子。
-
-### 指标
-双运行一致率：64 条里两次整段 `ar_generate` 的完整序列哈希相同的比例。路径一致率：整段路径与 prompt 逐 token 路径哈希相同的比例。重放 top1 一致率：去重后的分叉里，重放 top1 等于归档 `side_tokens.reference` 的比例。
-
-差距的单位是 \((qid, first\_divergence\_index)\)。两臂下标相同只留一个差距，下标不同各留一个。臂行数另报，不拿臂行数当中位数的分母。差距是该步 logits 在 float32 里的 top1 减 top2。模型 dtype 仍是 bfloat16。
-
-近并列的预注册界是差距 \(\le 0.5\)。大差距的预注册界是差距 \(>2.0\)。另报最小值、中位数、最大值，以及近并列比例和大差距比例。
-
-序列长度必须是 prompt 长度加 64。短了的整组无效，不贴档。
-
-### 样本
-64 条 qid 来自源码树外的 `sd-office-ar-first-fork-v1-mismatch-qids-20261104-1244.json`。这个列表必须等于两支 `20261104-1244` jsonl 里 `ar_equal` 为假的并集，并且已经按 qid 排序。母集仍是 summarization 128 条，SHA256 `f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a`。归档 `reference_ids` 在两臂上必须相同，分叉下标落在 prompt 之后，且等于该位置的参照 token。对不上就停，不补下标。
-
-产物前缀 `sd-office-ar-bf16-determinism-v1`，戳在运行时写入，目录在源码树外。不回写旧的八组 jsonl，也不改 `20261104-1244` 的首分叉文件。
-
-### 判定与停止
-1. **AR路径不稳定**。双运行一致率、路径一致率、重放 top1 一致率里任何一个 \(<1\)。这是 H1 的正向证据。
-2. **分叉贴近并列**。三条一致率都是 1，且差距中位数 \(\le 0.5\)。这是 H1 的正向证据。
-3. **差距大且路径稳定**。三条一致率都是 1，差距中位数 \(>2.0\)，且近并列比例 \(<0.20\)。这是 H2 的正向证据。口径风险留着，本协议不改审计字段。
-
-三条按这个顺序取第一条成立的。中间地带只报告比例、条数和差距，不贴档。全部分差都很大但近并列比例达到 0.20，或者中位数落在 \((0.5, 2.0]\)，都算中间地带。
-
-无论贴上哪一档，都不改 K、不改 0.5、不改树、不改 64、不重选句子、不把这 64 条从母数里删掉、不因此重开算子排查、不在这次测量里做墙钟按长度。不换 4B 或 0.6B。不并行第二份 GPU。
-
-# 十一、墙钟是否集中在更长生成（运行前写定）
-2026年11月4日写定。协议名 `office-8b-traj-wall-by-length-v1`。第九章 A 在 64 token 上看到 traj 相对 full 的墙钟更短，差均值 −0.100136 秒。那一档没有回答这个差距是跟着生成变长而变大，还是一条与长度无关的固定差。第十章的停止规则不在这里重开。结构步骤 5 等本章有长度结论后再排。
-
-这次批准覆盖本协议的这一次 GPU，包括冒烟和下面写定的正式三档。不批准第二份并行 GPU。不批准 4B 或 0.6B。不批准结构步骤 5。不批准重开算子排查。不合并 `main`。
-
-### 问题
-同一条 summarization 上下文上，traj 相对 full 的墙钟优势是否集中在更长的 `max_new_tokens`（256、512），而不是短的 64。每一臂的墙钟再拆成草稿、验证和固定开销。
-
-### 计时口径
-主墙钟仍是第九章 A 的 `wall_seconds`：该臂 `SpecDecoder.generate` 之前 `sync_device`，用 `time.perf_counter` 记起点；返回后再次 `sync_device`，再记终点。它只包住这一臂，不含另一臂，也不含独立 AR。
-
-现有循环里，起草树和验证走的是同一次解码前向。这一次前向既核对草稿，也写出下一棵树的 mask logits。不能把它们拆成两次前向，否则测的就不是现在的解码。三个桶都用循环里已有的 `perf_counter`，两端不同步，和现有 `prefill_time`、`decode_time` 一样：
-
-| **桶** | **定义** |
-| --- | --- |
-| `overhead_seconds` | 现有 `prefill_time`。prompt 嵌入、mask 初始化和 prefill 前向，含第一枚提交 token。同一批句子跨长度应接近持平 |
-| `draft_seconds` | 每次解码迭代里，从建树到解码 `model()` 之前。含 `build_tree`、块嵌入和注意力掩码组装。不含上一次前向已经写出的 mask logits |
-| `verify_seconds` | 每次解码 `model()` 加上随后的 sample-matching 行走，到该行走结束为止。这一段含验证，也含下一棵树的 logits |
-| `residual_seconds` | `wall_seconds − overhead_seconds − draft_seconds − verify_seconds`。含同步空隙、缓存裁剪、mask 更新和审计。允许为负，不改写成 0 |
-
-`decode_time` 仍是整段解码循环的伴随读数，不进入分桶和。四个桶的差按 traj 减 full。缺失、非有限或为负的 `wall_seconds`、`prefill_time`、`draft_seconds`、`verify_seconds` 保持缺失。`residual_seconds` 只在这四项都有限且非负时计算。任一正式 prompt 的任一臂缺其中一项，该长度的墙钟和分桶都记为不完整，不贴长度档，也不贴分解档。
-
-### 假设与证伪
-p 值不设 0.05 门。方向与下表一致就记为该假设的正向证据。效应量按均值、区间、条数和相对幅度原样报告。
-
-| **编号** | **主张** | **会被什么结果反驳** |
-| --- | --- | --- |
-| H_long | traj 相对 full 的墙钟优势随长度变大：64、256、512 的墙钟差均值都小于 0，`wall_direction` 都是 shorter，绝对值严格递增，且 512 的绝对值至少是 64 的 1.5 倍 | 三档方向不一致，或绝对值没有严格递增，或 512 与 64 的绝对值之比小于 1.5 |
-| H_decomp | 在绝对值最大的那一档上，优势主要在 `verify_seconds` 或 `draft_seconds`：与墙钟差同号的桶里，绝对值最大的一个至少占该档墙钟差绝对值的一半，并且这个桶是 draft 或 verify | 该桶是 overhead 或 residual，或没有任何同号桶达到一半 |
-
-### 指标
-每档、每臂报告 `wall_seconds`。配对差是 traj 减 full。`wall_direction` 沿用第九章 A：shorter、longer、mixed、flat。接受数的 `direction` 仍分开报告，不把更长的时间记成 positive。
-
-每档另报 draft、verify、overhead、residual 的配对差均值和 bootstrap 95% 区间（百分位，种子 0，10000 次）。相对幅度是该档墙钟差均值的绝对值除以 full 臂 `wall_seconds` 的均值。full 均值为 0 时，相对幅度记为缺失。p 可以用双侧二项符号检验附在墙钟条数上，不作为档的门槛。
-
-### 样本
-句子沿用第九章 A 的 summarization 128 条，qid 0–127，没有跳过。换行拼接的 SHA256 是 `f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a`。运行时条数、qid 或哈希对不上就中止，不另选句子。
-
-正式样本就是这 128 条乘三个长度，不在看到结果之后缩小。墙钟 v1 的 64 token 正式跑了 716.4 秒。按 token 比例，64、256、512 约 12 分钟、48 分钟、96 分钟，合计约 2.5–3.5 小时，一次会话放得下，所以不改成更小的 N。
-
-两臂与第九章 A 相同。`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。full 的 `gain` 是 0.5，traj 的 `gain` 是 0。温度 0。`stop_on_eos` false。最大草稿节点数 4。块复杂度两边都是 10。模型是本地 `D:\models\Qwen3-8B`，BF16，CUDA，eager，`local_files_only`。不下载。不加载 float32。
-
-长度顺序固定为 64、256、512。冒烟用这 128 条里的前 2 条，每条 8 token，只跑一次，不按长度各跑一遍。两臂 argmax 都要通过，并且两臂的 `wall_seconds`、`prefill_time`、`draft_seconds`、`verify_seconds` 都是有限非负数。冒烟不进入符号检验。冒烟失败就不跑正式。正式开始前，用第 1 条正式 prompt、8 token、两臂各做一次不计时预热，预热后同步。预热不写入正式 jsonl。预热失败就不跑正式。
-
-产物前缀 `sd-office-8b-traj-wall-by-length-v1`，戳 `20261104-1420`，目录在源码树外。每档的文件名带上长度，不覆盖墙钟 v1 的 `20261104-0758`。
-
-### 判定与停止
-三档都完整，并且该档 argmax 全部通过、节点数保持 4、块复杂度保持 10，才贴长度档。按下面的顺序取第一条成立的。
-
-1. **length-dependent**。三档 `wall_direction` 都是 shorter，墙钟差均值的绝对值严格递增，且最大绝对值至少是最小绝对值的 1.5 倍。这是 H_long 的正向证据。
-2. **length-flat**。三档 `wall_direction` 相同，并且三档都是 flat，或者最大绝对值不到最小绝对值的 1.5 倍。
-3. **dead-metric**。256 和 512 的 `wall_direction` 都不是 shorter。短长度上的优势没有延伸到更长生成。
-4. **mixed**。其余。
-
-分解档另贴，不覆盖长度档。宿主是墙钟差均值绝对值最大的那一档；绝对值并列时取较短的那一档。与墙钟差同号的四个桶里，取绝对值最大的一个；并列时按 draft、verify、overhead、residual 的顺序取先出现的。该绝对值达到宿主墙钟差绝对值的一半时，分别记为 **decomp-draft**、**decomp-verify**、**decomp-overhead**、**decomp-residual**。前两个是 H_decomp 的正向证据。后两个算开销主导，H_decomp 被反驳。达不到一半，或没有同号桶，记为 **decomp-split**。墙钟差均值为 0 时直接是 decomp-split。
-
-任一档的墙钟不完整、argmax 未全部通过，或该档进程中断：该档记为不完整，长度档记为 **incomplete**，不贴分解档，并且不开始更长的档。不因为已经看到的差的方向而删 prompt、改 N、改长度或改增益。
-
-无论贴上哪一档，都不改 K、不改 0.5、不改树、不重选这 128 条、不把树改成 [2, 2] 或 [3, 1]、不换数据集、不跑结构步骤 5、不重开算子排查、不换 4B 或 0.6B、不并行第二份 GPU。不合并 `main`。
-
-这一组已经跑完。数字在 [2026-11-04 Qwen3-8B 墙钟按长度](<运行记录 Run Record/2026-11-04 Qwen3-8B 墙钟按长度.md>)。停止规则仍是上面写定的那些。
-
-# 十二、observation 增益扫描（运行前写定）
-2026年11月4日写定。协议名 `office-8b-traj-g-scan-v1`。第十一章的长度是 64、256、512，256 是中间一档。本章把生成长度固定在 256，四臂共用同一套 ESP 草稿 mask，只改 `spec.observation.gain`。本章只写比较和停止规则。它不授权实现，也不授权 GPU。实现和运行等本计划合并之后另行开工。
-
-### 问题
-同一条 summarization 上下文上，混合增益 0.25、0.5、0.75 相对 trajectory-only（g=0）的接受数如何变化。接受数记为 acc，指草稿被验证接受的个数，不是任务准确率。不测 g=1。不把任何一个 g 升成默认。
-
-### 假设与证伪
-不单列“某个 g 应当成为默认”的假设。已有 xcat7 在 64 token 上是 g=0 的接受数高于 g=0.5。那一结果不外推到 256，也不外推到 0.25 或 0.75。三对比较并列阅读。某一对高于、低于或等于 g=0，都只记成该对的探索方向。正式组无效，或运行时句子哈希对不上，这组就不读方向。p 不设 0.05 门，方向本身不算通过。
-
-### 臂
-四臂共用：`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。`condition` none，`form` mean，协议名 `trajectory-observation-blend-v1`。温度 0。`stop_on_eos` false。最大草稿节点数 4。块复杂度都是 \((1+1)\times(1+4)=10\)。
-
-增益按这个顺序冻结。看到结果之后不重排，不增删：
-
-| **臂** | **`spec.observation.gain`** | **角色** |
-| --- | --- | --- |
-| g0 | 0 | trajectory-only 基线 |
-| g025 | 0.25 | 混合 |
-| g05 | 0.5 | 混合。与已归档 xcat7 的 full 同一增益，长度改为 256 |
-| g075 | 0.75 | 混合 |
-
-g=1 是仅 observation，不在这四臂里。K 不进入这轮。卡尔曼保持关闭。
-
-模型只有 Qwen3-8B，BF16，CUDA，eager，`local_files_only`。权重只用 `D:\models\Qwen3-8B`，不下载，不加载 float32。显存大约 17–18GB。正式加载前确认没有别的 CUDA 计算占用显存。分词用 `tokenizer(text)`，不用 chat template。
-
-### 样本
-句子沿用 `office-8b-traj-xcat7-v1`。Dolly `databricks/databricks-dolly-15k` 的 train split，本机 `datasets` 5.0.0 离线缓存，类别 summarization。`TAKE` 128，qid 0–127，`SKIPPED` 为空。换行拼接的 SHA256 是 `f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a`。运行时条数、qid 或哈希对不上就中止，不另选句子。选句沿用 `office_traj.py` 的 `prompts_summarization` 与 `assert_registered_xcat7_slice`。不重抽。
-
-正式每条 `max_new_tokens` 256。不跑 64，不跑 512。冒烟用这 128 条里的前 2 条，每条 8 token，四个增益都跑。四臂 argmax 都要通过。冒烟不进入符号检验。冒烟失败就不跑正式。
-
-### 指标
-主比较是每个 g>0 对 g=0，同一 128 条配对。差是该臂接受数减去 g=0 的接受数。胜是该臂接受数更高，负是更低，平是相等，记成 胜:负:平。p 是不含平局的双侧二项符号检验，只作探索，不设 p<0.05 通过线。
-
-每臂报告 τ 均值。接受数差和 τ 差再各报 bootstrap 均值的 95% 区间，百分位，种子 0，10000 次。`wall_seconds` 若有，只作描述，不作为停止规则。缺失、非有限或为负的墙钟保持缺失，不写成 0，也不让接受数比较失效。
-
-任一条正式 prompt 的任一臂 argmax 未通过，或任一步草稿节点数不是 4，该组无效，不进入符号检验。独立 AR 不一致只作诊断。不重跑 `office-ar-bf16-determinism-v1`（PR #96）。
-
-### 判定与停止
-这是探索。三对比较并列报告。不设通过线，不选出默认增益，不按效应量把某个 g 写成后续协议的唯一增益。
-
-无论三对的方向如何，都不改 K、不改树、不把树改成 [2, 2] 或 [3, 1]、不重选这 128 条、不改 256、不加 g=1、不换数据集、不重开卡尔曼、不重跑 BF16 AR 自决定、不换 4B 或 0.6B。不合并 `main`。
-
-这一组已经跑完。比较和停止规则仍是上面写定的那些。三对相对 g=0 的接受数 `direction` 都是 negative。数字在 [2026-11-04 Qwen3-8B observation增益扫描](<运行记录 Run Record/2026-11-04 Qwen3-8B observation增益扫描.md>)。
-
-### 以后的代码位置
-只登记名字。本计划不写这些文件。四臂、冒烟、正式和汇总在 `studies/trajectory_observation/structure/office_traj.py`，命令是 `--protocol gscan`。不建垫片，不另写一次性脚本，不再拆文件。产物前缀 `sd-office-8b-traj-g-scan-v1`，戳 `20261104-1813`，目录在源码树外。不覆盖 xcat7 或墙钟按长度的已归档文件。数字在同日运行记录。
+| `office-8b-traj-ablate-v1` | 联合是否多于 trajectory-only | creative_writing 剩余 60 条 | 47:5:8，+3.616667，τ 1.267772→1.361124 | [#69](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/69) | 增益 0.5 接受更少 |
+| `office-8b-traj-xcat-v1` | 同上，换类 | open_qa 128 条 | 103:12:13，+3.2421875，τ 1.253489→1.338024 | [#70](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/70) | 同上 |
+| `office-8b-traj-xcat2-v1` | 同上 | general_qa 128 条，跳过 qid 91 | 101:17:10，+3.1484375，τ 1.265720→1.350626 | [#71](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/71) | 同上 |
+| `office-8b-traj-xcat3-v1` | 同上 | classification 128 条 | 93:23:12，+4.0546875，τ 1.243178→1.352919 | [#72](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/72) | 同上 |
+| `office-8b-traj-xcat4-v1` | 同上 | closed_qa 128 条 | 95:22:11，+2.4921875，τ 1.357949→1.431103 | [#73](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/73) | 同上 |
+| `office-8b-traj-xcat5-v1` | 同上 | brainstorming 128 条 | 95:17:16，+2.6171875，τ 1.290219→1.358632 | [#74](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/74) | 同上 |
+| `office-8b-traj-xcat6-v1` | 同上 | information_extraction 128 条 | 106:10:12，+3.046875，τ 1.326882→1.415774 | [#75](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/75) | 同上 |
+| `office-8b-traj-xcat7-v1` | 同上 | summarization 128 条 | 97:17:14，+2.6640625，τ 1.340886→1.418055 | [#76](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/76) | 同上。八个 Dolly 类到此用完 |
+| `office-8b-traj-wall-v1` | 接受数更高时墙钟是否更短 | 同一 summarization，64 token | 接受数仍 97:17:14；墙钟 traj 更短 99:29:0，差 −0.100136 秒 | [#84](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/84) | 接受数与墙钟同向，都离开 0 |
+| `office-8b-traj-failset-v1` | full 胜出的句子有没有共同长度 | 上面八组已归档 jsonl | 子集条数等于各组的负。字符均值四组更高、四组更低 | [#85](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/85) | 看不出按长度分开的失败模式 |
+| `office-ar-inconsistency-v1` | 独立 AR 不一致是口径还是正确性 | 八组已归档行，不加载模型 | 八组都重叠，argmax 全过 | [#89](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/89) | 可隔离的口径问题 |
+| `office-ar-first-fork-v1` | 不一致从哪一个 token 开始 | summarization 64 token；64 条至少一臂哈希不等 | 两臂首分叉下标与两侧 token 都相同的 35/64（0.546875）。fp32 对照未加载 | [#95](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/95) | 不贴共享参照，也不贴分叉分开 |
+| `office-ar-bf16-determinism-v1` | BF16 上 AR 自己会不会翻 | 上面 64 条，只跑 AR | 两次整段 AR 一致率 1；整段对逐 token prompt 为 0.3125；重放对归档参照为 0.5 | [#96](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/96) | 贴「AR 路径不稳定」 |
+| `office-8b-traj-wall-by-length-v1` | 墙钟差是否随长度变大 | summarization，64/256/512 | 墙钟差 −0.096467 / −0.474111 / −1.148640 秒，绝对值递增。512 的差主要在 verify | [#97](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/97) | length-dependent，分解在 verify |
+| `office-8b-traj-g-scan-v1` | 哪个 g 优于 g=0 | summarization，256 token；g=0, 0.25, 0.5, 0.75 | 接受数合计 10235 / 9467 / 8548 / 8088。τ 均值 1.460560 / 1.412226 / 1.358059 / 1.333320。相对 g0 的胜负平 21:100:7、6:121:1、5:118:5，方向都是 negative。墙钟差 +0.189740 / +0.473827 / +0.541773 秒 | [#102](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/102) | 三个 g>0 的接受数都低于 trajectory-only，g 越大越少、墙钟越长 |
+| 同预算树形 | 把 4 个节点拆成两层是否更多接受 | [2,2] 与 [3,1] 对 [4]，`num_masks=2`，64 token | 4B 与 8B 上 [2,2] 约少 1.8–1.9 个接受 token，区间离开 0。[3,1] 也是负方向，8B 区间含 0 | [#78](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/78) | 两层树更差。之后的 trajectory 协议保持 [4] |
+| `kalman-mask-scalar-v1` | 无 verify 观测的标量滤波是否胜过 ESP | 合成确认种子 21/22/23 | 101:83:8，p=0.210 | [联合 mask 开发记录](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>) | 确认未通过。这不是带 z 的合并 |
+| 离线 K（对角、仿射、岭、低秩） | 冻结的 \(K(z-\hat m)\) 是否胜过 ESP | 合成，以及 Qwen3-0.6B / 4B 短句 | 对角 91:80:21（p=0.445）。仿射探索 101:85:6（p=0.271）。0.6B 岭回归 128 条 50:40:38（p=0.343）。4B 秩 4 探索 15:10:7（p=0.424） | [联合 mask 开发记录](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>) | 小模型上弱或未通过。合成岭回归曾通过，没有带到 Qwen。0.6B 的 oracle 上界只说明被拟合的句子里函数类还有余量 |
+| 在线卡尔曼、对齐残差、混合增益 | 在线更新 K 是否胜过 ESP | Qwen3-4B / 0.6B，CUDA，BF16，树 [4] | 在线 4B 为 2:24:6，0.6B 为 1:28:3。对齐残差 4B 新 32 条 5:9:18（p=0.424）。混合增益 128 条 4B 为 33:28:67（p=0.609） | [联合 mask 开发记录](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>) | 负或弱。额外分支在多一个节点时接受数上升，同节点预算的替换没有在 4B 与 0.6B 上同时通过 |
+| `output-hidden-hybrid-kalman-v1` | hidden 空间的混合 K 是否胜过 ESP 和 hidden 原版 | SpecBench 209–336，64 token | 4B 对 ESP 60:51:17（p=0.448）。0.6B 对 ESP 1:125 | [#61](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/61) | 负结果，已关闭 |
+
+八类、墙钟和 g-scan 的 argmax 审计都通过。独立 AR 不一致只诊断，不改写接受数。
+
+# 三、未验证/待定
+- **k>1 与深树。** 正式 observation 比较都是 `num_masks=1`、单层 [4]。同预算的 [2,2]、[3,1] 只比较了树形，接受数更低，没有把 observation 或卡尔曼放到 k>1 上再测。
+- **observation 的注入方式没有拆开。** \(z=\sum p(v)e_v\) 是嵌入的凸组合，一般不落在 token 上，范数也会缩。正式运行固定 `form=mean`，只扫了 g。`form=top1` 的合成确认已经更差（ESP 联合·top1·拒绝对 ESP 轨迹 74:103，p=0.035），8B 上没有把「离开流形」和「范数变小」分成两臂。
+- **温度只有 0。** 办公室配置 `temperature=0`，验证是 argmax。T>0 的采样匹配没有正式结果。T0 通过不能推广成采样分布保证。
+- **模型只有 Qwen。** 8B 是正式轨迹和 g-scan；0.6B 与 4B 只出现在卡尔曼和小树形比较里。没有第二种模型族。
+
+采样分布保证仍未完成。BF16 相对独立 AR 的算子数值机理排查保持停止。本文不另排下一次实验。
+
+# 四、和开发计划的关系
+要检验的主张和已经改变判断的结果在第二章。代码、目录和工程验收在 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。已归档 Run 的计数不因后来的解码器改动而回签。
