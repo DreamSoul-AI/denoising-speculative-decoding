@@ -1,0 +1,59 @@
+experiment: output_space_4b_input_control
+seed: 123
+data:
+  name: specbench
+  source: spec_mtp
+  config:
+    path: datasets/spec_bench/question.jsonl
+    skip_per_category: 0
+    take_per_category: 2
+    apply_chat_template: true
+    chat_template_kwargs:
+      enable_thinking: false
+    max_prompt_len: 2048
+model:
+  name: hf_causal
+  source: spec_mtp
+  config:
+    name_or_path: Qwen/Qwen3-4B
+    hub: modelscope
+    local_files_only: true
+    torch_dtype: float32
+    attn_implementation: eager
+algorithm:
+  mode: eval
+  source: spec_mtp
+  config:
+    version: output-space-4b-input-control-20261015-v1
+    task: esp_mtp
+    eval:
+      max_new_tokens: 100
+      temperature: 0.0
+      stop_on_eos: true
+      num_eval_prompts: 26
+      run_ar_baseline: true
+      log_per_prompt: true
+      probe_steps_per_prompt: 4
+      warmup: false
+    spec:
+      method: ema_velocity
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      ema:
+        beta: 0.9999
+        step_scale: 1.0
+        normalize: false
+        extrapolate_ema: false
+        update: true
+        level: order0
+        lam: 0.1
+system:
+  config:
+    device: cuda
+    deterministic: false

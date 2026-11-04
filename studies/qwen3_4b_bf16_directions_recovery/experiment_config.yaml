@@ -1,0 +1,57 @@
+experiment: qwen3_4b_bf16_directions_recovery
+seed: 123
+data:
+  name: specbench
+  source: spec_mtp
+  config:
+    path: datasets/spec_bench/question.jsonl
+    skip_per_category: 0
+    take_per_category: null
+    apply_chat_template: true
+    chat_template_kwargs:
+      enable_thinking: false
+    max_prompt_len: 40960
+model:
+  name: hf_causal
+  source: spec_mtp
+  config:
+    name_or_path: Qwen/Qwen3-4B
+    hub: modelscope
+    local_files_only: true
+    torch_dtype: bfloat16
+    attn_implementation: eager
+algorithm:
+  mode: eval
+  source: spec_mtp
+  config:
+    version: qwen3-4b-bf16-directions-bc30-20261016-recovery-v1
+    task: esp_mtp
+    eval:
+      max_new_tokens: 256
+      temperature: 0.0
+      stop_on_eos: true
+      num_eval_prompts: 480
+      run_ar_baseline: false
+      log_per_prompt: true
+      probe_steps_per_prompt: 4
+      warmup: false
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: ema_velocity
+      ema:
+        level: order0
+        beta: 0.9999
+        lam: 0.1
+        step_scale: 1.0
+        normalize: false
+        extrapolate_ema: false
+        update: true
+system:
+  config:
+    device: cuda
+    deterministic: false

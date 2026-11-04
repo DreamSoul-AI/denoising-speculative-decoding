@@ -1,0 +1,34 @@
+study: input_mask_baseline
+description: Real pretrained input-mask baseline prerequisite; not output-space validation
+experiment:
+  name: input_mask_baseline
+recipe: recipe.py
+freeze: true
+provenance:
+  project_plan:
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    historical_sections:
+    - anchor: legacy-studies-input-mask-baseline-docs-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/input_mask_baseline/docs/PLAN.md
+      git_blob_sha256: 494998e7290bbac0bc36ecebe25255fcb574a2a1122623cac100304f8df7c0a4
+    policy: Historical replay uses the pinned Git version; current central-plan edits
+      never re-sign old Runs.
+  include:
+  - docs/modelscope_snapshot.json
+  - docs/resource_load_calibration.json
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config:
+  - task: esp_mtp
+    mask: frozen_mean
+  - task: esp_mtp
+    mask: gamma_last
+  - task: ar_baseline
+  - task: alignment_probe
+    mask: frozen_mean
+seeds:
+- 123
+run_description: '{experiment} seed={seed}'

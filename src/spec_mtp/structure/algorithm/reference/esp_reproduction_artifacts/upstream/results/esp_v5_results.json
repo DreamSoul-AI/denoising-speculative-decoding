@@ -1,0 +1,90 @@
+{
+  "bc_30": {
+    "summary": {
+      "model": "meta-llama/Llama-3.2-3B-Instruct",
+      "block_complexity": 30,
+      "n_mask_tokens": 1,
+      "avg_ar_tps": 27.657165128798546,
+      "avg_esp_tps": 5.767755799257477,
+      "avg_tau": 1.4542914085162342,
+      "avg_cos_final": 0.3289306640625,
+      "avg_acceptance_rate": 0.27
+    },
+    "per_prompt": [
+      {
+        "tau": 1.32
+      },
+      {
+        "tau": 1.407
+      },
+      {
+        "tau": 1.384
+      },
+      {
+        "tau": 1.422
+      },
+      {
+        "tau": 1.369
+      },
+      {
+        "tau": 1.414
+      },
+      {
+        "tau": 1.488
+      },
+      {
+        "tau": 1.497
+      },
+      {
+        "tau": 1.718
+      },
+      {
+        "tau": 1.524
+      }
+    ]
+  },
+  "bc_60": {
+    "summary": {
+      "model": "meta-llama/Llama-3.2-3B-Instruct",
+      "block_complexity": 60,
+      "n_mask_tokens": 2,
+      "avg_ar_tps": 27.5674721817663,
+      "avg_esp_tps": 5.687580207841303,
+      "avg_tau": 1.4674049707763752,
+      "avg_cos_final": 0.41649169921875,
+      "avg_acceptance_rate": 0.27
+    },
+    "per_prompt": [
+      {
+        "tau": 1.354
+      },
+      {
+        "tau": 1.515
+      },
+      {
+        "tau": 1.463
+      },
+      {
+        "tau": 1.438
+      },
+      {
+        "tau": 1.362
+      },
+      {
+        "tau": 1.488
+      },
+      {
+        "tau": 1.446
+      },
+      {
+        "tau": 1.515
+      },
+      {
+        "tau": 1.662
+      },
+      {
+        "tau": 1.43
+      }
+    ]
+  }
+}

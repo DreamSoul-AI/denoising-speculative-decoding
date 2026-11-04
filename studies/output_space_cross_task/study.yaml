@@ -1,0 +1,78 @@
+study: output_space_cross_task
+description: 'fixed cross-task falsification after 12 translation development units'
+experiment:
+  name: output_space_cross_task
+recipe: recipe.py
+freeze: true
+provenance:
+  project_plan:
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    historical_sections:
+    - anchor: legacy-studies-output-space-cross-task-docs-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/output_space_cross_task/docs/PLAN.md
+      git_blob_sha256: c27f4aba420e8f44a6004fe8db02914a08dfa5e50824e029879c46ffd3707329
+    - anchor: legacy-studies-output-space-cross-task-docs-execution-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/output_space_cross_task/docs/EXECUTION_PLAN.md
+      git_blob_sha256: 7051210ee105a6b449a8bf0562e2efd7a75c10e1357d31c3f8bfbaa3ad271040
+    policy: Historical replay uses the pinned Git version; current central-plan edits
+      never re-sign old Runs.
+  include:
+  - docs/modelscope_snapshot.json
+  - docs/prompts_manifest.json
+  - check_hypotheses.py
+  - docs/CHECKER_PROTOCOL.md
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config:
+  - task: esp_mtp
+    spec:
+      method: esp
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      mask:
+        init: mean_prompt
+        update: false
+        lam: 0
+  - task: esp_mtp
+    spec:
+      method: output_hidden
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      output:
+        order: 0
+        beta: 0.9
+        beta_prime: 0.99
+  - task: esp_mtp
+    spec:
+      method: output_hidden
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      output:
+        order: 1
+        beta: 0.9
+        beta_prime: 0.99
+  - task: ar_baseline
+seeds:
+- 123

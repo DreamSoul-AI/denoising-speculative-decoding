@@ -1,0 +1,47 @@
+study: output_space_4b_input_control
+description: Previously selected input EMA on matched 4B chain, reuse measured output/AR
+  cells
+experiment:
+  name: output_space_4b_input_control
+recipe: recipe.py
+freeze: true
+provenance:
+  project_plan:
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    historical_sections:
+    - anchor: legacy-studies-output-space-4b-input-control-docs-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/output_space_4b_input_control/docs/PLAN.md
+      git_blob_sha256: 256422682fbfe1e2a86f334653c3be279c10263dc77c0c6d7aa190df58e3d5b3
+    policy: Historical replay uses the pinned Git version; current central-plan edits
+      never re-sign old Runs.
+  include:
+  - docs/modelscope_snapshot.json
+  - docs/history_inventory.json
+  - docs/prompts_manifest.json
+  - docs/preceding_results.json
+  - untimed_4b.py
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  data.config:
+  - path: datasets/spec_bench/question.jsonl
+    skip_per_category: 0
+    take_per_category: 2
+    apply_chat_template: true
+    chat_template_kwargs:
+      enable_thinking: false
+    max_prompt_len: 2048
+  - path: datasets/spec_bench/question.jsonl
+    skip_per_category: 2
+    take_per_category: 2
+    apply_chat_template: true
+    chat_template_kwargs:
+      enable_thinking: false
+    max_prompt_len: 2048
+    categories:
+    - summarization
+    - translation
+seeds:
+- 123

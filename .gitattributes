@@ -1,0 +1,295 @@
+# Preserve measured source snapshots as exact bytes for provenance checks.
+/studies/output_space_extension/docs/operator_tool_v1.py.txt -text whitespace=cr-at-eol
+/studies/output_space_extension/docs/operator_analyzer_v1.py.txt -text whitespace=cr-at-eol
+# Keep new measured tools and frozen protocols byte-identical on checkout.
+/tools/diagnose_q178_phi_rms.py -text whitespace=cr-at-eol
+/tools/diagnose_q241_canonical.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/analyze_canonical.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/analyze_results.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/plot_results.py -text whitespace=cr-at-eol
+
+# Preserve state/arithmetic factor measurement and analysis bytes.
+/tools/diagnose_q241_state_factors.py -text whitespace=cr-at-eol
+/tools/diagnose_q178_rounding_factors.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/analyze_state_factors.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/state_factor_analysis_v1.json -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/state_factor_diagnosis_v1.json -text whitespace=cr-at-eol
+/studies/output_space_extension/docs/rounding_factor_diagnosis_v1.json -text whitespace=cr-at-eol
+
+# Preserve fixed-frame and state-extension evidence bytes.
+/tools/diagnose_q241_local_factors.py -text whitespace=cr-at-eol
+/tools/diagnose_state_extension.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/analyze_local_extension.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/local_extension_analysis_v1.json -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/local_factor_diagnosis_v1.json -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/state_extension_diagnosis_v1.json -text whitespace=cr-at-eol
+
+# Preserve sampling and owner1 measured tools/protocol/evidence bytes.
+/tools/diagnose_sampling_paths.py -text whitespace=cr-at-eol
+/tools/diagnose_q241_owner1.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/analyze_sampling_owner.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/sampling_owner_analysis_v1.json -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/sampling_diagnosis_v1.json -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/owner1_diagnosis_v1.json -text whitespace=cr-at-eol
+
+# Preserve sampled expansion, rare-event and H7 evidence bytes.
+/tools/diagnose_sampling_expansion.py -text whitespace=cr-at-eol
+/tools/diagnose_rare_events.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/analyze_sampling_expansion.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/analyze_first_delta.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/sampling_expansion_analysis_v1.json -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/sampling_expansion_diagnosis_v1.json -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/rare_event_diagnosis_v1.json -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/first_delta_analysis_v1.json -text whitespace=cr-at-eol
+
+# Preserve new sampled continuation and rare stress protocol bytes.
+/tools/diagnose_sampling_continuation.py -text whitespace=cr-at-eol
+/tools/diagnose_rare_stress.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/sampling_continuation_inputs_v1.json -text whitespace=cr-at-eol
+/studies/output_space_cross_task/analyze_continuation.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/sampling_continuation_analysis_v1.json -text whitespace=cr-at-eol
+/studies/output_space_cross_task/analyze_sampled_depth.py -text whitespace=cr-at-eol
+/studies/output_space_cross_task/docs/sampled_depth_analysis_v1.json -text whitespace=cr-at-eol
+
+# Preserve 4B recheck adapters, declarations and explicit input/weight protocols.
+/studies/output_space_4b_recheck/untimed_4b.py -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck/recipe.py -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck/experiment_config.yaml -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck/study.yaml -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck/docs/modelscope_snapshot.json -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck/docs/history_inventory.json -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck/docs/prompts_manifest.json -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck/docs/execution_v1.json -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck/analyze_results.py -text whitespace=cr-at-eol
+/studies/output_space_4b_holdout/untimed_4b.py -text whitespace=cr-at-eol
+/studies/output_space_4b_holdout/recipe.py -text whitespace=cr-at-eol
+/studies/output_space_4b_holdout/experiment_config.yaml -text whitespace=cr-at-eol
+/studies/output_space_4b_holdout/study.yaml -text whitespace=cr-at-eol
+/studies/output_space_4b_holdout/docs/modelscope_snapshot.json -text whitespace=cr-at-eol
+/studies/output_space_4b_holdout/docs/history_inventory.json -text whitespace=cr-at-eol
+/studies/output_space_4b_holdout/docs/prompts_manifest.json -text whitespace=cr-at-eol
+/studies/output_space_4b_holdout/docs/execution_v1.json -text whitespace=cr-at-eol
+/studies/output_space_4b_holdout/analyze_results.py -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck_v2/untimed_4b.py -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck_v2/recipe.py -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck_v2/experiment_config.yaml -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck_v2/study.yaml -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck_v2/docs/modelscope_snapshot.json -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck_v2/docs/history_inventory.json -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck_v2/docs/prompts_manifest.json -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck_v2/docs/first_run_failure.json -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck_v2/docs/execution_v1.json -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck_v2/analyze_results.py -text whitespace=cr-at-eol
+/studies/output_space_4b_recheck_v2/write_report.py -text whitespace=cr-at-eol
+/studies/output_space_4b_holdout/write_report.py -text whitespace=cr-at-eol
+/studies/output_space_4b_input_control/recipe.py -text whitespace=cr-at-eol
+/studies/output_space_4b_input_control/untimed_4b.py -text whitespace=cr-at-eol
+/studies/output_space_4b_input_control/experiment_config.yaml -text whitespace=cr-at-eol
+/studies/output_space_4b_input_control/study.yaml -text whitespace=cr-at-eol
+/studies/output_space_4b_input_control/docs/modelscope_snapshot.json -text whitespace=cr-at-eol
+/studies/output_space_4b_input_control/docs/history_inventory.json -text whitespace=cr-at-eol
+/studies/output_space_4b_input_control/docs/prompts_manifest.json -text whitespace=cr-at-eol
+/studies/output_space_4b_input_control/docs/preceding_results.json -text whitespace=cr-at-eol
+/studies/output_space_4b_input_control/docs/execution_v1.json -text whitespace=cr-at-eol
+/studies/output_space_4b_input_control/analyze_results.py -text whitespace=cr-at-eol
+
+/studies/esp_table1_bf16_preflight/recipe.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/untimed_4b.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/study.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/experiment_config.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/docs/modelscope_snapshot.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/docs/prompts_manifest.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/docs/specbench-source.json -text whitespace=cr-at-eol
+
+/studies/esp_table1_bf16_numerics/recipe.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/untimed_4b.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/numerics.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/study.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/experiment_config.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/docs/modelscope_snapshot.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/docs/prompts_manifest.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/docs/specbench-source.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/docs/preceding_results.json -text whitespace=cr-at-eol
+
+/studies/esp_table1_bf16_preflight/flow/collect/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/flow/collect/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/flow/process/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/flow/process/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/flow/summarize/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/flow/summarize/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/flow/write/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/flow/write/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/flow/collect/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/flow/collect/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/flow/process/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/flow/process/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/flow/summarize/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/flow/summarize/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/flow/write/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/flow/write/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/flow/collect/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/flow/collect/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/flow/process/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/flow/process/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/flow/summarize/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/flow/summarize/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/flow/write/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/flow/write/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/recipe.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/untimed_4b.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/numerics.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/study.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/experiment_config.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/docs/modelscope_snapshot.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/docs/prompts_manifest.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/docs/specbench-source.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/docs/preceding_results.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_preflight/docs/preflight_evidence_v1.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_numerics/docs/numerics_evidence_v1.json -text whitespace=cr-at-eol
+
+/studies/esp_table1_bf16_shape_check/numerics.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/recipe.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/shape_control.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/untimed_4b.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/flow/collect/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/flow/collect/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/flow/process/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/flow/process/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/flow/summarize/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/flow/summarize/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/flow/write/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/flow/write/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/study.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/experiment_config.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/docs/modelscope_snapshot.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/docs/preceding_results.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/docs/prompts_manifest.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/docs/shape_evidence_v1.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_shape_check/docs/specbench-source.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_reduction_check/docs/reduction_evidence_v1.json -text whitespace=cr-at-eol
+
+/studies/esp_table1_bf16_qwen_protocol/analyze_results.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/recipe.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/untimed_bf16.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/flow/collect/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/flow/collect/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/flow/process/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/flow/process/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/flow/summarize/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/flow/summarize/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/flow/write/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/flow/write/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/study.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/experiment_config.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/docs/modelscope_snapshot.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/docs/prompts_manifest.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/docs/protocol_evidence_v1.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/docs/protocol_pending.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/docs/reused_preflight.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_qwen_protocol/docs/specbench-source.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/analyze_results.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/recipe.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/untimed_bf16.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/flow/collect/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/flow/collect/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/flow/process/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/flow/process/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/flow/summarize/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/flow/summarize/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/flow/write/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/flow/write/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/study.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/experiment_config.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/docs/modelscope_snapshot.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/docs/prompts_manifest.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/docs/protocol_pending.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full/docs/specbench-source.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/analyze_results.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/argmax_audit.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/docs/modelscope_snapshot.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/docs/prompts_manifest.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/docs/specbench-source.json -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/experiment_config.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/flow/collect/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/flow/collect/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/flow/process/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/flow/process/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/flow/summarize/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/flow/summarize/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/flow/write/__init__.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/flow/write/run.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/recipe.py -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/study.yaml -text whitespace=cr-at-eol
+/studies/esp_table1_bf16_full_argmax/untimed_bf16.py -text whitespace=cr-at-eol
+
+# Keep the paired 4B protocol and evidence byte-identical across checkouts.
+/studies/qwen3_4b_bf16_five_methods/** -text whitespace=cr-at-eol
+# Preserve the bounded 4B geometry protocol, tools and scalar evidence bytes.
+/tools/analyze_4b_geometry.py -text whitespace=cr-at-eol
+/tools/capture_4b_geometry.py -text whitespace=cr-at-eol
+/docs/research/4b-mask-geometry-cpu-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-geometry-observations-2026-10-15.json -text whitespace=cr-at-eol
+/tools/analyze_4b_velocity.py -text whitespace=cr-at-eol
+/tools/diagnose_4b_mask_windows.py -text whitespace=cr-at-eol
+/tools/analyze_4b_window_results.py -text whitespace=cr-at-eol
+/docs/research/4b-mask-velocity-cpu-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-window-observations-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-window-readout-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-active-observations-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-active-readout-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-active-admission-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-template-unconditional-observations-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-template-unconditional-readout-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-template-conditioned-observations-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-template-conditioned-readout-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-template-admission-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-template-opportunities-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-template-early-observations-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-mask-template-early-readout-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-reciprocal-output-observations-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-reciprocal-output-readout-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-reciprocal-input-observations-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-reciprocal-input-readout-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-reciprocal-prefix-audit-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-direction-controls-observations-2026-10-15.json -text whitespace=cr-at-eol
+/docs/research/4b-direction-controls-readout-2026-10-15.json -text whitespace=cr-at-eol
+/src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/** -text whitespace=cr-at-eol
+/src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/upstream/** whitespace=-blank-at-eol,cr-at-eol
+/tools/audit_esp_third_party.py -text whitespace=cr-at-eol
+/docs/research/esp-third-party-audit-2026-10-15.json -text whitespace=cr-at-eol
+/studies/qwen3_4b_bf16_directions/** -text whitespace=cr-at-eol
+/tools/analyze_4b_full_directions.py -text whitespace=cr-at-eol
+/studies/qwen3_4b_bf16_directions_recovery/** -text whitespace=cr-at-eol
+
+# Preserve imported research standards and translations as upstream bytes.
+"docs/research/standards/研究计划规范 Research Plan Standard.md" -text whitespace=cr-at-eol
+"docs/research/standards/研究计划模板 Research Plan Template.md" -text whitespace=cr-at-eol
+"docs/research/standards/research_plan_standard_en.md" -text whitespace=cr-at-eol
+"docs/research/standards/research_plan_template_en.md" -text whitespace=cr-at-eol
+
+/tools/analyze_esp_table1_gap.py -text whitespace=cr-at-eol
+/docs/research/esp-table1-gap-analysis-2026-10-16.json -text whitespace=cr-at-eol
+
+# Match original CRLF Git blobs and the active frozen working-copy bytes.
+/studies/esp_table1_nonofficial_revalidation/untimed_bf16.py -text whitespace=cr-at-eol
+/studies/esp_table1_nonofficial_revalidation/argmax_audit.py -text whitespace=cr-at-eol
+
+# Freeze new norm-control source and declarations before native make.
+/studies/qwen3_4b_bf16_bias_norm_scan/** -text whitespace=cr-at-eol
+
+# The norm source guard pins the active Windows resource-helper bytes.
+/studies/esp_table1_nonofficial_revalidation/resource_admission.py -text whitespace=cr-at-eol
+
+# Preserve the frozen480 input file bytes across Windows and Linux.
+/datasets/spec_bench/question.jsonl -text whitespace=cr-at-eol
+
+# Public checkpoint hashes refer to their existing LF Git blobs.
+/studies/esp_table1_nonofficial_revalidation/docs/bc10_checkpoint_v1.json text eol=lf
+/studies/esp_table1_nonofficial_revalidation/docs/bc30_checkpoint_v1.json text eol=lf
+
+# Freeze the prepared paired follow-up and shared admission/accounting tools.
+/studies/qwen3_4b_bf16_paired_revalidation/** -text whitespace=cr-at-eol
+/tools/gpu_admission.py -text
+/tools/audit_4b_norm_queue.py -text
+
+/studies/qwen3_4b_bf16_bias_norm_continuation/** -text whitespace=cr-at-eol

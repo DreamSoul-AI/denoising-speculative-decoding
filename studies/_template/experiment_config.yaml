@@ -1,0 +1,17 @@
+experiment: first26
+description: base merged with study.yaml
+seed: 123
+data:
+  name: specbench
+  source: spec_mtp
+model:
+  name: hf_causal
+  source: spec_mtp
+algorithm:
+  mode: eval
+  source: spec_mtp
+  config:
+    task: esp_mtp
+system:
+  config:
+    device: cuda

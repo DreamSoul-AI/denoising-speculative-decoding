@@ -1,0 +1,96 @@
+{
+  "llama3.2_3b": {
+    "bc_30": {
+      "summary": {
+        "model": "meta-llama/Llama-3.2-3B-Instruct",
+        "block_complexity": 30,
+        "n_mask_tokens": 1,
+        "avg_ar_tps": 27.065250775740555,
+        "avg_esp_tps": 3.370426328908013,
+        "avg_tau": 1.8067533184217137,
+        "avg_cos_final": 0.34466552734375,
+        "avg_acceptance_rate": 0.26953125
+      }
+    },
+    "bc_60": {
+      "summary": {
+        "model": "meta-llama/Llama-3.2-3B-Instruct",
+        "block_complexity": 60,
+        "n_mask_tokens": 2,
+        "avg_ar_tps": 26.759470175761244,
+        "avg_esp_tps": 5.214941153562105,
+        "avg_tau": 2.9088280987047126,
+        "avg_cos_final": 0.34466552734375,
+        "avg_acceptance_rate": 0.266796875
+      }
+    }
+  },
+  "llama3.1_8b": {
+    "bc_30": {
+      "summary": {
+        "model": "meta-llama/Llama-3.1-8B-Instruct",
+        "block_complexity": 30,
+        "n_mask_tokens": 1,
+        "avg_ar_tps": 1.2295692460527072,
+        "avg_esp_tps": 0.9060168883988672,
+        "avg_tau": 1.997520826176607,
+        "avg_cos_final": 0.265185546875,
+        "avg_acceptance_rate": 0.357421875
+      }
+    },
+    "bc_60_partial": {
+      "summary": {
+        "model": "meta-llama/Llama-3.1-8B-Instruct",
+        "block_complexity": 60,
+        "n_mask_tokens": 2,
+        "n_prompts_completed": 6,
+        "avg_ar_tps": 0.3,
+        "avg_esp_tps": 0.3,
+        "avg_tau": 2.25,
+        "avg_acceptance_rate": 0.324
+      },
+      "per_prompt_tau": [
+        2.753,
+        3.241,
+        1.455,
+        2.065,
+        1.718,
+        2.265
+      ]
+    }
+  },
+  "qwen3_8b": {
+    "bc_30": {
+      "summary": {
+        "model": "Qwen/Qwen3-8B",
+        "block_complexity": 30,
+        "n_mask_tokens": 1,
+        "avg_ar_tps": 1.12083649332412,
+        "avg_esp_tps": 1.201804530042022,
+        "avg_tau": 2.906445541930953,
+        "avg_cos_final": 0.83720703125,
+        "avg_acceptance_rate": 0.345703125
+      }
+    },
+    "bc_60_partial": {
+      "summary": {
+        "model": "Qwen/Qwen3-8B",
+        "block_complexity": 60,
+        "n_mask_tokens": 2,
+        "n_prompts_completed": 6,
+        "avg_ar_tps": 0.3,
+        "avg_esp_tps": 0.45,
+        "avg_tau": 3.689,
+        "avg_acceptance_rate": 0.216
+      },
+      "per_prompt_tau": [
+        2.695,
+        4.129,
+        1.882,
+        2.485,
+        2.116,
+        8.828
+      ]
+    }
+  }
+}

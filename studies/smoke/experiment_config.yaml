@@ -1,0 +1,42 @@
+experiment: tiny_llama_smoke
+description: CPU smoke base (see study.yaml axes)
+seed: 123
+data:
+  name: local_prompts
+  source: spec_mtp
+  config:
+    mode: synthetic
+    vocab_size: 256
+    prompt_len: 32
+    num_prompts: 4
+    seed: 0
+model:
+  name: tiny_llama
+  source: spec_mtp
+  config:
+    attn_implementation: eager
+    tiny:
+      vocab_size: 256
+      hidden_size: 64
+      intermediate_size: 128
+      num_layers: 2
+      num_heads: 4
+      num_kv_heads: 2
+      max_position_embeddings: 1024
+algorithm:
+  mode: eval
+  source: spec_mtp
+  config:
+    task: esp_mtp
+    eval:
+      device: cpu
+      max_new_tokens: 32
+      temperature: 0.0
+      stop_on_eos: false
+      num_eval_prompts: 4
+      run_ar_baseline: true
+      log_per_prompt: true
+system:
+  config:
+    device: cpu
+    deterministic: false

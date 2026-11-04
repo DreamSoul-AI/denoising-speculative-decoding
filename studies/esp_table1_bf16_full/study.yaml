@@ -1,0 +1,81 @@
+study: esp_table1_bf16_full
+description: 'Full SpecBench ESP BF16 Table1: Qwen3 BC60/1 primary, BC60/2 control;
+  all four cells predeclared'
+experiment:
+  name: esp_table1_bf16_full
+recipe: recipe.py
+freeze: true
+provenance:
+  project_plan:
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    historical_sections:
+    - anchor: legacy-studies-esp-table1-bf16-full-docs-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/esp_table1_bf16_full/docs/PLAN.md
+      git_blob_sha256: 0d8ac40e958037c9aef53bf212dc3157a23ee98277134eb28de016e2f3e10c0a
+    policy: Historical replay uses the pinned Git version; current central-plan edits
+      never re-sign old Runs.
+  include:
+  - docs/modelscope_snapshot.json
+  - docs/prompts_manifest.json
+  - docs/specbench-source.json
+  - untimed_bf16.py
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config:
+  - task: esp_mtp
+    spec:
+      method: esp
+      num_masks: 1
+      block_complexity: 10
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      mask:
+        init: mean_prompt
+        lam: 0.1
+        update: true
+  - task: esp_mtp
+    spec:
+      method: esp
+      num_masks: 1
+      block_complexity: 30
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      mask:
+        init: mean_prompt
+        lam: 0.1
+        update: true
+  - task: esp_mtp
+    spec:
+      method: esp
+      num_masks: 1
+      block_complexity: 60
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      mask:
+        init: mean_prompt
+        lam: 0.1
+        update: true
+  - task: esp_mtp
+    spec:
+      method: esp
+      num_masks: 2
+      block_complexity: 60
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      mask:
+        init: mean_prompt
+        lam: 0.1
+        update: true
+seeds:
+- 123

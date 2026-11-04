@@ -1,0 +1,61 @@
+# Copy studies/_template/ to studies/<name>/ before writing the question.
+# Do not run this directory.
+
+study: my_study
+description: one-line question
+# 不要写 origin: foreign。RPipe 一旦看到 origin 就会设置 HF_ENDPOINT；
+# SpecMTP 权重走 model.config.hub: modelscope。缺省 origin 即 foreign，且不改环境变量。
+
+experiment:
+  name: first26
+
+# Recipe import only registers sources; Run prepare constructs and fills shared/.
+recipe: recipe.py
+
+flow:
+  study_phases: true      # summarize/write = evidence gate; process = Study-scope gate
+  prepare_shared: false   # make-time download is torchvision-only; Run prepare still fills shared/
+
+# freeze: true            # recommended for formal research; existing SpecMTP locks always reject drift
+
+fixed:
+  data:
+    name: specbench
+    source: spec_mtp
+    config:
+      path: datasets/spec_bench/question.jsonl
+      skip_per_category: 0
+      take_per_category: 2
+      apply_chat_template: true
+      chat_template_kwargs:
+        enable_thinking: false
+      max_prompt_len: 2048
+  model:
+    name: hf_causal
+    source: spec_mtp
+    config:
+      name_or_path: Qwen/Qwen3-0.6B
+      hub: modelscope
+      torch_dtype: float32
+      attn_implementation: eager
+  algorithm:
+    mode: eval
+    source: spec_mtp
+    config:
+      version: rpipe-v030-20261013
+      task: esp_mtp
+      mask: frozen_mean
+      eval:
+        max_new_tokens: 100
+        temperature: 0.0
+        stop_on_eos: true
+        num_eval_prompts: 26
+        run_ar_baseline: true
+        log_per_prompt: true
+  system:
+    config:
+      device: cuda
+
+seeds: [123]
+
+run_description: "{experiment} seed={seed}"

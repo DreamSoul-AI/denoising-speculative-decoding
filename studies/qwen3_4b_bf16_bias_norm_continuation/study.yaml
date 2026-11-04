@@ -1,0 +1,142 @@
+study: qwen3_4b_bf16_bias_norm_continuation
+description: Seven unchanged remaining norm cells; recovered first cell stays in original
+  Study
+experiment:
+  name: qwen3_4b_bf16_bias_norm_continuation
+recipe: recipe.py
+freeze: true
+provenance:
+  include:
+  - continuation.py
+  - docs/source_refs.json
+  project_plan:
+    commit: f1f085256a696dfe3e6e09e9cb3b9277a0c2cac1
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    anchor: norm-continuation-20261016
+    sha256: 5cd4c6fc3b7981a9a72453f0322696fb9e3572fb3e377cb50a530db079649842
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config:
+  - direction: template
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: ema_velocity
+      ema:
+        level: order0
+        beta: 0.9999
+        lam: 0.1
+        step_scale: 2.0
+        normalize: false
+        extrapolate_ema: false
+        update: true
+  - direction: random0
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: ema_velocity
+      ema:
+        level: order0
+        beta: 0.9999
+        lam: 0.1
+        step_scale: 0.5
+        normalize: false
+        extrapolate_ema: false
+        update: true
+  - direction: random0
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: ema_velocity
+      ema:
+        level: order0
+        beta: 0.9999
+        lam: 0.1
+        step_scale: 2.0
+        normalize: false
+        extrapolate_ema: false
+        update: true
+  - direction: random1
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: ema_velocity
+      ema:
+        level: order0
+        beta: 0.9999
+        lam: 0.1
+        step_scale: 0.5
+        normalize: false
+        extrapolate_ema: false
+        update: true
+  - direction: random1
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: ema_velocity
+      ema:
+        level: order0
+        beta: 0.9999
+        lam: 0.1
+        step_scale: 2.0
+        normalize: false
+        extrapolate_ema: false
+        update: true
+  - direction: random2
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: ema_velocity
+      ema:
+        level: order0
+        beta: 0.9999
+        lam: 0.1
+        step_scale: 0.5
+        normalize: false
+        extrapolate_ema: false
+        update: true
+  - direction: random2
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: ema_velocity
+      ema:
+        level: order0
+        beta: 0.9999
+        lam: 0.1
+        step_scale: 2.0
+        normalize: false
+        extrapolate_ema: false
+        update: true
+seeds:
+- 123

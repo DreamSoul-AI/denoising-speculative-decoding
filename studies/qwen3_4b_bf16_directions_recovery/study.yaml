@@ -1,0 +1,30 @@
+study: qwen3_4b_bf16_directions_recovery
+description: Full480 resource recovery for four unfinished direction controls
+experiment:
+  name: qwen3_4b_bf16_directions_recovery
+recipe: recipe.py
+freeze: true
+provenance:
+  project_plan:
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    historical_sections:
+    - anchor: legacy-studies-qwen3-4b-bf16-directions-recovery-docs-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/qwen3_4b_bf16_directions_recovery/docs/PLAN.md
+      git_blob_sha256: 45c24df0cdca96ba2e8f31753ac8c281fddd88c04937f07780e2a9387187b394
+    policy: Historical replay uses the pinned Git version; current central-plan edits
+      never re-sign old Runs.
+  include:
+  - docs/source_refs.json
+  - direction_control.py
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config.direction:
+  - random0
+  - random1
+  - random2
+  - content
+seeds:
+- 123

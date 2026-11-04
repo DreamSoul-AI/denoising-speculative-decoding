@@ -1,0 +1,33 @@
+name: Branch flow
+
+on:
+  pull_request:
+    branches: [dev, main]
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  branch-flow:
+    name: Branch flow
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Validate PR direction
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+          BASE_REPOSITORY: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          python - <<'PY'
+          import os
+          base = os.environ['BASE_BRANCH']
+          head = os.environ['HEAD_BRANCH']
+          same_repository = os.environ['HEAD_REPOSITORY'] == os.environ['BASE_REPOSITORY']
+          allowed = (base == 'dev' and head not in {'dev', 'main'}) or (
+              base == 'main' and head == 'dev' and same_repository)
+          if not allowed:
+              raise SystemExit(f'Rejected {head} -> {base}: working branch -> dev -> main required')
+          print(f'Allowed {head} -> {base}')
+          PY

@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "denoise-spec-mtp"
+version = "0.1.0"
+description = "ESP speculative MTP reproduction and EMA-velocity masks. Study flow lives in this package; structure follows https://github.com/DreamSoul-AI/RPipe"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+  "accelerate",
+  "datasets",
+  "kornia",
+  "matplotlib",
+  "numpy",
+  "PyYAML",
+  "scipy",
+  "torch",
+  "torchvision",
+  "transformers==5.12.1",
+]
+
+[project.scripts]
+spec-mtp = "spec_mtp.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "hypothesis>=6.100", "mypy==2.4.0", "types-PyYAML==6.0.12.20260906", "ruff==0.17.0"]
+
+[tool.setuptools.packages.find]
+where = ["src", "."]
+include = ["spec_mtp*", "studies*"]
+
+[tool.setuptools.package-data]
+spec_mtp = ["structure/algorithm/reference/esp_reproduction_artifacts/**/*"]
+studies = ["**/study.yaml", "**/experiment_config.yaml"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["*.pyc", "*.pyo"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "-q --tb=short"
+cache_dir = ".tmp/pytest-cache"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+extend-exclude = ["src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/upstream"]
+
+[tool.ruff.lint]
+# Errors only (pyflakes + syntax); no style rewrite of the research code.
+select = ["F", "E9"]
+
+[tool.ruff.lint.per-file-ignores]
+# Study-flow facades reexport these imports.
+"src/spec_mtp/structure/api/algorithm_api.py" = ["F401"]
+"src/spec_mtp/structure/api/data_api.py" = ["F401"]
+"src/spec_mtp/structure/api/model_api.py" = ["F401"]
+"src/spec_mtp/structure/algorithm/train/__init__.py" = ["F401"]
+
+[tool.mypy]
+exclude = ["src/spec_mtp/structure/", "src/spec_mtp/flow/", "src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/upstream/"]
+# datasets/ stores JSONL, not a Python namespace package.
+namespace_packages = false
+# Gradual: the scientific package uses check_untyped_defs. cli keeps a stricter override.
+python_version = "3.10"
+files = ["src/spec_mtp"]
+follow_imports = "silent"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[[tool.mypy.overrides]]
+module = ["spec_mtp.cli"]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_any_generics = true
+warn_return_any = true
+no_implicit_reexport = true
+strict_equality = true

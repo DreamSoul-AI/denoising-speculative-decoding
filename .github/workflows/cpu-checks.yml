@@ -1,0 +1,77 @@
+# CPU correctness + smoke.
+# Work-branch pushes, PRs into dev/main, and the dev commit after a merge.
+# Same entry as local runs: python -m pytest tests/spec_mtp (see docs/testing.md).
+# spec-mtp is the only console script. RPipe is an external template, not a package in this tree.
+# GPU model runs are not part of this workflow. This is not a release build.
+name: cpu-checks
+
+on:
+  push:
+    branches: ['feature/**', 'fix/**', 'refactor/**', 'dev']
+  pull_request:
+    branches: [dev, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpu-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cpu-checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Historical evidence verifies immutable pre-migration Git bytes.
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install CPU dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          # Keep the CPU torch wheel: do not resolve torch from pyproject.
+          pip install -e ".[dev]" --no-deps
+          python - <<'PY'
+          import sys, tomllib
+          from pathlib import Path
+          from subprocess import check_call
+          data = tomllib.loads(Path('pyproject.toml').read_text(encoding='utf-8'))
+          skip = {'torch', 'torchvision'}
+          def name(dep: str) -> str:
+              return dep.split()[0].split('@')[0].split('>')[0].split('<')[0].split('=')[0].strip().lower()
+          deps = [d for d in data['project']['dependencies'] if name(d) not in skip]
+          deps += data['project']['optional-dependencies']['dev']
+          check_call([sys.executable, '-m', 'pip', 'install', *deps])
+          PY
+
+      - name: Lint (pyflakes errors only)
+        run: |
+          pip install "ruff==0.17.0"
+          ruff check src tests studies
+
+      - name: Type check (mypy, files and tiers in pyproject.toml)
+        run: |
+          pip install "mypy==2.4.0" "types-PyYAML==6.0.12.20260906"
+          mypy
+
+      - name: Check spec-mtp entry point
+        run: |
+          python - <<'PY'
+          import importlib.metadata as m
+          eps = {e.name: e.value for e in m.entry_points(group='console_scripts') if e.name == 'spec-mtp'}
+          assert eps == {'spec-mtp': 'spec_mtp.cli:main'}, eps
+          PY
+
+      - name: Run spec_mtp tests
+        env:
+          PYTHONUTF8: "1"
+          MPLBACKEND: Agg
+        run: python -m pytest tests/spec_mtp

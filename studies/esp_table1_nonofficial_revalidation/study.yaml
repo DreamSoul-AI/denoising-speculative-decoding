@@ -1,0 +1,66 @@
+study: esp_table1_nonofficial_revalidation
+description: Non-author ESP Table1 independent repeat; fixed480; no timing; plan is
+  project-level
+experiment:
+  name: esp_table1_nonofficial_revalidation
+recipe: recipe.py
+freeze: true
+provenance:
+  include:
+  - docs/source_refs.json
+  - untimed_bf16.py
+  - argmax_audit.py
+  - revalidation_contract.py
+  - resource_admission.py
+  project_plan:
+    commit: 085722e30c5bb30387f65f268648b58321aa9146
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    anchor: current-execution-20261016
+    blob_oid: e058849cb611b33b495860aa477834a90e3fe2a4
+    sha256: 90bb2328203a52edabec36665dc0171f26d0500576ed1db72aae0a89c75e9ed6
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config:
+  - task: esp_mtp
+    spec:
+      method: esp
+      num_masks: 1
+      block_complexity: 10
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      mask:
+        init: mean_prompt
+        lam: 0.1
+        update: true
+  - task: esp_mtp
+    spec:
+      method: esp
+      num_masks: 1
+      block_complexity: 30
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      mask:
+        init: mean_prompt
+        lam: 0.1
+        update: true
+  - task: esp_mtp
+    spec:
+      method: esp
+      num_masks: 1
+      block_complexity: 60
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      mask:
+        init: mean_prompt
+        lam: 0.1
+        update: true
+seeds:
+- 123

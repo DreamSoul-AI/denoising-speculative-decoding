@@ -1,0 +1,43 @@
+study: esp_table1_bf16_qwen_protocol
+description: Correct Qwen3 BC60 primary to one mask; reuse frozen three preflight
+  cells as declared comparisons
+experiment:
+  name: esp_table1_bf16_qwen_protocol
+recipe: recipe.py
+freeze: true
+provenance:
+  project_plan:
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    historical_sections:
+    - anchor: legacy-studies-esp-table1-bf16-qwen-protocol-docs-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/esp_table1_bf16_qwen_protocol/docs/PLAN.md
+      git_blob_sha256: 782d0022f811ca80ca716de8b8cf89007df16aa758bfaec0dcc5fb3f59442418
+    policy: Historical replay uses the pinned Git version; current central-plan edits
+      never re-sign old Runs.
+  include:
+  - docs/modelscope_snapshot.json
+  - docs/prompts_manifest.json
+  - docs/specbench-source.json
+  - docs/reused_preflight.json
+  - untimed_bf16.py
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config:
+  - task: esp_mtp
+    spec:
+      method: esp
+      num_masks: 1
+      block_complexity: 60
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      mask:
+        init: mean_prompt
+        lam: 0.1
+        update: true
+seeds:
+- 123

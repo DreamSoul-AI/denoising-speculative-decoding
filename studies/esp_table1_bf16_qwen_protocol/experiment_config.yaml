@@ -1,0 +1,41 @@
+experiment: esp_table1_bf16_qwen_protocol
+seed: 123
+data:
+  name: specbench
+  source: spec_mtp
+  config:
+    path: datasets/spec_bench/question.jsonl
+    skip_per_category: 0
+    take_per_category: 1
+    apply_chat_template: true
+    chat_template_kwargs:
+      enable_thinking: false
+    max_prompt_len: 40960
+model:
+  name: hf_causal
+  source: spec_mtp
+  config:
+    name_or_path: Qwen/Qwen3-8B
+    hub: modelscope
+    local_files_only: true
+    torch_dtype: bfloat16
+    attn_implementation: eager
+algorithm:
+  mode: eval
+  source: spec_mtp
+  config:
+    version: esp-table1-bf16-qwen-protocol-20261015-v1
+    task: esp_mtp
+    eval:
+      max_new_tokens: 256
+      temperature: 0.0
+      stop_on_eos: true
+      num_eval_prompts: 13
+      run_ar_baseline: true
+      log_per_prompt: true
+      probe_steps_per_prompt: 4
+      warmup: false
+system:
+  config:
+    device: cuda
+    deterministic: false

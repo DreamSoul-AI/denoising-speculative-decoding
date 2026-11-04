@@ -1,0 +1,163 @@
+study: qwen3_4b_bf16_paired_revalidation
+description: Independent paired fixed480 BF16 five methods BC30/60 plus shared AR;
+  after norm eight
+experiment:
+  name: qwen3_4b_bf16_paired_revalidation
+recipe: recipe.py
+freeze: true
+provenance:
+  include:
+  - paired_repeat.py
+  - docs/source_refs.json
+  - paired_admission.py
+  project_plan:
+    commit: acaa68cd182225622f7f430a7e56cc7b8d1aae83
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    anchor: paired-followup-20261016
+    sha256: c97cd3fe9b5e6c0d6ba9bc0248f66e6ff9c512f9e8fb02f705b0cfe30eff0957
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config:
+  - task: ar_baseline
+  - task: esp_mtp
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: esp
+      mask:
+        init: mean_prompt
+        lam: 0.0
+        update: false
+  - task: esp_mtp
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: esp
+      mask:
+        init: mean_prompt
+        lam: 0.1
+        update: true
+  - task: esp_mtp
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: ema_velocity
+      ema:
+        level: order0
+        beta: 0.9999
+        lam: 0.1
+        step_scale: 1.0
+        normalize: false
+        extrapolate_ema: false
+        update: true
+  - task: esp_mtp
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: output_hidden
+      output:
+        order: 0
+        beta: 0.9
+        beta_prime: 0.99
+  - task: esp_mtp
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 30
+      method: output_hidden
+      output:
+        order: 1
+        beta: 0.9
+        beta_prime: 0.99
+  - task: esp_mtp
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 60
+      method: esp
+      mask:
+        init: mean_prompt
+        lam: 0.0
+        update: false
+  - task: esp_mtp
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 60
+      method: esp
+      mask:
+        init: mean_prompt
+        lam: 0.1
+        update: true
+  - task: esp_mtp
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 60
+      method: ema_velocity
+      ema:
+        level: order0
+        beta: 0.9999
+        lam: 0.1
+        step_scale: 1.0
+        normalize: false
+        extrapolate_ema: false
+        update: true
+  - task: esp_mtp
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 60
+      method: output_hidden
+      output:
+        order: 0
+        beta: 0.9
+        beta_prime: 0.99
+  - task: esp_mtp
+    spec:
+      num_masks: 2
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      block_complexity: 60
+      method: output_hidden
+      output:
+        order: 1
+        beta: 0.9
+        beta_prime: 0.99
+seeds:
+- 123

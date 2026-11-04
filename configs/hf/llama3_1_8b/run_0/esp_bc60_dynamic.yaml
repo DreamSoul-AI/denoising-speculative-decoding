@@ -12,7 +12,7 @@ run:
 
 data:
   name: specbench
-  path: data/spec_bench/question.jsonl
+  path: studies/history_extrapolation/data/spec_bench/question.jsonl
   categories: null
   apply_chat_template: true
   max_prompt_len: 2048

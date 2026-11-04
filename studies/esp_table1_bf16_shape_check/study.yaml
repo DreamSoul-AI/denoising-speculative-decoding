@@ -1,0 +1,54 @@
+study: esp_table1_bf16_shape_check
+description: ESP-only BF16 q81 native-versus-rowwise linear geometry control
+experiment:
+  name: esp_table1_bf16_shape_check
+recipe: recipe.py
+freeze: true
+provenance:
+  project_plan:
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    historical_sections:
+    - anchor: legacy-studies-esp-table1-bf16-shape-check-docs-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/esp_table1_bf16_shape_check/docs/PLAN.md
+      git_blob_sha256: 0e16b11ffb543a5f634b6de244dd26b7700865c84b2636ad364aa2856f7e423f
+    policy: Historical replay uses the pinned Git version; current central-plan edits
+      never re-sign old Runs.
+  include:
+  - docs/modelscope_snapshot.json
+  - docs/prompts_manifest.json
+  - docs/specbench-source.json
+  - untimed_4b.py
+  - numerics.py
+  - docs/preceding_results.json
+  - shape_control.py
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config:
+  - task: esp_mtp
+    spec: &id001
+      method: esp
+      num_masks: 1
+      block_complexity: 10
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      mask:
+        init: mean_prompt
+        lam: 0.1
+        update: true
+    numerics: &id002
+      bf16_reduced_precision_reduction: false
+      deterministic: false
+    shape_control:
+      linear_rows: false
+  - task: esp_mtp
+    spec: *id001
+    numerics: *id002
+    shape_control:
+      linear_rows: true
+seeds:
+- 123

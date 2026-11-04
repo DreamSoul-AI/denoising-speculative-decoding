@@ -1,0 +1,130 @@
+{
+  "source_url": "https://huggingface.co/datasets/Harshvardhan-Mestha/esp-reproduction-artifacts",
+  "repository_type": "dataset",
+  "commit": "ad76f8da29f3bfc7faa20488193c6aa83a9f708c",
+  "author_official": false,
+  "license": "Unverified; upstream checkout contains no license file",
+  "scope": "All four code/entry files plus README and original result JSON, byte-identical Git blobs; no upstream entry modified",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1768,
+      "sha256": "7e2e713d63b53c8019f35a726c5d960f2fe3bb0f2b3e84f178fbb2fedd692fec"
+    },
+    {
+      "path": "code/esp_v5.py",
+      "bytes": 16252,
+      "sha256": "9c96b74b1326eb26d8def9ba346a12ccca47c81e59e1ea2350d5e37953b7e272"
+    },
+    {
+      "path": "code/esp_v6.py",
+      "bytes": 14949,
+      "sha256": "089192cd3b47b3b3d32b19963b0c8d5ca0c71f23fbd4eda8a214b2b8b1cae3b2"
+    },
+    {
+      "path": "code/repro_lemma31.py",
+      "bytes": 10549,
+      "sha256": "a24654b245124ff6e42d8651933f2f195389faf13d831d38e718ac9445b5ba00"
+    },
+    {
+      "path": "code/run.sh",
+      "bytes": 180,
+      "sha256": "a790f0d0ad4fde661112804b67434d5fc3f2142519a45c917b64be893e703df3"
+    },
+    {
+      "path": "results/esp_v5_results.json",
+      "bytes": 1489,
+      "sha256": "c90648ee2258ee7fac4826c1bc05f9f0ece5213dde8da12d5f8021c74c24796c"
+    },
+    {
+      "path": "results/esp_v6_results.json",
+      "bytes": 2397,
+      "sha256": "d1cef2dd7c3a0f5b0575ff4df9613913c1da45dc64c352ab1fe5b43660b30a3b"
+    },
+    {
+      "path": "results/lemma31_results.json",
+      "bytes": 2587,
+      "sha256": "e1d13d545a95f48f1f928273d7c3816c84f341313900ffb1f8d63b72563bb28b"
+    }
+  ],
+  "not_vendored": [
+    {
+      "path": ".gitattributes",
+      "bytes": 2647,
+      "sha256": "e617cca1418cb51373f48efe85414ce7d04968ea4bcaf26dd00371a5b38ab5d2",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    },
+    {
+      "path": "logbook/claim-1-lemma-3-1-cosine-similarity-threshold-guarantees-top-k-inclusion/page.md",
+      "bytes": 1194,
+      "sha256": "5d5f00e565ba60c77b7f473eb109c3a4df84f5fdd6eb73c9479df75d6153b97e",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    },
+    {
+      "path": "logbook/claim-2-acceptance-length-tau-at-block-complexity-30-and-60-table-1/page.md",
+      "bytes": 2091,
+      "sha256": "a03e7dc3a5490277a84758d5966e1bdb8305d0027579888201466a3b2277ccf8",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    },
+    {
+      "path": "logbook/claim-3-12-improvement-on-llama3-and-8-12-on-qwen3/page.md",
+      "bytes": 1234,
+      "sha256": "5f79e21610ba9415537c2e236302dbb138239ecbbab2aceed1795dea17185f35",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    },
+    {
+      "path": "logbook/claim-4-15-19-throughput-improvement-including-15-on-llama3-1-8b/page.md",
+      "bytes": 1817,
+      "sha256": "b80b27680b1b831f7bd40c22f3560dde977601c667e7c5328b3ec86eb34cb868",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    },
+    {
+      "path": "logbook/claim-5-cosine-similarity-0-45-accepted-vs-0-35-rejected-figure-2/page.md",
+      "bytes": 2431,
+      "sha256": "6fbef783af4ff7daec3a58e2cb8e4ee8224dd32604c36705bf78f73d4f9ac566",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    },
+    {
+      "path": "logbook/conclusion/page.md",
+      "bytes": 1783,
+      "sha256": "b7663e120b81323697eceaa25b88b2d3704c7339f7a0cc8b13aeef2a6682e16b",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    },
+    {
+      "path": "logbook/esp_reproduction_poster.pdf",
+      "bytes": 131,
+      "sha256": "da657e92fe203831c86ffdea7bb25fea7e3d3c678ac4e049510c1594f3549456",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    },
+    {
+      "path": "logbook/esp_reproduction_poster.png",
+      "bytes": 131,
+      "sha256": "5e0e9e7cdc30227b62afe531dd8f83e0692e9f4e4fcdd239cfd99640f0073780",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    },
+    {
+      "path": "logbook/executive-summary/page.md",
+      "bytes": 1718,
+      "sha256": "7a9ab6eb35db1867b2b1b1ea743332f963e80a42e972b88d81549560f8ce51d1",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    },
+    {
+      "path": "logbook/index.md",
+      "bytes": 2315,
+      "sha256": "9f38beb8e47d5825555e6d0e271acbd79a492364c0cdaab5ccbc48eb50b9a854",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    },
+    {
+      "path": "poster/esp_reproduction_poster.pdf",
+      "bytes": 131,
+      "sha256": "da657e92fe203831c86ffdea7bb25fea7e3d3c678ac4e049510c1594f3549456",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    },
+    {
+      "path": "poster/esp_reproduction_poster.png",
+      "bytes": 131,
+      "sha256": "5e0e9e7cdc30227b62afe531dd8f83e0692e9f4e4fcdd239cfd99640f0073780",
+      "reason": "Non-executable logbook/poster/LFS metadata; complete Git clone retained locally"
+    }
+  ]
+}

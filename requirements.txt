@@ -1,6 +1,2 @@
-torch
-pyyaml
-numpy
-transformers>=4.45
-datasets
-accelerate
+# Install this package (includes vendored src/rpipe). For dev: pip install -e ".[dev]"
+-e .

@@ -1,0 +1,72 @@
+study: output_space_extension
+description: four fresh prompts and fixed single-slot transfer replication
+experiment:
+  name: output_space_extension
+recipe: recipe.py
+freeze: true
+provenance:
+  project_plan:
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    historical_sections:
+    - anchor: legacy-studies-output-space-extension-docs-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/output_space_extension/docs/PLAN.md
+      git_blob_sha256: d70ea058bd03fb9f06e3b9ea2f7be6eb78adeab8810ca977ba2d0c733608e1cd
+    policy: Historical replay uses the pinned Git version; current central-plan edits
+      never re-sign old Runs.
+  include:
+  - docs/modelscope_snapshot.json
+  - docs/prompts_manifest.json
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config:
+  - task: esp_mtp
+    spec:
+      method: esp
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      mask:
+        init: mean_prompt
+        update: false
+        lam: 0
+  - task: esp_mtp
+    spec:
+      method: output_hidden
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      output:
+        order: 0
+        beta: 0.9
+        beta_prime: 0.99
+  - task: esp_mtp
+    spec:
+      method: output_hidden
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      output:
+        order: 1
+        beta: 0.9
+        beta_prime: 0.99
+  - task: ar_baseline
+seeds:
+- 123

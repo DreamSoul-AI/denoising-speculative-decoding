@@ -1,0 +1,72 @@
+study: output_space_small_matrix
+description: three fresh prompts, tied output order0/1 matched chain; no tuning
+experiment:
+  name: output_space_small_matrix
+recipe: recipe.py
+freeze: true
+provenance:
+  project_plan:
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    historical_sections:
+    - anchor: legacy-studies-output-space-small-matrix-docs-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/output_space_small_matrix/docs/PLAN.md
+      git_blob_sha256: 67a7fb635d4b9a6480f69af01ea00ab16e945118c8747be8e77c6807c5df9313
+    policy: Historical replay uses the pinned Git version; current central-plan edits
+      never re-sign old Runs.
+  include:
+  - docs/modelscope_snapshot.json
+  - docs/prompts_manifest.json
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config:
+  - task: esp_mtp
+    spec:
+      method: esp
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      mask:
+        init: mean_prompt
+        update: false
+        lam: 0
+  - task: esp_mtp
+    spec:
+      method: output_hidden
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      output:
+        order: 0
+        beta: 0.9
+        beta_prime: 0.99
+  - task: esp_mtp
+    spec:
+      method: output_hidden
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      output:
+        order: 1
+        beta: 0.9
+        beta_prime: 0.99
+  - task: ar_baseline
+seeds:
+- 123

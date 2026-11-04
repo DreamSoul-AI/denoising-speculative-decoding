@@ -1,115 +1,42 @@
-# Speculative MTP — ESP Reproduction + EMA-Velocity Masks
+# 去噪推测解码
+研究免训练多 token 起草与验证：以 ESP 为参照，比较输入嵌入 EMA、速度外推和输出隐藏状态掩码。中文名称为“去噪推测解码”。仓库地址：[DreamSoul-AI/denoising-speculative-decoding](https://github.com/DreamSoul-AI/denoising-speculative-decoding)。
 
-Training-free multi-token prediction. Two things live here:
+截至2026年10月21日的 8B 非官方 Table 1 独立复验已经完成，论文目标未复现。数字和原件在 [历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>)。提交 token 的验证前向 argmax 自检与独立 AR 一致率分别报告，τ 是提交数与解码调用数之比，不能据此认定实际速度收益。
 
-1. A faithful reproduction of **ESP** (Embedding-Space Probing) from
-   *"Efficient Training-Free Multi-Token Prediction via Embedding-Space
-   Probing"* (Goel, Gagrani, Lee, Lott — Qualcomm AI Research, ICML 2026),
-   [papers/2603.17942v2.pdf](papers/2603.17942v2.pdf) — including **every
-   masking setting in its ablations**.
-2. **EMA-velocity** (ours): the same pipeline with ESP's Equations (4)/(5)
-   swapped for EMA-of-differences velocity extrapolation — see
-   [notes/ema_velocity_method.md](notes/ema_velocity_method.md) and
-   [lark_transcripts/summary_july31.md](lark_transcripts/summary_july31.md).
+已实现的 K 校正是协议 `postcommit-final-norm-v1` 的合成工程夹具，不是 2026年10月31日会议中的 trajectory 与 observation 联合更新，也不是 Kalman 滤波。160 对数据协议和真实模型收益都还没有执行。会议方法的默认公式和合成测量见 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>) 与 [联合 mask 检查](<docs/运行记录 Run Record/2026-11-01 联合mask检查.md>)。
 
-The layout intentionally mirrors the sibling `layerwise_speculative_mtp/`
-project:
+# 一、文档入口
+| **文档** | **维护内容** |
+| --- | --- |
+| [协作约定](AGENTS.md) | 资料定位、适用规范及执行边界 |
+| [通用调研 General Research 去噪推测解码](<docs/通用调研 General Research 去噪推测解码.md>) | 机制、方案、直接来源与当前判断 |
+| [文献调研 Literature Review 去噪推测解码](<docs/文献调研 Literature Review 去噪推测解码.md>) | 已读文献、阅读深度和与本项目的关系 |
+| [架构设计 Architecture Design 去噪推测解码](<docs/架构设计 Architecture Design 去噪推测解码.md>) | 职责、状态、流程、质量目标和取舍 |
+| [代码结构设计 Code Structure Design 去噪推测解码](<docs/代码结构设计 Code Structure Design 去噪推测解码.md>) | 模块责任、接口、依赖和测试镜像 |
+| [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 研究问题、假设、对照和停止规则 |
+| [开发计划 Development Plan 去噪推测解码](<docs/开发计划 Development Plan 去噪推测解码.md>) | 剩余工程、验收和待确认的来源策略 |
+| [缺陷记录 Bug Report 去噪推测解码](<docs/缺陷记录 Bug Report 去噪推测解码.md>) | 尚未关闭的问题 |
+| [开发记录 Development Record](<docs/开发记录 Development Record/INDEX.md>) | 代码与文档结构调整。目录见 [INDEX](<docs/开发记录 Development Record/INDEX.md>)。 |
+| [运行记录 Run Record](<docs/运行记录 Run Record/INDEX.md>) | 实际执行、环境与结果。目录见 [INDEX](<docs/运行记录 Run Record/INDEX.md>)。 |
 
-```text
-configs/     smoke/ (CPU, no downloads)  +  hf/<family>/run_0 + ablations
-scripts/     download_data.sh, run_*.sh sweeps (one per paper table)
-src/
-  algorithms/  esp_mtp, ar_baseline, alignment_probe
-  core/        config / logger / tools
-  data/        specbench, dolly, local_prompts
-  models/      hf_causal (LLaMA3 / Qwen3 / tiny_llama adapter)
-  spec/        mask_providers, tree, tree_attention, kv_cache, decoding
-tests/       CPU correctness checks (no GPU, no downloads)
-```
+# 二、当前实现与使用边界
+当前安装包为 `denoise-spec-mtp`。`spec_mtp` 与每个 `studies/<name>/` 的目标布局都是 [RPipe](https://github.com/DreamSoul-AI/RPipe) 的 `structure/` 与 `flow/` 两柱：`structure` 定义一次 Run 由什么组成，`flow` 运行阶段链。顶层只保留 `__init__.py`、`__main__.py` 和薄入口。新增机制必须先落在这两柱里；要改这条规则，先改代码结构设计。解码合同在 `structure/api/decode_api.py`。树构造、节点编辑、树注意力和解码循环在 `structure/algorithm/decode/`。mask provider、K 拟合和注册表在 `structure/algorithm/mask/`。`contracts.py`、`tree.py`、`masks.py` 与 `decode.py` 已删除，调用方导入这些真实路径。其余解码内容仍在 `data.py`、`model.py`、`audit.py`、`analysis.py`、`cli.py`，Study 顶层还有一批历史脚本。这些仍是冻结遗留，迁移分步进行。流程骨架已经在 `spec_mtp.flow` 与 `spec_mtp.structure`，不再内嵌 `src/rpipe/` 副本，也不再 `import rpipe`。`python -m spec_mtp` / `spec-mtp` 提供 `decode/audit/compare`；旧 make/launch/process 研究命令明确拒绝并提示使用 `python -m studies._shared.flow.cli`。
 
-## Quick Start (CPU, no downloads)
+第三方 ESP 来源树及 `ORIGIN.json` 保留，不能把它称为作者官方实现。原始 SpecBench 数据保留于 `datasets/spec_bench/question.jsonl`。
 
-```bash
-pip install -r requirements.txt
-bash scripts/run_correctness_checks.sh   # 172 checks incl. losslessness vs AR
-bash scripts/run_smoke.sh                # tiny random LLaMA through main.py
-```
+科学 CLI 的 `decode` 必须显式提供 `--model-sources <JSON>`：清单位于模型目录外，以相对路径映射该完整、自包含的本地模型目录内全部文件的 SHA256，不缺项、不含目录外成员。输出也放在模型根外；解析后逃逸模型根的符号链接会被拒绝，不直接承诺兼容引用外部 blobs 的 Hub 快照。载模前、运行头及结束记录写出前分块读取核验实际文件；漂移时保留部分观测，不写完成末行。运行头另记实际模型 config、backend、device、dtype 和能力，调用者原 `sources` 标签保持原义。审计带模型来源的新记录时使用 `audit <raw> --sources <标签JSON> --model-sources <原模型清单JSON>`；缺少独立模型清单不能记来源完整。旧无模型来源字段的记录仍只比较原标签，不代表重新验证实际模型。`audit/compare` 不加载模型或重新生成观测。
 
-Every smoke summary must show `exact_match_rate=1.0000`: speculative output
-is verified token-for-token against plain autoregressive decoding.
+旧逐条运行证据、日志、图和报告保留在固定历史/外部运行根，未恢复进 Git。历史读端测试从固定 Git 提交 `b8b20b5ada7fd860894114cbf224ce749af430cf` 按需提取原始 blob 到测试临时目录，核对对象哈希与写入字节；缺少 Git 对象直接失败，不下载或伪造原件。当前分析器和校验门读取这些不可变输入，不导入或执行归档源码，不修改原哈希与断言；相关15个参数项已恢复到 CPU 计划，不再排除。此验证只复核保存的历史观测与读端合同，不重新运行历史模型，也不代表全部历史结果已独立复验。
 
-## GPU Server
+# 三、开发与验证
+工作分支经 PR 面向 `dev`，完成检查并按当次明确授权集成，不自动发布。当前 HEAD 的本地结果、历史红项和未覆盖范围记在 PR 正文，不用旧提交结果代替。
 
-```bash
-bash scripts/download_data.sh --models --dolly   # SpecBench + weights + Dolly
-bash scripts/run_main_results.sh llama3_2_3b     # Table 1 row (ESP + ours + AR)
-bash scripts/run_main_results.sh llama3_1_8b
-bash scripts/run_main_results.sh qwen3_8b
-bash scripts/run_main_results.sh qwen3_32b
-```
+执行离线 CPU 计划：`python tests/run.py --plan cpu-pr --output-root <源码树外的新验证目录>`。静态清单先验证必需项和精确排除，逐参数 setup/call/teardown 写独立记录，缺收集、缺终态、失败、跳过和证据写失败均非零。整批预算420秒，在测试边界检查；子进程测试各有有限超时，单个本地计算不支持强制中断。运行产物不进 Git。
 
-Results land in `results/<...>/spec_metrics.csv` (per prompt) and
-`summary.csv` (per category + overall).
+本轮不调整现有 Actions、CI/CD 或设置。远端结果仅作参考，本地 CPU 回归不覆盖 CUDA、真实权重/数据、吞吐或采样分布保证。已有 CUDA 环境保持原样，不下载模型或覆盖 torch。
 
-## Method (ESP, Sections 2–3)
+## 研发维护与文档现状
 
-- **Mask injection**: k mask tokens synthesized in embedding space are
-  appended to the input; mask *i* occupies the slot of future token x_{t+i}
-  and its logits predict x_{t+i+1}. Init Eq (4): mean of prompt embeddings;
-  update Eq (5): `m += lam * (e_last_generated - m)` per generated token.
-- **Draft tree**: Top-K candidates per mask under Top-1 expansion
-  (Appendix D). Static branches `[K_1..K_k]` or dynamic Algorithm 1
-  (cumulative-probability budget `BC/(k+1) - 1`). Pruning (Sec 3.5) replaces
-  parent-repeat candidates with the next-best token.
-- **Blocks**: one decode forward processes `[root | tree nodes | k masks per
-  node]` = Eq (7) block complexity `(k+1)(1 + sum K_i)`, with a tree
-  attention mask and tree position IDs; the same pass verifies drafts
-  (exact/sample matching → lossless), yields the bonus token, and produces
-  the next tree's mask logits (at the deepest accepted node's masks).
-- **KV cache** keeps only root + accepted path after each pass.
-- **Efficient impl** (Appendix E): cached attention-mask structure +
-  uniform PID shift; `spec.impl: naive` rebuilds per step (Table 4).
+Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproject.toml)，当前研究宿主为 `spec_mtp`。目录入口：[产品或库源码](src/spec_mtp/)、[研究声明与适配](studies/)、[测试](tests/)、[当前文档](docs/)。运行与测试按本 README、相关设计和实际配置选择，不把历史命令视为新的实验授权。
 
-## Config → Paper Map
-
-| Paper | Config / script |
-|---|---|
-| Table 1, Figs 4–5 (main, BC=10/30/60) | `configs/hf/<family>/run_0/esp_bc*.yaml`, `scripts/run_main_results.sh` |
-| Table 2 (dynamic vs static trees) | `scripts/run_ablation_tree.sh`, `run_0/esp_bc60_dynamic.yaml` |
-| Table 3 (# masks at BC=60) | `scripts/run_ablation_masks.sh`, `ablations/masks{1,3}_bc60.yaml` |
-| Table 4 (naive vs efficient impl) | `scripts/run_ablation_impl.sh`, `ablations/impl_naive_bc30.yaml` |
-| Table 5 (mask init: Last-K / Sample / Mean) | `scripts/run_ablation_init.sh`, `ablations/init_*_bc30.yaml` |
-| Fig 2 (layer-wise cosine alignment) | `configs/hf/llama3_2_3b/run_0/alignment_probe.yaml` |
-| G.3 (temperature 1.0) | `scripts/run_ablation_temperature.sh`, `ablations/temp1_bc*.yaml` |
-| G.4 (BC=120, 3 masks) | `ablations/bc120_masks3.yaml` |
-| G.8 (init at mu+5s / mu+10s) | `ablations/init_offset{5,10}_bc60.yaml` |
-| G.9 (lambda 0.01/0.1/0.5) | `scripts/run_ablation_lambda.sh`, `ablations/lam*_bc30.yaml` |
-| G.7 (tree pruner on/off) | `scripts/run_ablation_pruner.sh`, `ablations/pruner_off_bc30.yaml` |
-| extra: frozen mask (no Eq 5 update) | `ablations/update_off_bc30.yaml` |
-| ours: EMA velocity + sweeps | `run_0/ema_bc*.yaml`, `scripts/run_ema_ablations.sh` |
-
-Baselines PLD / STAND / LADE are other repos' methods (paper Appendix F);
-they are not reimplemented here — the AR baseline provides the speedup
-denominator, and paper numbers provide the comparison points.
-
-## Metrics
-
-- `tau`: committed tokens (accepted + bonus) per decode model call — the
-  paper's average acceptance length; `call_reduction = 1 - 1/tau` (Table 6).
-- `speedup`: AR wall time / speculative wall time on identical prompts.
-- `exact_match_rate`: losslessness audit vs AR under a shared seed
-  (temperature 0 and 1 both supported); must be 1.0.
-
-Full column-by-column schemas for `spec_metrics.csv` / `summary.csv`, the
-audit invariants relating them, and the per-algorithm schema differences
-are in [notes/metrics.md](notes/metrics.md).
-
-## Caveats / paper ambiguities
-
-Deliberate interpretation choices are documented in
-[notes/implementation_notes.md](notes/implementation_notes.md) — notably the
-Last-K index typo, the per-dimension sampling sigma, the Table 3 `[7,5,3]`
-block-complexity inconsistency (64 vs 60), the 100- vs 256-token output
-lengths, and Eq (5)'s per-token update granularity. Use
-`attn_implementation: eager` (or sdpa); flash-attention 2 cannot take the 4D
-tree masks.
+文档职责按 AGENTS.md 维护。通用调研不代替文献调研，研究计划不代替开发计划。历史测量在运行记录，结构调整在开发记录。飞书规范正文本次没有读到，入口索引不能代替那些正文。

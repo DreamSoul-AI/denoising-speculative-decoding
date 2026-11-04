@@ -1,0 +1,61 @@
+study: esp_table1_bf16_numerics
+description: ESP-only BF16 q81 first-divergence backend controls, no FP32 or timing
+experiment:
+  name: esp_table1_bf16_numerics
+recipe: recipe.py
+freeze: true
+provenance:
+  project_plan:
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    historical_sections:
+    - anchor: legacy-studies-esp-table1-bf16-numerics-docs-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/esp_table1_bf16_numerics/docs/PLAN.md
+      git_blob_sha256: c1d91a12ec50c6ee1d9fd26151e8754e23067478cd5e4ef28150d43944878538
+    policy: Historical replay uses the pinned Git version; current central-plan edits
+      never re-sign old Runs.
+  include:
+  - docs/modelscope_snapshot.json
+  - docs/prompts_manifest.json
+  - docs/specbench-source.json
+  - untimed_4b.py
+  - numerics.py
+  - docs/preceding_results.json
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config:
+  - task: esp_mtp
+    spec: &id001
+      method: esp
+      num_masks: 1
+      block_complexity: 10
+      impl: naive
+      tree:
+        mode: dynamic
+        pruning: true
+      mask:
+        init: mean_prompt
+        lam: 0.1
+        update: true
+    numerics:
+      bf16_reduced_precision_reduction: true
+      deterministic: false
+  - task: esp_mtp
+    spec: *id001
+    numerics:
+      bf16_reduced_precision_reduction: false
+      deterministic: false
+  - task: esp_mtp
+    spec: *id001
+    numerics:
+      bf16_reduced_precision_reduction: true
+      deterministic: true
+  - task: esp_mtp
+    spec: *id001
+    numerics:
+      bf16_reduced_precision_reduction: false
+      deterministic: true
+seeds:
+- 123

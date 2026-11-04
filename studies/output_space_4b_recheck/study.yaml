@@ -1,0 +1,75 @@
+study: output_space_4b_recheck
+description: Qwen3-4B matched input/output0/output1 count and token validation, timing
+  disabled
+experiment:
+  name: output_space_4b_recheck
+recipe: recipe.py
+freeze: true
+provenance:
+  project_plan:
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    historical_sections:
+    - anchor: legacy-studies-output-space-4b-recheck-docs-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/output_space_4b_recheck/docs/PLAN.md
+      git_blob_sha256: e7e34debe59388340c71cee2e922f9a1778b2e629689eac39a2c86e64fa28a63
+    policy: Historical replay uses the pinned Git version; current central-plan edits
+      never re-sign old Runs.
+  include:
+  - docs/modelscope_snapshot.json
+  - docs/prompts_manifest.json
+  - docs/history_inventory.json
+  - untimed_4b.py
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config:
+  - task: esp_mtp
+    spec:
+      method: esp
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      mask:
+        init: mean_prompt
+        update: false
+        lam: 0
+  - task: esp_mtp
+    spec:
+      method: output_hidden
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      output:
+        order: 0
+        beta: 0.9
+        beta_prime: 0.99
+  - task: esp_mtp
+    spec:
+      method: output_hidden
+      num_masks: 2
+      impl: efficient
+      tree:
+        mode: static
+        branches:
+        - 1
+        - 1
+        pruning: false
+      output:
+        order: 1
+        beta: 0.9
+        beta_prime: 0.99
+  - task: ar_baseline
+seeds:
+- 123

@@ -1,0 +1,31 @@
+study: qwen3_4b_bf16_directions
+description: Full480 fixed-input BC30 requested direction controls
+experiment:
+  name: qwen3_4b_bf16_directions
+recipe: recipe.py
+freeze: true
+provenance:
+  project_plan:
+    path: docs/研究计划 Denoising Speculative Decoding.md
+    historical_sections:
+    - anchor: legacy-studies-qwen3-4b-bf16-directions-docs-plan
+      source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089
+      source_path: studies/qwen3_4b_bf16_directions/docs/PLAN.md
+      git_blob_sha256: 0ef4df6b1856c89e10b71d87a5cea16abfcbecff6391adbc086455cc0d5b4cf7
+    policy: Historical replay uses the pinned Git version; current central-plan edits
+      never re-sign old Runs.
+  include:
+  - docs/source_refs.json
+  - direction_control.py
+flow:
+  study_phases: true
+  prepare_shared: false
+axes:
+  algorithm.config.direction:
+  - template
+  - random0
+  - random1
+  - random2
+  - content
+seeds:
+- 123
