@@ -575,7 +575,6 @@ def test_measured_prompt_times_full_then_traj_and_leaves_ar_outside(monkeypatch)
 
 def test_measured_prompt_records_a_shared_fork_without_touching_argmax(monkeypatch):
     import spec_mtp.structure.algorithm.decode.loop as decode_mod
-    from studies.trajectory_observation.structure import office_traj
 
     class _Tree:
         num_nodes = 4
