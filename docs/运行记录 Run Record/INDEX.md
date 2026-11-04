@@ -6,6 +6,7 @@
 
 | **日期** | **标题** |
 | --- | --- |
+| 2026-11-04 | [Qwen3-8B BF16自决定](<2026-11-04 Qwen3-8B BF16自决定.md>) |
 | 2026-11-04 | [Qwen3-8B 首分叉](<2026-11-04 Qwen3-8B 首分叉.md>) |
 | 2026-11-04 | [Qwen3-8B trajectory失败子集](<2026-11-04 Qwen3-8B trajectory失败子集.md>) |
 | 2026-11-04 | [Qwen3-8B trajectory墙钟](<2026-11-04 Qwen3-8B trajectory墙钟.md>) |
