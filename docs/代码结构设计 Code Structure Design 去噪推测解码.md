@@ -118,7 +118,7 @@ denoising-speculative-decoding/
 | `xcat6` | information_extraction | 哈希已冻结 |
 | `xcat7` | summarization | 哈希已冻结。接受数归档名 `sd-office-8b-traj-xcat7` / `20261104-045236`，与墙钟产物分开 |
 
-full 胜出子集的离线描述在 `structure/office_traj_failset.py`，选句和 SHA256 仍调用 `office_traj.py` 里已经冻结的函数。这个文件没有 `main`，也不增加 legacy 条目。四个旧脚本的拆分仍未做。
+full 胜出子集的离线描述在 `structure/office_traj.py`，选句和 SHA256 仍用该文件里已经冻结的函数。这些离线函数没有单独的 `main`，也不增加 legacy 条目。四个旧脚本的拆分仍未做。
 
 # 三、structure 与 flow 各装什么
 **structure（组成一次 Run）**

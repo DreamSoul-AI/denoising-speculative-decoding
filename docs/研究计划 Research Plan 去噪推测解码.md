@@ -696,5 +696,5 @@ BF16 路径上，Spec、ESP、trajectory 这些臂相对独立 AR 的 token 不�
 
 ## 最小下一步
 1. 本章是运行前写定的分类规则。
-2. 另行批准实现时，只读分类加在 `studies/trajectory_observation/structure/office_traj_failset.py`。选句和 SHA256 仍用已经冻结的函数。不新文件，不增加 legacy 条目。输出留在源码树外。缺字段保持缺失。
+2. 另行批准实现时，只读分类加在 `studies/trajectory_observation/structure/office_traj.py`。选句和 SHA256 仍用已经冻结的函数。不新文件，不增加 legacy 条目。输出留在源码树外。缺字段保持缺失。
 3. 首分叉字段、任何 GPU，以及 4B、0.6B，都要另一次批准。第一步不加载 `D:\models\`。

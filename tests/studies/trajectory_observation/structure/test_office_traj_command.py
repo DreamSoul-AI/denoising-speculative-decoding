@@ -134,7 +134,7 @@ def test_formal_warms_each_arm_before_the_measured_rows(tmp_path, monkeypatch):
 
     monkeypatch.setattr(office_traj, '_warmup_arms', warmup)
     monkeypatch.setattr(office_traj, 'decode_measured_prompt', decode)
-    monkeypatch.setattr(office_traj, '_identity', lambda: {'git_head': 'abc', 'dirty': False})
+    monkeypatch.setattr(office_traj, '_run_identity', lambda: {'git_head': 'abc', 'dirty': False})
     monkeypatch.setattr(office_traj, 'ablation_summary', lambda *args, **kwargs: {'wall': {'complete': True}})
     cfg = round_config('xcat7')
     _formal(None, None, _prompts()[:1], (), 'digest', tmp_path, cfg)
@@ -161,7 +161,7 @@ def test_formal_stops_when_warmup_sync_or_argmax_fails(tmp_path, monkeypatch):
     monkeypatch.setattr(
         'studies.trajectory_observation.structure.office_tree.arm_row', arm_row)
     monkeypatch.setattr(office_traj, 'decode_measured_prompt', lambda *args, **kwargs: events.append('decode'))
-    monkeypatch.setattr(office_traj, '_identity', lambda: {'git_head': 'abc', 'dirty': False})
+    monkeypatch.setattr(office_traj, '_run_identity', lambda: {'git_head': 'abc', 'dirty': False})
     cfg = round_config('xcat7')
 
     class _Tokenizer:

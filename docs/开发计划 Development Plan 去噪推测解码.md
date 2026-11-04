@@ -13,13 +13,13 @@
 | observation 上的仿射 K | 研究计划把完整 K 与仅 bias 列为对照 | 合成检查有结论后再定 z→Az+b 的拟合数据 |
 | 飞书规范正文 | 用户令牌过期时只读了索引和参考仓 | 下次能读取时核对冲突段落，不预先改写成“已符合全文” |
 | 下一高信息实验的逐臂墙钟 | 研究计划第九章已写定 `office-8b-traj-wall-v1`。`office_traj.py` 已逐臂记录 `wall_seconds`，缺失不写成 0。外层打印仍不进入比较 | 已跑。接受数 `direction` 为 positive，`wall_direction` 为 shorter，两区间都不含 0。见 [2026-11-04 Qwen3-8B trajectory墙钟](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory墙钟.md>)。次项 B `office-8b-traj-failset-v1` 已分析，见 [2026-11-04 Qwen3-8B trajectory失败子集](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory失败子集.md>) |
-| 独立 AR 不一致的只读分类 | 研究计划第十章 `office-ar-inconsistency-v1`。已有行含 `ar_equal`、`output_sha256`、`argmax_passed`、`accepted`、`tau`。没有首分叉下标、共同前缀长度或两侧 token。八组与墙钟 jsonl 在运行记录所指目录 | 分类函数已在 `studies/trajectory_observation/structure/office_traj_failset.py`。缺字段保持缺失。不批准 GPU |
+| 独立 AR 不一致的只读分类 | 研究计划第十章 `office-ar-inconsistency-v1`。已有行含 `ar_equal`、`output_sha256`、`argmax_passed`、`accepted`、`tau`。没有首分叉下标、共同前缀长度或两侧 token。八组与墙钟 jsonl 在运行记录所指目录 | 分类函数已在 `studies/trajectory_observation/structure/office_traj.py`。缺字段保持缺失。不批准 GPU |
 
 不新增插件注册、通用校正框架或第二套测试运行器。
 
 2026年11月4日，研究计划第九章写定下一高信息实验。主项是 `office-8b-traj-wall-v1`：在已经跑完的 summarization 切片上，比较 traj 与 full 的逐臂墙钟和接受数是否同向。次项是 `office-8b-traj-failset-v1`：从已归档 jsonl 界定 full 接受数更高的 prompt 子集，不新跑模型。同日已在 `structure/office_traj.py` 记下第九章定义的 `wall_seconds`，句子仍用 `--protocol xcat7`，接受计数保持原口径，不另建脚本，不增加 legacy 条目。办公室批准的这一次 GPU 测量已经跑完，结果在运行记录。失败子集已按第九章 B 做完离线描述，见运行记录。
 
-同日，研究计划第十章写定 `office-ar-inconsistency-v1`：用已归档 jsonl 把独立 AR 不一致分成诊断噪声、正确性风险或审计口径。工程上只缺首分叉三类字段。分类函数已加在 `studies/trajectory_observation/structure/office_traj_failset.py`。写进计划不批准 GPU。
+同日，研究计划第十章写定 `office-ar-inconsistency-v1`：用已归档 jsonl 把独立 AR 不一致分成诊断噪声、正确性风险或审计口径。工程上只缺首分叉三类字段。分类函数已加在 `studies/trajectory_observation/structure/office_traj.py`。写进计划不批准 GPU。
 
 2026年11月3日，同节点预算的额外分支按研究计划里已写定的 `extra-branch-replace-v1` 执行。这次只比较接受数，不测速，不下载模型。运行产物留在源码树外。
 
