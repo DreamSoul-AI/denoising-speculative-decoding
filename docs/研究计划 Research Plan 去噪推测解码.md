@@ -379,10 +379,11 @@ qid 是 open_qa 非空文本流里的下标。已用文本按 `creative_writing`
 | Qwen3-8B trajectory 第七次跨类复现 | 标明探索。Dolly summarization 非空流 qid 0–127，128 条，没有跳过。这是最后一个未用 Dolly 类别。traj（gain 0）对 full（gain 0.5）为 97:17:14（p=8.636e-15），接受数差 +2.6640625，区间 [2.125, 3.203125]，τ 1.340886→1.418055 |
 | 采样分布保证、独立 AR 等价 | 采样分布保证未完成，不能由 T0 推广。第十章只读分类的结论是可隔离的口径问题。`office-ar-first-fork-v1` 已跑：128 条里共享分叉比例 0.546875，落在两档中间；fp32 参照未加载。`office-ar-bf16-determinism-v1` 已跑：64 条里双运行一致率 1，路径一致率 0.3125，去重差距中位数 0.0625，贴「AR路径不稳定」。见同日运行记录 |
 | 端到端墙钟 | 协议 `office-8b-traj-wall-v1` 已跑完。summarization 128 条上接受数 `direction` 为 positive（97:17:14，差均值 +2.6640625，区间不含 0），`wall_direction` 为 shorter（99:29:0，差均值 −0.100136 秒，区间不含 0）。两者同向，并且一起离开了 0。这是探索。见第九章 A 与同日运行记录 |
+| 墙钟按长度 | 协议 `office-8b-traj-wall-by-length-v1` 已写定，测量尚未开始。同一 summarization 128 条，长度 64、256、512。见第十一章 |
 | traj 失败模式 | 协议 `office-8b-traj-failset-v1` 已分析。八组 full 胜出子集的条数都等于已归档负。子集相对 traj 更高的字符均值，四组更高、四组更低，中位数也不跟均值同一边。不设通过线，不做跨类符号检验。见第九章 B 与同日运行记录 |
 
 # 八、和开发计划的关系
-研究计划决定要检验的主张和会改变判断的结果。开发计划决定代码、文档和工程验收。第九章的墙钟比较和 full 胜出子集已经有结果，数字留在该章和运行记录。第十章的只读分类已经做完。`office-ar-first-fork-v1` 的结果在同日运行记录。`office-ar-bf16-determinism-v1` 已贴「AR路径不稳定」。墙钟按长度仍未执行。现有解码器、审计和 τ 口径的工程修改不能改变已归档 Run 的计数。
+研究计划决定要检验的主张和会改变判断的结果。开发计划决定代码、文档和工程验收。第九章的墙钟比较和 full 胜出子集已经有结果，数字留在该章和运行记录。第十章的只读分类已经做完。`office-ar-first-fork-v1` 的结果在同日运行记录。`office-ar-bf16-determinism-v1` 已贴「AR路径不稳定」。墙钟按长度的协议 `office-8b-traj-wall-by-length-v1` 已在第十一章写定，测量尚未开始。现有解码器、审计和 τ 口径的工程修改不能改变已归档 Run 的计数。
 
 # 九、下一高信息实验（运行前写定）
 2026年11月4日写定。Dolly 八个类别的办公室切片已经跑完，本章不再另起新类。主项是端到端墙钟，次项是从已归档结果界定 full 胜出的 prompt 子集。本章只写比较、计时口径和停止规则。它不授权实现，也不授权 GPU 运行。
@@ -647,3 +648,63 @@ p 值不设 0.05 门。方向与预先写的一侧一致，就记为该假设的
 三条按这个顺序取第一条成立的。中间地带只报告比例、条数和差距，不贴档。全部分差都很大但近并列比例达到 0.20，或者中位数落在 \((0.5, 2.0]\)，都算中间地带。
 
 无论贴上哪一档，都不改 K、不改 0.5、不改树、不改 64、不重选句子、不把这 64 条从母数里删掉、不因此重开算子排查、不在这次测量里做墙钟按长度。不换 4B 或 0.6B。不并行第二份 GPU。
+
+# 十一、墙钟是否集中在更长生成（运行前写定）
+2026年11月4日写定。协议名 `office-8b-traj-wall-by-length-v1`。第九章 A 在 64 token 上看到 traj 相对 full 的墙钟更短，差均值 −0.100136 秒。那一档没有回答这个差距是跟着生成变长而变大，还是一条与长度无关的固定差。第十章的停止规则不在这里重开。结构步骤 5 等本章有长度结论后再排。
+
+这次批准覆盖本协议的这一次 GPU，包括冒烟和下面写定的正式三档。不批准第二份并行 GPU。不批准 4B 或 0.6B。不批准结构步骤 5。不批准重开算子排查。不合并 `main`。
+
+### 问题
+同一条 summarization 上下文上，traj 相对 full 的墙钟优势是否集中在更长的 `max_new_tokens`（256、512），而不是短的 64。每一臂的墙钟再拆成草稿、验证和固定开销。
+
+### 计时口径
+主墙钟仍是第九章 A 的 `wall_seconds`：该臂 `SpecDecoder.generate` 之前 `sync_device`，用 `time.perf_counter` 记起点；返回后再次 `sync_device`，再记终点。它只包住这一臂，不含另一臂，也不含独立 AR。
+
+现有循环里，起草树和验证走的是同一次解码前向。这一次前向既核对草稿，也写出下一棵树的 mask logits。不能把它们拆成两次前向，否则测的就不是现在的解码。三个桶都用循环里已有的 `perf_counter`，两端不同步，和现有 `prefill_time`、`decode_time` 一样：
+
+| **桶** | **定义** |
+| --- | --- |
+| `overhead_seconds` | 现有 `prefill_time`。prompt 嵌入、mask 初始化和 prefill 前向，含第一枚提交 token。同一批句子跨长度应接近持平 |
+| `draft_seconds` | 每次解码迭代里，从建树到解码 `model()` 之前。含 `build_tree`、块嵌入和注意力掩码组装。不含上一次前向已经写出的 mask logits |
+| `verify_seconds` | 每次解码 `model()` 加上随后的 sample-matching 行走，到该行走结束为止。这一段含验证，也含下一棵树的 logits |
+| `residual_seconds` | `wall_seconds − overhead_seconds − draft_seconds − verify_seconds`。含同步空隙、缓存裁剪、mask 更新和审计。允许为负，不改写成 0 |
+
+`decode_time` 仍是整段解码循环的伴随读数，不进入分桶和。四个桶的差按 traj 减 full。缺失、非有限或为负的 `wall_seconds`、`prefill_time`、`draft_seconds`、`verify_seconds` 保持缺失。`residual_seconds` 只在这四项都有限且非负时计算。任一正式 prompt 的任一臂缺其中一项，该长度的墙钟和分桶都记为不完整，不贴长度档，也不贴分解档。
+
+### 假设与证伪
+p 值不设 0.05 门。方向与下表一致就记为该假设的正向证据。效应量按均值、区间、条数和相对幅度原样报告。
+
+| **编号** | **主张** | **会被什么结果反驳** |
+| --- | --- | --- |
+| H_long | traj 相对 full 的墙钟优势随长度变大：64、256、512 的墙钟差均值都小于 0，`wall_direction` 都是 shorter，绝对值严格递增，且 512 的绝对值至少是 64 的 1.5 倍 | 三档方向不一致，或绝对值没有严格递增，或 512 与 64 的绝对值之比小于 1.5 |
+| H_decomp | 在绝对值最大的那一档上，优势主要在 `verify_seconds` 或 `draft_seconds`：与墙钟差同号的桶里，绝对值最大的一个至少占该档墙钟差绝对值的一半，并且这个桶是 draft 或 verify | 该桶是 overhead 或 residual，或没有任何同号桶达到一半 |
+
+### 指标
+每档、每臂报告 `wall_seconds`。配对差是 traj 减 full。`wall_direction` 沿用第九章 A：shorter、longer、mixed、flat。接受数的 `direction` 仍分开报告，不把更长的时间记成 positive。
+
+每档另报 draft、verify、overhead、residual 的配对差均值和 bootstrap 95% 区间（百分位，种子 0，10000 次）。相对幅度是该档墙钟差均值的绝对值除以 full 臂 `wall_seconds` 的均值。full 均值为 0 时，相对幅度记为缺失。p 可以用双侧二项符号检验附在墙钟条数上，不作为档的门槛。
+
+### 样本
+句子沿用第九章 A 的 summarization 128 条，qid 0–127，没有跳过。换行拼接的 SHA256 是 `f35b56bf668124a609c47dc51f97d40cabd75fdac5e6a3eb0fd133a25665020a`。运行时条数、qid 或哈希对不上就中止，不另选句子。
+
+正式样本就是这 128 条乘三个长度，不在看到结果之后缩小。墙钟 v1 的 64 token 正式跑了 716.4 秒。按 token 比例，64、256、512 约 12 分钟、48 分钟、96 分钟，合计约 2.5–3.5 小时，一次会话放得下，所以不改成更小的 N。
+
+两臂与第九章 A 相同。`method` esp，`num_masks` 1，`impl` efficient，`tree.mode` static，`branches` [4]，剪枝开。mask 为 `init` mean_prompt、`lam` 0.1、`update` true。full 的 `gain` 是 0.5，traj 的 `gain` 是 0。温度 0。`stop_on_eos` false。最大草稿节点数 4。块复杂度两边都是 10。模型是本地 `D:\models\Qwen3-8B`，BF16，CUDA，eager，`local_files_only`。不下载。不加载 float32。
+
+长度顺序固定为 64、256、512。冒烟用这 128 条里的前 2 条，每条 8 token，只跑一次，不按长度各跑一遍。两臂 argmax 都要通过，并且两臂的 `wall_seconds`、`prefill_time`、`draft_seconds`、`verify_seconds` 都是有限非负数。冒烟不进入符号检验。冒烟失败就不跑正式。正式开始前，用第 1 条正式 prompt、8 token、两臂各做一次不计时预热，预热后同步。预热不写入正式 jsonl。预热失败就不跑正式。
+
+产物前缀 `sd-office-8b-traj-wall-by-length-v1`，戳 `20261104-1420`，目录在源码树外。每档的文件名带上长度，不覆盖墙钟 v1 的 `20261104-0758`。
+
+### 判定与停止
+三档都完整，并且该档 argmax 全部通过、节点数保持 4、块复杂度保持 10，才贴长度档。按下面的顺序取第一条成立的。
+
+1. **length-dependent**。三档 `wall_direction` 都是 shorter，墙钟差均值的绝对值严格递增，且最大绝对值至少是最小绝对值的 1.5 倍。这是 H_long 的正向证据。
+2. **length-flat**。三档 `wall_direction` 相同，并且三档都是 flat，或者最大绝对值不到最小绝对值的 1.5 倍。
+3. **dead-metric**。256 和 512 的 `wall_direction` 都不是 shorter。短长度上的优势没有延伸到更长生成。
+4. **mixed**。其余。
+
+分解档另贴，不覆盖长度档。宿主是墙钟差均值绝对值最大的那一档。与墙钟差同号的四个桶里，取绝对值最大的一个；并列时按 draft、verify、overhead、residual 的顺序取先出现的。该绝对值达到宿主墙钟差绝对值的一半时，分别记为 **decomp-draft**、**decomp-verify**、**decomp-overhead**、**decomp-residual**。前两个是 H_decomp 的正向证据。后两个算开销主导，H_decomp 被反驳。达不到一半，或没有同号桶，记为 **decomp-split**。墙钟差均值为 0 时直接是 decomp-split。
+
+任一档的墙钟不完整、argmax 未全部通过，或该档进程中断：该档记为不完整，长度档记为 **incomplete**，不贴分解档，并且不开始更长的档。不因为已经看到的差的方向而删 prompt、改 N、改长度或改增益。
+
+无论贴上哪一档，都不改 K、不改 0.5、不改树、不重选这 128 条、不把树改成 [2, 2] 或 [3, 1]、不换数据集、不跑结构步骤 5、不重开算子排查、不换 4B 或 0.6B、不并行第二份 GPU。不合并 `main`。
