@@ -13,3 +13,6 @@
 
 # 三、本机PowerShell脚本执行受阻
 生成launch.ps1的真实执行被本机有效Restricted策略阻断，失败回执从运行记录第五轮定位。当前只验证生成内容与正式Python CLI的CUDA调度，不把脚本记为功能通过；未绕过或修改策略。若未来环境允许执行，需独立验收脚本参数、中文路径和退出码。
+
+# 四、训练整体恢复准入晚于状态修改
+现有train/_run_supervised先调用algo.resume并装入optimizer/scheduler，随后才核training contract与Data能力。RNG损坏输入的部分改写已修并归开发/运行记录，训练整体顺序仍待CR0改造；未完成前不能声明contract拒绝时模型与训练状态全部不变。

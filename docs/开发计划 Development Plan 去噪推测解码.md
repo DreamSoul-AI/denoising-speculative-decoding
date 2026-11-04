@@ -2,14 +2,14 @@
 更新日期：2026年11月5日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-继续 `codex/structure-cleanup-20261105` 并更新 PR 106。远端必需状态阻断合并时继续工程整理，不修改规则或伪造状态。本轮比较基线为上一轮 `5aa8726`，算法、默认参数、历史输入和冻结观测合同保持。
+继续 `codex/structure-cleanup-20261105` 并更新 PR 106。远端必需状态阻断合并时继续工程整理，不修改规则或伪造状态。本轮比较基线为上一轮 `a4d3aa9`，算法、默认参数、历史输入和冻结观测合同保持。
 
 # 二、六类核对与落实
 | **类别** | **本轮处理** | **仍需完成的具体差距** |
 | --- | --- | --- |
 | 目录结构 | 删除四个 API facade，构建直接调用既有工厂，真实 tracker 装配归 algorithm/tracker.py；删除九个纯诊断再导出 | 70 个顶层遗留文件、14 条 structure 命令记录尚未迁完；父包 structure/control 仍有间接装配链 |
 | 配置与支持版本 | 文件 SHA256 统一使用 provenance.file_sha256 的有界流式读取，去除 Python 3.11 专属 file_digest 依赖 | Python 3.10 尚未实机运行，test_package 的 tomllib importorskip 会阻断该版本的严格计划，需确定测试兼容策略；不可据模拟缺 API 测试声称全版本支持 |
-| 入口脚本 | 共用launch_once委托sharedCLI，重验证先预检再载validator；独立worker固定import根、source/plan检查，生成PS1保存资源分配与退出码，默认无盲重试 | trajectory_observation 仍有固定模型路径与旧命令，六条盘符记录不能覆盖拼接构造路径，需按实际调用改显式配置 |
+| 入口脚本 | 共用launch_once委托sharedCLI，重验证先预检再载validator；独立worker固定import根、source/plan检查，生成PS1保存资源分配与退出码，默认无盲重试 | fresh与office三类入口已入flow并要求显式输入/计划/新输出，四个folded例外删除；fair_branch/pilot等其余legacy命令仍待按协议迁移，盘符清单不涵盖所有拼接路径 |
 | 日志与输出 | 新诊断 JSONL 与安全单行呈现，旧文本只读；status/logs/report 统一实际路径与时序 | report 已要求外部新目标且只读检查；output_space_extension 离线槽位分析改显式输入/输出并独占创建。新增显式外部 Study 根，白名单快照与原源双校验，全部 runs/shared/docs/index/锁留运行根；轮转/保留及日志故障隔离未完成 |
 | 测试 | 新增行为和失败用例逐项登记，归细已迁测试的 target 与部分 unit 层级，静态直接反向导入清单归零 | 其余用例仍大量继承 integration，target 较宽；read_plan 尚未完整核枚举与成本/资源语义，需逐用例复核，不能只以字段存在认定合规 |
 | 文档 | 研究计划补三项既有 Study 的问题/边界/恢复条件，以及新设计接入前的选择与判读；同步当前设计和日期记录 | 提供固定 Git 原件只读接口，槽位与followup分析已迁入两柱；其余完整分析器仍依赖旧工具/计划映射，原 helper 身份存在未知，不能替换路径冒充同一来源 |
@@ -17,7 +17,7 @@
 表中当前源码状态与对应实际验证从 [开发记录](<开发记录 Development Record/2026-11-05 宿主结构收束.md>)、[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>) 定位。没有把完整原生重放或整个规范的落地写成已完成。
 
 # 三、下一轮优先级与验收
-1. Run 根边界：共用专用入口与独立进程调度已接入预检，继续按轨迹专用研究程序的实际协议迁移其自有输出/设备配置；不自动启动旧矩阵。补充checkpoint恢复、强取消和复杂train/eval依赖需单独合同，不能由pending调度恢复外推。其它旧分析器继续逐项处理
+1. 恢复准入：按架构CR0先把训练contract/数据能力校验移到model/optimizer任何变更前，再贯通CR4，最后用CR5新进程CUDA连续/恢复对照；本轮RNG和受控单步通过不外推完整训练。继续迁移fair_branch/pilot等专用入口，不启动旧矩阵。其它旧分析器逐项处理
 2. 遗留模块：按消费者归并其余再导出与重复助手，分离 Study 组成和命令。保留来源字节，legacy 只减，CLI help 与单项测试可独立运行
 3. 测试合同：明确 Python 3.10 的测试依赖策略，逐项复核 level/target/成本及严格清单枚举，不能跳过必需项换取通过
 4. 日志可靠性：确定实际容量与保留要求，隔离诊断落盘故障和正式科学终态，保留首错及追加失败，不吞错或让日志代替结果

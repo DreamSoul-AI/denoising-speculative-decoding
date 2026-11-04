@@ -28,14 +28,6 @@ SUBLAYERS = frozenset({
 })
 DRIVE = re.compile(r"(?<![A-Za-z])[A-Za-z]:(?:\\\\|\\|/)[^\s'\"<>|]*")
 MAIN_GUARD = re.compile(r"""^\s*if\s+__name__\s*==\s*['"]__main__['"]\s*:""", re.M)
-# Commands moved out of flow/execute into the structure module that already owns
-# the protocol. The allowlist cannot grow, so this set is closed.
-FOLDED_STRUCTURE_COMMANDS = frozenset({
-    'studies/trajectory_observation/structure/fresh_replace.py',
-    'studies/trajectory_observation/structure/office_qwen8b.py',
-    'studies/trajectory_observation/structure/office_traj.py',
-    'studies/trajectory_observation/structure/office_tree.py',
-})
 
 
 def _posix(path: Path) -> str:
@@ -237,7 +229,7 @@ def structure_scripts() -> list[str]:
     found: list[str] = []
     for path in _py_files(ROOT / 'src' / 'spec_mtp', ROOT / 'studies'):
         rel = _posix(path)
-        if '/structure/' not in rel or _under_upstream(rel) or rel in FOLDED_STRUCTURE_COMMANDS:
+        if '/structure/' not in rel or _under_upstream(rel):
             continue
         text = _read(path)
         if MAIN_GUARD.search(text):

@@ -242,3 +242,17 @@ K 工程 fixture 使用随机 tied tiny LLaMA、CPU FP32、eager；先拟合并�
 显式外部 Study 运行根承接新运行的声明快照、Run、共享制品和日志；源码 Study 作为只读输入。首次建立先核全部输入与目录分离，执行前复核原 Study 和快照，任何缺失或漂移均阻断，不把新根当旧 Run 的迁移或重签。CUDA 工程验证先确认设备可用并保存设备身份，CPU仅承担快速单元检查；设备忙时等待或缩小规模，研究路线仍由研究计划与 Enmao 确认。
 
 独立进程调度先验证外部根、来源与当前计划，再派发shared CLI worker；worker再次预检，实际PID和CUDA设备随运行证据保存。调度保存的jobs必须绑定index及规范config路径，空队列仍以聚合complete判断成功。派发异常只清理本次已取得的进程句柄并保留首错；默认不自动重试。pending调度恢复与checkpoint/RNG恢复分别验收。
+
+# 九、Checkpoint 与 RNG 恢复合同
+调度恢复仅处理哪些Run已完成或待派发。checkpoint恢复还要恢复科学状态；以下CR标识单独约束恢复验收，不由调度通过、同seed或文件能载入推出完整等价。
+
+| **合同** | **准入、状态与验收** | **当前边界** |
+| --- | --- | --- |
+| CR0 身份与准入 | 绑定checkpoint原字节SHA、来源/配置/模型、步数预算、实际device/dtype/backend与CUDA映射。所有身份、schema、状态和Data能力先校验，再修改活跃model/optimizer/tracker/RNG；旧Run不重签，恢复尝试另记原checkpoint | RNG入口已先校验各域；训练编排仍先载model/optimizer再验training contract，整体准入顺序待改 |
+| CR1 持久化 | 使用已授权可信的本地checkpoint。完整bundle为提交边界，piece mirror或incomplete标记不独立证明完整；载入不改变原件，缺失/截断/身份漂移拒绝 | System真实bundle读写及原字节保全由小规模CUDA夹具验证，损坏全矩阵未覆盖 |
+| CR2 RNG | Python、NumPy、Torch CPU及已冻结的全部CUDA全局状态先在独立生成器试装，再提交；缺域/损坏/设备数量不等或不可用时，全局状态不变。显式generator必须独立保存恢复 | CUDA逐域往返与四类损坏拒绝已验证。cuda=None只表示未冻结该域，恢复时不查询或初始化CUDA，不称GPU轨迹恢复；不保证硬件运行中故障的跨库事务回滚 |
+| CR3 模型与优化 | 固定架构、dtype、optimizer/scheduler及计数，恢复后的下一批输入、loss、参数、动量、LR应匹配连续执行；bitwise与容差判据按后端声明 | 同进程CUDA linear/SGD momentum/StepLR受控下一步精确匹配；不外推真实模型、跨设备、HF Trainer或长训练 |
+| CR4 数据与指标 | 保存sampler/loader的显式generator、batch cursor、数据身份、epoch/step和tracker。暂支持的DataLoader为num_workers=0、标准BatchSampler及SequentialSampler或有generator的RandomSampler；其它能力未知应拒绝exact恢复或明记partial | 现有data/resume机制尚未与本轮CUDA训练夹具贯通，未验证prefetch/随机transform/多worker或分布式状态 |
+| CR5 新进程对照 | 同一冻结条件连续k+m步，对照新进程载第k步checkpoint再执行m步。逐批核样本ID、全域RNG、参数与optimizer/scheduler/tracker/预算终态，记录实际PID、CUDA设备、版本与失败 | 本轮只定义合同，尚未执行完整训练fresh-process对照；先完成CR0准入顺序和CR4数据合同再准入 |
+
+恢复功能、工程回归与研究结论分别报告。无法证明某域完整时保留partial/未知范围，不清空旧证据、不换成功重复，也不把恢复差异归因于新算法。

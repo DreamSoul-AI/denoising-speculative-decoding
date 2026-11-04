@@ -24,14 +24,32 @@ def restore_rng(state: dict[str, Any]) -> None:
     import numpy as np
     import torch
 
+    if not isinstance(state, dict) or not {'python', 'numpy', 'torch', 'cuda'} <= state.keys():
+        raise ValueError('invalid checkpoint RNG state')
     cuda = state['cuda']
-    if cuda is not None and (not torch.cuda.is_available() or len(cuda) != torch.cuda.device_count()):
+    if cuda is not None and (not isinstance(cuda, (list, tuple)) or not torch.cuda.is_available()
+                             or len(cuda) != torch.cuda.device_count()):
         raise ValueError('checkpoint CUDA RNG devices do not match current runtime')
-    random.setstate(state['python'])
-    np.random.set_state(state['numpy'])
-    torch.set_rng_state(state['torch'].cpu())
+    # Validate every domain on private generators before changing any global state.
+    try:
+        python_rng = random.Random()
+        python_rng.setstate(state['python'])
+        numpy_rng = np.random.RandomState()
+        numpy_rng.set_state(state['numpy'])
+        cpu_rng = torch.Generator(device='cpu')
+        cpu_rng.set_state(state['torch'].cpu())
+        cuda_states = []
+        for index, value in enumerate(cuda or []):
+            generator = torch.Generator(device=f'cuda:{index}')
+            generator.set_state(value.cpu())
+            cuda_states.append(generator.get_state())
+    except (AttributeError, TypeError, ValueError, RuntimeError) as exc:
+        raise ValueError(f'invalid checkpoint RNG state: {exc}') from exc
+    random.setstate(python_rng.getstate())
+    np.random.set_state(numpy_rng.get_state())
+    torch.set_rng_state(cpu_rng.get_state())
     if cuda is not None:
-        torch.cuda.set_rng_state_all([value.cpu() for value in cuda])
+        torch.cuda.set_rng_state_all(cuda_states)
 
 
 def partial_resume_warning(logger=None) -> None:

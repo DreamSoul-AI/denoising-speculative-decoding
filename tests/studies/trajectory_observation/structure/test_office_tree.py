@@ -1,14 +1,12 @@
 """Slice, supported shapes and summary for the tree-shape exploration."""
 
-from pathlib import Path
-
 import pytest
 import torch
 
 from spec_mtp.structure.algorithm.decode.tree import build_static_tree
 from studies.trajectory_observation.structure.office_tree import (
     EVAL_QIDS, EVAL_QIDS_8B, EVAL_SHA256, EVAL_SHA256_8B, NODE_BUDGET, PROTOCOL, PROTOCOL_8B,
-    QWEN3_4B, SKIPPED_QIDS, SKIPPED_QIDS_8B, TAKE, arm_spec, arm_specs, block_complexity,
+    SKIPPED_QIDS, SKIPPED_QIDS_8B, TAKE, arm_spec, arm_specs, block_complexity,
     existing_output_dir, prompts_from_388, prompts_from_516, require_budget, tree_summary,
 )
 from studies.trajectory_observation.structure.fair_branch import ESP
@@ -16,6 +14,18 @@ from studies.trajectory_observation.structure.fair_branch import ESP
 
 def _creative(text, context=''):
     return {'category': 'creative_writing', 'instruction': text, 'context': context}
+
+
+def test_capacity_admission_queries_the_selected_cuda_device(monkeypatch):
+    from studies.trajectory_observation.structure.office_tree import _require_idle_gpu
+    queried = []
+    monkeypatch.setattr(torch.cuda, 'mem_get_info', lambda device: (
+        queried.append(str(device)) or 20000 * 1024 ** 2, 24000 * 1024 ** 2))
+    _require_idle_gpu(device='cuda:1')
+    assert queried == ['cuda:1']
+    monkeypatch.setattr(torch.cuda, 'mem_get_info', lambda device: (1, 24000 * 1024 ** 2))
+    with pytest.raises(RuntimeError):
+        _require_idle_gpu(device='cuda:1')
 
 
 def test_prompts_from_388_skip_prefix_and_selected_duplicates():
@@ -134,7 +144,10 @@ def test_summary_compares_each_shape_with_the_wide_baseline():
 def test_output_dir_must_already_exist_off_the_repo(tmp_path):
     with pytest.raises(RuntimeError):
         existing_output_dir(tmp_path / 'missing')
-    assert QWEN3_4B == Path('D' + ':' + '\\') / 'models' / 'Qwen3-4B'
+    from studies.trajectory_observation.structure.office_tree import _weights
+    assert _weights('4b', tmp_path) == (tmp_path, '4B')
+    with pytest.raises(ValueError, match='explicit local model root'):
+        _weights('4b', None)
 
 
 def test_shared_protocol_import_preserves_caller_environment(tmp_path):

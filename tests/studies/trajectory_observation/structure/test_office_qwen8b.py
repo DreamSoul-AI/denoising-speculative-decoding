@@ -37,10 +37,10 @@ def test_registered_qid_span_skips_the_three_duplicates():
 
 
 def test_8b_table_points_at_the_local_qwen3_directory():
-    assert MODELS['8b'] == Path('D' + ':' + '\\') / 'models' / 'Qwen3-8B'
-    assert MODELS['8b'].is_absolute()
-    source = Path('studies/trajectory_observation/structure/fair_branch.py').read_text(encoding='utf-8')
-    assert "'8b': Path('D' + ':' + '\\\\') / 'models' / 'Qwen3-8B'" in source
+    from studies.trajectory_observation.structure.office_qwen8b import _load_model
+    assert MODELS['8b'] == 'Qwen3-8B'
+    with pytest.raises(ValueError, match='explicit local model root'):
+        _load_model(None)
 
 
 def test_replace_keeps_the_esp_tree_and_kalman_is_frozen_last():

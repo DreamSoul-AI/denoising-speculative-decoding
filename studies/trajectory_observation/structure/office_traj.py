@@ -3,15 +3,15 @@
 Protocols ``office-8b-traj-ablate-v1``, ``office-8b-traj-xcat-v1``,
 ``office-8b-traj-xcat2-v1``, ``office-8b-traj-xcat3-v1``, ``office-8b-traj-xcat4-v1``, ``office-8b-traj-xcat5-v1``,
 ``office-8b-traj-xcat6-v1`` and ``office-8b-traj-xcat7-v1``. Prompt
-selection, the two arm specs, the paired summary, and the command that loads
-weights live here. Both arms wrap the current ESP baseline with the existing
+selection, the two arm specs and paired summary live here. Command coordination
+lives in flow/execute/office.py. Both arms wrap the current ESP baseline with the existing
 ``spec.observation`` switch. ``--protocol xcat7`` keeps the frozen summarization
 slice and records per-arm ``wall_seconds`` for ``office-8b-traj-wall-v1``.
 This module does not fit K. Import does not mutate the process environment.
 Offline helpers for ``office-8b-traj-failset-v1`` and ``office-ar-inconsistency-v1``
 live here. They do not load a generator or start a decode, and they have no command entry.
 ``office-ar-first-fork-v1``, ``office-ar-bf16-determinism-v1`` and
-``office-8b-traj-wall-by-length-v1`` reuse this command. Their helpers live in
+``office-8b-traj-wall-by-length-v1`` retain historical helpers in
 ``office_traj_fork``, ``office_traj_determinism`` and ``office_traj_length``.
 ``office-8b-traj-g-scan-v1`` is ``--protocol gscan`` in this module.
 ``draft_seconds`` and ``verify_seconds`` stay in the decode loop.
@@ -19,7 +19,6 @@ live here. They do not load a generator or start a decode, and they have no comm
 
 from __future__ import annotations
 
-import argparse
 import json
 import math
 import statistics
@@ -29,10 +28,9 @@ import time
 from studies.trajectory_observation.structure.fresh_replace import (
     bootstrap_mean_ci, direction, paired_deltas, prompt_sha256,
 )
-from studies.trajectory_observation.structure.office_qwen8b import QWEN3_8B
 from studies.trajectory_observation.structure.office_tree import (
     NODE_BUDGET, EVAL as TREE_EVAL, SMOKE as TREE_SMOKE, _append, _identity as _run_identity,
-    _load_model, _offline_caches, block_complexity, existing_output_dir, prompts_after, read_rows,
+    block_complexity, prompts_after, read_rows,
     token_hash,
 )
 
@@ -1441,7 +1439,9 @@ def analyze_archive(dest, rows, tokenizer=None):
 
 def load_local_tokenizer(path=None, loader=None):
     """Qwen3-8B tokenizer only. ``local_files_only`` refuses a download."""
-    root = QWEN3_8B if path is None else Path(path)
+    if path is None:
+        return None
+    root = Path(path)
     if not root.is_dir():
         return None
     if loader is None:
@@ -1722,62 +1722,3 @@ def classify_archive(dest, rows):
     }
 
 
-def main(argv=None):
-    from studies.trajectory_observation.structure.office_traj_determinism import run_ar_determinism_main
-    from studies.trajectory_observation.structure.office_traj_fork import (
-        _load_fp32_model, finish_first_fork, gpu_free_mib, release_session,
-        resident_parameter_count,
-    )
-    from studies.trajectory_observation.structure.office_traj_length import _formal_by_length
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dest', type=Path, required=True)
-    parser.add_argument('--only', choices=('all', 'smoke', 'formal'), default='all')
-    parser.add_argument('--mismatch', type=Path)
-    parser.add_argument(
-        '--protocol',
-        choices=(
-            'ablate', 'xcat', 'xcat2', 'xcat3', 'xcat4', 'xcat5', 'xcat6', 'xcat7',
-            'first_fork', 'ar_determinism', 'wall_by_length', 'gscan',
-        ),
-        default='ablate')
-    args = parser.parse_args(argv)
-    dest = existing_output_dir(args.dest)
-    if args.protocol == 'ar_determinism':
-        run_ar_determinism_main(dest, args.mismatch)
-        return
-    cfg = round_config(args.protocol)
-    _offline_caches(dest)
-    from studies.trajectory_observation.structure.office_qwen8b import load_dolly_rows
-
-    prompts, skipped = cfg['select'](load_dolly_rows())
-    digest = cfg['check'](prompts, skipped)
-    print('load 8b', flush=True)
-    model, tokenizer, torch_version = _load_model('8b')
-    if args.only in ('all', 'smoke'):
-        if args.protocol == 'gscan':
-            gscan_smoke(model, tokenizer, prompts, dest, cfg)
-        else:
-            _smoke(model, tokenizer, prompts, dest, cfg)
-    if args.only in ('all', 'formal'):
-        if _run_identity()['dirty']:
-            raise RuntimeError('formal run requires a clean worktree')
-        if args.protocol == 'wall_by_length':
-            _formal_by_length(model, tokenizer, prompts, skipped, digest, dest, cfg)
-        elif args.protocol == 'gscan':
-            gscan_formal(model, tokenizer, prompts, skipped, digest, dest, cfg)
-        else:
-            _formal(model, tokenizer, prompts, skipped, digest, dest, cfg)
-    print('torch', torch_version, flush=True)
-    if args.protocol == 'first_fork':
-        from spec_mtp.structure.algorithm.decode.loop import ar_generate
-        count = resident_parameter_count(model)
-        release_session(model)
-        finish_first_fork(
-            dest, count, gpu_free_mib(), loader=_load_fp32_model, generate=ar_generate,
-            tokenizer=tokenizer, prompts=prompts, limit=EVAL,
-        )
-
-
-if __name__ == '__main__':
-    main()

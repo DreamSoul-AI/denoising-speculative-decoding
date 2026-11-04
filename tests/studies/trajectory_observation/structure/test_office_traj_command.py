@@ -5,16 +5,18 @@ from pathlib import Path
 
 import pytest
 
+from studies.trajectory_observation.flow.execute.office import main
+
 from studies.trajectory_observation.structure.office_traj import (
-    EVAL, PROTOCOL_WALL, _formal, _smoke, main, round_config,
+    EVAL, PROTOCOL_WALL, _formal, _smoke, round_config,
 )
 
 
 def test_command_rejects_a_missing_destination():
     with pytest.raises(SystemExit):
-        main([])
-    with pytest.raises(RuntimeError, match='already exist'):
-        main(['--dest', str(Path('missing-office-traj-output')), '--only', 'smoke'])
+        main(['traj'])
+    with pytest.raises(SystemExit):
+        main(['traj', '--dest', str(Path('missing-office-traj-output')), '--only', 'smoke'])
 
 
 def test_xcat_round_keeps_the_cross_category_names():

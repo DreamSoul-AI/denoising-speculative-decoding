@@ -121,7 +121,7 @@ def prompts_for(name):
 def identity():
     head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, capture_output=True, text=True, timeout=20)
     dirty = subprocess.run(['git', 'status', '--porcelain'], cwd=ROOT, capture_output=True, text=True, timeout=30)
-    if head.returncode != 0:
+    if head.returncode != 0 or dirty.returncode != 0:
         raise RuntimeError('git head is unavailable')
     return {'git_head': head.stdout.strip(), 'dirty': bool(dirty.stdout.strip())}
 

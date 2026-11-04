@@ -36,6 +36,10 @@
 
 离线报告使用 `python -m studies._shared.flow.cli report <Study> --out <外部新文件.md>`，输出路径必填，拒绝已有文件、输入目录和源码 checkout；报告检查不回写旧 process 或 gate。`output_space_extension` 的已保存槽位诊断迁入 `python -m studies.output_space_extension.flow.process.run --raw <保存张量目录> --execution <原运行矩阵.json> --repository <本地仓库> --commit <完整提交> --execution-git-sha256 <Git原件SHA256> --output-root <新外部目录>`。它只读原件并加载 CPU 张量，不载入模型；实际运行矩阵须匹配旧报告哈希，与固定 Git 原件分别记录字节身份并核对 JSON 内容。缺失或漂移直接失败，不自动修换行或重签旧来源。历史读件需要支持 `--no-lazy-fetch` 的本地 Git，当前验证版本为 `2.55.0.windows.3`，不支持时直接失败，不降级联网。followup 读端同样迁入 `studies.output_space_followup.flow.process.run`，参数与槽位读端一致，保存张量实际在 CUDA 分析并登记设备。其余旧完整分析器仍待逐项迁移。
 
+trajectory 专用协议入口改为 `python -m studies.trajectory_observation.flow.execute.office <qwen8b|tree|traj> --help` 与 `python -m studies.trajectory_observation.flow.execute.fresh_replace --help`。它们要求显式本地模型目录、目录外完整模型SHA清单、Dolly JSONL、计划文件及其SHA、新外部输出；旧研究root只读，命令存在不表示获准重跑旧矩阵。office正式运行先验干净源码，CPU设备与已停止的独立AR数值机理协议拒绝。协议常量和数学留structure，四个旧structure命令及折叠例外移除，不保留反向wrapper。真实研究权重和完整流程本轮未执行。
+
+checkpoint/RNG的独立合同见架构设计CR0–CR5。当前CUDA验证覆盖全局RNG、独立generator边界、损坏输入拒绝及受控单步optimizer/scheduler恢复；Data/Trainer与跨进程完整训练恢复仍待单独验证。
+
 诊断日志新写 `assets/logs/events.jsonl`，状态、日志与报告读端兼容旧 `run.log`。应用启动与 Run 身份分开，普通日志不保存异常原文或模型输入。流式文件哈希兼容 Python 3.10 所需 API，但最低版本及全部依赖组合尚未实机验证。
 
 # 三、开发与验证
