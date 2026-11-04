@@ -289,16 +289,17 @@ class ObservationBlendMaskProvider:
     verify forward's logits at mask slot i of the deepest accepted node; they
     predict the token at depth i of the current tree. Slot j of an owner at
     depth d stands in for depth d + j, so
-        m[d, j] = mhat_j + g * (z_{d+j} - mhat_j)   if d + j <= k, else mhat_j.
+        m[d, j] = mhat_j + g * (z_{d+j} - mhat_j)   if d + j < k, else mhat_j.
+    Depth d and slot j are zero-based.
     The observation lives for one round and is never written into the
     trajectory state, so g = 0 is the wrapped provider token for token.
 
     condition='rejection' (`trajectory-observation-rejection-v1`): an owner's
     mask logits seed the next tree only if it is the deepest accepted node, in
-    which case every child token was rejected. Slot 1 of an owner with
-    children therefore uses z_{d+1} conditioned on "not a child token":
-        z = (z_{d+1} - sum_c p_c e_c) / (1 - sum_c p_c),
-    falling back to mhat_1 when the children hold all the mass.
+    which case every child token was rejected. Slot 0 of an owner with
+    children therefore uses z_d conditioned on "not a child token":
+        z = (z_d - sum_c p_c e_c) / (1 - sum_c p_c),
+    falling back to mhat_0 when the children hold all the mass.
 
     form='top1' replaces the expectation with the embedding of the most likely
     token (under rejection: the most likely non-child token), keeping the

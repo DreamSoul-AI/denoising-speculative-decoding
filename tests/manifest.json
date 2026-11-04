@@ -2,11 +2,11 @@
   "schema": 1,
   "defaults": {
     "level": "integration",
-    "type": "correctness",
-    "cost_class": "C2",
-    "result_type": "quality",
-    "priority": "P1",
-    "result_detail": "pytest setup/call/teardown and original assertion"
+    "type": "content",
+    "cost_class": "c2",
+    "result_type": "categorical",
+    "priority": "p1",
+    "result_detail": "summary"
   },
   "tests": [
     {
