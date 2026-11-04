@@ -404,5 +404,3 @@ def _formal(model, tokenizer, prompts, skipped, digest, dest, protocol, prefix):
     _file(dest, 'summary', 'json', prefix).write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(summary, ensure_ascii=False), flush=True)
     return summary
-
-

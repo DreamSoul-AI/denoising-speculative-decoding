@@ -465,5 +465,3 @@ def _formal(model, tokenizer, replace_prior, kalman_prior, dest, rows):
     _file(dest, 'summary', 'json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(summary, ensure_ascii=False), flush=True)
     return summary
-
-

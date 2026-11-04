@@ -1720,5 +1720,3 @@ def classify_archive(dest, rows):
         'wall': wall_report,
         'stability': stability,
     }
-
-

@@ -100,7 +100,7 @@ def sibling_train_checkpoint(
     """Eval Run: ``best.pt`` lives on the matching train Run, not this assets dir."""
     assets_dir = getattr(system, 'assets_dir', None)
     study_dir = study_dir_from_assets(assets_dir)
-    if study_dir is None:
+    if study_dir is None or assets_dir is None:
         return None
     run_id = current_id or Path(assets_dir).resolve().parent.name
     name = stem if stem.endswith('.pt') else f'{stem}.pt'

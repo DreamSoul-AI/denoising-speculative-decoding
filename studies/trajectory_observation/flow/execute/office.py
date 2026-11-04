@@ -73,6 +73,8 @@ def main(argv=None):
     elif args.only != 'smoke':
         prompts, skipped = q.prompts_after_used(rows)
         q.assert_registered_slice(prompts, skipped)
+    if args.command in ('tree', 'traj') and selected is None:
+        raise RuntimeError('office protocol selection is missing')
     import torch
 
     device = torch.device(args.device)
@@ -94,8 +96,9 @@ def main(argv=None):
     q._offline_caches(dest)
     verify_inputs()
     dest.mkdir(parents=True, exist_ok=False)
-    protocol_name = q.PROTOCOL if args.command == 'qwen8b' else (
-        selected[3] if args.command == 'tree' else selected[3]['protocol'])
+    protocol_name = q.PROTOCOL
+    if selected is not None:
+        protocol_name = selected[3] if args.command == 'tree' else selected[3]['protocol']
     binding = {'schema': 1, 'command': args.command, 'protocol': protocol_name,
         'stage': args.only, 'source': identity, 'device': str(device),
         'device_name': torch.cuda.get_device_name(device), 'model_root': str(weights),
@@ -120,6 +123,7 @@ def main(argv=None):
             if args.only in ('all', 'formal'):
                 q._formal(model, tokenizer, replace, kalman, dest, rows)
         else:
+            assert selected is not None
             model, tokenizer, _version = t._load_model(args.model, weights, device)
             logger.info(f'office model device={model.device} dtype={model.dtype}')
             verify_inputs()
