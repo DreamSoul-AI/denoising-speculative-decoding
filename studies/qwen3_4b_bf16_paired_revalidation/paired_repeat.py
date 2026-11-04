@@ -20,7 +20,7 @@ from spec_mtp.structure.algorithm.factory import AlgorithmRegistry  # noqa: E402
 from spec_mtp.structure.model.factory import ModelRegistry  # noqa: E402
 from spec_mtp.structure.control.merge import deep_merge  # noqa: E402
 from studies._shared.structure import ar_baseline
-from spec_mtp import decode as decoding  # noqa: E402
+import spec_mtp.structure.algorithm.decode.loop as decoding  # noqa: E402
 
 
 def check_refs():

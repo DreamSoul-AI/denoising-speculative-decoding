@@ -1,12 +1,12 @@
 """The one-vector diagnostic must preserve losslessness and clean up its patch."""
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 import pytest
 import torch
 
-from spec_mtp.decode import SpecDecoder
-from spec_mtp.masks import OutputHiddenMaskProvider
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
+from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
 from test_window_observer import ROOT, model as model, observer, spec
 
 

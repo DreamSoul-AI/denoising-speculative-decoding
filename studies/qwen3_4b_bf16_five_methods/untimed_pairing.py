@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 import torch
-import spec_mtp.decode as decoding
+import spec_mtp.structure.algorithm.decode.loop as decoding
 from studies._shared.structure.algorithm import SpecMtpEvalAlgorithm
 from studies._shared.structure import evidence
 from studies._shared.structure.model import _build_hf

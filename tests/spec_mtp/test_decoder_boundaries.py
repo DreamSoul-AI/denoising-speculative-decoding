@@ -10,9 +10,9 @@ import pytest
 import torch
 
 from studies._shared.structure.config import apply_variant
-from spec_mtp.decode import SpecDecoder, ar_generate, _fork_generator
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate, _fork_generator
 from spec_mtp import model as kv_cache
-from spec_mtp.masks import ESPMaskProvider, EMAVelocityMaskProvider, build_mask_provider
+from spec_mtp.structure.algorithm.mask import ESPMaskProvider, EMAVelocityMaskProvider, build_mask_provider
 from studies._shared.structure.config import _convert
 from spec_mtp.model import HFCausalLM
 

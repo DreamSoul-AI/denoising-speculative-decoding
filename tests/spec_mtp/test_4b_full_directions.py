@@ -1,5 +1,5 @@
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 import importlib.util
 import ast
 import json
@@ -9,7 +9,7 @@ import sys
 import pytest
 import torch
 
-from spec_mtp.masks import EMAVelocityMaskProvider, ESPMaskProvider
+from spec_mtp.structure.algorithm.mask import EMAVelocityMaskProvider, ESPMaskProvider
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -55,7 +55,7 @@ def test_full_direction_preserves_native_mean_and_declared_velocity(monkeypatch,
 
 
 def test_native_tiny_bf16_direction_controls_remain_argmax_safe(monkeypatch):
-    import spec_mtp.decode as decoding
+    import spec_mtp.structure.algorithm.decode.loop as decoding
     from spec_mtp.model import HFCausalLM
     from studies._shared.structure.config import _convert
     from types import SimpleNamespace

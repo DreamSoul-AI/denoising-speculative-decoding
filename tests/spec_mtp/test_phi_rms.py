@@ -2,7 +2,7 @@
 
 import torch
 from test_window_observer import ROOT
-from spec_mtp.masks import OutputHiddenMaskProvider
+from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
 from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
 

@@ -5,7 +5,7 @@ import torch
 
 from test_window_observer import ROOT, model as model
 from spec_mtp import model as kv_cache
-from spec_mtp.masks import OutputHiddenMaskProvider
+from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
 
 
 def test_fixed_masks_only_use_selected_state_and_proxy(monkeypatch):
@@ -53,7 +53,7 @@ def test_frozen_targets_retain_entry_and_bound_windows(monkeypatch):
 
 
 def test_greedy_seed_is_not_an_independent_sampling_axis():
-    from spec_mtp.decode import select_token
+    from spec_mtp.structure.algorithm.decode.loop import select_token
     logits = torch.tensor([.1, .9, .2])
     assert select_token(logits, 0., torch.Generator().manual_seed(124)) == 1
     assert select_token(logits, 0., torch.Generator().manual_seed(127)) == 1

@@ -17,7 +17,7 @@ This file checks what tests/check_correctness.py leaves implicit:
   4. update=false on the live path freezes velocity and still moves the anchor.
 """
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 import sys
 from pathlib import Path
@@ -28,8 +28,8 @@ import torch
 
 from studies._shared.structure.config import _convert
 from spec_mtp.model import HFCausalLM
-from spec_mtp.decode import SpecDecoder, ar_generate
-from spec_mtp.masks import EMAVelocityMaskProvider, ESPMaskProvider
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
+from spec_mtp.structure.algorithm.mask import EMAVelocityMaskProvider, ESPMaskProvider
 from spec_mtp.structure.algorithm.decode.tree import build_static_tree
 from spec_mtp.structure.algorithm.decode.tree_attention import block_layout
 

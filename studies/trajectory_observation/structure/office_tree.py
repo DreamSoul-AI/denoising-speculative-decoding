@@ -147,9 +147,9 @@ def token_hash(ids):
 
 
 def arm_row(model, spec, ids, limit):
-    import spec_mtp.decode as decode_mod
-    from spec_mtp.decode import SpecDecoder
-    from spec_mtp.masks import build_mask_provider
+    import spec_mtp.structure.algorithm.decode.loop as decode_mod
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
+    from spec_mtp.structure.algorithm.mask import build_mask_provider
 
     seen = []
     original = decode_mod.build_tree
@@ -190,7 +190,7 @@ def arm_row(model, spec, ids, limit):
 
 
 def decode_prompt(model, tokenizer, prompt, specs, limit):
-    from spec_mtp.decode import ar_generate
+    from spec_mtp.structure.algorithm.decode.loop import ar_generate
 
     ids = tokenizer(prompt['text'], return_tensors='pt').input_ids
     reference, _stats = ar_generate(model, ids, limit)

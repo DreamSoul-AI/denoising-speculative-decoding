@@ -1,5 +1,5 @@
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 import importlib.util
 from pathlib import Path
 
@@ -73,7 +73,7 @@ def test_admission_defers_on_capacity_or_unknown_work(monkeypatch, free, command
 @pytest.mark.parametrize('method', ['input_first', 'output_zero', 'output_first'])
 def test_read_only_observer_preserves_tiny_bf16_output_and_forward_budget(method):
     from spec_mtp.model import HFCausalLM
-    from spec_mtp.decode import SpecDecoder
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
     from studies._shared.structure.config import _convert
     module = tool('capture_4b_geometry')
     torch.manual_seed(5)

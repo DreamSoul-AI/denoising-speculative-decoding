@@ -2,7 +2,7 @@
 
 from studies._shared.structure import csv_logger
 from studies._shared.structure.inputs import legacy_inputs, make_generator
-from spec_mtp.decode import ar_generate
+from spec_mtp.structure.algorithm.decode.loop import ar_generate
 from spec_mtp.model import sync_device
 
 

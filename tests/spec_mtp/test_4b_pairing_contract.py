@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 import yaml
-import spec_mtp.decode as decoding
+import spec_mtp.structure.algorithm.decode.loop as decoding
 from spec_mtp.structure.make.expand import expand_patches, load_study_yaml
 
 ROOT = Path(__file__).resolve().parents[2]

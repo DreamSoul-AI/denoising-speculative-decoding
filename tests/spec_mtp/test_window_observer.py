@@ -1,6 +1,6 @@
 """Observation must preserve the real decoder and remove its hooks on failure."""
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 import importlib.util
 from pathlib import Path
@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 import torch
 
-from spec_mtp.decode import SpecDecoder
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
 from studies._shared.structure.config import _convert
 from spec_mtp.model import HFCausalLM
-from spec_mtp.masks import OutputHiddenMaskProvider
+from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
 
 ROOT = Path(__file__).resolve().parents[2]
 module_spec = importlib.util.spec_from_file_location('window_observer', ROOT / 'studies/_shared/structure/diagnose_output_windows.py')

@@ -58,7 +58,7 @@ def test_selective_state_real_cache_and_cleanup(model, monkeypatch, coordinate):
 def test_selective_cleanup_on_failure(model, monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from diagnose_q241_state_factors import selective_transfer
-    from spec_mtp.masks import OutputHiddenMaskProvider
+    from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
     prompt, cfg, reference, targets, root, masks = baseline(model)
     original = OutputHiddenMaskProvider.masks_per_owner
     def fail(*args, **kwargs):

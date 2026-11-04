@@ -7,16 +7,16 @@ and run_ar_baseline=false.
 
 from __future__ import annotations
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 import pytest
 import torch
 
-from spec_mtp import decode as decoding
+import spec_mtp.structure.algorithm.decode.loop as decoding
 from spec_mtp.analysis import _aggregate, totals
 from studies._shared.structure import evaluate as esp_mtp
 from studies._shared.structure.config import apply_variant
-from spec_mtp.decode import SpecDecoder, ar_generate, select_token, tree_probs
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate, select_token, tree_probs
 from studies._shared.structure.smoke_variants import VARIANTS
 from studies._shared.structure.config import _convert
 from spec_mtp.model import HFCausalLM

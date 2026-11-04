@@ -11,7 +11,7 @@ _folded_window_diagnostics = _load_theme('window_diagnostics')
 transfer = _folded_window_diagnostics.transfer
 
 def canonical_states(hidden, embedding_table, order):
-    from spec_mtp.masks import OutputHiddenMaskProvider
+    from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
     provider = OutputHiddenMaskProvider(2, embedding_table, order=order, beta=0.9, beta_prime=0.99)
     states = {}
     for position, value in enumerate(hidden):
@@ -22,7 +22,7 @@ def canonical_states(hidden, embedding_table, order):
 def synchronized_transfer(model, states, *args, **kwargs):
     import torch
     from spec_mtp import model as kv_cache
-    from spec_mtp.masks import OutputHiddenMaskProvider
+    from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
     original = OutputHiddenMaskProvider.masks_per_owner
     latest, records = ({}, [])
 
@@ -101,7 +101,7 @@ def map_masks(provider, proxies, mode):
     result = torch.stack(owners)
     assert torch.isfinite(result).all()
     return result
-from spec_mtp.masks import OutputHiddenMaskProvider
+from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
 NATIVE = OutputHiddenMaskProvider.masks_per_owner
 
 def replay(model, states, mode, intervention_call, **kwargs):

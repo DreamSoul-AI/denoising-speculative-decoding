@@ -19,8 +19,8 @@ source_modules =
     spec_mtp.structure.algorithm.decode.tree
     spec_mtp.structure.algorithm.decode.tree_attention
     spec_mtp.data
-    spec_mtp.decode
-    spec_mtp.masks
+    spec_mtp.structure.algorithm.decode.loop
+    spec_mtp.structure.algorithm.mask
     spec_mtp.audit
     spec_mtp.analysis
 forbidden_modules =

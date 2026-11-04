@@ -3,7 +3,7 @@
 import copy
 import torch
 from test_window_observer import ROOT, model as model
-from spec_mtp.masks import OutputHiddenMaskProvider
+from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
 from spec_mtp import model as kv_cache
 
 

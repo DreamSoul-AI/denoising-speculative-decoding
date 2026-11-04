@@ -15,8 +15,8 @@ import torch
 from transformers import AutoTokenizer
 
 from spec_mtp.data import load_questions, render
-from spec_mtp.decode import SpecDecoder
-from spec_mtp.masks import (
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
+from spec_mtp.structure.algorithm.mask import (
     ESPMaskProvider, PreforwardSignalCollector, RIDGE_GRID, apply_lowrank_delta,
     centered_r2, fit_lowrank_delta,
 )

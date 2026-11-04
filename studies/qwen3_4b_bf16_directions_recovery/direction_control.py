@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
 from untimed_pairing import PairedUntimedEval, build_cuda  # noqa: E402
 from diagnose_4b_mask_windows import admission, content_start_of  # noqa: E402
 from studies._shared.structure import evaluate as assembly
-import spec_mtp.decode as decoding  # noqa: E402
+import spec_mtp.structure.algorithm.decode.loop as decoding  # noqa: E402
 from spec_mtp.structure.algorithm.factory import AlgorithmRegistry  # noqa: E402
 from spec_mtp.structure.model.factory import ModelRegistry  # noqa: E402
 

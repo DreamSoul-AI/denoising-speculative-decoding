@@ -1,5 +1,5 @@
 """Library helpers folded from one-shot structure scripts."""
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 import hashlib
 import json
 import subprocess
@@ -22,8 +22,8 @@ def cosine(a, b):
 
 def observe(model, prompt, spec, eval_cfg, eos, reference, targets, seed=124):
     import torch
-    from spec_mtp.decode import SpecDecoder
-    from spec_mtp.masks import OutputHiddenMaskProvider
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
+    from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
     k = int(spec['num_masks'])
     assert k == 2 and spec['tree']['branches'] == [1, 1] and (not spec['tree']['pruning'])
     expected = {t['root_position']: t for t in reference['stats']['trace']}
@@ -105,8 +105,8 @@ def file_hash(path):
 
 def transfer(model, prompt, spec, eval_cfg, eos, reference, donor, original_masks, root, targets, placebo=False, seed=124):
     import torch
-    from spec_mtp.decode import SpecDecoder
-    from spec_mtp.masks import OutputHiddenMaskProvider
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
+    from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
     assert spec['num_masks'] == 2 and spec['tree']['branches'] == [1, 1] and (not spec['tree']['pruning'])
     expected = reference['stats']['trace']
     intervention_call = next((i + 1 for i, t in enumerate(expected) if t['root_position'] == root))

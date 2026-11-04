@@ -3,8 +3,6 @@
   "src/spec_mtp/audit.py",
   "src/spec_mtp/cli.py",
   "src/spec_mtp/data.py",
-  "src/spec_mtp/decode.py",
-  "src/spec_mtp/masks.py",
   "src/spec_mtp/model.py",
   "studies/esp_table1_bf16_full/analyze_results.py",
   "studies/esp_table1_bf16_full/untimed_bf16.py",

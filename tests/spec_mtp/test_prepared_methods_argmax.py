@@ -1,6 +1,6 @@
 """Exercise every frozen paired Spec configuration through the real BF16 argmax gate on CPU."""
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 import copy
 from pathlib import Path
 
@@ -14,7 +14,7 @@ AXES = yaml.safe_load((ROOT / 'studies/qwen3_4b_bf16_paired_revalidation/study.y
 @pytest.mark.parametrize('setting', AXES, ids=[f"BC{c['spec']['block_complexity']}-{i % 5}" for i,c in enumerate(AXES)])
 def test_every_prepared_spec_method_has_full_argmax_coverage_and_rejects_corruption(setting):
     from spec_mtp.model import HFCausalLM
-    from spec_mtp.decode import SpecDecoder
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
     from studies._shared.structure.config import _convert
     from studies._shared.structure.validation import _check_argmax
     torch.manual_seed(7)

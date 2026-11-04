@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from spec_mtp.masks import OutputHiddenMaskProvider
+from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
 from test_proxy_transfer import baseline
 from test_window_observer import ROOT, model as model, spec
 

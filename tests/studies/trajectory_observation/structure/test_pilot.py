@@ -50,8 +50,8 @@ def test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only():
 @pytest.mark.parametrize('tree', [{'num_masks': 1, 'branches': [3]}, {'num_masks': 2, 'branches': [3, 2]},
                                   {'num_masks': 3, 'branches': [2, 2, 2]}])
 def test_oracle_masks_accept_full_depth_after_prefill(tree):
-    from spec_mtp.decode import SpecDecoder, ar_generate
-    from spec_mtp.masks import build_mask_provider
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
+    from spec_mtp.structure.algorithm.mask import build_mask_provider
     from spec_mtp.model import HFCausalLM
 
     torch.manual_seed(3)

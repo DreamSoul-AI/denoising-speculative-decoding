@@ -28,8 +28,8 @@ for _key, _sub in (
 import torch
 from transformers import AutoTokenizer
 
-from spec_mtp.decode import SpecDecoder, ar_generate
-from spec_mtp.masks import build_mask_provider, calibrate_diagonal_gain
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
+from spec_mtp.structure.algorithm.mask import build_mask_provider, calibrate_diagonal_gain
 from spec_mtp.model import HFCausalLM
 
 

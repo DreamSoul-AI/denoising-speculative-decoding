@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from spec_mtp.masks import (
+from spec_mtp.structure.algorithm.mask import (
     EMAVelocityMaskProvider, ESPMaskProvider, build_mask_provider,
 )
 from studies._shared.structure.config import _convert

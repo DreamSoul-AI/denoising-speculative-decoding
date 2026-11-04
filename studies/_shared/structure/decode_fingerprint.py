@@ -15,7 +15,7 @@ output-identical.
 
 from __future__ import annotations
 
-from spec_mtp.masks import build_mask_provider
+from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 import argparse
 import hashlib
@@ -30,7 +30,7 @@ def fingerprint() -> dict:
     import torch
 
     from studies._shared.structure.config import apply_variant
-    from spec_mtp.decode import SpecDecoder, ar_generate
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
     from studies._shared.structure.paper_variants import PAPER_VARIANTS
     from studies._shared.structure.smoke_variants import VARIANTS
     from studies._shared.structure.config import _convert
