@@ -75,6 +75,14 @@ def test_xcat7_round_keeps_the_seventh_cross_category_names():
     assert cfg['take'] == 128
 
 
+def test_first_fork_round_keeps_the_registered_stamp():
+    cfg = round_config('first_fork')
+    assert cfg['protocol'] == 'office-ar-first-fork-v1'
+    assert cfg['prefix'] == 'sd-office-ar-first-fork-v1'
+    assert cfg['stamp'] == '20261104-1244'
+    assert cfg['take'] == 128
+
+
 def _prompts():
     return [
         {'qid': 0, 'category': 'summarization', 'text': 'one'},
@@ -128,8 +136,8 @@ def test_formal_warms_each_arm_before_the_measured_rows(tmp_path, monkeypatch):
     def warmup(model, tokenizer, prompt):
         events.append(('warmup', prompt['qid']))
 
-    def decode(model, tokenizer, prompt, specs, limit):
-        events.append(('decode', prompt['qid'], limit['max_new_tokens']))
+    def decode(model, tokenizer, prompt, specs, limit, keep_sequences=False):
+        events.append(('decode', prompt['qid'], limit['max_new_tokens'], keep_sequences))
         return _decoded(prompt)
 
     monkeypatch.setattr(office_traj, '_warmup_arms', warmup)
@@ -138,7 +146,7 @@ def test_formal_warms_each_arm_before_the_measured_rows(tmp_path, monkeypatch):
     monkeypatch.setattr(office_traj, 'ablation_summary', lambda *args, **kwargs: {'wall': {'complete': True}})
     cfg = round_config('xcat7')
     _formal(None, None, _prompts()[:1], (), 'digest', tmp_path, cfg)
-    assert events == [('warmup', 0), ('decode', 0, EVAL['max_new_tokens'])]
+    assert events == [('warmup', 0), ('decode', 0, EVAL['max_new_tokens'], False)]
     header = json.loads((tmp_path / f"{cfg['prefix']}-header-{cfg['stamp']}.json").read_text(encoding='utf-8'))
     assert header['wall_protocol'] == PROTOCOL_WALL
     assert header['wall_delta'] == 'wall_seconds_traj - wall_seconds_full'

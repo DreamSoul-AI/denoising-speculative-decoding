@@ -117,6 +117,7 @@ denoising-speculative-decoding/
 | `xcat5` | brainstorming | 哈希已冻结 |
 | `xcat6` | information_extraction | 哈希已冻结 |
 | `xcat7` | summarization | 哈希已冻结。接受数归档名 `sd-office-8b-traj-xcat7` / `20261104-045236`，与墙钟产物分开 |
+| `first_fork` | 同一 summarization 128 条 | `office-ar-first-fork-v1`。首分叉与 float32 参照门在 `office_traj.py`，不另建脚本 |
 
 full 胜出子集的离线描述在 `structure/office_traj.py`，选句和 SHA256 仍用该文件里已经冻结的函数。这些离线函数没有单独的 `main`，也不增加 legacy 条目。四个旧脚本的拆分仍未做。
 
