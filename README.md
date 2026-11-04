@@ -16,7 +16,7 @@
 | [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 研究问题、假设、对照和停止规则 |
 | [开发计划 Development Plan 去噪推测解码](<docs/开发计划 Development Plan 去噪推测解码.md>) | 剩余工程、验收和待确认的来源策略 |
 | [缺陷记录 Bug Report 去噪推测解码](<docs/缺陷记录 Bug Report 去噪推测解码.md>) | 尚未关闭的问题 |
-| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-04 trajectory失败子集分析.md>) | `office-8b-traj-failset-v1` 的离线描述函数在 `structure/office_traj_failset.py`，见 [2026-11-04 trajectory失败子集分析](<docs/开发记录 Development Record/2026-11-04 trajectory失败子集分析.md>)。树模块迁入 `structure/algorithm/decode` 见 [2026-11-04 树模块迁入 decode](<docs/开发记录 Development Record/2026-11-04 树模块迁入 decode.md>)。解码合同迁入 `structure/api` 见 [2026-11-04 解码合同迁入 api](<docs/开发记录 Development Record/2026-11-04 解码合同迁入 api.md>)。完整目录见 [INDEX](<docs/开发记录 Development Record/INDEX.md>)。 |
+| [开发记录 Development Record](<docs/开发记录 Development Record/2026-11-04 独立AR不一致计划.md>) | 第十章 `office-ar-inconsistency-v1` 的由来见 [2026-11-04 独立AR不一致计划](<docs/开发记录 Development Record/2026-11-04 独立AR不一致计划.md>)。此前失败子集描述见 [2026-11-04 trajectory失败子集分析](<docs/开发记录 Development Record/2026-11-04 trajectory失败子集分析.md>)。树模块迁入 `structure/algorithm/decode` 见 [2026-11-04 树模块迁入 decode](<docs/开发记录 Development Record/2026-11-04 树模块迁入 decode.md>)。完整目录见 [INDEX](<docs/开发记录 Development Record/INDEX.md>)。 |
 | [运行记录 Run Record](<docs/运行记录 Run Record/2026-11-04 Qwen3-8B trajectory失败子集.md>) | 最近一次是 `office-8b-traj-failset-v1` 的离线描述：八组 full 胜出子集，不设通过线。此前 summarization 墙钟在 [2026-11-04 Qwen3-8B trajectory墙钟](<docs/运行记录 Run Record/2026-11-04 Qwen3-8B trajectory墙钟.md>)。此前 summarization 接受数复现在 [2026-11-04 Qwen3-8B trajectory第七次跨类复现](<docs/运行记录 Run Record/2026-11-04 Qwen3-8B trajectory第七次跨类复现.md>)。完整目录见 [INDEX](<docs/运行记录 Run Record/INDEX.md>)。 |
 
 # 二、当前实现与使用边界
