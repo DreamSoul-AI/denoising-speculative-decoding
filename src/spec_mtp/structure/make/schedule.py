@@ -366,7 +366,7 @@ def write_launch_scripts(
             [
                 '$ErrorActionPreference = "Stop"',
                 f'Set-Location -LiteralPath {json.dumps(str(repo_root_from(study_dir)))}',
-                f'& {json.dumps(py_win)} -m spec_mtp.flow.cli launch {json.dumps(study_win)}',
+                f'& {json.dumps(py_win)} -m spec_mtp.flow.study_cli launch {json.dumps(study_win)}',
                 '',
             ]
         ),
@@ -491,7 +491,7 @@ def launch_jobs(
                         _fail_result(study_dir, eval_id, f'sibling train {run_id} is being rerun; re-evaluation required')
                 if _run_result(study_dir, run_id).get('status') == STATUS_SUCCEEDED:
                     _fail_result(study_dir, run_id, 'rerun started; no successful result from this execution yet')
-                cmd = [py, '-m', 'spec_mtp.flow.cli', 'run-one', str(study_dir), run_id]
+                cmd = [py, '-m', 'spec_mtp.flow.study_cli', 'run-one', str(study_dir), run_id]
                 where = 'window' if console_mode == 'new' and os.name == 'nt' else 'here'
                 resource = f'gpu={job["gpu"]}' if job.get('gpu') is not None and str(job.get('device') or 'cuda').lower() != 'cpu' else 'cpu'
                 print(f'+ {resource} {job["run_id"]} ({where})', flush=True)

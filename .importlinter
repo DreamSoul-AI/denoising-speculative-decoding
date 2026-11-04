@@ -18,11 +18,11 @@ source_modules =
     spec_mtp.structure.api.decode_api
     spec_mtp.structure.algorithm.decode.tree
     spec_mtp.structure.algorithm.decode.tree_attention
-    spec_mtp.data
+    spec_mtp.structure.data.prompts
     spec_mtp.structure.algorithm.decode.loop
     spec_mtp.structure.algorithm.mask
-    spec_mtp.audit
-    spec_mtp.analysis
+    spec_mtp.structure.artifact.observation
+    spec_mtp.structure.algorithm.counts
 forbidden_modules =
-    spec_mtp.cli
-    spec_mtp.model
+    spec_mtp.flow.cli
+    spec_mtp.structure.model.hf_causal

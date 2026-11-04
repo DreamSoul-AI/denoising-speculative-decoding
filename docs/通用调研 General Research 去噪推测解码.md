@@ -37,7 +37,7 @@ flowchart LR
     Forward --> Audit[关联 logits 行、owner 和提交审计]
 ```
 
-图为本地机制分析，箭头是数据和处理顺序，所有框首先在同一解码进程。prefill 先计算首 token 与首棵树的 seed；后续每步验证接受路径并产生下一棵树 seed。被拒 draft 不能进入长期 mask 历史，bonus 在下一步作为 root，步后 `cache_len == root_pos`。验证、缓存剪裁和下一步 seed 归属必须一起核对。[当前解码器](../src/spec_mtp/structure/algorithm/decode/loop.py)、[KV 操作](../src/spec_mtp/model.py)
+图为本地机制分析，箭头是数据和处理顺序，所有框首先在同一解码进程。prefill 先计算首 token 与首棵树的 seed；后续每步验证接受路径并产生下一棵树 seed。被拒 draft 不能进入长期 mask 历史，bonus 在下一步作为 root，步后 `cache_len == root_pos`。验证、缓存剪裁和下一步 seed 归属必须一起核对。[当前解码器](../src/spec_mtp/structure/algorithm/decode/loop.py)、[KV 操作](../src/spec_mtp/structure/model/hf_causal.py)
 
 # 三、掩码状态、观测与验证语义
 ## （一）输入 embedding 的零阶与一阶
@@ -47,7 +47,7 @@ flowchart LR
 ## （二）输出隐藏状态的预测与映射
 当前 `OutputHiddenMaskProvider` 观察 final normalized hidden，内部 anchor/velocity 以 FP32 保存，模型前向与最终 mask 可为 BF16。已提交真实隐藏状态更新长期 anchor，速度衰减 β；块内 proxy 以 β′ 模拟 owner 状态，生成不同深度的预测。临时 proxy 不能写回长期 committed 状态。[providers.py](../src/spec_mtp/structure/algorithm/mask/providers.py)
 
-其映射为 `Φ(z)=s·z/||z||`，`s` 为输入 embedding 表平均行范数，拒绝非有限或零范数。tied embedding 与输出 head 的实际共享存储是现有输出路径前提，不能只看模型配置的布尔标记，也不能把归一化映射叫逆模型。序列/owner 对齐错一位，就可能用错 proxy 预测下一树，即使类型形状相同。[providers.py](../src/spec_mtp/structure/algorithm/mask/providers.py)、[模型接入](../src/spec_mtp/model.py)
+其映射为 `Φ(z)=s·z/||z||`，`s` 为输入 embedding 表平均行范数，拒绝非有限或零范数。tied embedding 与输出 head 的实际共享存储是现有输出路径前提，不能只看模型配置的布尔标记，也不能把归一化映射叫逆模型。序列/owner 对齐错一位，就可能用错 proxy 预测下一树，即使类型形状相同。[providers.py](../src/spec_mtp/structure/algorithm/mask/providers.py)、[模型接入](../src/spec_mtp/structure/model/hf_causal.py)
 
 EMA 可平滑历史变化，但这本身不提供噪声观测模型、协方差、Kalman 增益或最优估计证明。“去噪推测解码”是项目名称。本仓没有 diffusion 去噪模型。输出隐藏上的对角混合卡尔曼 `output-hidden-hybrid-kalman-v1` 已作为负结果消融关闭：它没有同时超过 ESP 和 output hidden 原版，0.6B 的接受数下降来自 output hidden 轨迹本身。嵌入空间里、节点数与 ESP 相同的替换比较随后也没有在 SpecBench 新切片和 Dolly 上让 4B 与 0.6B 一起通过。输出一阶仍要由配对结果检验，不能由公式名称认定成立。
 
@@ -68,11 +68,10 @@ EMA 可平滑历史变化，但这本身不提供噪声观测模型、协方差�
 
 历史作者入口核查未取得可运行原生代码，后续已明确停止追找。2026年10月21日重读论文与代表方法公开入口用于技术调研，没有重启作者入口搜寻、下载模型或执行第三方算法。不能由“未核验到”断言作者从未开源。
 ## （二）当前源码职责与目标差距
-当前 CLI/Study recipe 注册 RPipe 的 Data、Model 和 Algorithm，默认 prepare/execute 复用库，专项 collect/summarize/write/process 计算和核验证据。RPipe 通用 provenance 不直接覆盖 Study 外的 `spec_mtp`，专项 `sources.py` 为其记录额外源码锁。模型输入、权重 digest、tokenizer/runtime 和原始输出在最终验收前复核。[来源锁](../studies/_shared/structure/sources.py)、[证据](../studies/_shared/structure/evidence.py)、[验收门](../studies/_shared/flow/summarize/run.py)
+Study recipe 注册宿主的 Data、Model 和 Algorithm，默认 prepare/execute 复用阶段实现，专项 collect/summarize/write/process 计算和核验证据。专项 `sources.py` 记录被复用宿主与共享适配的源码锁。模型输入、权重 digest、tokenizer/runtime 和原始输出在最终验收前复核。[来源锁](../studies/_shared/structure/sources.py)、[证据](../studies/_shared/structure/evidence.py)、[验收门](../studies/_shared/flow/summarize/run.py)
 
-这些是当前代码事实，不意味着分层已符合目标。科学代码、Rpipe 接入和运行证据目前交叉在 `structure/flow`，目标要把科学包与执行框架隔离。设计保留现有算法语义与固定 pin，避免为了目录改造引入另一执行器、状态库或插件系统。
+科学合同、数据、模型、计算与产物按 structure 职责分开，flow 装配并协调执行。RPipe 作为结构参考，流程由本仓实现。实现差距见开发计划。
 
-离线核验 P01：2026年10月21日仅取 `tools/diagnose_output_windows.py:file_hash` 的 AST，在隔离命名空间以禁止子进程的假调用检查。原数据哈希正常，旧计划路径触发已删除 `plan-consolidation-manifest.json` 的 `FileNotFoundError`，子进程/模型/GPU 调用均为0。这确认清理后的旧消费者确有未迁移项，没有修改实现或把预期失败记成全量通过。
 ## （三）设计输入
 | **约束** | **为什么保留** | **最小设计响应** |
 | --- | --- | --- |
@@ -82,10 +81,7 @@ EMA 可平滑历史变化，但这本身不提供噪声观测模型、协方差�
 | 质量与进度分开 | execute 完成、来源完整、数学自检、论文目标分别可能失败 | 多维结果不压成一个 success/complete |
 | 先满足当前研究规模 | 尚无远程伸缩或多后端平台需求 | 单机模块和一个执行协调者，不建服务与通用插件市场 |
 
-# 五、历史测量的位置
-8B 非官方 Table 1、4B 五方法、方向与范数、探索失败，以及 H01–H09 的哈希和恢复边界，已迁入 [2026-10-31 历史证据归位](<运行记录 Run Record/2026-10-31 历史证据归位.md>)。那些数字保持原口径和原件链接。本文只保留机制判断：固定条件下可以比较接受数与调用数；BC30/60 未达到论文目标；输入一阶在已完成的 4B 五方法里总量最好；同范数随机方向也能高于零偏置。τ 不是实测加速。
-
-# 七、来源、阅读范围与未验证事项
+# 五、来源、阅读范围与未验证事项
 公开资料实际访问日期为2026年10月21日。下表分别说明原文阅读、源码分析和历史引用，不把成功抓取页面当作全文精读。
 
 | **来源** | **版本与阅读范围** | **用途与限制** |

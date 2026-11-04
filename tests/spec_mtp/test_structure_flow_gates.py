@@ -21,7 +21,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 ALLOWLIST_DIR = Path(__file__).resolve().parent / 'legacy_allowlists'
 UPSTREAM = 'src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/upstream/'
-HOST_TOP = frozenset({'__init__.py', '__main__.py'})
+HOST_TOP = frozenset({'__init__.py', '__main__.py', 'cli.py'})
 STUDY_TOP = frozenset({'__init__.py', 'recipe.py'})
 SUBLAYERS = frozenset({
     'api', 'control', 'data', 'model', 'algorithm', 'system', 'artifact', 'make',

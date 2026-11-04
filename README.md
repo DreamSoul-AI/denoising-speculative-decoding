@@ -3,7 +3,7 @@
 
 截至2026年10月21日的 8B 非官方 Table 1 独立复验已经完成，论文目标未复现。数字和原件在 [历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>)。提交 token 的验证前向 argmax 自检与独立 AR 一致率分别报告，τ 是提交数与解码调用数之比，不能据此认定实际速度收益。
 
-已实现的 K 校正是协议 `postcommit-final-norm-v1` 的合成工程夹具，不是 2026年10月31日会议中的 trajectory 与 observation 联合更新，也不是 Kalman 滤波。160 对数据协议和真实模型收益都还没有执行。会议方法的默认公式和合成测量见 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>) 与 [联合 mask 检查](<docs/运行记录 Run Record/2026-11-01 联合mask检查.md>)。
+已实现的 K 校正是协议 `postcommit-final-norm-v1` 的合成工程夹具，不是 2026年10月31日会议中的 trajectory 与 observation 联合更新，也不是 Kalman 滤波。160 对数据协议和真实模型收益都还没有执行。历史协议与合成测量入口见 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>) 与 [联合 mask 检查](<docs/运行记录 Run Record/2026-11-01 联合mask检查.md>)。
 
 # 一、文档入口
 | **文档** | **维护内容** |
@@ -20,7 +20,11 @@
 | [运行记录 Run Record](<docs/运行记录 Run Record/INDEX.md>) | 实际执行、环境与结果。目录见 [INDEX](<docs/运行记录 Run Record/INDEX.md>)。 |
 
 # 二、当前实现与使用边界
-当前安装包为 `denoise-spec-mtp`。`spec_mtp` 与每个 `studies/<name>/` 的目标布局都是 [RPipe](https://github.com/DreamSoul-AI/RPipe) 的 `structure/` 与 `flow/` 两柱：`structure` 定义一次 Run 由什么组成，`flow` 运行阶段链。顶层只保留 `__init__.py`、`__main__.py` 和薄入口。新增机制必须先落在这两柱里；要改这条规则，先改代码结构设计。解码合同在 `structure/api/decode_api.py`。树构造、节点编辑、树注意力和解码循环在 `structure/algorithm/decode/`。mask provider、K 拟合和注册表在 `structure/algorithm/mask/`。`contracts.py`、`tree.py`、`masks.py` 与 `decode.py` 已删除，调用方导入这些真实路径。其余解码内容仍在 `data.py`、`model.py`、`audit.py`、`analysis.py`、`cli.py`，Study 顶层还有一批历史脚本。这些仍是冻结遗留，迁移分步进行。流程骨架已经在 `spec_mtp.flow` 与 `spec_mtp.structure`，不再内嵌 `src/rpipe/` 副本，也不再 `import rpipe`。`python -m spec_mtp` / `spec-mtp` 提供 `decode/audit/compare`；旧 make/launch/process 研究命令明确拒绝并提示使用 `python -m studies._shared.flow.cli`。
+当前安装包为 `denoise-spec-mtp`，研究宿主 `spec_mtp` 按 [RPipe](https://github.com/DreamSoul-AI/RPipe) 的 `structure/` 与 `flow/` 两柱组织。宿主顶层保留包标记、模块入口和稳定控制台薄入口 `cli.py`。合同在 `structure/api/decode_api.py`，数据在 `structure/data/prompts.py`，模型在 `structure/model/hf_causal.py`，解码与 mask 在 `structure/algorithm/`，统计在 `structure/algorithm/counts.py`，观测与审计在 `structure/artifact/observation.py`。原数据、模型、审计和分析顶层模块已删除，调用方直接导入真实路径。
+
+`python -m spec_mtp` / `spec-mtp` 由 `flow/cli.py` 提供 `decode/audit/compare`。Study 使用 `python -m studies._shared.flow.cli`，接入宿主 `flow/study_cli.py` 与默认六阶段。包初始化不加载模型或整套调度器。流程由本仓实现，不再内嵌 `src/rpipe/`。Study 顶层脚本和旧流程 API facade 仍有遗留，见代码结构设计与开发计划。
+
+算法由 Enmao 重新设计，当前进行结构整理与有界 CPU 验证。新算法实验、GPU 长跑、测速和模型下载暂停，旧协议仅作为历史证据。每轮从 dev 工作分支经 PR 集成，不直接修改 main。
 
 第三方 ESP 来源树及 `ORIGIN.json` 保留，不能把它称为作者官方实现。原始 SpecBench 数据保留于 `datasets/spec_bench/question.jsonl`。
 
@@ -39,4 +43,4 @@
 
 Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproject.toml)，当前研究宿主为 `spec_mtp`。目录入口：[产品或库源码](src/spec_mtp/)、[研究声明与适配](studies/)、[测试](tests/)、[当前文档](docs/)。运行与测试按本 README、相关设计和实际配置选择，不把历史命令视为新的实验授权。
 
-文档职责按 AGENTS.md 维护。通用调研不代替文献调研，研究计划不代替开发计划。历史测量在运行记录，结构调整在开发记录。飞书规范正文本次没有读到，入口索引不能代替那些正文。
+文档职责按 AGENTS.md 维护。通用调研不代替文献调研，研究计划不代替开发计划。历史测量在运行记录，结构调整在开发记录。本轮从已关联 DreamSoul 资料库读取研发根约定及相关代码、协作、测试、研究计划、文献、文档和架构规范。本地资料的读取不代表云端同步或最新远端核验。

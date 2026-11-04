@@ -91,7 +91,7 @@ def test_unmade_repeat_writes_pending_only(modules, monkeypatch, tmp_path):
 
 def test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token():
     import torch
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
     from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
     from studies._shared.structure.config import _convert
     from studies._shared.structure.validation import _check_argmax

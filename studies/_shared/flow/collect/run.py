@@ -2,7 +2,7 @@
 import csv
 import json
 from pathlib import Path
-from spec_mtp.analysis import _aggregate, totals
+from spec_mtp.structure.algorithm.counts import _aggregate, totals
 
 def run(ctx):
     """Study collect hook: derive CSV and Tracker metrics from execute evidence."""

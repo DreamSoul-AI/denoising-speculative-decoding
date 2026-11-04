@@ -10,7 +10,7 @@ import torch
 
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
 from studies._shared.structure.config import _convert
-from spec_mtp.model import HFCausalLM
+from spec_mtp.structure.model.hf_causal import HFCausalLM
 from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
 
 ROOT = Path(__file__).resolve().parents[2]

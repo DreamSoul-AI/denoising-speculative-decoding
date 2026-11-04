@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from spec_mtp.cli import main
+from spec_mtp.flow.cli import main
 from test_decode import request, run
 
 
@@ -39,7 +39,7 @@ def test_legacy_study_commands_explain_the_moved_entry(capsys):
 
 
 def test_cli_request_identity_is_validated_before_model_import(tmp_path):
-    from spec_mtp.cli import _decode
+    from spec_mtp.flow.cli import _decode
     from types import SimpleNamespace
     body = asdict(request())
     body['prompt']['qid'] = True
@@ -65,8 +65,9 @@ def test_cli_audit_rejects_corrupt_trace_without_model_calls(tmp_path, capsys):
 @pytest.mark.parametrize('keys', [[], ['factor']])
 @pytest.mark.parametrize('change', ['none', 'input_sha256', 'factor'])
 def test_cli_compare_keeps_required_and_additional_pairing_checks(tmp_path, capsys, keys, change):
-    from test_analysis import row
-    left, right = row(factor='f'), row(factor='f')
+    left = dict(qid='q', accepted=2, committed=3, decode_calls=2, new_tokens=4,
+                input_sha256='input', protocol='v1', evidence_complete=True, factor='f')
+    right = dict(left)
     if change != 'none':
         right[change] = 'changed'
     paths = [tmp_path/name for name in ('left.json', 'right.json', 'pairing.json')]
@@ -80,15 +81,15 @@ def test_cli_compare_keeps_required_and_additional_pairing_checks(tmp_path, caps
 
 @pytest.mark.parametrize('output_state', ['existing', 'missing_parent'])
 def test_cli_output_admission_precedes_model_construction(tmp_path, monkeypatch, output_state):
-    from spec_mtp.cli import _decode
-    import spec_mtp.model
+    from spec_mtp.flow.cli import _decode
+    import spec_mtp.structure.model.hf_causal
 
     args = model_args(tmp_path)
     output = tmp_path / 'raw.jsonl' if output_state == 'existing' else tmp_path / 'missing' / 'raw.jsonl'
     if output_state == 'existing':
         output.write_bytes(b'original evidence\n')
     constructed = []
-    monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', lambda *args, **kwargs: constructed.append(args))
+    monkeypatch.setattr(spec_mtp.structure.model.hf_causal, 'HFCausalLM', lambda *args, **kwargs: constructed.append(args))
     with pytest.raises(OSError):
         args.output = output
         _decode(args)
@@ -101,10 +102,10 @@ def test_cli_output_admission_precedes_model_construction(tmp_path, monkeypatch,
 
 @pytest.mark.parametrize('close_fails', [False, True])
 def test_cli_failed_model_construction_closes_reserved_incomplete_output(tmp_path, monkeypatch, close_fails):
-    from spec_mtp.cli import _decode
-    from spec_mtp.audit import JsonlSink, audit_run
-    import spec_mtp.audit
-    import spec_mtp.model
+    from spec_mtp.flow.cli import _decode
+    from spec_mtp.structure.artifact.observation import JsonlSink, audit_run
+    import spec_mtp.structure.artifact.observation
+    import spec_mtp.structure.model.hf_causal
 
     args = model_args(tmp_path)
     output = args.output
@@ -126,8 +127,8 @@ def test_cli_failed_model_construction_closes_reserved_incomplete_output(tmp_pat
     def fail_model(*args, **kwargs):
         raise failure
 
-    monkeypatch.setattr(spec_mtp.audit, 'JsonlSink', ObservedSink)
-    monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', fail_model)
+    monkeypatch.setattr(spec_mtp.structure.artifact.observation, 'JsonlSink', ObservedSink)
+    monkeypatch.setattr(spec_mtp.structure.model.hf_causal, 'HFCausalLM', fail_model)
     with pytest.raises(RuntimeError) as raised:
         _decode(args)
     assert raised.value is failure
@@ -138,10 +139,10 @@ def test_cli_failed_model_construction_closes_reserved_incomplete_output(tmp_pat
 
 
 def test_cli_success_closes_its_model_and_keeps_auditable_output(tmp_path, monkeypatch):
-    from spec_mtp.cli import _decode
-    from spec_mtp.audit import audit_run
+    from spec_mtp.flow.cli import _decode
+    from spec_mtp.structure.artifact.observation import audit_run
     from test_decode import FakeSession
-    import spec_mtp.model
+    import spec_mtp.structure.model.hf_causal
 
     class Session(FakeSession):
         def describe(self):
@@ -153,7 +154,7 @@ def test_cli_success_closes_its_model_and_keeps_auditable_output(tmp_path, monke
     session = Session()
     args = model_args(tmp_path)
     output = args.output
-    monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', lambda *args, **kwargs: session)
+    monkeypatch.setattr(spec_mtp.structure.model.hf_causal, 'HFCausalLM', lambda *args, **kwargs: session)
     result = _decode(args)
     assert result['execution'] == 'completed' and result['evidence_complete']
     assert session.closed and session.calls > 0
@@ -165,8 +166,8 @@ def test_cli_success_closes_its_model_and_keeps_auditable_output(tmp_path, monke
 
 @pytest.mark.parametrize('damage', ['empty', 'list', 'bad_sha', 'stale', 'missing_member', 'extra_member', 'escape', 'inside_root', 'output_inside_root'])
 def test_cli_rejects_model_manifest_before_constructing_model(tmp_path, monkeypatch, damage):
-    from spec_mtp.cli import _decode
-    import spec_mtp.model
+    from spec_mtp.flow.cli import _decode
+    import spec_mtp.structure.model.hf_causal
 
     args = model_args(tmp_path)
     declared = json.loads(args.model_sources.read_text())
@@ -190,7 +191,7 @@ def test_cli_rejects_model_manifest_before_constructing_model(tmp_path, monkeypa
         args.output = args.model / 'raw.jsonl'
     args.model_sources.write_text(json.dumps(declared), encoding='utf-8')
     calls = []
-    monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', lambda *a, **k: calls.append(a))
+    monkeypatch.setattr(spec_mtp.structure.model.hf_causal, 'HFCausalLM', lambda *a, **k: calls.append(a))
     with pytest.raises((ValueError, OSError)):
         _decode(args)
     assert calls == [] and not args.output.exists()
@@ -198,11 +199,11 @@ def test_cli_rejects_model_manifest_before_constructing_model(tmp_path, monkeypa
 
 @pytest.mark.parametrize('damage', ['modify', 'add', 'remove'])
 def test_cli_model_drift_cannot_write_completed_end(tmp_path, monkeypatch, damage):
-    from spec_mtp.cli import _decode
+    from spec_mtp.flow.cli import _decode
     from spec_mtp.structure.algorithm.decode.loop import DecodeFailure
-    from spec_mtp.audit import audit_run
+    from spec_mtp.structure.artifact.observation import audit_run
     from test_decode import FakeSession
-    import spec_mtp.model
+    import spec_mtp.structure.model.hf_causal
 
     args = model_args(tmp_path)
 
@@ -224,7 +225,7 @@ def test_cli_model_drift_cannot_write_completed_end(tmp_path, monkeypatch, damag
             self.closed = True
 
     session = Session()
-    monkeypatch.setattr(spec_mtp.model, 'HFCausalLM', lambda *a, **k: session)
+    monkeypatch.setattr(spec_mtp.structure.model.hf_causal, 'HFCausalLM', lambda *a, **k: session)
     with pytest.raises(DecodeFailure) as raised:
         _decode(args)
     assert isinstance(raised.value.__cause__, ValueError)

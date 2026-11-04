@@ -339,7 +339,7 @@ def _load_model():
     import torch
     from transformers import AutoTokenizer
 
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
 
     path = MODELS['8b']
     if not path.is_dir():

@@ -7,7 +7,7 @@ from unittest.mock import patch
 import psutil,torch,yaml
 ROOT=Path.cwd();sys.path.insert(0,str(ROOT/'studies/qwen3_4b_bf16_bias_norm_scan'))
 import norm_control
-from spec_mtp.model import HFCausalLM
+from spec_mtp.structure.model.hf_causal import HFCausalLM
 import spec_mtp.structure.algorithm.decode.loop as decoding
 from studies._shared.structure.config import _convert
 from studies._shared.structure.validation import _check_argmax

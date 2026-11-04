@@ -14,12 +14,12 @@ Reports the paper's metrics per SpecBench category and overall:
 from spec_mtp.structure.algorithm.mask import build_mask_provider
 
 import torch
-from spec_mtp.analysis import _aggregate, prompt_tau
+from spec_mtp.structure.algorithm.counts import _aggregate, prompt_tau
 
 from studies._shared.structure import csv_logger
 from studies._shared.structure.inputs import legacy_inputs, make_generator
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
-from spec_mtp.model import sync_device
+from spec_mtp.structure.model.hf_causal import sync_device
 
 
 

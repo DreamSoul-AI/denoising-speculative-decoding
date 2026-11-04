@@ -20,10 +20,10 @@ from pathlib import Path
 
 import torch
 
-from spec_mtp.analysis import compare, prompt_tau, round_split
+from spec_mtp.structure.algorithm.counts import compare, prompt_tau, round_split
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
 from spec_mtp.structure.algorithm.mask import build_mask_provider, fit_mask_correction, select_affine_ridge
-from spec_mtp.model import HFCausalLM
+from spec_mtp.structure.model.hf_causal import HFCausalLM
 
 PROTOCOL = 'trajectory-observation-pilot-v2'
 JOINT_GAINS = (0.25, 0.5, 0.75)

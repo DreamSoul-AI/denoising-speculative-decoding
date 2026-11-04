@@ -3,7 +3,7 @@
 import torch
 
 from studies._shared.structure.config import _convert
-from spec_mtp.model import build_model
+from spec_mtp.structure.model.hf_causal import build_model
 
 
 def test_tiny_llama_embeds_token_ids():

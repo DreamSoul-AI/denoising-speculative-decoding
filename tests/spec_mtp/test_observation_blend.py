@@ -3,12 +3,12 @@
 import pytest
 import torch
 
-from spec_mtp.analysis import round_split
+from spec_mtp.structure.algorithm.counts import round_split
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
 from spec_mtp.structure.algorithm.mask import (BonusSlotMaskProvider, ESPMaskProvider, ObservationBlendMaskProvider,
                             OutputHiddenMaskProvider, PreforwardSignalCollector, apply_lowrank_delta,
                             build_mask_provider, centered_r2, fit_lowrank_delta)
-from spec_mtp.model import HFCausalLM
+from spec_mtp.structure.model.hf_causal import HFCausalLM
 from spec_mtp.structure.algorithm.decode.tree import DraftTree
 
 

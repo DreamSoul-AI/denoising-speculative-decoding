@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from spec_mtp.audit import audit_run
+from spec_mtp.structure.artifact.observation import audit_run
 from test_decode import request, run
 
 
@@ -46,7 +46,7 @@ def test_source_mismatch_is_independent_of_correct_argmax():
 def test_model_sources_reject_resolved_members_outside_root(tmp_path, monkeypatch):
     import hashlib
     from pathlib import Path
-    from spec_mtp.audit import verify_model_files
+    from spec_mtp.structure.artifact.observation import verify_model_files
 
     root = tmp_path / 'model'
     root.mkdir()

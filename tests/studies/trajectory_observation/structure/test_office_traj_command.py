@@ -193,7 +193,7 @@ def test_formal_stops_when_warmup_sync_or_argmax_fails(tmp_path, monkeypatch):
 
     monkeypatch.setattr(
         'studies.trajectory_observation.structure.office_tree.arm_row', both_arms)
-    monkeypatch.setattr('spec_mtp.model.sync_device', fail_sync)
+    monkeypatch.setattr('spec_mtp.structure.model.hf_causal.sync_device', fail_sync)
     with pytest.raises(RuntimeError, match='sync failed'):
         _formal(type('Model', (), {'device': 'cpu'})(), _Tokenizer(), _prompts()[:1], (), 'digest', tmp_path, cfg)
     assert events == ['arm', 'arm', 'sync']

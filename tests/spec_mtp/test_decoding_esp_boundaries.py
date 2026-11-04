@@ -13,13 +13,13 @@ import pytest
 import torch
 
 import spec_mtp.structure.algorithm.decode.loop as decoding
-from spec_mtp.analysis import _aggregate, totals
+from spec_mtp.structure.algorithm.counts import _aggregate, totals
 from studies._shared.structure import evaluate as esp_mtp
 from studies._shared.structure.config import apply_variant
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate, select_token, tree_probs
 from studies._shared.structure.smoke_variants import VARIANTS
 from studies._shared.structure.config import _convert
-from spec_mtp.model import HFCausalLM
+from spec_mtp.structure.model.hf_causal import HFCausalLM
 
 
 @pytest.fixture(scope='module')

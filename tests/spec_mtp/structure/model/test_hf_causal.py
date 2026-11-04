@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from spec_mtp.model import HFCausalLM, new_cache, keep_block_positions, cache_len
+from spec_mtp.structure.model.hf_causal import HFCausalLM, new_cache, keep_block_positions, cache_len
 
 
 def test_borrowed_model_survives_close_and_closed_session_rejects_forward():

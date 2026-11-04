@@ -61,7 +61,7 @@ def test_eight_preregistered_cells_and_immutable_inputs(monkeypatch):
 def test_native_tiny_bf16_argmax_audit_for_scaled_bias(monkeypatch, scale):
     import spec_mtp.structure.algorithm.decode.loop as decoding
     from studies._shared.structure.config import _convert
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
     m = module(monkeypatch)
     torch.manual_seed(17)
     model = HFCausalLM(tiny_config={'vocab_size': 32, 'hidden_size': 16, 'intermediate_size': 32,

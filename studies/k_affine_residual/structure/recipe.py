@@ -112,7 +112,7 @@ def _data_builder(config, assets_dir, seed=None):
 
 def _model_builder(config, assets_dir, data_meta=None):
     from spec_mtp.structure.api.model_api import Model
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
     from transformers import LlamaConfig, LlamaForCausalLM
 
     del assets_dir

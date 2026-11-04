@@ -8,7 +8,7 @@ import studies._shared.structure.evaluate as esp_mtp
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
 from studies._shared.structure.smoke_variants import VARIANTS
 from studies._shared.structure.config import _convert
-from spec_mtp.model import HFCausalLM
+from spec_mtp.structure.model.hf_causal import HFCausalLM
 
 
 def _model(max_pos):

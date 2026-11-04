@@ -1,5 +1,5 @@
 **去噪推测解码 架构设计**
-更新日期：2026年11月4日。状态：当前选定设计。科学职责保持；源码组织的目标是 `structure` / `flow` 两柱。解码合同已迁入 `structure/api`，其余模块尚未按该目标搬迁。实现差距和验收顺序见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)。机制见 [通用调研 General Research](<通用调研 General Research 去噪推测解码.md>)，历史数字见 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，文件职责见 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，实验问题见 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。
+更新日期：2026年11月5日。当前选定的职责与质量方向。源码映射见 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，实施差距与顺序见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)，科学主张见 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。机制由 [通用调研](<通用调研 General Research 去噪推测解码.md>) 解释，历史执行由 [运行记录](<运行记录 Run Record/INDEX.md>) 定位。
 
 # 一、从研究目标推导架构
 ## （一）目标、上下文与约束
@@ -8,7 +8,7 @@
 ```mermaid
 flowchart LR
     Researcher[研究者] -->|显式科学请求| Host[spec_mtp 科学包]
-    Researcher -->|已获准的 Study 声明| Pipeline[固定 RPipe]
+    Researcher -->|已获准的 Study 声明| Pipeline[宿主流程协调者]
     Pipeline -->|载入薄适配| Study[Study]
     Study -->|调用公共入口| Host
     Host -->|模型合同| Model[本地目标模型与 tokenizer]
@@ -16,7 +16,7 @@ flowchart LR
     Pipeline -->|生命周期与终态| RunData
 ```
 
-这是目标上下文/交互图，箭头表示使用或数据写入，不表示 import。科学包独立于执行框架，Study 适配向阶段链提交科学事实，执行终态由阶段协调者决定。源码目录、逻辑模块和进程分别描述。`spec_mtp` 与每个 Study 的目录都是 `structure/` 加 `flow/`：前者组成一次 Run，后者跑阶段链。顶层只留薄入口。这条目录规则以代码结构设计为准；要改它，先改那份文档。当前扁平模块是冻结遗留。
+这是目标上下文/交互图，箭头表示使用或数据写入，不表示 import。科学包独立于执行框架，Study 适配向阶段链提交科学事实，执行终态由阶段协调者决定。源码目录、逻辑模块和进程分别描述。`spec_mtp` 与每个 Study 的目录都是 `structure/` 加 `flow/`：前者组成一次 Run，后者跑阶段链。顶层只留薄入口。这条目录规则以代码结构设计为准；要改它，先改那份文档。源码归属由代码结构设计维护。
 
 当前授权为隔离分支架构重构与本地有界 CPU 验证。两处第三方原树、来源及原始数据保留，真实模型实验、下载和 GPU 长跑不在本轮范围。
 ## （二）具体质量场景
@@ -32,7 +32,7 @@ flowchart LR
 
 延迟、显存和超时阈值在具体设备/计划实测后确定，当前不编造性能门槛。自检、AR 等价、采样分布和速度收益的差别沿用通用调研。
 ## （三）规模与组织选择
-首选单机模块化科学包，加同进程 Study 薄适配；RPipe 负责受控执行过程。数据、模型接入、解码、审计、分析是需要独立验证的责任，不按“层数齐全”增加服务、注册中心、事件总线或存储平台。
+首选单机模块化科学包，加同进程 Study 薄适配；宿主 flow 负责受控执行过程。数据、模型接入、解码、审计、分析是需要独立验证的责任，不按“层数齐全”增加服务、注册中心、事件总线或存储平台。
 
 模型通常在一个受管子进程中使用 GPU。CLI、Study 和科学模块数量不决定进程数量。尚无跨设备服务或多模型调度需求，不建设微服务与通用插件框架。
 
@@ -46,9 +46,9 @@ flowchart LR
 | 科学审计 `audit` | `audit_run`，原始提交观测、来源声明与实际摘要 → 分维度 verdict | 定义提交覆盖、owner/row、计数和来源一致性规则；不改 Run 终态，不补造缺失 raw |
 | 分析 `analysis` | `summarize`、`compare`，已准入科学记录 → 指标与逐 prompt 对照 | 无活动执行状态，固定统计口径和缺口，不读取日志推断成功，不发起模型 |
 | 宿主与 Study 的 `structure` / `flow` | structure 放契约、数据、模型、算法、系统、产物和注册；flow 把阶段跑起来并转调这些入口 | 宿主不导入 `rpipe` / `studies`；flow 可以导入 structure；structure 不导入 flow。当前扁平模块是冻结遗留 |
-| 固定 RPipe | 计划、执行权、六阶段、取消、记录终态与读取 | 唯一拥有 Run 生命周期、进程句柄、运行目录和整体执行结果，文档目标不表示当前 pin 已实现全部语义 |
+| 宿主流程协调者 | 计划、执行权、六阶段、取消、记录终态与读取 | 唯一拥有 Run 生命周期、进程句柄、运行目录和整体执行结果，文档目标不表示当前 pin 已实现全部语义 |
 
-共享数据和模型最小接口的目标位置是 `structure/api`。一次 decode 会话拥有科学可变状态，模型具体 cache 句柄由其接入管理，解码器决定只保留哪些语义位置。`audit` 返回质量事实，Study 的 flow 映射到阶段结果，双方不各维护最终 success。这些责任现在仍由扁平模块实现，文件对照见代码结构设计第五节。
+共享数据和模型最小接口的目标位置是 `structure/api`。一次 decode 会话拥有科学可变状态，模型具体 cache 句柄由其接入管理，解码器决定只保留哪些语义位置。`audit` 返回质量事实，Study 的 flow 映射到阶段结果，双方不各维护最终 success。文件对照见代码结构设计。
 ## （二）公共数据与入口
 | **合同** | **输入 → 输出** | **前置、后置与副作用** |
 | --- | --- | --- |
@@ -91,11 +91,11 @@ flowchart TB
 
 箭头仅表示目标 import。`flow` 可以导入 `structure`。`structure` 不导入 `flow`。`api` 不导入其他 structure 子层。解码通过注入模型会话进入具体接入，源码不导入 HF 接入。`spec_mtp` 不导入 `rpipe` 或 `studies`。数据与模型不导入解码，审计与分析不导入模型。跨研究复用进入宿主公共入口，Study 内部私有函数不被宿主反向导入。
 
-这张图是搬迁完成后的方向。解码合同、树、解码循环和 mask 已经在 `structure/`，顶层 `contracts.py`、`tree.py`、`masks.py`、`decode.py` 已删除。`data.py`、`model.py`、`audit.py`、`analysis.py`、`cli.py` 仍是扁平文件。`structure/api` 还会再导出 algorithm、data、model、system。那些边冻结在代码结构设计的 legacy 清单里。具体文件只在 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>) 维护。静态检查不证明动态导入、数据泄漏、状态或数值合同正确。`.importlinter` 在步骤 8 之前仍混有扁平模块。
+依赖方向由静态检查和具体调用测试共同约束。旧流程 API facade 的四条反向依赖仍记录在缩减清单中，清理顺序见开发计划。静态检查不证明动态导入、状态和数值合同正确。
 ## （二）一次完整研究运行
 ```mermaid
 sequenceDiagram
-    participant R as RPipe 协调者
+    participant R as 宿主流程协调者
     participant S as Study 薄适配
     participant D as 科学解码会话
     participant M as 已装配模型会话
@@ -124,7 +124,7 @@ sequenceDiagram
 
 # 四、执行、取消、恢复与部署
 ## （一）分开 Run 与 prompt 状态
-Run 生命周期权威在 RPipe，科学 decode 只报告本条计算的进展与结束事实。下图是期望协调语义，当前 v0.3.1 pin 尚未实现全部目标，不能据图称已具备强取消和外部运行根。
+Run 生命周期权威在 RPipe，科学 decode 只报告本条计算的进展与结束事实。下图是期望协调语义，实际强取消与外部运行根能力须按对应实现和运行证据验收。
 
 ```mermaid
 stateDiagram-v2
@@ -166,7 +166,7 @@ CLI、YAML/JSON、token 数据、Hub 文件和旧运行记录都校验形状、�
 
 模型 cache 的原生数据不作为公共结果传给读端。外部提供的路径限制到明确输入/运行根，路径含中文/空格可正常使用。tokenizer、chat template、thinking、EOS、context 与停止条件都是输入合同的一部分。模型名相同不代替实际内容 digest，未知 immutable revision 不伪填当前 HEAD。
 ## （二）业务证据与日志
-冻结运行头记录 schema、执行提交/差异、固定 RPipe、Study/配置/计划 commit/blob、输入/模型/runtime/随机条件、预期矩阵和 raw 位置。逐 prompt/块/提交观测保存 forward/row/owner、token、验证 argmax、accepted/committed、cache/停止与实际计数。必要 evidence 写失败立即停止下一前向，保留已执行事实。
+冻结运行头记录 schema、执行提交/差异、宿主流程协调者、Study/配置/计划 commit/blob、输入/模型/runtime/随机条件、预期矩阵和 raw 位置。逐 prompt/块/提交观测保存 forward/row/owner、token、验证 argmax、accepted/committed、cache/停止与实际计数。必要 evidence 写失败立即停止下一前向，保留已执行事实。
 
 原始结果、摘要与终态之间没有跨文件事务保证。先写临时文件、校验后原子替换适用于单文件保全，不保证整套运行原子提交。缺结束记录或 raw 截断即未确认，不能因行数看似齐全推正常完成。重算另存分析版本与输入哈希，不能覆盖旧结论。
 
@@ -189,7 +189,7 @@ CLI、YAML/JSON、token 数据、Hub 文件和旧运行记录都校验形状、�
 
 共同合同对齐2026年10月21日 RPipe 文档重设计固定提交 `057666b432661694575d91150c232e63254e96bd` 的 [研究流水线 架构设计](https://github.com/DreamSoul-AI/RPipe/blob/057666b432661694575d91150c232e63254e96bd/docs/研究流水线%20架构设计.md) 第五章。其目标语义不是 SD 当前固定副本能力，后续采用仍需实现与评审。2026年11月1日起本仓不再内嵌该副本，Study 流程由 `spec_mtp` 实现，并以上游仓库为结构模板持续对齐。
 
-当前 `python -m spec_mtp` 的 RPipe 代理与 console API 有兼容消费者。目标科学 CLI 提供显式 decode/audit/compare，Study 执行使用 RPipe 入口。旧 make/launch/process 等的保留、转发或弃用需实施前逐项确认，不能在纯文档阶段承诺参数兼容，也不能因此让科学宿主依赖框架内部。
+科学 CLI 提供 decode/audit/compare，Study 从共享 flow 入口进入宿主阶段链。旧科学入口的 make/launch/process 明确拒绝并提示 Study 入口。包初始化不加载模型或阶段链。
 
 已选的 `k_affine_residual` 在 Study `structure/` 实现协议 `postcommit-final-norm-v1`：m 为已提交前缀的连续均值 embedding，y 为刚提交 token，同一因果位置比较最终归一化 hidden。拟合为 float64 中心化 ridge λ=.001，截距不正则；仅 bias 使用独立 b0。先冻结 K 再读 holdout/cross。当前 Study 配置是合成 token 的工程夹具，不是 160 对数据协议，也不是 2026年10月31日会议中的 trajectory 与 observation 联合更新。代码拒绝把 Kalman 或 trajectory/observation 名称当成已实现协议。latent MSE 不能写成接受率提升。公式与对照见研究计划。
 
@@ -232,9 +232,9 @@ CLI、YAML/JSON、token 数据、Hub 文件和旧运行记录都校验形状、�
 
 实施候选顺序为：先冻结科学合同与可枚举 CPU 反例，再迁移纯 mask/tree/analysis，随后迁移 model/decode/audit 与测试镜像，最后改 Study/CLI/来源与运行根接入。每步核对实际 token/计数/错误行为，不能把目录移动本身当行为等价。旧消费者、静态配置及测试需随实际改造完整更新，删除其它源码或数据仍先核用户范围。
 
-质量场景、黑盒职责、源码/运行/部署分离和简约取舍是本项目的裁剪。固定 RPipe 副本仍是 v0.3.1，不把参考仓的后续演进写成已升级。本文描述当前选定职责；源码映射以代码结构设计为准，完成状态以运行记录为准。
+质量场景、黑盒职责、源码/运行/部署分离和简约取舍是本项目的裁剪。宿主流程协调者 副本仍是 v0.3.1，不把参考仓的后续演进写成已升级。本文描述当前选定职责；源码映射以代码结构设计为准，完成状态以运行记录为准。
 
 ## （四）本分支的 CPU 验证边界
-`tests/manifest.json` 是静态用例清单，`tests/run.py` 仅适配 pytest 选择和逐项记录，不参与 GitHub 工作流。CPU 计划包括科学宿主、实际 Study 接入、损坏/缺失/配对/来源拒绝及 K 合成工程合同。历史重放项按精确 selector 列出删除的原件和未执行原因，不用合成样例冒充历史。混合用例已把静态配置合同与原件重放拆开，静态合同继续必需。
+`tests/manifest.json` 是静态用例清单，`tests/run.py` 仅适配 pytest 选择和逐项记录，不参与 GitHub 工作流。CPU 计划包括科学宿主、实际 Study 接入、损坏/缺失/配对/来源拒绝及 K 合成工程合同。历史重放从固定 Git blob 提取不可变输入，当前读端执行验收。缺对象直接失败，保存观测与模型重跑分别解释。
 
-K 工程 fixture 使用随机 tied tiny LLaMA、CPU FP32、eager；先拟合并独占写入 full K/b0，再提取 holdout/cross。collect 核文件 SHA、fit IDs/hash、模型空间和配对，summarize/process 拒绝缺三臂/缺 split/缺 seed。它只验证工程路径，原计划160对协议及真实接受收益未执行。固定 RPipe0.3.1 的外部运行根/强取消差距仍保留，不在本仓复制调度器或更换私有依赖。
+K 工程 fixture 使用随机 tied tiny LLaMA、CPU FP32、eager；先拟合并独占写入 full K/b0，再提取 holdout/cross。collect 核文件 SHA、fit IDs/hash、模型空间和配对，summarize/process 拒绝缺三臂/缺 split/缺 seed。它只验证工程路径，原计划160对协议及真实接受收益未执行。宿主流程协调者0.3.1 的外部运行根/强取消差距仍保留，不在本仓复制调度器或更换私有依赖。

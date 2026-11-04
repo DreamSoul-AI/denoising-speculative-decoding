@@ -24,12 +24,12 @@ def probe():
         decode = importlib.import_module('spec_mtp.structure.algorithm.decode.loop')
         variants = importlib.import_module('studies._shared.structure.smoke_variants')
         named = importlib.import_module('studies._shared.structure.config')
-        models = importlib.import_module('spec_mtp.model')
+        models = importlib.import_module('spec_mtp.structure.model.hf_causal')
     except ModuleNotFoundError:
         decode = importlib.import_module('studies._shared.structure.algorithm.spec_mtp.decoding')
         variants = importlib.import_module('studies._shared.structure.algorithm.spec_mtp.smoke_variants')
         named = importlib.import_module('studies._shared.structure.config')
-        models = importlib.import_module('spec_mtp.model')
+        models = importlib.import_module('spec_mtp.structure.model.hf_causal')
     torch.set_num_threads(1)
     torch.manual_seed(123)
     model = models.HFCausalLM(tiny_config={

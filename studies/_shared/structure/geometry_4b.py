@@ -132,7 +132,7 @@ def audit_saved(study, paired):
         cell = paired['cells'][name]
         folder = study / 'runs' / cell['run_id']
         assert cell['native_status'] == 'succeeded'
-        from spec_mtp.audit import verify_files
+        from spec_mtp.structure.artifact.observation import verify_files
         verify_files(folder, cell['files_sha256'])
         raw = helpers.read(folder / 'assets/decode_observations.json')['out']['evidence']
         rows = cell['rows']
@@ -686,7 +686,7 @@ def capture_input_window(model, prompt, spec, eval_cfg, eos, seed, minimum):
 @torch.no_grad()
 def probe_window(model, packet, spec, reference, variants=VARIANTS, control='zero'):
     import spec_mtp.structure.algorithm.decode.loop as decoding
-    from spec_mtp import model as kv_cache
+    from spec_mtp.structure.model import hf_causal as kv_cache
     from spec_mtp.structure.algorithm.decode.tree_attention import DynamicTreeAttentionCache, mask_indices_of
     from studies._shared.structure.config import _convert
     tree, baseline = (packet['tree'], packet['baseline'])

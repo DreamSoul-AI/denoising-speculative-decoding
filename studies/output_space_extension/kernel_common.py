@@ -16,7 +16,7 @@ def load(out, plan, tool):
     from studies._shared.structure.evidence import model_digest, runtime
     from studies._shared.structure.sources import manifest
     from studies._shared.structure.config import _convert
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
     root = Path(__file__).resolve().parents[2]
     study = root / 'studies/output_space_extension'
     read = lambda p: json.loads(p.read_text(encoding='utf-8'))

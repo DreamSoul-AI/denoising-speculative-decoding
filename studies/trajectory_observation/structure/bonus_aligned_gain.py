@@ -13,10 +13,10 @@ import time
 import torch
 from transformers import AutoTokenizer
 
-from spec_mtp.data import load_questions, render
+from spec_mtp.structure.data.prompts import load_questions, render
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
 from spec_mtp.structure.algorithm.mask import build_mask_provider, calibrate_diagonal_gain
-from spec_mtp.model import HFCausalLM
+from spec_mtp.structure.model.hf_causal import HFCausalLM
 
 
 ROOT = Path(__file__).resolve().parents[3]

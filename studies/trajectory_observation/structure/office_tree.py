@@ -329,7 +329,7 @@ def _load_model(kind):
     import torch
     from transformers import AutoTokenizer
 
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
 
     path, label = _weights(kind)
     if kind == '8b':

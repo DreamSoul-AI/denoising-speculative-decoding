@@ -169,7 +169,7 @@ def main(argv=None):
     import torch
     from transformers import AutoTokenizer
 
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
     from studies.trajectory_observation.structure.fair_branch import (
         ESP, EVAL, TREE, calibrate, identity, load_dolly, read_rows, run_split, templates,
     )

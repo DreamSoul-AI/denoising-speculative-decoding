@@ -21,7 +21,7 @@ def canonical_states(hidden, embedding_table, order):
 
 def synchronized_transfer(model, states, *args, **kwargs):
     import torch
-    from spec_mtp import model as kv_cache
+    from spec_mtp.structure.model import hf_causal as kv_cache
     from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
     original = OutputHiddenMaskProvider.masks_per_owner
     latest, records = ({}, [])

@@ -52,7 +52,7 @@ def test_smoke_study_matches_plain_generation(study_copy):
 
 def test_rpipe_entry_runs_the_same_chain(study_copy):
     study = study_copy()
-    cli('run', study, entry='spec_mtp.flow.cli', check=True)
+    cli('run', study, entry='spec_mtp.flow.study_cli', check=True)
     _check_smoke(study)
 
 
@@ -261,7 +261,7 @@ def test_bf16_five_methods_and_independent_ar_native_cli(study_copy, tmp_path):
     import pytest
     import torch
     import yaml
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
     from studies._shared.structure.validation import verify_evidence, SpecMtpGateError
 
     saved = tmp_path / 'bf16_local_hf'

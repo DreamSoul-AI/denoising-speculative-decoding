@@ -52,7 +52,7 @@ def test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only():
 def test_oracle_masks_accept_full_depth_after_prefill(tree):
     from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
     from spec_mtp.structure.algorithm.mask import build_mask_provider
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
 
     torch.manual_seed(3)
     model = HFCausalLM(tiny_config={'vocab_size': 50, 'hidden_size': 32, 'intermediate_size': 64,

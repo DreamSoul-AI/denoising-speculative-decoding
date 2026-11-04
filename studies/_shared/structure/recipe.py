@@ -50,7 +50,7 @@ def validate(config: dict[str, Any]) -> dict[str, Any]:
 
     from studies._shared.structure.algorithm import TASKS, effective_spec, task_name
     from studies._shared.structure.config import _convert
-    from spec_mtp.data import dataset_names
+    from spec_mtp.structure.data.prompts import dataset_names
 
     data, model, algorithm = (_layer(config, name) for name in ('data', 'model', 'algorithm'))
     if algorithm.get('source') != SOURCE:

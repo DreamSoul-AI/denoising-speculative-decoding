@@ -68,7 +68,16 @@ exclude = ["src/spec_mtp/structure/", "src/spec_mtp/flow/", "src/spec_mtp/struct
 namespace_packages = false
 # Gradual: the scientific package uses check_untyped_defs. cli keeps a stricter override.
 python_version = "3.10"
-files = ["src/spec_mtp"]
+files = [
+  "src/spec_mtp/__init__.py",
+  "src/spec_mtp/__main__.py",
+  "src/spec_mtp/cli.py",
+  "src/spec_mtp/flow/cli.py",
+  "src/spec_mtp/structure/data/prompts.py",
+  "src/spec_mtp/structure/model/hf_causal.py",
+  "src/spec_mtp/structure/artifact/observation.py",
+  "src/spec_mtp/structure/algorithm/counts.py",
+]
 follow_imports = "silent"
 ignore_missing_imports = true
 check_untyped_defs = true
@@ -76,7 +85,7 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 
 [[tool.mypy.overrides]]
-module = ["spec_mtp.cli"]
+module = ["spec_mtp.flow.cli"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 disallow_any_generics = true

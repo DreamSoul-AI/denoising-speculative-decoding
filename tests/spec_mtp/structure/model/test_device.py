@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from spec_mtp.model import get_device, get_dtype, seed_everything
+from spec_mtp.structure.model.hf_causal import get_device, get_dtype, seed_everything
 
 
 def test_cpu_device_stays_cpu():

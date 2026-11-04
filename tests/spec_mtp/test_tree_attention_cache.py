@@ -50,7 +50,7 @@ def test_decoder_uses_it_only_for_dynamic_trees():
     from studies._shared.structure.config import apply_variant
     from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
     from studies._shared.structure.config import _convert
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
 
     model = HFCausalLM(tiny_config={'vocab_size': 64, 'hidden_size': 32, 'intermediate_size': 64,
                                     'num_layers': 1, 'num_heads': 2, 'num_kv_heads': 1,

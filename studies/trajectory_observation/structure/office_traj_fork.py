@@ -260,7 +260,7 @@ def fill_fp32_rows(model, tokenizer, prompts, rows_by_name, limit, generate):
 
 def _load_fp32_model():
     import torch
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
 
     path = QWEN3_8B
     if not path.is_dir():

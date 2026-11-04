@@ -34,7 +34,7 @@ def run_study(study_dir: Path | str) -> dict[str, Any]:
     except (OSError, TypeError, ValueError) as exc:
         raise ValueError(
             f'Cannot process Study without a usable current index: {index_path(study_dir)}; '
-            f'check study.yaml and rebuild with python -m spec_mtp.flow.cli make "{study_dir}"'
+            f'check study.yaml and rebuild with python -m spec_mtp.flow.study_cli make "{study_dir}"'
         ) from exc
 
     groups = collect_from_index(study_dir, index)

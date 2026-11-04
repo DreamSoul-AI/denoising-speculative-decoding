@@ -4,9 +4,9 @@ from typing import Any
 
 import torch
 
-from spec_mtp.data import get_prompts
-from spec_mtp.model import build_model
-from spec_mtp.model import get_device
+from spec_mtp.structure.data.prompts import get_prompts
+from spec_mtp.structure.model.hf_causal import build_model
+from spec_mtp.structure.model.hf_causal import get_device
 
 
 def make_generator(device: Any, seed: int) -> torch.Generator:

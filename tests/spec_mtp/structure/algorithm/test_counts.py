@@ -1,7 +1,7 @@
 """Protocol arithmetic keeps missing prompts and negative pairs."""
 import pytest
 
-from spec_mtp.analysis import compare, prompt_tau, summarize
+from spec_mtp.structure.algorithm.counts import compare, prompt_tau, summarize
 
 
 def row(qid='q', accepted=2, **updates):
@@ -69,7 +69,7 @@ def test_custom_pairing_adds_factor_once_without_changing_valid_pairs(same):
 @pytest.mark.parametrize('categories', [('overall', 'math'), ('overall', 'overall'), ('math', 'coding')])
 @pytest.mark.parametrize('entry', ['direct', 'collect'])
 def test_overall_category_counts_each_prompt_once(categories, entry, tmp_path):
-    from spec_mtp.analysis import _aggregate
+    from spec_mtp.structure.algorithm.counts import _aggregate
     rows = [dict(row(), category=categories[0], decode_calls=1, spec_time=1., ar_time=2., exact_match=1),
             dict(row('q2'), category=categories[1], committed=1, spec_time=3., ar_time=6., exact_match=0)]
     if entry == 'direct':

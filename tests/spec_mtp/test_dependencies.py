@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
     'structure/algorithm/decode/tree_attention', 'structure/algorithm/decode/loop',
     'structure/algorithm/mask/__init__', 'structure/algorithm/mask/factory',
     'structure/algorithm/mask/fit', 'structure/algorithm/mask/providers',
-    'data', 'audit', 'analysis',
+    'structure/data/prompts', 'structure/artifact/observation', 'structure/algorithm/counts',
 ])
 def test_scientific_modules_do_not_import_assembly_or_framework(name):
     tree = ast.parse((ROOT / 'src/spec_mtp' / (name + '.py')).read_text(encoding='utf-8'))
@@ -24,11 +24,12 @@ def test_scientific_modules_do_not_import_assembly_or_framework(name):
             imports.extend(alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
             imports.append(node.module or '')
-    forbidden = ('rpipe', 'studies', 'tools', 'spec_mtp.cli', 'spec_mtp.model')
+    forbidden = ('rpipe', 'studies', 'tools', 'spec_mtp.flow.cli', 'spec_mtp.structure.model.hf_causal')
     assert not [module for module in imports if any(module == edge or module.startswith(edge + '.') for edge in forbidden)]
 
 
 def test_package_and_help_do_not_import_torch_transformers_or_rpipe():
-    code = ('import sys; import spec_mtp; from spec_mtp.cli import main; main([]); '
+    code = ('import sys; import spec_mtp; from spec_mtp.cli import main; '
+            'from spec_mtp.flow.cli import main as implementation; assert main is implementation; main([]); '
             'assert not {"torch", "transformers", "rpipe", "studies"}.intersection(sys.modules)')
     subprocess.run([sys.executable, '-c', code], check=True, timeout=15)

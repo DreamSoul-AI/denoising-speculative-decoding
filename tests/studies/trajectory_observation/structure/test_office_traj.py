@@ -467,7 +467,7 @@ def test_measure_generate_syncs_around_one_call_and_drops_a_bad_clock(monkeypatc
 
     ticks = iter([10.0, 10.5])
     monkeypatch.setattr(office_traj.time, 'perf_counter', lambda: next(ticks))
-    monkeypatch.setattr('spec_mtp.model.sync_device', sync)
+    monkeypatch.setattr('spec_mtp.structure.model.hf_causal.sync_device', sync)
     output, stats, wall = measure_generate(generate, 'ids', 'cpu')
     assert events == [('sync', 'cpu'), ('generate', 'ids'), ('sync', 'cpu')]
     assert output == 'out' and stats['accepted'] == 3 and wall == 0.5
@@ -478,7 +478,7 @@ def test_measure_generate_syncs_around_one_call_and_drops_a_bad_clock(monkeypatc
         events.append('sync')
         raise RuntimeError('sync failed')
 
-    monkeypatch.setattr('spec_mtp.model.sync_device', fail_first)
+    monkeypatch.setattr('spec_mtp.structure.model.hf_causal.sync_device', fail_first)
     output, _stats, wall = measure_generate(generate, 'ids', 'cpu')
     assert output == 'out' and wall is None
     assert events == ['sync', ('generate', 'ids')]
@@ -490,11 +490,11 @@ def test_measure_generate_syncs_around_one_call_and_drops_a_bad_clock(monkeypatc
         if calls['n'] == 2:
             raise RuntimeError('sync failed')
 
-    monkeypatch.setattr('spec_mtp.model.sync_device', fail_second)
+    monkeypatch.setattr('spec_mtp.structure.model.hf_causal.sync_device', fail_second)
     output, _stats, wall = measure_generate(generate, 'ids', 'cuda')
     assert output == 'out' and wall is None
 
-    monkeypatch.setattr('spec_mtp.model.sync_device', lambda device: None)
+    monkeypatch.setattr('spec_mtp.structure.model.hf_causal.sync_device', lambda device: None)
     backward = iter([5.0, 4.0])
     monkeypatch.setattr(office_traj.time, 'perf_counter', lambda: next(backward))
     _output, _stats, wall = measure_generate(generate, 'ids', 'cpu')
@@ -555,7 +555,7 @@ def test_measured_prompt_times_full_then_traj_and_leaves_ar_outside(monkeypatch)
     monkeypatch.setattr(decode_mod, 'build_tree', lambda *args, **kwargs: _Tree())
     monkeypatch.setattr(decode_mod, 'SpecDecoder', _Decoder)
     monkeypatch.setattr(decode_mod, 'ar_generate', ar_generate)
-    monkeypatch.setattr('spec_mtp.model.sync_device', sync)
+    monkeypatch.setattr('spec_mtp.structure.model.hf_causal.sync_device', sync)
     monkeypatch.setattr(office_traj.time, 'perf_counter', lambda: next(ticks))
     prompt = {'qid': 3, 'category': 'summarization', 'text': 'sum'}
     decoded = decode_measured_prompt(_Model(), _Tokenizer(), prompt, tuple(arm_specs().items()), SMOKE)
@@ -617,7 +617,7 @@ def test_measured_prompt_records_a_shared_fork_without_touching_argmax(monkeypat
     monkeypatch.setattr(decode_mod, 'build_tree', lambda *args, **kwargs: _Tree())
     monkeypatch.setattr(decode_mod, 'SpecDecoder', _Decoder)
     monkeypatch.setattr(decode_mod, 'ar_generate', ar_generate)
-    monkeypatch.setattr('spec_mtp.model.sync_device', lambda device: None)
+    monkeypatch.setattr('spec_mtp.structure.model.hf_causal.sync_device', lambda device: None)
     prompt = {'qid': 3, 'category': 'summarization', 'text': 'sum'}
     decoded = decode_measured_prompt(
         _Model(), _Tokenizer(), prompt, tuple(arm_specs().items()), SMOKE, keep_sequences=True)
@@ -1445,7 +1445,7 @@ def test_formal_warms_four_gains_then_measures_256_tokens(tmp_path, monkeypatch)
 
     monkeypatch.setattr(
         'studies.trajectory_observation.structure.office_tree.arm_row', arm_row)
-    monkeypatch.setattr('spec_mtp.model.sync_device', lambda device: events.append(('sync', device)))
+    monkeypatch.setattr('spec_mtp.structure.model.hf_causal.sync_device', lambda device: events.append(('sync', device)))
     monkeypatch.setattr(traj, 'decode_measured_prompt', decode)
     monkeypatch.setattr(traj, '_run_identity', lambda: {'git_head': 'abc', 'dirty': False})
     cfg = round_config('gscan')

@@ -7,7 +7,7 @@ from pathlib import Path
 from spec_mtp.structure.model.factory import Model, ModelRegistry
 
 from studies._shared.structure.config import _convert
-from spec_mtp.model import build_model
+from spec_mtp.structure.model.hf_causal import build_model
 
 
 def _model_cfg(model_config, model_type, assets_dir):

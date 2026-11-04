@@ -7,7 +7,7 @@ import pytest
 import torch
 import spec_mtp.structure.algorithm.decode.loop as decoding
 from studies._shared.structure.config import _convert
-from spec_mtp.model import HFCausalLM
+from spec_mtp.structure.model.hf_causal import HFCausalLM
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('esp_argmax_audit', ROOT/'studies/esp_table1_bf16_full_argmax/argmax_audit.py')

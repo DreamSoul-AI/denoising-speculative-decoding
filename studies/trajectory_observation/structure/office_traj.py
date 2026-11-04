@@ -533,7 +533,7 @@ def measure_generate(generate, prompt_ids, device):
     ``sync_device`` runs before the start read and again before the end read.
     A failed sync or clock leaves the wall missing and still returns the decode.
     """
-    from spec_mtp.model import sync_device
+    from spec_mtp.structure.model.hf_causal import sync_device
 
     started = None
     try:
@@ -815,7 +815,7 @@ def decode_measured_prompt(model, tokenizer, prompt, specs, limit, keep_sequence
 
 def _warmup_arms(model, tokenizer, prompt):
     """Untimed 8-token pass. Each arm builds a decoder and drops it, then sync."""
-    from spec_mtp.model import sync_device
+    from spec_mtp.structure.model.hf_causal import sync_device
     from studies.trajectory_observation.structure.office_tree import arm_row
 
     ids = tokenizer(prompt['text'], return_tensors='pt').input_ids
@@ -1057,7 +1057,7 @@ def gscan_summary(rows_by_name, digest, skipped):
 
 def _gscan_warmup(model, tokenizer, prompt):
     """Untimed 8-token pass on all four gains, then one sync."""
-    from spec_mtp.model import sync_device
+    from spec_mtp.structure.model.hf_causal import sync_device
     from studies.trajectory_observation.structure.office_tree import arm_row
 
     ids = tokenizer(prompt['text'], return_tensors='pt').input_ids

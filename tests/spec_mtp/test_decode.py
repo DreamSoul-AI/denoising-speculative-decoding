@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 
-from spec_mtp.audit import audit_run
+from spec_mtp.structure.artifact.observation import audit_run
 from spec_mtp.structure.api.decode_api import DecodeRequest, Prompt
 from spec_mtp.structure.algorithm.decode.loop import DecodeFailure, ar_generate, generate, select_token, tree_probs
 from spec_mtp.structure.algorithm.mask import ESPMaskProvider

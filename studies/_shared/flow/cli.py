@@ -1,4 +1,4 @@
-"""Thin entry over ``spec_mtp.flow.cli``.
+"""Thin entry over ``spec_mtp.flow.study_cli``.
 
 ``make`` and ``launch --remake`` write the SpecMTP source lock. ``run`` and a
 plain ``launch`` keep an existing lock so ``freeze: true`` can see source drift
@@ -90,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
                 render_numbers(study)
                 context = StudyProcessContext(study, state={'process': load_result(study / 'process.json')})
                 study_gate(context)
-    from spec_mtp.flow.cli import main as rpipe_main
+    from spec_mtp.flow.study_cli import main as rpipe_main
 
     return int(rpipe_main(argv) or 0)
 

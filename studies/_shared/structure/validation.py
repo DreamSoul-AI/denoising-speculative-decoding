@@ -5,7 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 from typing import Any
-from spec_mtp.audit import SpecMtpGateError, _check_argmax
+from spec_mtp.structure.artifact.observation import SpecMtpGateError, _check_argmax
 GATE_KEY = 'spec_mtp'
 STUDY_CHECK_NAME = 'spec_mtp_study_check.json'
 
@@ -209,7 +209,7 @@ def verify_evidence(config: dict[str, Any], assets: Path) -> None:
             for key in ('accepted', 'committed', 'decode_calls', 'new_tokens'):
                 if row[key] != stats[key]:
                     raise SpecMtpGateError(f'{key} evidence mismatch')
-        from spec_mtp.analysis import _aggregate
+        from spec_mtp.structure.algorithm.counts import _aggregate
         expected_summary = _aggregate(rows)['overall']
         actual = _overall(assets)
         def same_value(key, value):
