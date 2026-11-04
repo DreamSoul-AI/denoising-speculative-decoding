@@ -202,6 +202,17 @@ def test_aggregate_categories_and_zero_decode_calls_guard():
     assert summaries['overall']['prompts'] == 2
 
 
+def test_draft_and_verify_clocks_stay_inside_decode_time(tiny):
+    spec = apply_variant({}, 'esp_static')
+    _output, stats = SpecDecoder(
+        tiny, spec, _eval(max_new_tokens=6),
+        mask_policy=build_mask_provider(spec, tiny.embedding_table)).generate(_prompt())
+    for key in ('draft_seconds', 'verify_seconds', 'decode_time', 'prefill_time'):
+        assert stats[key] >= 0
+    assert stats['decode_calls'] >= 1
+    assert stats['draft_seconds'] + stats['verify_seconds'] <= stats['decode_time'] + 1e-6
+
+
 def test_clock_failure_returns_counts_without_inventing_zero_time(tiny, monkeypatch):
     def broken():
         raise RuntimeError('clock')
@@ -215,6 +226,7 @@ def test_clock_failure_returns_counts_without_inventing_zero_time(tiny, monkeypa
     assert output.shape[1] == prompt.shape[1] + stats['new_tokens']
     assert stats['new_tokens'] >= 1 and stats['committed'] >= 1
     assert 'prefill_time' not in stats and 'decode_time' not in stats
+    assert 'draft_seconds' not in stats and 'verify_seconds' not in stats
     _, ar_stats = ar_generate(tiny, prompt, _eval(max_new_tokens=4))
     assert ar_stats['ar_calls'] >= 1 and 'ar_time' not in ar_stats
 

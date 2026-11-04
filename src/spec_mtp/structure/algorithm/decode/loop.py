@@ -69,6 +69,16 @@ def _record_elapsed(stats, key, started):
         stats[key] = value
 
 
+def _fold(total, open_bucket, started):
+    """Add one unsynced interval. A broken clock closes the bucket."""
+    if not open_bucket:
+        return total, False
+    piece = _elapsed(started)
+    if piece is None:
+        return total, False
+    return total + piece, True
+
+
 def _fork_generator(generator: torch.Generator | None) -> torch.Generator | None:
     """Independent Generator with the same current state (None stays None)."""
     if generator is None:
@@ -211,6 +221,7 @@ class SpecDecoder:
         self.committed = []
         if self.max_new_tokens == 0 or self._poll_cancel():
             stats.update(new_tokens=0, prefill_time=0., decode_time=0.,
+                         draft_seconds=0., verify_seconds=0.,
                          termination_reason='cancelled' if self.was_cancelled else 'budget',
                          block_complexity=self.nominal_block_complexity)
             return prompt_ids.clone(), stats
@@ -265,8 +276,17 @@ class SpecDecoder:
         _record_elapsed(stats, 'prefill_time', start)
 
         # ---- Decode: simultaneous verification + generation. --------------
+        # draft_seconds is tree build and block assembly before model().
+        # verify_seconds is that forward plus the sample-matching walk.
+        # The forward also seeds the next tree, so the two buckets share one
+        # pass. Both clocks are unsynced, same as prefill_time and decode_time.
         decode_start = _clock()
+        draft_total = 0.0
+        verify_total = 0.0
+        draft_open = True
+        verify_open = True
         while len(committed) < self.max_new_tokens and not self._is_eos(committed[-1]) and not self._poll_cancel():
+            draft_mark = _clock()
             remaining = self.max_new_tokens - len(committed)
             probs = tree_probs(mask_logits, self.temperature)
             tree = build_tree(self.spec_cfg, probs, committed[-1])
@@ -293,6 +313,7 @@ class SpecDecoder:
             root_position = t + len(committed) - 1
             assert cache_len == root_position, 'cache must hold exactly the prefix'
             if root_position + 1 + max(tree.depths or [0]) + k > model.max_positions:
+                draft_total, draft_open = _fold(draft_total, draft_open, draft_mark)
                 stats['hit_context_limit'] = 1
                 break
 
@@ -324,6 +345,8 @@ class SpecDecoder:
                 attn, position_ids = build_block_attention(
                     tree, k, cache_len, root_position, dtype, device, min_value)
 
+            draft_total, draft_open = _fold(draft_total, draft_open, draft_mark)
+            verify_mark = _clock()
             out = model(block_embeds, position_ids, attention_mask_4d=attn,
                         past_key_values=cache, **({'last_hidden_only': True} if self.output_hidden else {}))
             cache = out.past_key_values
@@ -352,6 +375,7 @@ class SpecDecoder:
                     break
                 accepted_nodes.append(match)
                 cur = match
+            verify_total, verify_open = _fold(verify_total, verify_open, verify_mark)
 
             choice_offset = len(choices) - len(committed_now)
             stats['accepted'] += len(accepted_nodes)
@@ -434,6 +458,10 @@ class SpecDecoder:
                 proxy_hiddens = out.last_hidden_state[0, mask_rows].clone()
 
         _record_elapsed(stats, 'decode_time', decode_start)
+        if draft_open:
+            stats['draft_seconds'] = draft_total
+        if verify_open:
+            stats['verify_seconds'] = verify_total
         stats['new_tokens'] = len(committed)
         stats['termination_reason'] = ('cancelled' if self.was_cancelled else
             'context' if stats['hit_context_limit'] else 'eos' if self._is_eos(committed[-1]) else 'budget')

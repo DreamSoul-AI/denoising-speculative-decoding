@@ -22,6 +22,7 @@ from studies.trajectory_observation.structure.office_traj import (
     load_local_tokenizer, measure_generate, pair_relation, prompts_brainstorming, prompts_classification,
     prompts_closed_qa, prompts_from_647, prompts_general_qa, prompts_information_extraction, prompts_open_qa,
     prompts_summarization, report_group, wall_group, wall_report,
+    LENGTHS, PROTOCOL_LENGTH, length_decision, row_buckets, round_config,
 )
 
 
@@ -1174,3 +1175,88 @@ def test_ar_determinism_command_stops_without_the_mismatch_file(tmp_path):
 
     with pytest.raises(RuntimeError, match='mismatch'):
         run_ar_determinism_main(tmp_path, None)
+
+
+def _bucket_diff(mean):
+    return {'difference': {'mean': mean}}
+
+
+def _length_piece(length, direction, mean, draft, verify, overhead, residual, complete=True):
+    return {
+        'length': length,
+        'complete': complete,
+        'wall': {'wall_direction': direction, 'wall_difference': {'mean': mean}},
+        'buckets': {
+            'draft_seconds': _bucket_diff(draft),
+            'verify_seconds': _bucket_diff(verify),
+            'overhead_seconds': _bucket_diff(overhead),
+            'residual_seconds': _bucket_diff(residual),
+        },
+    }
+
+
+def test_row_buckets_keep_a_negative_residual_and_a_missing_draft():
+    split = row_buckets({
+        'wall_seconds': 1.0, 'prefill_time': 0.2, 'draft_seconds': 0.5, 'verify_seconds': 0.5,
+    })
+    assert split['overhead_seconds'] == 0.2
+    assert split['residual_seconds'] == pytest.approx(-0.2)
+    assert row_buckets({
+        'wall_seconds': 1.0, 'prefill_time': 0.2, 'verify_seconds': 0.5,
+    }) is None
+    assert row_buckets({
+        'wall_seconds': 1.0, 'prefill_time': -1.0, 'draft_seconds': 0.1, 'verify_seconds': 0.1,
+    }) is None
+
+
+def test_length_decision_follows_the_pre_registered_order():
+    cfg = round_config('wall_by_length')
+    assert cfg['protocol'] == PROTOCOL_LENGTH
+    assert cfg['lengths'] == LENGTHS == (64, 256, 512)
+    assert cfg['stamp'] == '20261104-1420'
+    growing = [
+        _length_piece(64, 'shorter', -0.10, -0.02, -0.07, -0.01, 0.0),
+        _length_piece(256, 'shorter', -0.40, -0.05, -0.30, -0.02, -0.03),
+        _length_piece(512, 'shorter', -1.00, -0.10, -0.80, -0.04, -0.06),
+    ]
+    decided = length_decision(growing)
+    assert decided == {
+        'length_label': 'length-dependent',
+        'decomp_label': 'decomp-verify',
+        'decomp_length': 512,
+    }
+    flat = [
+        _length_piece(64, 'shorter', -0.10, -0.08, -0.01, 0.0, -0.01),
+        _length_piece(256, 'shorter', -0.11, -0.09, -0.01, 0.0, -0.01),
+        _length_piece(512, 'shorter', -0.12, -0.10, -0.01, 0.0, -0.01),
+    ]
+    assert length_decision(flat)['length_label'] == 'length-flat'
+    assert length_decision(flat)['decomp_label'] == 'decomp-draft'
+    zeros = [
+        _length_piece(64, 'flat', 0.0, 0.0, 0.0, 0.0, 0.0),
+        _length_piece(256, 'flat', 0.0, 0.0, 0.0, 0.0, 0.0),
+        _length_piece(512, 'flat', 0.0, 0.0, 0.0, 0.0, 0.0),
+    ]
+    assert length_decision(zeros)['length_label'] == 'length-flat'
+    assert length_decision(zeros)['decomp_label'] == 'decomp-split'
+    dead = [
+        _length_piece(64, 'shorter', -0.2, -0.2, 0.0, 0.0, 0.0),
+        _length_piece(256, 'longer', 0.3, 0.3, 0.0, 0.0, 0.0),
+        _length_piece(512, 'flat', 0.0, 0.0, 0.0, 0.0, 0.0),
+    ]
+    assert length_decision(dead)['length_label'] == 'dead-metric'
+    mixed = [
+        _length_piece(64, 'shorter', -0.2, -0.02, 0.0, -0.18, 0.0),
+        _length_piece(256, 'longer', 0.4, 0.05, 0.0, 0.35, 0.0),
+        _length_piece(512, 'shorter', -0.5, -0.05, 0.0, -0.45, 0.0),
+    ]
+    mixed_decision = length_decision(mixed)
+    assert mixed_decision['length_label'] == 'mixed'
+    assert mixed_decision['decomp_label'] == 'decomp-overhead'
+    assert mixed_decision['decomp_length'] == 512
+    partial = growing[:2]
+    assert length_decision(partial) == {
+        'length_label': 'incomplete', 'decomp_label': None, 'decomp_length': None,
+    }
+    failed = [dict(piece, complete=False) for piece in growing]
+    assert length_decision(failed)['length_label'] == 'incomplete'
