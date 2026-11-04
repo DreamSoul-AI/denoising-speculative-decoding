@@ -12,7 +12,7 @@ def test_every_doc_is_linked_from_agents():
 
 
 def test_scientific_modules_match_the_design():
-    expected = {'__init__', '__main__', 'cli', 'data', 'model', 'decode', 'masks', 'audit', 'analysis'}
+    expected = {'__init__', '__main__', 'cli', 'data', 'model', 'audit', 'analysis'}
     assert {p.stem for p in (ROOT / 'src/spec_mtp').glob('*.py')} == expected
 
 
