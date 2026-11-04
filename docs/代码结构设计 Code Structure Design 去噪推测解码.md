@@ -1,5 +1,5 @@
 **去噪推测解码 代码结构设计**
-更新日期：2026年11月4日。状态：目标布局改为 `structure` / `flow` 两柱。行为合同由 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 维护。按下面第四节分步搬迁，现有违反冻结在该节的 legacy 清单里。步骤 1 已把解码合同放到 `structure/api/decode_api.py`，`contracts.py` 只再导出原名字。步骤 2 已把树拆到 `structure/algorithm/decode/`，`tree.py` 只再导出原名字。步骤 3–8 未做。
+更新日期：2026年11月4日。状态：目标布局改为 `structure` / `flow` 两柱。行为合同由 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 维护。按下面第四节分步搬迁，现有违反冻结在该节的 legacy 清单里。步骤 1 已把解码合同放到 `structure/api/decode_api.py`，`contracts.py` 已删除。步骤 2 已把树拆到 `structure/algorithm/decode/`，`tree.py` 已删除。步骤 3–8 未做。
 
 # 一、目录原则与范围
 `spec_mtp` 与每个 `studies/<name>/` 都按 RPipe 的两柱组织：`structure/` 定义一次 Run 由什么组成，`flow/` 运行 Study 的阶段链。除 `__init__.py`、`__main__.py` 与薄入口外，`src/spec_mtp/` 和 `studies/<name>/` 的顶层不得再有其他 `.py` 文件。`studies/__init__.py` 只做 Study 包标记。依赖下限保持 Python 3.10 与已固定的 Transformers，目录调整不授权升级依赖。
@@ -170,14 +170,14 @@ CPU 门禁在 `tests/spec_mtp/test_structure_flow_gates.py`。清单在 `tests/s
 | **步骤** | **内容** | **状态** |
 | --- | --- | --- |
 | 0 | 本文、架构设计、AGENTS、README，以及上表 CPU 门禁 | 已完成 |
-| 1 | `contracts.py` → `structure/api/decode_api.py`；旧路径保留 shim | 已完成 |
-| 2 | `tree.py` → `structure/algorithm/decode/` 下的树、树编辑、树注意力 | 已完成 |
+| 1 | `contracts.py` → `structure/api/decode_api.py`；旧路径 shim 已删除 | 已完成 |
+| 2 | `tree.py` → `structure/algorithm/decode/` 下的树与树注意力；旧路径 shim 已删除 | 已完成 |
 | 3 | `masks.py` 拆到 `structure/algorithm/mask/`；注册表与配置 schema 分开 | 未做 |
 | 4 | `decode.py` → `structure/algorithm/decode/loop.py` | 未做 |
 | 5 | `data.py`、`model.py`、`audit.py`、`analysis.py` 进入对应子层，并消除与 `structure.data` / `structure.model` 的重名 | 未做 |
 | 6 | `trajectory_observation` 补齐 Study 声明，并拆开四个旧测量脚本。这四个文件的命令已经折进对应 structure 模块，不代替这一步 | 未做 |
 | 7 | `cli.py` → `flow/cli.py`；`python -m spec_mtp` 保留薄入口 | 未做 |
-| 8 | 删除 shim，测试镜像改路径，`.importlinter` 按两柱重写 | 未做 |
+| 8 | `contracts.py` 与 `tree.py` 再导出已删；测试镜像改路径，`.importlinter` 按两柱重写 | 未做 |
 
 # 五、宿主模块的目标位置
 下表是目标路径。解码合同和树已经迁入。其余当前文件仍在“当前路径”一列。行为边界仍是现在这些模块已经承担的合同。
@@ -186,12 +186,12 @@ CPU 门禁在 `tests/spec_mtp/test_structure_flow_gates.py`。清单在 `tests/s
 | --- | --- | --- |
 | `src/spec_mtp/__init__.py` | 同左，保留 | 包标识及必要版本；导入不注册、不加载模型、不发起执行 |
 | `src/spec_mtp/__main__.py` | 同左，保留 | 薄入口，转调 `flow`，不在 import 时执行 |
-| `structure/api/decode_api.py` | 已迁入；`src/spec_mtp/contracts.py` 再导出原名字 | DecodeRequest/Result、AuditResult、Prompt、Observation、ModelSession、MaskPolicy、Sink，以及显式的 `ExtraBranchPolicy`。无其它项目模块 |
+| `structure/api/decode_api.py` | 已迁入；调用方直接导入该模块 | DecodeRequest/Result、AuditResult、Prompt、Observation、ModelSession、MaskPolicy、Sink，以及显式的 `ExtraBranchPolicy`。无其它项目模块 |
 | `structure/data/` | `src/spec_mtp/data.py` | 读取本地输入、qid/顺序/大小校验、显式 tokenizer 渲染和编码。不创建模型，不决定 Study 因素 |
 | `structure/model/hf_causal.py` | `src/spec_mtp/model.py` | 打开明确本地模型或借用已构造模型、能力与 tied-storage、forward/cache、close。不调用 decode |
 | `structure/algorithm/decode/loop.py` | `src/spec_mtp/decode.py` | prefill、树块循环、验证/bonus、预算/EOS、mask 提交与 KV 保留。只调用注入的模型、策略和 sink |
 | `structure/algorithm/mask/` | `src/spec_mtp/masks.py` | 各 mask provider 与 K 拟合的纯数学。块内预测不得污染 committed 状态。provider 的注册在 `make`，配置键在 `structure/algorithm/config.py` |
-| `structure/algorithm/decode/tree.py`、`tree_edit.py`、`tree_attention.py` | 已迁入；`src/spec_mtp/tree.py` 再导出原名字 | 树构造、预算内的节点编辑、attention/position。不持有模型，不执行 forward |
+| `structure/algorithm/decode/tree.py`、`tree_edit.py`、`tree_attention.py` | 已迁入 `tree.py` 与 `tree_attention.py`；顶层 shim 已删除 | 树构造、预算内的节点编辑、attention/position。不持有模型，不执行 forward |
 | `structure/artifact/observation.py`；无模型审计在 `flow/process` | `src/spec_mtp/audit.py` | 版本化 JSONL、来源与计数核验。不 import 模型 |
 | `structure/algorithm/metric.py`；跨 Run 汇总在 `flow/summarize` 或 `flow/process` | `src/spec_mtp/analysis.py` | 固定口径的 τ、配对和长度诊断。纯计算，不执行模型 |
 | `flow/cli.py` | `src/spec_mtp/cli.py` | `decode` / `audit` / `compare` 的参数、装配与结果呈现。help 不加载模型 |
@@ -205,9 +205,9 @@ KV 的物理存储留在模型会话，保留哪条路径由解码循环决定�
 # 六、K Study 的具体文件与依赖
 | **目标文件** | **职责** | **依赖与限制** |
 | --- | --- | --- |
-| `studies/k_affine_residual/structure/recipe.py` | 从冻结因素组装 postcommit 三臂、文档划分、tiny 随机模型与载荷，向 RPipe 注册实际入口 | 只经 RPipe 公开合同、宿主 `data/model/audit/analysis/contracts` 及本 Study correction/evaluation，提取同一因果位置 latent，不修改/调用真实投机解码器 |
-| `studies/k_affine_residual/structure/correction.py` | float64 中心化 ridge λ=.001 拟合 A/b、独立 b0，冻结参数核对及三臂应用 | `spec_mtp.contracts` 和必要既有数值库，不 import RPipe/模型/CLI；截距不正则，fit/apply 分开，b0 不取完整 b |
-| `studies/k_affine_residual/structure/evaluation.py` | P/y/m 及同位置 z(m)/z(y) 对齐、文档级三臂 MSE、先冻结 K/b0 再提取 holdout/cross 的合同 | 本 Study correction、宿主 `contracts/audit/analysis`，不加载模型，不自判 Run 成功，拒绝未来 token/下一词标签与 fit/test 泄漏 |
+| `studies/k_affine_residual/structure/recipe.py` | 从冻结因素组装 postcommit 三臂、文档划分、tiny 随机模型与载荷，向 RPipe 注册实际入口 | 只经 RPipe 公开合同、宿主 `data/model/audit/analysis/decode_api` 及本 Study correction/evaluation，提取同一因果位置 latent，不修改/调用真实投机解码器 |
+| `studies/k_affine_residual/structure/correction.py` | float64 中心化 ridge λ=.001 拟合 A/b、独立 b0，冻结参数核对及三臂应用 | `spec_mtp.structure.api.decode_api` 和必要既有数值库，不 import RPipe/模型/CLI；截距不正则，fit/apply 分开，b0 不取完整 b |
+| `studies/k_affine_residual/structure/evaluation.py` | P/y/m 及同位置 z(m)/z(y) 对齐、文档级三臂 MSE、先冻结 K/b0 再提取 holdout/cross 的合同 | 本 Study correction、宿主 `decode_api/audit/analysis`，不加载模型，不自判 Run 成功，拒绝未来 token/下一词标签与 fit/test 泄漏 |
 | `studies/k_affine_residual/flow/collect/run.py` | 将实际原始结果转换为 evaluation 所需输入，返回本 Study 指标 | RPipe 公共阶段合同与本 Study evaluation，不重复计算/生成 raw，不改因素 |
 | `studies/k_affine_residual/flow/summarize/run.py` | 把 evaluation 的完整性/科学质量结果映射到阶段结果 | 同上，缺失/失败明确拒绝，模型预测改善与研究假设支持分开 |
 | `studies/k_affine_residual/flow/process/run.py` | 核对声明三臂、拟合/测试数据隔离、冻结 K、因素和 seed 的矩阵完整性 | 同上，成功子集不能作为完整矩阵，不执行补跑 |
@@ -222,11 +222,11 @@ tiny 随机模型可由 Study recipe 使用官方构造器按冻结配置建立�
 ## （一）允许方向
 目标方向：`flow` 可以导入 `structure`；`structure` 不导入 `flow`；`structure/api` 不导入其他 structure 子层；解码通过注入的模型会话进入具体接入，源码不导入 HF 实现的反向依赖。`spec_mtp` 不导入 `rpipe` 或 `studies`。Study 可以导入宿主公共模块。宿主没有 Study 路径，也不反向注册。
 
-扁平模块在搬迁完成前仍然存在。这段时间里，`contracts/data/decode/masks/tree/audit/analysis` 继续不导入 `cli` 与具体 `model`。模型反向不导入解码。
+扁平模块在搬迁完成前仍然存在。`decode_api`、`decode/tree`、`decode/tree_attention` 与仍在扁平路径的 `data/decode/masks/audit/analysis` 不导入 `cli` 与具体 `model`。模型反向不导入解码。
 
 依赖规则同时约束静态 import、类型引用和动态加载。静态工具不能证明全部运行关系。数据泄漏、owner 对齐、cache 或取消正确性由行为测试验证。
 ## （二）现在执行的检查与迁完后的 Import Linter
-`.importlinter` 现在仍是扁平模块合同：整个 `spec_mtp` 禁止 `rpipe` 与 `studies`，核心扁平模块禁止 `cli` 与 `model`。两柱方向由第四节的 pytest 门禁执行，遗留的 api 再导出记在 `import_direction.json`。步骤 8 再把 `.importlinter` 改成下面的目标合同，并删掉已经不存在的扁平模块名。在那之前替换合同会把尚未搬走的 api 再导出判成新失败。
+`.importlinter` 现在仍是扁平模块合同：整个 `spec_mtp` 禁止 `rpipe` 与 `studies`，核心模块禁止 `cli` 与 `model`。已删除的 `spec_mtp.contracts` 与 `spec_mtp.tree` 已换成 `decode_api`、`decode.tree` 和 `decode.tree_attention`。两柱方向由第四节的 pytest 门禁执行，遗留的 api 再导出记在 `import_direction.json`。步骤 8 再把 `.importlinter` 改成下面的目标合同。在那之前替换整份合同会把尚未搬走的 api 再导出判成新失败。
 
 ```ini
 [importlinter]
@@ -274,12 +274,12 @@ forbidden_modules =
 | --- | --- | --- |
 | `src/spec_mtp/__main__.py` | `tests/spec_mtp/test_main.py` | package 导入/help 零注册/载模/网络，入口转发和退出 |
 | `src/spec_mtp/cli.py` | `tests/spec_mtp/test_cli.py` | decode 参数到假会话完整旅程、audit/compare 零执行、坏路径及中文空格 |
-| `structure/api/decode_api.py`（`contracts.py` 再导出） | `tests/spec_mtp/test_contracts.py` | 请求/结果版本、有限数值、缺失语义、真实需要的能力与错误字段；旧路径与新路径是同一对象 |
+| `structure/api/decode_api.py` | `tests/spec_mtp/test_contracts.py` | 请求/结果版本、有限数值、缺失语义、真实需要的能力与错误字段；公开名从该模块解析 |
 | `src/spec_mtp/data.py` | `tests/spec_mtp/test_data.py` | qid/顺序/输入边界、template/EOS/context、坏文件和重复记录 |
 | `src/spec_mtp/model.py` | `tests/spec_mtp/test_model.py` | 假 HF forward/cache、实际 tied-storage、能力拒绝与 close 再失败 |
 | `src/spec_mtp/decode.py` | `tests/spec_mtp/test_decode.py` | 可枚举 token 链、prefill/bonus/EOS、取消派发、拒绝路径/KV 和 audit sink 故障 |
 | `src/spec_mtp/masks.py` | `tests/spec_mtp/test_masks.py` | 初始化、冻结、β/γ、零范数/NaN、proxy 不改 committed，逐方法参数独立 |
-| `structure/algorithm/decode/tree.py`、`tree_edit.py`、`tree_attention.py`（`tree.py` 再导出） | `tests/spec_mtp/test_tree.py` | static/dynamic 预算、父/深度/owner/position、错路径和 attention 可见性；旧路径与新路径是同一对象 |
+| `structure/algorithm/decode/tree.py`、`tree_edit.py`、`tree_attention.py` | `tests/spec_mtp/test_tree.py` | static/dynamic 预算、父/深度/owner/position、错路径和 attention 可见性；公开名从这些模块解析 |
 | `src/spec_mtp/audit.py` | `tests/spec_mtp/test_audit.py` | token/argmax/owner/来源漂移、坏半行/截断/混 Run、原子写失败、AR 只诊断 |
 | `src/spec_mtp/analysis.py` | `tests/spec_mtp/test_analysis.py` | pooled/均值与 prefill 口径、缺 prompt/长度差、胜平负/负例及不可比 |
 | 稳定宿主依赖合同 | `tests/spec_mtp/test_dependencies.py` | 按单条禁止边参数化，隔离执行，核心不导入具体模型/框架或 Study |
@@ -312,7 +312,7 @@ forbidden_modules =
 第三方 upstream 的八份来源成员（README、四份 code、三份 results）以及 `ORIGIN.json` 属来源完整性例外，仍保留其原位置和字节。
 
 # 十、当前差距与实施检查
-两柱搬迁完成了步骤 0、步骤 1 和步骤 2。解码合同在 `structure/api/decode_api.py`，调用方仍可从 `spec_mtp.contracts` 导入。树构造、深度 1 编辑和块注意力在 `structure/algorithm/decode/`，调用方仍可从 `spec_mtp.tree` 导入。第五节其余目标路径还没有对应的新文件。下面这些是另外的职责残留：
+两柱搬迁完成了步骤 0、步骤 1 和步骤 2。解码合同在 `structure/api/decode_api.py`，调用方直接导入该模块。树构造、深度 1 编辑和块注意力在 `structure/algorithm/decode/`，调用方直接导入 `tree.py` 与 `tree_attention.py`。第五节其余目标路径还没有对应的新文件。下面这些是另外的职责残留：
 
 - 成功路径的 `prefill_time` / `decode_time` 仍留在解码统计里，因为已有读端用 0 表示“本次不计时”。时钟或同步失败时这两个键缺席，计数照常返回，汇总也不把缺席写成 0 时长。
 - `studies/_shared/structure/evaluate.py` 仍负责预热、计时和 CSV。它调用宿主解码器，不再自己计算 τ。

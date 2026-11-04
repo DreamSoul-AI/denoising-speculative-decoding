@@ -9,7 +9,7 @@ from spec_mtp.masks import (BonusSlotMaskProvider, ESPMaskProvider, ObservationB
                             OutputHiddenMaskProvider, PreforwardSignalCollector, apply_lowrank_delta,
                             build_mask_provider, centered_r2, fit_lowrank_delta)
 from spec_mtp.model import HFCausalLM
-from spec_mtp.tree import DraftTree
+from spec_mtp.structure.algorithm.decode.tree import DraftTree
 
 
 def _model():
@@ -465,7 +465,7 @@ def test_verify_correction_recovers_scalar_and_edits_only_slot_zero():
     branch._z = torch.tensor([1.0])
     assert torch.allclose(branch.masks(), torch.tensor([[3.0]]))
     assert torch.allclose(branch.consume_probe(), torch.tensor([3.0 + 0.2 * (1.0 - 3.0)]))
-    from spec_mtp.tree import DraftTree, add_depth1_branch, replace_weakest_depth1
+    from spec_mtp.structure.algorithm.decode.tree import DraftTree, add_depth1_branch, replace_weakest_depth1
     tree = DraftTree(root_token=5, tokens=[1, 2], depths=[1, 1], parents=[0, 0], probs=[0.1, 0.1])
     assert add_depth1_branch(tree, 1) is False
     assert add_depth1_branch(tree, 5) is False

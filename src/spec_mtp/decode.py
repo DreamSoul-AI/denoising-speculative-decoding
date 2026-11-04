@@ -28,13 +28,16 @@ import hashlib
 import json
 import math
 
-from spec_mtp.contracts import DecodeRequest, DecodeResult, MaskPolicy, HiddenMaskPolicy, ModelSession, ObservationSink, Cancel
+from spec_mtp.structure.api.decode_api import DecodeRequest, DecodeResult, MaskPolicy, HiddenMaskPolicy, ModelSession, ObservationSink, Cancel
 
 import torch
 
-from spec_mtp.tree import (DynamicTreeAttentionCache, TreeAttentionCache, add_depth1_branch,
-                           build_block_attention, build_tree, mask_indices_of, node_budget_for,
-                           replace_weakest_depth1)
+from spec_mtp.structure.algorithm.decode.tree import (
+    add_depth1_branch, build_tree, node_budget_for, replace_weakest_depth1,
+)
+from spec_mtp.structure.algorithm.decode.tree_attention import (
+    DynamicTreeAttentionCache, TreeAttentionCache, build_block_attention, mask_indices_of,
+)
 
 
 def _clock():

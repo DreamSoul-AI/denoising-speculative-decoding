@@ -38,7 +38,7 @@ def test_output_hidden_sample_matching_equals_fresh_AR(model, temperature):
 
 def test_positive_temperature_draft_is_top1_while_verifier_samples():
     from spec_mtp.decode import select_token, tree_probs
-    from spec_mtp.tree import build_static_tree
+    from spec_mtp.structure.algorithm.decode.tree import build_static_tree
     logits = torch.tensor([[.1, .2, .3], [.3, .2, .1]])
     for temperature in (.8, 1.):
         tree = build_static_tree(tree_probs(logits, temperature), [1, 1], root_token=1, pruning=False)
@@ -48,8 +48,8 @@ def test_positive_temperature_draft_is_top1_while_verifier_samples():
 
 
 def test_owner1_seeds_have_correct_rows_and_positions():
-    from spec_mtp.tree import build_static_tree
-    from spec_mtp.tree import build_block_attention, mask_indices_of
+    from spec_mtp.structure.algorithm.decode.tree import build_static_tree
+    from spec_mtp.structure.algorithm.decode.tree_attention import build_block_attention, mask_indices_of
     probs = torch.tensor([[.1, .7, .2], [.6, .3, .1]])
     tree = build_static_tree(probs, [1, 1], root_token=0, pruning=False)
     rows = mask_indices_of(tree, 2, 1)

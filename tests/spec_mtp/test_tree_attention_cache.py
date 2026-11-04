@@ -7,8 +7,8 @@ import torch
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from spec_mtp.tree import build_dynamic_tree, node_budget_for
-from spec_mtp.tree import DynamicTreeAttentionCache, build_block_attention
+from spec_mtp.structure.algorithm.decode.tree import build_dynamic_tree, node_budget_for
+from spec_mtp.structure.algorithm.decode.tree_attention import DynamicTreeAttentionCache, build_block_attention
 
 
 def _tree(seed, num_masks, bc, vocab, pruning):
@@ -74,8 +74,8 @@ def test_max_entries_must_be_at_least_one():
 
 def test_static_efficient_cache_matches_naive_builder():
     """TreeAttentionCache (Appendix E) stays bit-identical after sharing _block_structure."""
-    from spec_mtp.tree import build_static_tree
-    from spec_mtp.tree import TreeAttentionCache
+    from spec_mtp.structure.algorithm.decode.tree import build_static_tree
+    from spec_mtp.structure.algorithm.decode.tree_attention import TreeAttentionCache
 
     g = torch.Generator().manual_seed(2)
     probs = torch.softmax(torch.randn(2, 48, generator=g), dim=-1)
@@ -88,8 +88,8 @@ def test_static_efficient_cache_matches_naive_builder():
 
 
 def test_static_cache_rebuilds_when_dtype_or_min_value_changes():
-    from spec_mtp.tree import build_static_tree
-    from spec_mtp.tree import TreeAttentionCache
+    from spec_mtp.structure.algorithm.decode.tree import build_static_tree
+    from spec_mtp.structure.algorithm.decode.tree_attention import TreeAttentionCache
 
     g = torch.Generator().manual_seed(0)
     tree = build_static_tree(torch.softmax(torch.randn(2, 32, generator=g), dim=-1), [4], root_token=1, pruning=False)

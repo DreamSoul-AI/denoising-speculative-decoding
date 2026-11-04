@@ -15,11 +15,12 @@ forbidden_modules =
 name = Scientific core does not import concrete model or CLI
 type = forbidden
 source_modules =
-    spec_mtp.contracts
+    spec_mtp.structure.api.decode_api
+    spec_mtp.structure.algorithm.decode.tree
+    spec_mtp.structure.algorithm.decode.tree_attention
     spec_mtp.data
     spec_mtp.decode
     spec_mtp.masks
-    spec_mtp.tree
     spec_mtp.audit
     spec_mtp.analysis
 forbidden_modules =

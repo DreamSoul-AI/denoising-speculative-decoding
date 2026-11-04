@@ -9,7 +9,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.parametrize('name', ['contracts', 'data', 'decode', 'masks', 'tree', 'audit', 'analysis'])
+@pytest.mark.parametrize('name', [
+    'structure/api/decode_api', 'structure/algorithm/decode/tree',
+    'structure/algorithm/decode/tree_attention', 'data', 'decode', 'masks', 'audit', 'analysis',
+])
 def test_scientific_modules_do_not_import_assembly_or_framework(name):
     tree = ast.parse((ROOT / 'src/spec_mtp' / (name + '.py')).read_text(encoding='utf-8'))
     imports = []

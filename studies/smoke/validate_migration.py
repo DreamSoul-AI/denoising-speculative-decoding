@@ -23,7 +23,7 @@ def probe():
     try:
         decode = importlib.import_module('spec_mtp.decode')
         variants = importlib.import_module('studies._shared.structure.smoke_variants')
-        named = importlib.import_module('spec_mtp.contracts')
+        named = importlib.import_module('studies._shared.structure.config')
         models = importlib.import_module('spec_mtp.model')
     except ModuleNotFoundError:
         decode = importlib.import_module('studies._shared.structure.algorithm.spec_mtp.decoding')

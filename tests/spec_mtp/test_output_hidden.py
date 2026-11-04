@@ -189,7 +189,7 @@ def test_bf16_branching_siblings_share_depth_masks_without_mutating_state(model,
 
 def test_nonfirst_sibling_updates_actual_hidden_path_and_cache(model, monkeypatch):
     import spec_mtp.decode as decoding
-    from spec_mtp.tree import DraftTree
+    from spec_mtp.structure.algorithm.decode.tree import DraftTree
 
     prompt = torch.tensor([[2,4,6,8]])
     cfg = _convert({'max_new_tokens': 9, 'temperature': 0., 'stop_on_eos': False})
