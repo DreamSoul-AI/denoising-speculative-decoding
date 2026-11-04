@@ -21,8 +21,10 @@ from studies.trajectory_observation.structure.office_traj import (
     classify_pair, decode_measured_prompt, describe_paired, finite_wall, jaccard, jaccard_band,
     load_local_tokenizer, measure_generate, pair_relation, prompts_brainstorming, prompts_classification,
     prompts_closed_qa, prompts_from_647, prompts_general_qa, prompts_information_extraction, prompts_open_qa,
-    prompts_summarization, report_group, wall_group, wall_report,
-    LENGTHS, PROTOCOL_LENGTH, length_decision, row_buckets, round_config,
+    prompts_summarization, report_group, wall_group, wall_report, round_config,
+)
+from studies.trajectory_observation.structure.office_traj_length import (
+    LENGTHS, PROTOCOL_LENGTH, length_decision, row_buckets,
 )
 
 
@@ -850,7 +852,7 @@ def _fork_row(qid, equal, index, candidate, prompt_length=4, digest='arm'):
 
 
 def test_first_fork_labels_follow_the_registered_rates():
-    from studies.trajectory_observation.structure.office_traj import describe_first_fork
+    from studies.trajectory_observation.structure.office_traj_fork import describe_first_fork
 
     shared_full = [_fork_row(qid, False, 10, 9) for qid in range(5)]
     shared_traj = [_fork_row(qid, False, 10, 9, digest='same') for qid in range(5)]
@@ -886,7 +888,7 @@ def test_first_fork_labels_follow_the_registered_rates():
 
 
 def test_fp32_gap_is_separate_from_the_bf16_fork_label():
-    from studies.trajectory_observation.structure.office_traj import describe_first_fork, fp32_fields
+    from studies.trajectory_observation.structure.office_traj_fork import describe_first_fork, fp32_fields
 
     full = []
     traj = []
@@ -907,7 +909,7 @@ def test_fp32_gap_is_separate_from_the_bf16_fork_label():
 
 
 def test_fp32_gate_does_not_load_when_the_resident_copy_does_not_fit(tmp_path):
-    from studies.trajectory_observation.structure.office_traj import (
+    from studies.trajectory_observation.structure.office_traj_fork import (
         FORK_PREFIX, FORK_STAMP, finish_first_fork, fp32_allocation_fits,
     )
 
@@ -954,7 +956,7 @@ def _det_row(qid, double=True, path=True, gaps=None, length_ok=True):
 
 
 def test_ar_determinism_labels_follow_the_registered_bands():
-    from studies.trajectory_observation.structure.office_traj import describe_ar_determinism
+    from studies.trajectory_observation.structure.office_traj_determinism import describe_ar_determinism
 
     stable = describe_ar_determinism([_det_row(qid) for qid in range(4)])
     assert stable['label'] == '差距大且路径稳定'
@@ -1025,7 +1027,7 @@ def _archive_arm(qid, equal, index=6, prompt_length=4, reference=None):
 
 
 def test_gap_targets_require_the_archived_union(tmp_path):
-    from studies.trajectory_observation.structure.office_traj import (
+    from studies.trajectory_observation.structure.office_traj_determinism import (
         gap_targets_for_qids, load_mismatch_targets,
     )
 
@@ -1066,7 +1068,7 @@ def test_gap_targets_require_the_archived_union(tmp_path):
 
 def test_measure_records_path_inequality_and_the_replayed_gap():
     import torch
-    from studies.trajectory_observation.structure.office_traj import measure_determinism_prompt
+    from studies.trajectory_observation.structure.office_traj_determinism import measure_determinism_prompt
 
     calls = []
 
@@ -1171,7 +1173,7 @@ def test_tokenwise_prompt_matches_only_when_the_prefill_width_does_not_matter():
 
 
 def test_ar_determinism_command_stops_without_the_mismatch_file(tmp_path):
-    from studies.trajectory_observation.structure.office_traj import run_ar_determinism_main
+    from studies.trajectory_observation.structure.office_traj_determinism import run_ar_determinism_main
 
     with pytest.raises(RuntimeError, match='mismatch'):
         run_ar_determinism_main(tmp_path, None)
