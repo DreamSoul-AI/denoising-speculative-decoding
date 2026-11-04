@@ -4,14 +4,11 @@
 """
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
 
 
-def sha(path):
-    with path.open('rb') as handle:
-        return hashlib.file_digest(handle, 'sha256').hexdigest()
+from spec_mtp.structure.artifact.provenance import file_sha256 as sha
 
 
 def main():

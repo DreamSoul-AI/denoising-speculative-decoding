@@ -91,7 +91,7 @@ flowchart TB
 
 箭头仅表示目标 import。`flow` 可以导入 `structure`。`structure` 不导入 `flow`。`api` 不导入其他 structure 子层。解码通过注入模型会话进入具体接入，源码不导入 HF 接入。`spec_mtp` 不导入 `rpipe` 或 `studies`。数据与模型不导入解码，审计与分析不导入模型。跨研究复用进入宿主公共入口，Study 内部私有函数不被宿主反向导入。
 
-依赖方向由静态检查和具体调用测试共同约束。旧流程 API facade 的四条反向依赖仍记录在缩减清单中，清理顺序见开发计划。静态检查不证明动态导入、状态和数值合同正确。
+依赖方向由静态检查和具体调用测试共同约束。旧流程 API facade 已删除，直接反向依赖清单为空；父包间接装配链和其余实现差距见开发计划。静态检查不证明动态导入、状态和数值合同正确。
 ## （二）一次完整研究运行
 ```mermaid
 sequenceDiagram
@@ -170,7 +170,7 @@ CLI、YAML/JSON、token 数据、Hub 文件和旧运行记录都校验形状、�
 
 原始结果、摘要与终态之间没有跨文件事务保证。先写临时文件、校验后原子替换适用于单文件保全，不保证整套运行原子提交。缺结束记录或 raw 截断即未确认，不能因行数看似齐全推正常完成。重算另存分析版本与输入哈希，不能覆盖旧结论。
 
-诊断日志采用现有 logging 及 UTF-8 JSONL，包含 timestamp/level/event/logger/message/app_name/app_version/runtime_id/process_name/pid，按场景加 Run/phase、outcome 和实际耗时。未知可选项省略，凭据、prompt 正文和完整 tensor 不进普通日志。sink 故障记录实际影响，日志无错误不能作为成功依据。
+诊断日志由统一 Logger 保存为 UTF-8 JSONL，包含 timestamp/level/event/logger/message/app_name/app_version/runtime_id/process_name/pid，按场景加 Run/phase、outcome 和实际耗时。未知可选项省略，凭据、prompt 正文和完整 tensor 不进普通日志。sink 故障记录实际影响，日志无错误不能作为成功依据。
 ## （三）失败处理
 | **故障** | **处理与继续条件** |
 | --- | --- |

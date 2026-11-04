@@ -10,7 +10,7 @@ def load(out, plan, tool):
     os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
     import torch
     import yaml
-    from diagnose_output_windows import file_hash
+    from window_diagnostics import file_hash
     from spec_mtp.structure.system.config import SystemConfig
     from spec_mtp.structure.system.runtime import apply_runtime
     from studies._shared.structure.evidence import model_digest, runtime
@@ -70,7 +70,7 @@ def load(out, plan, tool):
 
 
 def verify(c):
-    from diagnose_output_windows import file_hash
+    from window_diagnostics import file_hash
     from studies._shared.structure.evidence import model_digest, runtime
     from studies._shared.structure.sources import manifest
     assert all(file_hash(p) == c.binding[k] for k, p in c.paths.items())
@@ -89,7 +89,7 @@ def compare_control(c, samples, replay, graft):
 
 def profile(call, target, operators):
     import torch
-    from diagnose_output_windows import file_hash
+    from window_diagnostics import file_hash
     try:
         with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU,
                                                torch.profiler.ProfilerActivity.CUDA], record_shapes=True) as profiler:

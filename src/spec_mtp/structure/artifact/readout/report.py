@@ -6,10 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from spec_mtp.structure.artifact._atomic import atomic_write_text
+from spec_mtp.structure.artifact.asset import kinds
 from spec_mtp.structure.artifact.errors import CorruptArtifactError
 from spec_mtp.structure.artifact.index import index_path, load_index
 from spec_mtp.structure.artifact.paths import DOCS_DIRNAME, PROCESS_NAME
 from spec_mtp.structure.artifact.result import load_result
+from spec_mtp.structure.artifact.readout.status import log_path
 
 
 def numbers_path(study_dir: Path | str) -> Path:
@@ -47,15 +49,17 @@ def _planned_runs(body: dict[str, Any]) -> dict[str, Any]:
     return planned
 
 
-def _log_links(index: dict[str, Any]) -> dict[str, str]:
+def _log_links(index: dict[str, Any], study_dir: Path) -> dict[str, str]:
     links: dict[str, str] = {}
     for exp in index.get('experiments') or []:
         for run in exp.get('runs') or []:
             run_id = str(run.get('id') or '')
             if not run_id:
                 continue
-            raw = run.get('log') or f'runs/{run_id}/assets/logs/run.log'
-            links[run_id] = '../' + str(raw).replace('\\', '/')
+            path = log_path(study_dir, run, str(run.get('run_dir') or run_id))
+            if path is not None:
+                relative = path.resolve().relative_to(study_dir.resolve())
+                links[run_id] = '../' + relative.as_posix()
     return links
 
 
@@ -78,7 +82,7 @@ def render_numbers(study_dir: Path | str) -> str:
     except (TypeError, ValueError) as exc:
         raise ValueError(f'process does not match the current index: {exc}; '
                          'check the plan and rerun process before report') from exc
-    links = _log_links(index)
+    links = _log_links(index, study_dir)
     lines = [
         f'# Numbers: {body.get("study") or study_dir.name}',
         '',
@@ -127,10 +131,10 @@ def render_numbers(study_dir: Path | str) -> str:
             run_id = str(run.get('id') or '')
             metrics = run.get('metrics') or {}
             metric_text = ', '.join(f'{key}={_fmt(metrics[key])}' for key in sorted(metrics)) or '-'
-            href = links.get(run_id) or f'../runs/{run_id}/assets/logs/run.log'
+            href = links.get(run_id) or f'../runs/{run_id}/assets/{kinds.RUN_LOG}'
             seed = '' if run.get('seed') is None else str(run.get('seed'))
             lines.append(
-                f'| {factors} | {seed} | `{run_id}` | {metric_text} | [run.log]({href}) |'
+                f'| {factors} | {seed} | `{run_id}` | {metric_text} | [log]({href}) |'
             )
     lines.append('')
     return '\n'.join(lines)

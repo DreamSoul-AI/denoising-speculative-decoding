@@ -32,7 +32,7 @@ from spec_mtp.structure.make import (
     write_launch_scripts,
 )
 from spec_mtp.structure.origin import apply_model_origin, normalize_origin
-from spec_mtp.structure.api import data_api
+from spec_mtp.structure.data.prepare import prepare_shared_data
 from spec_mtp.structure.make.capacity import (
     attach_estimates,
     batch_summaries,
@@ -53,7 +53,7 @@ def _prepare_shared(study_dir: Path | str, config_paths: list[Path]) -> None:
         raise TypeError('flow.prepare_shared must be a boolean')
     if not enabled:
         return
-    names = data_api.prepare_shared(study_dir, config_paths)
+    names = prepare_shared_data(study_dir, config_paths)
     if names:
         print('shared data: ' + ', '.join(names), flush=True)
 
@@ -500,7 +500,7 @@ def main(argv: list[str] | None = None) -> int:
     report_p = sub.add_parser('report', help='write docs/NUMBERS.md from process.json')
     report_p.add_argument('study_dir', type=Path, help='Path to studies/<name>/')
 
-    logs_p = sub.add_parser('logs', help='print run.log event lines in time order')
+    logs_p = sub.add_parser('logs', help='print diagnostic events in time order (JSONL and legacy text)')
     logs_p.add_argument('study_dir', type=Path, help='Path to studies/<name>/')
 
     status_p = sub.add_parser('status', help='list index Runs with result status (read-only)')

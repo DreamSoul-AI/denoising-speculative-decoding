@@ -7,21 +7,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+from spec_mtp.structure.artifact.provenance import file_sha256 as file_hash
+
 
 def digest(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode()).hexdigest()
-
-
-def file_hash(path: Path) -> str:
-    with path.open('rb') as handle:
-        return hashlib.file_digest(handle, 'sha256').hexdigest() if hasattr(hashlib, 'file_digest') else _hash_stream(handle)
-
-
-def _hash_stream(handle: Any) -> str:
-    result = hashlib.sha256()
-    for chunk in iter(lambda: handle.read(1024 * 1024), b''):
-        result.update(chunk)
-    return result.hexdigest()
 
 
 def runtime() -> dict[str, Any]:

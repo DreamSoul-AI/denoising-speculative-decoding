@@ -473,45 +473,51 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/algorithm/test_counts.py::test_zero_decode_calls_have_no_tau",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.algorithm.counts",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/structure/algorithm/test_counts.py::test_pooled_tau_and_missing_prompts_are_explicit",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.algorithm.counts",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/structure/algorithm/test_counts.py::test_pairing_preserves_losses_and_missing_rows",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.algorithm.counts",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/structure/algorithm/test_counts.py::test_output_length_mismatch_is_not_a_speed_or_acceptance_comparison",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.algorithm.counts",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/structure/algorithm/test_counts.py::test_incomplete_evidence_is_preserved_as_incomparable",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.algorithm.counts",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/structure/algorithm/test_counts.py::test_untrusted_counts_are_rejected",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.algorithm.counts",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_audit.py::test_non_object_or_missing_envelope_is_rejected",
@@ -837,14 +843,14 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_prompts.py::test_malformed_prompt_records_fail",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.data.prompts",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_prompts.py::test_synthetic_shape_rejects_coercion_and_unbounded_values",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.data.prompts",
       "tags": [
         "offline_cpu"
       ]
@@ -1103,28 +1109,28 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/model/test_device.py::test_cpu_device_stays_cpu",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.model.hf_causal",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/structure/model/test_device.py::test_dtype_names",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.model.hf_causal",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/structure/model/test_device.py::test_unknown_dtype_is_rejected",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.model.hf_causal",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/structure/model/test_device.py::test_seed_is_repeatable",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.model.hf_causal",
       "tags": [
         "offline_cpu"
       ]
@@ -1614,14 +1620,14 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.model.hf_causal",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.model.hf_causal",
       "tags": [
         "offline_cpu"
       ]
@@ -1880,35 +1886,35 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_prompts.py::test_window_is_per_category_in_name_order",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.data.prompts",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_prompts.py::test_synthetic_prompts_are_seeded",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.data.prompts",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_prompts.py::test_registry_builds_synthetic_prompts_without_a_tokenizer",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.data",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_prompts.py::test_select_prompts_caps_and_keeps_eval_eos",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.inputs",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_prompts.py::test_local_prompts_text_mode_and_bad_mode",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.data.prompts",
       "tags": [
         "offline_cpu"
       ]
@@ -2209,7 +2215,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/model/test_tiny_llama.py::test_tiny_llama_embeds_token_ids",
-      "target": "spec_mtp",
+      "target": "spec_mtp.structure.model.hf_causal",
       "tags": [
         "offline_cpu"
       ]
@@ -3129,14 +3135,16 @@
       "target": "spec_mtp.structure.algorithm.counts",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/structure/algorithm/test_counts.py::test_custom_pairing_adds_factor_once_without_changing_valid_pairs",
       "target": "spec_mtp.structure.algorithm.counts",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_cli.py::test_cli_compare_keeps_required_and_additional_pairing_checks",
@@ -3192,11 +3200,12 @@
       "target": "spec_mtp.structure.algorithm.counts",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_prompts.py::test_eval_prompt_limit_rejects_negative_or_coerced_values",
-      "target": "studies._shared.structure.inputs",
+      "target": "studies._shared.structure.alignment_probe",
       "tags": [
         "offline_cpu"
       ]
@@ -4044,6 +4053,174 @@
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_office_traj_command.py::test_formal_stops_when_warmup_sync_or_argmax_fails",
       "target": "studies.trajectory_observation.structure.office_traj",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_extension_windows.py::test_legacy_analysis_help_uses_canonical_helpers_without_editable_paths",
+      "target": "studies._shared.structure",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/test_tracker.py::test_tracker_configuration_matches_algorithm_settings",
+      "target": "spec_mtp.structure.algorithm.tracker",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_logger_writes_real_identity_and_escapes_payload",
+      "target": "spec_mtp.structure.system.logger",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_exception_is_one_record_without_exception_payload",
+      "target": "spec_mtp.structure.system.logger",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_log_write_failure_is_reported_to_the_caller",
+      "target": "spec_mtp.structure.system.logger",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_new_and_legacy_logs_remain_readable_without_rewrite",
+      "target": "spec_mtp.structure.system.logger",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_truncated_diagnostic_is_not_rendered_as_complete",
+      "target": "spec_mtp.structure.system.logger",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_log_order_compares_utc_instants_across_legacy_offsets",
+      "target": "spec_mtp.structure.system.logger",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_report_links_follow_actual_new_or_legacy_log",
+      "target": "spec_mtp.structure.system.logger",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_malformed_diagnostic_stops_the_logs_command",
+      "target": "spec_mtp.structure.system.logger",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_report_rejects_a_log_link_outside_the_study",
+      "target": "spec_mtp.structure.system.logger",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_loggers_in_one_process_share_runtime_but_keep_run_identity",
+      "target": "spec_mtp.structure.system.logger",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/test_provenance.py::test_file_hash_supports_python310_and_real_bytes",
+      "target": "spec_mtp.structure.artifact.provenance",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_office_tree.py::test_shared_protocol_import_preserves_caller_environment",
+      "target": "studies.trajectory_observation.structure.fair_branch",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
       "tags": [
         "offline_cpu"
       ]

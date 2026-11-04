@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -50,10 +52,52 @@ def _factor_label(factors: dict[str, Any]) -> str:
 def log_path(study_dir: Path, run: dict[str, Any], run_dir: str) -> Path | None:
     raw = run.get('log')
     if raw:
-        return study_dir / str(raw)
-    if not run_dir:
+        path = study_dir / str(raw)
+    elif run_dir:
+        path = study_dir / RUNS_DIRNAME / run_dir / 'assets' / kinds.RUN_LOG
+    else:
         return None
-    return study_dir / RUNS_DIRNAME / run_dir / 'assets' / kinds.RUN_LOG
+    if path.is_file():
+        return path
+    if path.name in ('run.log', 'events.jsonl'):
+        alternate = path.with_name('run.log' if path.name == 'events.jsonl' else 'events.jsonl')
+        if alternate.is_file():
+            return alternate
+    return path
+
+
+def diagnostic_lines(path: Path) -> list[str]:
+    """Render saved JSONL diagnostics; historical text remains read-only."""
+    if path.suffix != '.jsonl':
+        return path.read_text(encoding='utf-8', errors='replace').splitlines()
+    text = path.read_text(encoding='utf-8')
+    lines = []
+    events = {'task.progress': 'flow', 'task.failed': 'error', 'operation.warning': 'warn',
+              'algorithm.epoch_completed': 'epoch', 'algorithm.split_completed': 'split',
+              'checkpoint.saved': 'ckpt', 'checkpoint.resumed': 'resume'}
+    required = ('timestamp', 'level', 'event', 'message', 'logger', 'app_name',
+                'app_version', 'runtime_id', 'process_name')
+    for line in text.splitlines(keepends=True):
+        if not line.endswith('\n') or len(line) > 65536:
+            raise ValueError('truncated or oversized diagnostic record')
+        record = json.loads(line)
+        if (not isinstance(record, dict) or any(not isinstance(record.get(key), str) for key in required)
+                or record['level'] not in {'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'}
+                or type(record.get('pid')) is not int or record['pid'] <= 0):
+            raise ValueError('invalid diagnostic record')
+        if any(any((unicodedata.category(char).startswith('C') or char in '\u2028\u2029') for char in record[key]) for key in required if key != 'message'):
+            raise ValueError('invalid diagnostic identity')
+        task_id = record.get('task_id', '-')
+        if not isinstance(task_id, str) or any((unicodedata.category(char).startswith('C') or char in '\u2028\u2029') for char in task_id):
+            raise ValueError('invalid diagnostic task identity')
+        message = ''.join(char if not unicodedata.category(char).startswith('C') and char not in '\u2028\u2029' else '\\u%04x' % ord(char)
+                          for char in record['message'])
+        error_type = record.get('exception_type')
+        if isinstance(error_type, str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.]*', error_type):
+            message += f' [{error_type}]'
+        tag = events.get(record['event'], 'flow')
+        lines.append(f"{record['timestamp']} {record['level']} {task_id} [{tag}] {message}")
+    return lines
 
 
 def _note_from_log(path: Path | None, *, errors_only: bool = False) -> str:
@@ -64,9 +108,9 @@ def _note_from_log(path: Path | None, *, errors_only: bool = False) -> str:
     if path is None or not path.is_file():
         return '-'
     try:
-        lines = path.read_text(encoding='utf-8', errors='replace').splitlines()
-    except OSError:
-        return '-'
+        lines = diagnostic_lines(path)
+    except (OSError, ValueError):
+        return '[error] diagnostic log unavailable'
     chosen = None
     fallback = None
     for line in lines:

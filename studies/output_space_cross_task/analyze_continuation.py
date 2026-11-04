@@ -7,8 +7,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
-from diagnose_output_windows import file_hash, TRACE_KEYS
-from diagnose_rare_stress import event_summary
+from window_diagnostics import file_hash, TRACE_KEYS
+from sampling_diagnostics import event_summary
 from studies.output_space_cross_task.analyze_sampling_expansion import summarize_unit
 from studies.output_space_cross_task.analyze_first_delta import path_accounting
 

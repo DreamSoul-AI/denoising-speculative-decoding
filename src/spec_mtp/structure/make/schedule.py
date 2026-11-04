@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from spec_mtp.structure.api.algorithm_api import sibling_train_dependency
+from spec_mtp.structure.algorithm.resume import sibling_train_dependency
 from spec_mtp.structure.artifact import artifact_layout, load_config
 from spec_mtp.structure.artifact.index import load_index
 from spec_mtp.structure.artifact.layout import validate_run_directory

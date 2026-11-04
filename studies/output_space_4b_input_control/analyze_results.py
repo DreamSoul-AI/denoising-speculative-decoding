@@ -5,7 +5,7 @@ import sys
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'studies'/'_shared'/'structure'))
 sys.path.insert(0,str(ROOT/'studies/output_space_4b_recheck_v2'))
-from diagnose_output_windows import file_hash
+from window_diagnostics import file_hash
 from analyze_results import paired_summary
 
 

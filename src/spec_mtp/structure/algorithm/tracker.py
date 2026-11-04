@@ -9,7 +9,8 @@ from typing import Any
 
 from spec_mtp.structure.artifact.asset import kinds
 from spec_mtp.structure.artifact._atomic import atomic_write_text
-from spec_mtp.structure.algorithm.metric import MetricBundle
+from spec_mtp.structure.algorithm.config import AlgorithmConfig
+from spec_mtp.structure.algorithm.metric import MetricBundle, resolve_metric_names
 
 
 class _Meter:
@@ -220,3 +221,14 @@ class AlgorithmTracker:
                 self._meters[split][name] = meter
                 if 'segment_batches' not in state and meter.n > 0:
                     self._segment_batches[split] = 1
+
+
+def make_tracker(assets_dir: Path | str, algorithm_config: AlgorithmConfig | None = None) -> AlgorithmTracker:
+    names = None
+    glue = None
+    if algorithm_config is not None:
+        names = resolve_metric_names(algorithm_config.setting('metric'))
+        if any('GLUE' in items for items in names.values()):
+            glue = str(algorithm_config.setting('glue_subset', 'cola') or 'cola')
+    bundle = MetricBundle(names, glue_subset=glue) if glue else MetricBundle(names)
+    return AlgorithmTracker(assets_dir, metrics=bundle)

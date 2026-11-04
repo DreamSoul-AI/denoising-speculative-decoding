@@ -46,7 +46,7 @@ def test_future_mask_change_preserves_current_verification(model, monkeypatch):
 
 def test_frozen_targets_retain_entry_and_bound_windows(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
-    from diagnose_state_extension import frozen_targets
+    from studies._shared.structure.extension_diagnostics import frozen_targets
     selected = frozen_targets({'intervention_root': 10, 'targets': [10, 11, 13, 14, 18, 20, 22, 23]})
     assert selected == [10, 11, 13, 14, 22, 23]
     assert frozen_targets({'intervention_root': 10, 'targets': [10, 11]}) == [10, 11]

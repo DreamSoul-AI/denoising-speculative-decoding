@@ -26,3 +26,25 @@ source_modules =
 forbidden_modules =
     spec_mtp.flow.cli
     spec_mtp.structure.model.hf_causal
+
+[importlinter:contract:structure_without_flow]
+name = structure does not import flow
+type = forbidden
+source_modules =
+    spec_mtp.structure
+forbidden_modules =
+    spec_mtp.flow
+
+[importlinter:contract:api_without_siblings]
+name = api does not import other structure sublayers
+type = forbidden
+source_modules =
+    spec_mtp.structure.api
+forbidden_modules =
+    spec_mtp.structure.control
+    spec_mtp.structure.data
+    spec_mtp.structure.model
+    spec_mtp.structure.algorithm
+    spec_mtp.structure.system
+    spec_mtp.structure.artifact
+    spec_mtp.structure.make

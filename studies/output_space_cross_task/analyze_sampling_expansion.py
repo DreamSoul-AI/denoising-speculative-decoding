@@ -7,9 +7,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
-from diagnose_output_windows import file_hash, SEMANTIC_KEYS, TRACE_KEYS
-from diagnose_extension import choose_window
-from diagnose_rare_events import detectability
+from window_diagnostics import file_hash, SEMANTIC_KEYS, TRACE_KEYS
+from extension_diagnostics import choose_window
+from sampling_diagnostics import detectability
 
 
 def summarize_unit(unit, directory, development):

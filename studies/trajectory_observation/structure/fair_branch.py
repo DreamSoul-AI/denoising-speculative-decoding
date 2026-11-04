@@ -9,21 +9,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
 import platform
 import subprocess
 import time
-
-TEMP = Path(r'D:\360安全浏览器下载\Agent\DreamSoul\temp')
-for _key, _sub in (
-    ('TEMP', 'tmp'), ('TMP', 'tmp'), ('HF_HOME', 'hf'),
-    ('HF_DATASETS_CACHE', 'hf/datasets'), ('HUGGINGFACE_HUB_CACHE', 'hf/hub'),
-    ('TORCH_HOME', 'torch'), ('XDG_CACHE_HOME', 'cache'),
-):
-    _path = TEMP / _sub
-    _path.mkdir(parents=True, exist_ok=True)
-    os.environ[_key] = str(_path)
 
 import torch
 from transformers import AutoTokenizer

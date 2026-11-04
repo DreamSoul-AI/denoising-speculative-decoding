@@ -103,7 +103,7 @@ def run_pilot(session, documents, positions, assets_dir, *, seed, extract=extrac
 
 
 def _data_builder(config, assets_dir, seed=None):
-    from spec_mtp.structure.api.data_api import Data
+    from spec_mtp.structure.data import Data
 
     del assets_dir
     docs = config.config['documents']
@@ -111,7 +111,7 @@ def _data_builder(config, assets_dir, seed=None):
 
 
 def _model_builder(config, assets_dir, data_meta=None):
-    from spec_mtp.structure.api.model_api import Model
+    from spec_mtp.structure.model import Model
     from spec_mtp.structure.model.hf_causal import HFCausalLM
     from transformers import LlamaConfig, LlamaForCausalLM
 
@@ -126,9 +126,9 @@ def _model_builder(config, assets_dir, data_meta=None):
 
 
 def register(ctx):
-    from spec_mtp.structure.api.algorithm_api import Algorithm, AlgorithmRegistry
-    from spec_mtp.structure.api.data_api import DataRegistry
-    from spec_mtp.structure.api.model_api import ModelRegistry
+    from spec_mtp.structure.algorithm import Algorithm, AlgorithmRegistry
+    from spec_mtp.structure.data import DataRegistry
+    from spec_mtp.structure.model import ModelRegistry
 
     cfg = ctx.config
     if cfg['algorithm'].get('mode') != 'eval' or cfg['algorithm'].get('source') != SOURCE:

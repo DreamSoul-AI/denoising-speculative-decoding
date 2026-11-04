@@ -7,9 +7,7 @@ from pathlib import Path
 import numpy as np
 POSITION_EDGES = (0, 32, 64, 128, 192, 256)
 
-def sha(path):
-    with Path(path).open('rb') as handle:
-        return hashlib.file_digest(handle, 'sha256').hexdigest()
+from spec_mtp.structure.artifact.provenance import file_sha256 as sha
 
 def distribution(values):
     values = np.asarray(values, dtype=float)

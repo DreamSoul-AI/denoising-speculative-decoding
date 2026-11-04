@@ -1,4 +1,6 @@
 """Library helpers folded from one-shot structure scripts."""
+
+from spec_mtp.structure.artifact.provenance import file_sha256
 from spec_mtp.structure.algorithm.mask import build_mask_provider
 import hashlib
 import json
@@ -89,8 +91,7 @@ def observe(model, prompt, spec, eval_cfg, eos, reference, targets, seed=124):
 def file_hash(path):
     path = Path(path)
     if path.exists():
-        with path.open('rb') as handle:
-            return hashlib.file_digest(handle, 'sha256').hexdigest()
+        return file_sha256(path)
     root = Path(__file__).resolve().parents[3]
     relative = path.resolve().relative_to(root).as_posix()
     manifest = json.loads((root / 'docs/research/plan-consolidation-manifest.json').read_text(encoding='utf-8'))

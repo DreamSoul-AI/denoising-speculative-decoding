@@ -4,7 +4,7 @@
 """
 
 import argparse
-import hashlib
+from spec_mtp.structure.artifact.provenance import file_sha256
 import json
 from pathlib import Path
 
@@ -20,8 +20,7 @@ def main():
     study = Path(__file__).resolve().parent
     observer = json.loads((study / 'docs/window_diagnosis_v1.json').read_text(encoding='utf-8'))
     matrix = json.loads((study / 'docs/execution_v1.json').read_text(encoding='utf-8'))
-    with args.raw.open('rb') as handle:
-        raw_sha = hashlib.file_digest(handle, 'sha256').hexdigest()
+    raw_sha = file_sha256(args.raw)
     assert raw_sha == observer['raw_tensor_sha256'] and manifest()['digest'] == '670c744e0535dcad'
     raw = torch.load(args.raw, weights_only=True)
     rows = {row['case']: row for row in matrix['runs']}

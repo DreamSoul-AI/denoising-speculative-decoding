@@ -13,7 +13,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
-from diagnose_output_windows import TRACE_KEYS, file_hash
+from window_diagnostics import TRACE_KEYS, file_hash
 
 QIDS = [241, 242, 243, 244]
 STUDY = Path(__file__).resolve().parent
@@ -145,7 +145,7 @@ def export():
         'model_digest': runs[0]['model_digest'], 'runs': runs, 'tool_sha256': file_hash(Path(__file__))}
     target = STUDY / 'docs/execution_v1.json'
     write_new_or_equal(target, body)
-    from diagnose_extension import choose_window
+    from extension_diagnostics import choose_window
     selection = {'matrix_sha256': file_hash(target), 'runner_sha256': file_hash(ROOT / 'studies/_shared/structure/diagnose_study_windows.py'),
         'prompts': [{'question_id': qid, **choose_window(rows['output_order0']['raw']['evidence'][i]['stats']['trace'],
             rows['output_order1']['raw']['evidence'][i]['stats']['trace'])} for i, qid in enumerate(QIDS)]}

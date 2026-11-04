@@ -6,7 +6,7 @@ from test_window_observer import ROOT
 
 def summary(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
-    from diagnose_rare_stress import event_summary
+    from studies._shared.structure.sampling_diagnostics import event_summary
     return event_summary
 
 

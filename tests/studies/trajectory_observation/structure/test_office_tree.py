@@ -135,3 +135,21 @@ def test_output_dir_must_already_exist_off_the_repo(tmp_path):
     with pytest.raises(RuntimeError):
         existing_output_dir(tmp_path / 'missing')
     assert QWEN3_4B == Path('D' + ':' + '\\') / 'models' / 'Qwen3-4B'
+
+
+def test_shared_protocol_import_preserves_caller_environment(tmp_path):
+    import os
+    from pathlib import Path
+    import subprocess
+    import sys
+    import sysconfig
+
+    root = Path(__file__).resolve().parents[4]
+    env = {**os.environ, 'PYTHONPATH': os.pathsep.join((str(root / 'src'), str(root), sysconfig.get_path('purelib'))),
+           'PYTHONDONTWRITEBYTECODE': '1', 'CUDA_VISIBLE_DEVICES': ''}
+    code = ('import torch, transformers, os; before=dict(os.environ); '
+            'from studies.trajectory_observation.structure import fair_branch; '
+            'assert dict(os.environ)==before, "protocol import changed caller environment"')
+    result = subprocess.run([sys.executable, '-S', '-c', code], env=env, cwd=tmp_path,
+                            text=True, capture_output=True, timeout=20)
+    assert result.returncode == 0, result.stdout + result.stderr

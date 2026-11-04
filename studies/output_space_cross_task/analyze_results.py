@@ -7,8 +7,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
-from diagnose_output_windows import file_hash
-from diagnose_extension import choose_window
+from window_diagnostics import file_hash
+from extension_diagnostics import choose_window
 
 
 def save(path, body):

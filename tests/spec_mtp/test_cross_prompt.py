@@ -7,7 +7,7 @@ from test_window_observer import ROOT
 
 def test_window_selection_uses_common_root_not_forward_index(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
-    from diagnose_cross_prompt import select_window
+    from studies._shared.structure.window_diagnostics import select_window
     zero = [{'root_position': r, 'accepted_nodes': [1] if r in (5, 7) else []} for r in (3, 5, 6, 7)]
     one = [{'root_position': r, 'accepted_nodes': [1] if r == 7 else []} for r in (3, 4, 6, 7)]
     assert select_window(zero, one) == (6, 7, [6, 7])
@@ -15,7 +15,7 @@ def test_window_selection_uses_common_root_not_forward_index(monkeypatch):
 
 def test_state_comparison_retains_changed_velocity_and_negative_margin(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
-    from diagnose_cross_prompt import compare_window
+    from studies._shared.structure.window_diagnostics import compare_window
     baseline = {'seed_positions': [8, 9], 'source_root': 7, 'source_owner': 0,
         'seed_logits': torch.tensor([[1., 3., 2.], [0., 1., 2.]]),
         'seed_mask_inputs': torch.tensor([[1., 0.], [0., 1.]]),

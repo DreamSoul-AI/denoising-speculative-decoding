@@ -2,7 +2,6 @@
 
 from spec_mtp.structure.algorithm.mask import build_mask_provider
 
-import importlib.util
 from pathlib import Path
 
 import pytest
@@ -14,9 +13,7 @@ from spec_mtp.structure.model.hf_causal import HFCausalLM
 from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
 
 ROOT = Path(__file__).resolve().parents[2]
-module_spec = importlib.util.spec_from_file_location('window_observer', ROOT / 'studies/_shared/structure/diagnose_output_windows.py')
-observer = importlib.util.module_from_spec(module_spec)
-module_spec.loader.exec_module(observer)
+from studies._shared.structure import window_diagnostics as observer
 
 
 @pytest.fixture
@@ -82,7 +79,7 @@ def test_target_margin_sign_and_best_alternative():
 
 def test_crossed_norms_preserve_observed_vectors_and_change_only_magnitude(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
-    import diagnose_mask_scale
+    from studies._shared.structure import window_diagnostics as diagnose_mask_scale
     a, b = torch.tensor([3., 4.]), torch.tensor([0., 10.])
     cases = diagnose_mask_scale.crossed_masks(a, b)
     assert len(cases) == 4

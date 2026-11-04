@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
-from diagnose_output_windows import file_hash
+from window_diagnostics import file_hash
 from diagnose_q178_numerics import tensor_equal
 from analyze_results import slots
 

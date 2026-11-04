@@ -11,7 +11,7 @@ from studies._shared.structure.config import _convert
 
 def test_conditional_draws_are_shared_not_greedy(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
-    from diagnose_sampling_paths import conditional_acceptance
+    from studies._shared.structure.sampling_diagnostics import conditional_acceptance
     logits = torch.tensor([.1, .2, .3])
     candidates = {'self': 0, 'state': 0, 'proxy': 2, 'both': 2}
     result = conditional_acceptance(logits, candidates, .8, range(20, 52))

@@ -22,8 +22,13 @@ def provenance_path(study_dir: Path | str) -> Path:
     return Path(study_dir) / PROVENANCE_NAME
 
 
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def file_sha256(path: Path | str) -> str:
+    """Hash the actual file in bounded chunks on every supported Python."""
+    digest = hashlib.sha256()
+    with Path(path).open('rb') as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _inside(study_dir: Path, raw: str) -> Path:
@@ -48,7 +53,7 @@ def source_files(study_dir: Path | str, study: dict[str, Any]) -> dict[str, str]
             if '__pycache__' in path.parts or 'reference' in path.parts:
                 continue
             owned.append(path)
-    out = {'spec_mtp/' + path.relative_to(package).as_posix(): _sha256(path) for path in owned}
+    out = {'spec_mtp/' + path.relative_to(package).as_posix(): file_sha256(path) for path in owned}
     names = list(DECLARATION_FILES)
     names.extend(path.relative_to(study_dir).as_posix() for path in study_phase_files(study_dir, study))
     for folder in ('flow', 'structure'):
@@ -67,7 +72,7 @@ def source_files(study_dir: Path | str, study: dict[str, Any]) -> dict[str, str]
     for name in names:
         path = _inside(study_dir, name)
         if path.is_file():
-            out[path.relative_to(study_dir).as_posix()] = _sha256(path)
+            out[path.relative_to(study_dir).as_posix()] = file_sha256(path)
     return out
 
 
@@ -77,13 +82,13 @@ def plan_files(study_dir: Path | str) -> dict[str, str]:
     index = study_dir / paths.INDEX_NAME
     if not index.is_file():
         return {}
-    out = {paths.INDEX_NAME: _sha256(index)}
+    out = {paths.INDEX_NAME: file_sha256(index)}
     body = json.loads(index.read_text(encoding='utf-8'))
     for experiment in body.get('experiments') or []:
         for run in experiment.get('runs') or []:
             config = study_dir / paths.RUNS_DIRNAME / str(run['id']) / paths.CONFIG_NAME
             if config.is_file():
-                out[config.relative_to(study_dir).as_posix()] = _sha256(config)
+                out[config.relative_to(study_dir).as_posix()] = file_sha256(config)
     return out
 
 

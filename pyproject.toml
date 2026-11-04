@@ -56,10 +56,7 @@ extend-exclude = ["src/spec_mtp/structure/algorithm/reference/esp_reproduction_a
 select = ["F", "E9"]
 
 [tool.ruff.lint.per-file-ignores]
-# Study-flow facades reexport these imports.
-"src/spec_mtp/structure/api/algorithm_api.py" = ["F401"]
-"src/spec_mtp/structure/api/data_api.py" = ["F401"]
-"src/spec_mtp/structure/api/model_api.py" = ["F401"]
+# Training package reexports these imports.
 "src/spec_mtp/structure/algorithm/train/__init__.py" = ["F401"]
 
 [tool.mypy]
