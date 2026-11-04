@@ -12,11 +12,11 @@
 | 会议方法的 CPU 合成检查 | 已完成。top1 确认未通过，oracle 空间全在槽 1，停止在合成设置上换形式 | 见运行记录；真实模型比较仍需另行批准 |
 | observation 上的仿射 K | 研究计划把完整 K 与仅 bias 列为对照 | 合成检查有结论后再定 z→Az+b 的拟合数据 |
 | 飞书规范正文 | 用户令牌过期时只读了索引和参考仓 | 下次能读取时核对冲突段落，不预先改写成“已符合全文” |
-| 下一高信息实验的逐臂墙钟 | 研究计划第九章已写定 `office-8b-traj-wall-v1`。`office_traj.py` 已逐臂记录 `wall_seconds`，缺失不写成 0。外层打印仍不进入比较 | 已实现。CPU 单测覆盖记录与缺失。不授权 GPU |
+| 下一高信息实验的逐臂墙钟 | 研究计划第九章已写定 `office-8b-traj-wall-v1`。`office_traj.py` 已逐臂记录 `wall_seconds`，缺失不写成 0。外层打印仍不进入比较 | 已跑。接受数 `direction` 为 positive，`wall_direction` 为 shorter，两区间都不含 0。见 [2026-11-04 Qwen3-8B trajectory墙钟](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory墙钟.md>)。失败子集仍未跑 |
 
 不新增插件注册、通用校正框架或第二套测试运行器。
 
-2026年11月4日，研究计划第九章写定下一高信息实验。主项是 `office-8b-traj-wall-v1`：在已经跑完的 summarization 切片上，比较 traj 与 full 的逐臂墙钟和接受数是否同向。次项是 `office-8b-traj-failset-v1`：从已归档 jsonl 界定 full 接受数更高的 prompt 子集，不新跑模型。同日已在 `structure/office_traj.py` 记下第九章定义的 `wall_seconds`，句子仍用 `--protocol xcat7`，接受计数保持原口径，不另建脚本，不增加 legacy 条目。本段不批准 GPU 运行。
+2026年11月4日，研究计划第九章写定下一高信息实验。主项是 `office-8b-traj-wall-v1`：在已经跑完的 summarization 切片上，比较 traj 与 full 的逐臂墙钟和接受数是否同向。次项是 `office-8b-traj-failset-v1`：从已归档 jsonl 界定 full 接受数更高的 prompt 子集，不新跑模型。同日已在 `structure/office_traj.py` 记下第九章定义的 `wall_seconds`，句子仍用 `--protocol xcat7`，接受计数保持原口径，不另建脚本，不增加 legacy 条目。本段不批准 GPU 运行。同日稍后，办公室批准的这一次 GPU 测量已经跑完，结果在运行记录。失败子集没有做。
 
 2026年11月3日，同节点预算的额外分支按研究计划里已写定的 `extra-branch-replace-v1` 执行。这次只比较接受数，不测速，不下载模型。运行产物留在源码树外。
 
@@ -24,4 +24,4 @@
 2026年11月1日 Enmao 决定：仓库不再内嵌 `src/rpipe/`，顶层不再有 `tools/`。Study 流程由 `spec_mtp.flow` 与 `spec_mtp.structure` 自己实现，目录以 https://github.com/DreamSoul-AI/RPipe 为结构模板持续对齐。此前“继续固定 v0.3.1”的默认假设作废。来源提交 `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5` 只说明被吸收的那一版流程代码从哪来，不再是本仓的固定副本。
 
 # 四、明确不做
-不下载模型，不恢复范数矩阵、配对矩阵和 ESP 长矩阵，不做尚未另行批准的 GPU 测速，不合并 `dev` 或 `main`，不改 Actions 和仓库保护，不把运行产物提交进 Git。研究计划第九章写定了墙钟和失败子集的协议。逐臂 `wall_seconds` 已记在 `office_traj.py`。失败子集分析和 GPU 运行仍要另行批准。
+不下载模型，不恢复范数矩阵、配对矩阵和 ESP 长矩阵，不做尚未另行批准的 GPU 测速，不合并 `dev` 或 `main`，不改 Actions 和仓库保护，不把运行产物提交进 Git。研究计划第九章写定了墙钟和失败子集的协议。逐臂 `wall_seconds` 已记在 `office_traj.py`。`office-8b-traj-wall-v1` 这一次 GPU 测量已经跑完。失败子集分析仍要另行批准。
