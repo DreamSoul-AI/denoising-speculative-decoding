@@ -32,7 +32,7 @@
 
 旧逐条运行证据、日志、图和报告保留在固定历史/外部运行根，未恢复进 Git。历史读端测试从固定 Git 提交 `b8b20b5ada7fd860894114cbf224ce749af430cf` 按需提取原始 blob 到测试临时目录，核对对象哈希与写入字节；缺少 Git 对象直接失败，不下载或伪造原件。当前分析器和校验门读取这些不可变输入，不导入或执行归档源码，不修改原哈希与断言；相关15个参数项已恢复到 CPU 计划，不再排除。此验证只复核保存的历史观测与读端合同，不重新运行历史模型，也不代表全部历史结果已独立复验。
 
-离线报告使用 `python -m studies._shared.flow.cli report <Study> --out <外部新文件.md>`，输出路径必填，拒绝已有文件、输入目录和源码 checkout；报告检查不回写旧 process 或 gate。`output_space_extension` 的已保存槽位诊断迁入 `python -m studies.output_space_extension.flow.process.run --raw <保存张量目录> --execution <原运行矩阵.json> --repository <本地仓库> --commit <完整提交> --execution-git-sha256 <Git原件SHA256> --output-root <新外部目录>`。它只读原件并加载 CPU 张量，不载入模型；实际运行矩阵须匹配旧报告哈希，与固定 Git 原件分别记录字节身份并核对 JSON 内容。缺失或漂移直接失败，不自动修换行或重签旧来源。其余旧完整分析器仍待逐项迁移。
+离线报告使用 `python -m studies._shared.flow.cli report <Study> --out <外部新文件.md>`，输出路径必填，拒绝已有文件、输入目录和源码 checkout；报告检查不回写旧 process 或 gate。`output_space_extension` 的已保存槽位诊断迁入 `python -m studies.output_space_extension.flow.process.run --raw <保存张量目录> --execution <原运行矩阵.json> --repository <本地仓库> --commit <完整提交> --execution-git-sha256 <Git原件SHA256> --output-root <新外部目录>`。它只读原件并加载 CPU 张量，不载入模型；实际运行矩阵须匹配旧报告哈希，与固定 Git 原件分别记录字节身份并核对 JSON 内容。缺失或漂移直接失败，不自动修换行或重签旧来源。历史读件需要支持 `--no-lazy-fetch` 的本地 Git，当前验证版本为 `2.55.0.windows.3`，不支持时直接失败，不降级联网。其余旧完整分析器仍待逐项迁移。
 
 诊断日志新写 `assets/logs/events.jsonl`，状态、日志与报告读端兼容旧 `run.log`。应用启动与 Run 身份分开，普通日志不保存异常原文或模型输入。流式文件哈希兼容 Python 3.10 所需 API，但最低版本及全部依赖组合尚未实机验证。
 
