@@ -55,7 +55,7 @@ def test_launch_once_restores_native_scheduler(monkeypatch,failure):
 
 def test_corrected_studies_keep_full_coverage_and_mask_update():
     import yaml
-    from spec_mtp.tree import node_budget_for
+    from spec_mtp.structure.algorithm.decode.tree import node_budget_for
     for name,expected in [('esp_table1_bf16_qwen_protocol',[(60,1)]),('esp_table1_bf16_full',[(10,1),(30,1),(60,1),(60,2)])]:
         root=ROOT/'studies'/name
         config=yaml.safe_load((root/'experiment_config.yaml').read_text())

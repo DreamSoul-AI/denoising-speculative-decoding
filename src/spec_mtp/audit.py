@@ -6,7 +6,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-from spec_mtp.contracts import AuditResult
+from spec_mtp.structure.api.decode_api import AuditResult
 
 
 class JsonlSink:

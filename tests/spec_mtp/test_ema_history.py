@@ -30,8 +30,8 @@ from studies._shared.structure.config import _convert
 from spec_mtp.model import HFCausalLM
 from spec_mtp.decode import SpecDecoder, ar_generate
 from spec_mtp.masks import EMAVelocityMaskProvider, ESPMaskProvider
-from spec_mtp.tree import build_static_tree
-from spec_mtp.tree import block_layout
+from spec_mtp.structure.algorithm.decode.tree import build_static_tree
+from spec_mtp.structure.algorithm.decode.tree_attention import block_layout
 
 PASSED = 0
 

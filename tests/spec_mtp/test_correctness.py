@@ -28,9 +28,10 @@ from studies._shared.structure.config import _convert
 from spec_mtp.model import HFCausalLM
 from spec_mtp.decode import SpecDecoder, ar_generate
 from spec_mtp.masks import EMAVelocityMaskProvider, ESPMaskProvider
-from spec_mtp.tree import build_dynamic_tree, build_static_tree, node_budget_for
-from spec_mtp.tree import (TreeAttentionCache, block_layout,
-                                          build_block_attention, mask_indices_of)
+from spec_mtp.structure.algorithm.decode.tree import build_dynamic_tree, build_static_tree, node_budget_for
+from spec_mtp.structure.algorithm.decode.tree_attention import (
+    TreeAttentionCache, block_layout, build_block_attention, mask_indices_of,
+)
 
 PASSED = 0
 

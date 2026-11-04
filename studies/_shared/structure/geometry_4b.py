@@ -207,7 +207,7 @@ def rank_interval(logits, target, banned):
 
 def coverage(logits, root, truth, budget=9, tree=None):
     from spec_mtp.decode import tree_probs
-    from spec_mtp.tree import build_dynamic_tree
+    from spec_mtp.structure.algorithm.decode.tree import build_dynamic_tree
     if tree is None:
         tree = build_dynamic_tree(tree_probs(logits, 0.0), budget, root, pruning=True)
     first = tree.children_of(0)
@@ -634,7 +634,7 @@ def capture_window(model, prompt, spec, eval_cfg, eos, seed, minimum=8):
 def capture_input_window(model, prompt, spec, eval_cfg, eos, seed, minimum):
     import spec_mtp.decode as decoding
     from spec_mtp.masks import OutputHiddenMaskProvider
-    from spec_mtp.tree import mask_indices_of
+    from spec_mtp.structure.algorithm.decode.tree_attention import mask_indices_of
     from studies._shared.structure.config import _convert
     original_tree = decoding.build_tree
     shadows = [OutputHiddenMaskProvider(2, model.embedding_table, order=i, beta=0.9, beta_prime=0.99) for i in (0, 1)]
@@ -686,7 +686,7 @@ def capture_input_window(model, prompt, spec, eval_cfg, eos, seed, minimum):
 @torch.no_grad()
 def probe_window(model, packet, spec, reference, variants=VARIANTS, control='zero'):
     from spec_mtp import decode as decoding, model as kv_cache
-    from spec_mtp.tree import DynamicTreeAttentionCache, mask_indices_of
+    from spec_mtp.structure.algorithm.decode.tree_attention import DynamicTreeAttentionCache, mask_indices_of
     from studies._shared.structure.config import _convert
     tree, baseline = (packet['tree'], packet['baseline'])
     accepted, chosen = (packet['accepted'], packet['chosen'])

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from spec_mtp.tree import build_static_tree
+from spec_mtp.structure.algorithm.decode.tree import build_static_tree
 from studies.trajectory_observation.structure.office_tree import (
     EVAL_QIDS, EVAL_QIDS_8B, EVAL_SHA256, EVAL_SHA256_8B, NODE_BUDGET, PROTOCOL, PROTOCOL_8B,
     QWEN3_4B, SKIPPED_QIDS, SKIPPED_QIDS_8B, TAKE, arm_spec, arm_specs, block_complexity,
