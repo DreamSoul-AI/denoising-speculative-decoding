@@ -665,8 +665,8 @@ def round_config(protocol):
     if protocol == 'xcat7':
         return {
             'protocol': PROTOCOL_XCAT7,
-            'prefix': 'sd-office-8b-traj-xcat7',
-            'stamp': '20261104-045236',
+            'prefix': 'sd-office-8b-traj-wall-v1',
+            'stamp': '20261104-0758',
             'select': prompts_summarization,
             'check': assert_registered_xcat7_slice,
             'take': TAKE_XCAT7,
