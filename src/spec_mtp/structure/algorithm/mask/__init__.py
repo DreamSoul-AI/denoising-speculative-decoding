@@ -1,0 +1,57 @@
+"""Mask providers, K-fit math, and the method-name registry."""
+
+from spec_mtp.structure.algorithm.mask.factory import build_mask_provider
+from spec_mtp.structure.algorithm.mask.fit import (
+    RIDGE_GRID,
+    apply_lowrank_delta,
+    calibrate_diagonal_gain,
+    centered_r2,
+    fit_affine_ridge,
+    fit_lowrank_delta,
+    fit_lowrank_ridge,
+    fit_mask_correction,
+    lowrank_replay_mse,
+    select_affine_ridge,
+    select_lowrank_ridge,
+)
+from spec_mtp.structure.algorithm.mask.providers import (
+    AlignedResidualKalman,
+    BonusSlotMaskProvider,
+    EMAVelocityMaskProvider,
+    ESPMaskProvider,
+    HybridGainKalman,
+    KalmanMaskProvider,
+    ObservationBlendMaskProvider,
+    OnlineVerifyKalman,
+    OutputHiddenHybridKalman,
+    OutputHiddenMaskProvider,
+    PreforwardSignalCollector,
+    VerifyCorrectionMaskProvider,
+)
+
+__all__ = [
+    'AlignedResidualKalman',
+    'BonusSlotMaskProvider',
+    'EMAVelocityMaskProvider',
+    'ESPMaskProvider',
+    'HybridGainKalman',
+    'KalmanMaskProvider',
+    'ObservationBlendMaskProvider',
+    'OnlineVerifyKalman',
+    'OutputHiddenHybridKalman',
+    'OutputHiddenMaskProvider',
+    'PreforwardSignalCollector',
+    'RIDGE_GRID',
+    'VerifyCorrectionMaskProvider',
+    'apply_lowrank_delta',
+    'build_mask_provider',
+    'calibrate_diagonal_gain',
+    'centered_r2',
+    'fit_affine_ridge',
+    'fit_lowrank_delta',
+    'fit_lowrank_ridge',
+    'fit_mask_correction',
+    'lowrank_replay_mse',
+    'select_affine_ridge',
+    'select_lowrank_ridge',
+]
