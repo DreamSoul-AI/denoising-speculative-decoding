@@ -156,7 +156,7 @@ def test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd(tmp_pa
 
 
 def _independent_cli(root, *args, expected_success=True):
-    from conftest import _process_tree
+    from tests.conftest import _process_tree
 
     repository = Path(__file__).resolve().parents[4]
     cwd = root / 'independent-cwd'

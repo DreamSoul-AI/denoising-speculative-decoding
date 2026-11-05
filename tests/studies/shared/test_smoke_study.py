@@ -8,7 +8,7 @@ import csv
 import json
 
 
-from conftest import cli
+from tests.conftest import cli
 
 EXPECTED_ACCEPT_D1 = {
     'esp_static': 27,

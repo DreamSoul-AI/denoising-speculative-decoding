@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import cli
+from tests.conftest import cli
 from spec_mtp.structure.artifact.readout.report import write_numbers
 
 

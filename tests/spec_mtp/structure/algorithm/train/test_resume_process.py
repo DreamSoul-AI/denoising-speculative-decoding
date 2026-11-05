@@ -178,7 +178,7 @@ def _checkpoint_bytes(root):
 
 
 def _invoke_worker(root, output, mode, *, checkpoint=None, scenario='step', rebind=False):
-    from conftest import _process_tree
+    from tests.conftest import _process_tree
 
     repository = Path(__file__).resolve().parents[5]
     environment = {**os.environ, 'PYTHONPATH': os.pathsep.join((str(repository / 'src'), str(repository),

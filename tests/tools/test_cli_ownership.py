@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import psutil
 import pytest
 
-from conftest import cli, _process_tree
+from tests.conftest import cli, _process_tree
 
 
 def test_successful_cli_helper_reaps_owned_descendant(tmp_path, monkeypatch):
