@@ -4,7 +4,7 @@ from dataclasses import replace
 import pytest
 
 from spec_mtp.structure.api.decode_api import Prompt
-from test_decode import request
+from tests.conftest import decode_request as request
 
 
 @pytest.mark.parametrize('qid', [True, 1, None, ''])
@@ -23,4 +23,3 @@ def test_eos_flag_is_a_boolean(stop):
 def test_budget_is_not_coerced(budget):
     with pytest.raises(ValueError):
         replace(request(), max_new_tokens=budget)
-

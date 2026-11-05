@@ -539,81 +539,208 @@
       "level": "unit"
     },
     {
-      "test_id": "tests/spec_mtp/test_audit.py::test_non_object_or_missing_envelope_is_rejected",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_non_object_or_missing_envelope_is_rejected",
+      "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_audit.py::test_invalid_temperature_is_rejected",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_invalid_temperature_is_rejected",
+      "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_audit.py::test_boolean_never_impersonates_integer_audit_fields",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_boolean_never_impersonates_integer_audit_fields",
+      "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_audit.py::test_missing_or_mutated_committed_row_is_rejected",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_missing_or_mutated_committed_row_is_rejected",
+      "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_audit.py::test_source_mismatch_is_independent_of_correct_argmax",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_source_mismatch_is_independent_of_correct_argmax",
+      "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_audit.py::test_truncated_jsonl_never_becomes_complete",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_truncated_jsonl_never_becomes_complete",
+      "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_audit.py::test_duplicate_envelope_is_rejected",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_duplicate_envelope_is_rejected",
+      "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_audit.py::test_invalid_decode_counts_are_rejected",
-      "target": "spec_mtp.structure.artifact.observation",
+      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_invalid_decode_counts_are_rejected",
+      "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_audit.py::test_decode_trace_and_counts_must_match_stream",
-      "target": "spec_mtp.structure.artifact.observation",
+      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_decode_trace_and_counts_must_match_stream",
+      "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_audit.py::test_budget_trimmed_acceptance_may_exceed_committed_count",
-      "target": "spec_mtp.structure.artifact.observation",
+      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_budget_trimmed_acceptance_may_exceed_committed_count",
+      "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_audit.py::test_empty_decode_still_checks_all_counts",
-      "target": "spec_mtp.structure.artifact.observation",
+      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_empty_decode_still_checks_all_counts",
+      "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
@@ -737,32 +864,70 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_cli.py::test_cli_audit_consumes_existing_rows_only",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_audit_consumes_existing_rows_only",
+      "target": "spec_mtp.flow.cli.main",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_cli.py::test_legacy_study_commands_explain_the_moved_entry",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/flow/test_cli.py::test_legacy_study_commands_explain_the_moved_entry",
+      "target": "spec_mtp.flow.cli.main",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_cli.py::test_cli_request_identity_is_validated_before_model_import",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_request_identity_is_validated_before_model_import",
+      "target": "spec_mtp.flow.cli._decode",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
-      "target": "spec_mtp.flow.cli",
+      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
+      "target": "spec_mtp.flow.cli.main",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/test_context_limit.py::test_spec_output_is_prefix_of_unbounded_ar",
@@ -786,25 +951,46 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_contracts.py::test_prompt_identity_is_not_coerced",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/api/test_decode_api.py::test_prompt_identity_is_not_coerced",
+      "target": "spec_mtp.structure.api.decode_api.Prompt",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_contracts.py::test_eos_flag_is_a_boolean",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/api/test_decode_api.py::test_eos_flag_is_a_boolean",
+      "target": "spec_mtp.structure.api.decode_api.DecodeRequest",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_contracts.py::test_budget_is_not_coerced",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/api/test_decode_api.py::test_budget_is_not_coerced",
+      "target": "spec_mtp.structure.api.decode_api.DecodeRequest",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/spec_mtp/test_correctness.py::test_mask_providers",
@@ -3912,11 +4098,18 @@
       "level": "unit"
     },
     {
-      "test_id": "tests/spec_mtp/test_cli.py::test_cli_compare_keeps_required_and_additional_pairing_checks",
-      "target": "spec_mtp.flow.cli",
+      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_compare_keeps_required_and_additional_pairing_checks",
+      "target": "spec_mtp.flow.cli.main",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/spec_mtp/test_decode.py::test_later_token_failure_preserves_successful_commits_within_block",
@@ -4013,53 +4206,117 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_cli.py::test_cli_output_admission_precedes_model_construction",
-      "target": "spec_mtp.flow.cli",
+      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_output_admission_precedes_model_construction",
+      "target": "spec_mtp.flow.cli._decode",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_cli.py::test_cli_failed_model_construction_closes_reserved_incomplete_output",
-      "target": "spec_mtp.flow.cli",
+      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_failed_model_construction_closes_reserved_incomplete_output",
+      "target": "spec_mtp.flow.cli._decode",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
-      "target": "spec_mtp.flow.cli",
+      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
+      "target": "spec_mtp.flow.cli._decode",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_cli.py::test_cli_rejects_model_manifest_before_constructing_model",
-      "target": "spec_mtp.flow.cli",
+      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_rejects_model_manifest_before_constructing_model",
+      "target": "spec_mtp.flow.cli._decode",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
-      "target": "spec_mtp.flow.cli",
+      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
+      "target": "spec_mtp.flow.cli._decode",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
-      "target": "spec_mtp.flow.cli",
+      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
+      "target": "spec_mtp.flow.cli.main",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_audit.py::test_model_sources_reject_resolved_members_outside_root",
-      "target": "spec_mtp.structure.artifact.observation",
+      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_model_sources_reject_resolved_members_outside_root",
+      "target": "spec_mtp.structure.artifact.observation.verify_model_files",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/test_run.py::test_expected_phase_identity_is_preserved_without_weakening_gate",
@@ -10321,6 +10578,66 @@
         {
           "test_id": "tests/studies/_shared/flow/summarize/test_run.py::test_alignment_gate_rejects_inconsistent_persisted_counts",
           "reason": "Seven saved alignment count cases execute real CUDA tensor math; use cuda-validation, no CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_invalid_temperature_is_rejected",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_boolean_never_impersonates_integer_audit_fields",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_missing_or_mutated_committed_row_is_rejected",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_source_mismatch_is_independent_of_correct_argmax",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_truncated_jsonl_never_becomes_complete",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_duplicate_envelope_is_rejected",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_invalid_decode_counts_are_rejected",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_decode_trace_and_counts_must_match_stream",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_budget_trimmed_acceptance_may_exceed_committed_count",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_empty_decode_still_checks_all_counts",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_audit_consumes_existing_rows_only",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
+          "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         }
       ],
       "cpu_only": true
@@ -10758,7 +11075,18 @@
         "tests/studies/_shared/flow/test_cli.py::test_cli_lock_only_for_make_run_launch",
         "tests/studies/_shared/flow/test_cli.py::test_run_does_not_create_lock_when_freeze",
         "tests/studies/_shared/flow/test_cli.py::test_run_writes_lock_when_missing_and_unfrozen",
-        "tests/spec_mtp/structure/test_parent_imports.py::test_package_initializers_do_not_define_business_functions"
+        "tests/spec_mtp/structure/test_parent_imports.py::test_package_initializers_do_not_define_business_functions",
+        "tests/spec_mtp/structure/api/test_decode_api.py::test_prompt_identity_is_not_coerced",
+        "tests/spec_mtp/structure/api/test_decode_api.py::test_eos_flag_is_a_boolean",
+        "tests/spec_mtp/structure/api/test_decode_api.py::test_budget_is_not_coerced",
+        "tests/spec_mtp/structure/artifact/test_observation.py::test_non_object_or_missing_envelope_is_rejected",
+        "tests/spec_mtp/structure/artifact/test_observation.py::test_model_sources_reject_resolved_members_outside_root",
+        "tests/spec_mtp/flow/test_cli.py::test_legacy_study_commands_explain_the_moved_entry",
+        "tests/spec_mtp/flow/test_cli.py::test_cli_request_identity_is_validated_before_model_import",
+        "tests/spec_mtp/flow/test_cli.py::test_cli_compare_keeps_required_and_additional_pairing_checks",
+        "tests/spec_mtp/flow/test_cli.py::test_cli_output_admission_precedes_model_construction",
+        "tests/spec_mtp/flow/test_cli.py::test_cli_failed_model_construction_closes_reserved_incomplete_output",
+        "tests/spec_mtp/flow/test_cli.py::test_cli_rejects_model_manifest_before_constructing_model"
       ],
       "exclude": []
     },
@@ -10829,13 +11157,28 @@
         "tests/studies/output_space_extension/structure/test_saved_q178_diagnostics.py::test_saved_q178_audits_use_real_cuda_state_and_reject_corrupt_captures",
         "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_current_cuda_smoke_matrix_records_full_t0_and_sampling_scope",
         "tests/test_run.py::test_cuda_scalar_measurement_records_actual_samples_and_environment",
-        "tests/studies/_shared/flow/summarize/test_run.py::test_alignment_gate_rejects_inconsistent_persisted_counts"
+        "tests/studies/_shared/flow/summarize/test_run.py::test_alignment_gate_rejects_inconsistent_persisted_counts",
+        "tests/spec_mtp/structure/artifact/test_observation.py::test_invalid_temperature_is_rejected",
+        "tests/spec_mtp/structure/artifact/test_observation.py::test_boolean_never_impersonates_integer_audit_fields",
+        "tests/spec_mtp/structure/artifact/test_observation.py::test_missing_or_mutated_committed_row_is_rejected",
+        "tests/spec_mtp/structure/artifact/test_observation.py::test_source_mismatch_is_independent_of_correct_argmax",
+        "tests/spec_mtp/structure/artifact/test_observation.py::test_truncated_jsonl_never_becomes_complete",
+        "tests/spec_mtp/structure/artifact/test_observation.py::test_duplicate_envelope_is_rejected",
+        "tests/spec_mtp/structure/artifact/test_observation.py::test_invalid_decode_counts_are_rejected",
+        "tests/spec_mtp/structure/artifact/test_observation.py::test_decode_trace_and_counts_must_match_stream",
+        "tests/spec_mtp/structure/artifact/test_observation.py::test_budget_trimmed_acceptance_may_exceed_committed_count",
+        "tests/spec_mtp/structure/artifact/test_observation.py::test_empty_decode_still_checks_all_counts",
+        "tests/spec_mtp/flow/test_cli.py::test_cli_audit_consumes_existing_rows_only",
+        "tests/spec_mtp/flow/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
+        "tests/spec_mtp/flow/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
+        "tests/spec_mtp/flow/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
+        "tests/spec_mtp/flow/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
-        "estimated_device_seconds": 120,
-        "estimate_basis": "Clean 8b40874 CUDA plan executed 156 parameters in 105.33 seconds; adds seven bounded CUDA alignment scalar-result/gate cases, no model or benchmark.",
+        "estimated_device_seconds": 155,
+        "estimate_basis": "Prior clean CUDA plan163 parameters took106.23s; adds63 bounded synthetic audit/CLI parameters including728-parameter local CUDA model. Confirm actual duration in this clean-HEAD run; no performance claim.",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false

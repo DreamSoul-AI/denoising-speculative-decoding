@@ -187,3 +187,106 @@ def corrupt_saved_argmax():
         raw['out']['evidence'][0]['stats']['verification_argmax_audit'][key] = value
         path.write_text(json.dumps(raw))
     return _corrupt_audit
+
+
+def decode_request(**kwargs):
+    """Construct a typed request without importing tensor/model machinery."""
+    from spec_mtp.structure.api.decode_api import DecodeRequest, Prompt
+
+    return DecodeRequest(Prompt('p0', (1, 2, 3)),
+                             {'num_masks': 1, 'method': 'esp', 'impl': 'efficient',
+                              'tree': {'mode': 'static', 'branches': [3], 'pruning': True}},
+                             max_new_tokens=7, sources={'science': 'frozen'}, **kwargs)
+
+
+def decode_fixture(device):
+    """Build explicitly placed sessions lazily for injected decode tests."""
+    from types import SimpleNamespace
+
+    import torch
+
+    from spec_mtp.structure.algorithm.decode.loop import generate
+    from spec_mtp.structure.algorithm.mask import ESPMaskProvider
+
+    actual_device = torch.device(device)
+    observed_devices = []
+    class FakeSession:
+        """Enumerable +1 token model; cache storage is opaque to the decoder."""
+        def __init__(self):
+            self.embedding_table = torch.eye(8, device=actual_device)
+            self.device, self.dtype = actual_device, torch.float32
+            self.vocab_size, self.max_positions, self.tied_embeddings = 8, 128, True
+            assert self.embedding_table.device == actual_device
+            self.calls = 0
+            self.kept = []
+
+        def embed(self, ids):
+            assert ids.device == actual_device
+            return self.embedding_table[ids]
+
+        def min_mask_value(self):
+            return torch.finfo(self.dtype).min
+
+        def new_cache(self):
+            return SimpleNamespace(length=0)
+
+        def cache_len(self, cache):
+            return cache.length
+
+        def crop_cache(self, cache, length):
+            cache.length = length
+
+        def keep_cache(self, cache, prefix, indices):
+            self.kept.append((prefix, list(indices)))
+            cache.length = prefix + len(indices)
+
+        def __call__(self, embeds, positions, *, past_key_values, **_):
+            assert embeds.device == positions.device == actual_device
+            self.calls += 1
+            tokens = (embeds.argmax(-1) + 1) % 8
+            logits = torch.nn.functional.one_hot(tokens, 8).float() * 20
+            assert logits.device == actual_device
+            observed_devices.append(str(logits.device))
+            past_key_values.length += embeds.shape[1]
+            return SimpleNamespace(logits=logits, past_key_values=past_key_values)
+
+
+    class MemorySink:
+        def __init__(self):
+            self.rows = []
+
+        def write(self, row):
+            self.rows.append(dict(row))
+
+
+    class ConstantSession(FakeSession):
+        def __call__(self, *args, **kwargs):
+            out = super().__call__(*args, **kwargs)
+            out.logits.zero_()
+            out.logits[..., 4] = 20
+            return out
+
+
+    def run(req, model=None, sink=None, cancel=None):
+        model, sink = model or FakeSession(), sink or MemorySink()
+        result = generate(req, model, ESPMaskProvider(1, model.embedding_table), sink, cancel)
+        return result, model, sink
+
+
+
+    return SimpleNamespace(FakeSession=FakeSession, MemorySink=MemorySink,
+                           ConstantSession=ConstantSession, run=run,
+                           device=actual_device, observed_devices=observed_devices)
+
+
+@pytest.fixture
+def cuda_decode(record_property):
+    import torch
+
+    assert torch.cuda.is_available(), 'CUDA correctness must not fall back to CPU'
+    device = torch.device('cuda:0')
+    bundle = decode_fixture(device)
+    record_property('cuda_device', str(device))
+    record_property('cuda_name', torch.cuda.get_device_name(device))
+    record_property('decode_forward_devices', bundle.observed_devices)
+    return bundle

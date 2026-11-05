@@ -105,6 +105,8 @@ native shared CLI 的 smoke 测试按架构 NS0–NS4 使用独立 CUDA 验证�
 
 native CLI 验证使用独立测试计划：`python tests/run.py --plan cuda-native-smoke --output-root <另一外部新验证目录>`，单卡、300秒预算，包含11个随机tiny的数值入口路径；不并入原cuda-validation预算。两组GPU验证依次执行，实际设备与来源保存到各自回执，纯配置/来源拒绝仍由cpu-quick选择。该计划不运行真实权重或旧研究矩阵。
 
+typed request的轻量合同归API测试镜像；audit与科学CLI用例依赖的合成解码数值加入cuda-validation，纯参数/路径/保存表示检查留CPU快速计划。共享夹具按显式设备创建并核embedding与forward，日志保存实际CUDA身份。科学CLI的728参数本地模型验证使用测试内委托loader移到CUDA，不代表生产CLI增加了设备选项；它不替代真实模型研究或跨设备等价验收。
+
 Run和Study质量门分别从 `studies._shared.flow.summarize.run`、`studies._shared.flow.process.run` 使用 `run_gate`、`study_gate`；保存件验证从 `studies._shared.structure.validation` 使用，不再通过旧 `flow.checks` 转导出。删除当前兼容文件会改变新来源摘要，旧来源锁与Run仍按原身份解释，不补签或删成员绕过校验。
 
 可选CSV Logger按首个有效header固定列序，同键重排仍写入正确列；追加前核header、schema及末尾换行，目标被改换/清空/移除或输入损坏时拒绝，旧行不重写。首次零字节文件可写一个header，新实例沿用有效header。stdout-only仍输出动态指标；它与collect正式CSV、Tracker及诊断JSONL各守原职责，不提供原子追加或并发写保证。alignment保存计数的七参数回归在真实CUDA计算结果上核设备，加入cuda-validation，纯JSON/来源拒绝保持CPU快测。

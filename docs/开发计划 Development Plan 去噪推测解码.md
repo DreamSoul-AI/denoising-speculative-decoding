@@ -2,33 +2,25 @@
 更新日期：2026年11月5日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-继续 `codex/structure-cleanup-20261105`，基线 `5ef5ec9`，更新Draft PR106到dev。本轮约30分钟：核对6分钟、归位10分钟、验证10分钟、交付4分钟。目标是测试按真实职责镜像并细化元数据，不改变生产模块、算法、科学阈值、来源身份或旧Run。
+基线 `ce37fee`，继续 `codex/structure-cleanup-20261105` 更新Draft PR106到dev。本轮约30分钟，先制定计划立即实施：核依赖6分钟、归位及CUDA适配10分钟、净提交验证10分钟、文档与交付4分钟。算法、生产协议、科学阈值及旧Run身份不改。
 
-远端RPipe main本轮只读核为 `414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6`，已读其README和代码结构设计测试章节。采用实际实现职责镜像、importlib完整路径收集、工程/GPU/研究证据分开；不复制模板源码，不访问本机RPipe或dayan。
+本轮只读核远端RPipe main=`414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6`，读取代码结构设计的实际职责镜像、轻量API和独立验证章节；不访问本机RPipe/dayan，不同步模板实现。
 
-## 本轮目标、实施与验收
-| **步骤与预估** | **具体改动** | **验收** |
+## 目标、步骤与验收
+| **步骤与预估** | **文件及实际工作** | **验收** |
 | --- | --- | --- |
-| 核对，6分钟 | 读取最新约定、代码/测试规范、现有测试和真实被测模块，核基线计划与参数 | 13个旧函数48参数、945总函数；区分包级打包合同、共享部件、CLI局部链路和结构检查 |
-| 归位，10分钟 | gpu_admission三函数迁_shared/structure镜像并删除动态loader；mask_settings三函数合已有config镜像；package中的manifest/load_lock三函数合sources、write_lock三函数合CLI、initializer检查合parent_imports | 参数、异常、断言与路径原义保持；两个真实仓库打包用例留原文件；不建生产文件，不复制fixture |
-| 合同与验证，10分钟 | 精确更新13个ID及其所有计划引用，显式target/level/type/cost/结果/优先级；快速CPU合同与顺序CUDA/native计划，记录设备 | 迁前后参数后缀一致，所有迁移参数有净HEAD结果；GPU集合不增，945声明与AST相等；20旧锁及生产字节保持，报告可只读重建 |
-| 交付，4分钟 | 同步README必要状态、代码结构设计、日期记录，审查并普通推原分支、更新PR | 两checkout干净，PR仍Draft→dev；main/dev不改，必需检查不绕过，制品不入Git |
+| 核对，6分钟 | 固定基线逐函数读取typed request、audit、CLI和test_decode夹具消费者，核真实模型loader与设备能力 | 26旧函数101参数：CPU11函数38参数、CUDA15函数63参数；旧decode14函数35参数另列未执行范围 |
+| 实施，10分钟 | typed3函数归structure/api/test_decode_api；audit12归artifact/test_observation，CLI11归flow/test_cli。原request和session/sink/run合已有tests/conftest中的纯request与惰性bundle工厂，清除test-to-test imports | 原参数、异常、断言与数值协议保留；没有新生产模块/算法或重复夹具。纯request路径不导入科学栈；保留decode仅复用原CPU语义，不静默接卡 |
+| 合同与验证，10分钟 | 真实数值15函数移出CPU计划、入既有CUDA计划，纯合同11函数入CPU快速计划；实际session/model/embedding/forward记录CUDA并核状态恢复 | 945登记不增；预计CPU快速1355参数，CUDA226项执行，native11项。单卡、CPU120秒/两CUDA各300秒预算不扩；63新CUDA参数和38纯合同参数在净HEAD有独立结果 |
+| 交付，4分钟 | 同步设计、研究执行边界及日期记录，独立审查AST/设备/元数据/原件，再普通推送 | 两checkout干净，PR保持Draft→dev，main/dev不改、保护不绕过、制品不入Git |
 
-真实owner分别为 `studies._shared.structure.gpu_admission.classify/parse_xml`、`structure.config.spec_for`、`structure.sources.manifest/load_lock`、`flow.cli.write_lock_for` 和宿主包初始化结构。XML与分类、纯配置、load_lock为快速CPU单元；CLI写锁跨来源/布局的局部IO路径按integration登记，来源扫描和Git观察成本与轻量解析分开，不因字段名包含GPU就伪称CUDA执行。保留包级位置与打包检查的原根定位，不把它们硬塞入无关科学leaf。
+轻量typed request只经标准库API和纯decode_request构造，不为参数校验加载FakeSession、Torch或Transformers。共享数值fixture的torch、generate、mask等在惰性factory内装配，显式指定device；CUDA分支必须先确认可用，embedding、forward输入/输出均核实际设备并写回执，不以默认设备标签代替执行。诊断property只登记一次且在call结束前完成，不在teardown改写冻结事实。
 
-原test_package对tomllib的模块级importorskip只随剩余打包用例保留；被移出的六个共享IO和初始化检查不再因无tomllib漏收。Python3.10实机未验，本轮不因此宣称解决全部版本兼容。
+audit的non-object envelope与模型路径逃逸，以及CLI的参数、比较、输出准入和构造失败属于纯IO/合同；其余audit10函数56参数、CLI5函数7参数实际创建/执行数值，作为CUDA工程验证。真实728参数CLI用例仍调用原本地loader，测试级委托装配将会话放CUDA并核forward；生产CLI未新增device选项，不把测试注入能力写成用户默认能力。只保存CUDA权重不能证明loader/forward在GPU。
 
-本轮只迁移既有合同，不新增测试函数或行为。验证应证明位置、元数据和行为保持，不为改名制造无关红绿用例。独立审查核原函数AST（允许canonical alias、ROOT等义定位）、参数后缀、保留断言与原计划选择；未知、未执行、跳过及漏项不能记通过。
+本轮不扩大旧decode14函数35参数的执行范围，只迁走其公用helper以清除audit/CLI对测试文件的依赖；其原函数body/参数/显式CPU构造语义须由AST审查保持，既有元数据与后续CUDA迁移单独登记。不能据本轮CUDA通过宣称旧CPU数值集合已执行或跨设备bitwise等价。
 
-```text
-python -m ruff check src studies tests
-python -m mypy
-python tests/run.py --plan cpu-quick --output-root <新CPU根>
-python tests/run.py --plan cuda-native-smoke --output-root <新native-CUDA根>
-python tests/run.py --plan cuda-validation --output-root <新CUDA根>
-```
-
-CPU预算120秒、两CUDA各300秒不扩大；GPU计划顺序执行，运行前确认torch.cuda.is_available并记录实际设备和负载，忙时等待或缩小规模，不CPU回退。生产数值与模型验证仍用CUDA，纯保存标量/配置/观察stub/来源IO不冒称GPU。四项历史原字节缺失继续严格拒绝，无新候选只核已知375字节日志、manifest及两索引，不重扫refs/ACL/全盘，不重建或补签原件。来源拒绝在净HEAD执行一次，必须无输出且未进入张量加载。
+验证入口保持Ruff、默认mypy及tests/run.py的cpu-quick、cuda-native-smoke、cuda-validation。两个GPU计划顺序运行，先记录torch.cuda.is_available、实际设备/dtype/backend和负载；忙时等待或缩小规模，不CPU回退。报告从落盘结果只读重建，核逐参数终态、SHA、链接、20旧锁与四项原字节缺失的严格拒绝。来源核对只沿已知375字节日志/manifest/两索引，不重扫refs/ACL/全盘，不重造或补签原件；最终拒绝driver在净HEAD只执行一次，无输出且未进入张量加载才合格。
 
 # 二、六类核对与落实
 | **类别** | **已有实现条件** | **仍需完成的具体差距** |

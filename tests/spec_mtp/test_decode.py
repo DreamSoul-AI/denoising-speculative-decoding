@@ -1,79 +1,19 @@
 """Injected scientific session: committed facts, cancellation and failures."""
 from dataclasses import replace
-from types import SimpleNamespace
 
 import pytest
 import torch
 
 from spec_mtp.structure.artifact.observation import audit_run
-from spec_mtp.structure.api.decode_api import DecodeRequest, Prompt
 from spec_mtp.structure.algorithm.decode.loop import DecodeFailure, ar_generate, generate, select_token, tree_probs
 from spec_mtp.structure.algorithm.mask import ESPMaskProvider
 
 
-class FakeSession:
-    """Enumerable +1 token model; cache storage is opaque to the decoder."""
-    def __init__(self):
-        self.embedding_table = torch.eye(8)
-        self.device, self.dtype = torch.device('cpu'), torch.float32
-        self.vocab_size, self.max_positions, self.tied_embeddings = 8, 128, True
-        self.calls = 0
-        self.kept = []
+from tests.conftest import decode_fixture, decode_request as request
 
-    def embed(self, ids):
-        return self.embedding_table[ids]
-
-    def min_mask_value(self):
-        return torch.finfo(self.dtype).min
-
-    def new_cache(self):
-        return SimpleNamespace(length=0)
-
-    def cache_len(self, cache):
-        return cache.length
-
-    def crop_cache(self, cache, length):
-        cache.length = length
-
-    def keep_cache(self, cache, prefix, indices):
-        self.kept.append((prefix, list(indices)))
-        cache.length = prefix + len(indices)
-
-    def __call__(self, embeds, positions, *, past_key_values, **_):
-        self.calls += 1
-        tokens = (embeds.argmax(-1) + 1) % 8
-        logits = torch.nn.functional.one_hot(tokens, 8).float() * 20
-        past_key_values.length += embeds.shape[1]
-        return SimpleNamespace(logits=logits, past_key_values=past_key_values)
-
-
-class MemorySink:
-    def __init__(self):
-        self.rows = []
-
-    def write(self, row):
-        self.rows.append(dict(row))
-
-
-class ConstantSession(FakeSession):
-    def __call__(self, *args, **kwargs):
-        out = super().__call__(*args, **kwargs)
-        out.logits.zero_()
-        out.logits[..., 4] = 20
-        return out
-
-
-def request(**kwargs):
-    return DecodeRequest(Prompt('p0', (1, 2, 3)),
-                         {'num_masks': 1, 'method': 'esp', 'impl': 'efficient',
-                          'tree': {'mode': 'static', 'branches': [3], 'pruning': True}},
-                         max_new_tokens=7, sources={'science': 'frozen'}, **kwargs)
-
-
-def run(req, model=None, sink=None, cancel=None):
-    model, sink = model or FakeSession(), sink or MemorySink()
-    result = generate(req, model, ESPMaskProvider(1, model.embedding_table), sink, cancel)
-    return result, model, sink
+_decode = decode_fixture('cpu')
+FakeSession, MemorySink = _decode.FakeSession, _decode.MemorySink
+ConstantSession, run = _decode.ConstantSession, _decode.run
 
 
 @pytest.mark.parametrize('budget', [0, 1, 2, 7])
