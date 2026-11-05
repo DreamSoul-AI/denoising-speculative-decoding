@@ -2084,39 +2084,99 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_mask_provider_boundaries.py::test_esp_update_false_leaves_masks_unchanged",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_update_false_leaves_masks_unchanged",
+      "target": "spec_mtp.structure.algorithm.mask.providers.ESPMaskProvider.on_token_committed",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_mask_provider_boundaries.py::test_esp_offset_and_sample_inits",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_offset_and_sample_inits",
+      "target": "spec_mtp.structure.algorithm.mask.providers.ESPMaskProvider.init_from_prompt",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_mask_provider_boundaries.py::test_ema_update_false_freezes_velocity_but_moves_anchor",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_update_false_freezes_velocity_but_moves_anchor",
+      "target": "spec_mtp.structure.algorithm.mask.providers.EMAVelocityMaskProvider.on_token_committed",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_mask_provider_boundaries.py::test_ema_extrapolate_ema_rebuilds_masks_after_commit",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_extrapolate_ema_rebuilds_masks_after_commit",
+      "target": "spec_mtp.structure.algorithm.mask.providers.EMAVelocityMaskProvider.on_token_committed",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_mask_provider_boundaries.py::test_build_mask_provider_wires_esp_and_ema",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema",
+      "target": "spec_mtp.structure.algorithm.mask.factory.build_mask_provider",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/studies/_shared/structure/test_config.py::test_frozen_mean_does_not_update",
@@ -11344,6 +11404,26 @@
         {
           "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_falls_back_when_children_hold_all_mass",
           "reason": "Real CUDA native report/launch or observation-provider tensor contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_update_false_leaves_masks_unchanged",
+          "reason": "Real CUDA ESP/EMA provider initialization, state-update or factory tensor-input contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_offset_and_sample_inits",
+          "reason": "Real CUDA ESP/EMA provider initialization, state-update or factory tensor-input contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_update_false_freezes_velocity_but_moves_anchor",
+          "reason": "Real CUDA ESP/EMA provider initialization, state-update or factory tensor-input contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_extrapolate_ema_rebuilds_masks_after_commit",
+          "reason": "Real CUDA ESP/EMA provider initialization, state-update or factory tensor-input contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema",
+          "reason": "Real CUDA ESP/EMA provider initialization, state-update or factory tensor-input contract; no CPU replacement."
         }
       ],
       "cpu_only": true
@@ -11922,13 +12002,18 @@
         "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_masks_follow_the_blend_and_never_write_back",
         "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_owner_depth_shifts_the_observation_and_falls_back_past_k",
         "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_falls_back_when_children_hold_all_mass"
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_falls_back_when_children_hold_all_mass",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_update_false_leaves_masks_unchanged",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_offset_and_sample_inits",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_update_false_freezes_velocity_but_moves_anchor",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_extrapolate_ema_rebuilds_masks_after_commit",
+        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
-        "estimated_device_seconds": 200,
-        "estimate_basis": "Prior CUDA285 bounded executions took112.22s; four small observation tensor contracts are added without changing their inputs/oracles.200s is a scheduling estimate, not a performance claim;300s budget unchanged.",
+        "estimated_device_seconds": 205,
+        "estimate_basis": "Prior CUDA289 executions took108.28s; five bounded32x8 provider/factory tensor contracts are added with original inputs/oracles.205s is scheduling estimate, not performance evidence;300s budget unchanged.",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false

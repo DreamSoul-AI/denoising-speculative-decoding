@@ -163,3 +163,122 @@ def test_rejection_condition_falls_back_when_children_hold_all_mass(cuda_decode,
     assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
     assert torch.get_default_device() == default_device
     record_property('rng_default_device_preserved', True)
+
+
+@pytest.fixture
+def table(cuda_decode, record_property):
+    device = cuda_decode.device
+    cpu_rng = torch.get_rng_state().clone()
+    cuda_rng = torch.cuda.get_rng_state(device).clone()
+    default_device = torch.get_default_device()
+    g = torch.Generator(device=device).manual_seed(0)
+    value = torch.randn(32, 8, generator=g, device=device)
+    assert value.device == device
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
+    assert torch.get_default_device() == default_device
+    record_property('mask_table_device', str(value.device))
+    return value
+
+
+def test_esp_update_false_leaves_masks_unchanged(table, cuda_decode, record_property):
+    device = cuda_decode.device
+    cpu_rng = torch.get_rng_state().clone()
+    cuda_rng = torch.cuda.get_rng_state(device).clone()
+    default_device = torch.get_default_device()
+    with torch.random.fork_rng(devices=[device.index]):
+        provider = ESPMaskProvider(2, table, init='mean_prompt', lam=0.5, update=False)
+        prompt = torch.randn(5, 8, device=device)
+        provider.init_from_prompt(prompt)
+        before = provider.masks().clone()
+        provider.on_token_committed(torch.randn(8, device=device), prompt[-1])
+        assert torch.equal(provider.masks(), before)
+    devices = {'table': str(table.device), 'prompt': str(prompt.device), 'mask': str(provider.masks().device)}
+    assert set(devices.values()) == {str(device)}
+    record_property('provider_tensor_devices', devices)
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
+    assert torch.get_default_device() == default_device
+    record_property('rng_default_device_preserved', True)
+
+
+def test_esp_offset_and_sample_inits(table, cuda_decode, record_property):
+    device = cuda_decode.device
+    cpu_rng = torch.get_rng_state().clone()
+    cuda_rng = torch.cuda.get_rng_state(device).clone()
+    default_device = torch.get_default_device()
+    with torch.random.fork_rng(devices=[device.index]):
+        prompt = torch.randn(4, 8, device=device)
+        offset = ESPMaskProvider(2, table, init='offset_embedding', offset_scale=5.0)
+        offset.init_from_prompt(prompt)
+        mu, sigma = table.mean(0), table.std(0)
+        assert torch.allclose(offset.masks()[0], mu + 5.0 * sigma)
+        assert torch.equal(offset.masks()[0], offset.masks()[1])
+
+        gen = torch.Generator(device=device).manual_seed(3)
+        sample = ESPMaskProvider(2, table, init='sample_embedding', generator=gen)
+        sample.init_from_prompt(prompt)
+        assert sample.masks().shape == (2, 8)
+        # Re-seeding the same generator reproduces the same noise.
+        again = ESPMaskProvider(2, table, init='sample_embedding', generator=torch.Generator(device=device).manual_seed(3))
+        again.init_from_prompt(prompt)
+        assert torch.equal(sample.masks(), again.masks())
+    devices = {'table': str(table.device), 'prompt': str(prompt.device), 'offset_mask': str(offset.masks().device), 'sample_mask': str(sample.masks().device), 'reseeded_mask': str(again.masks().device)}
+    assert set(devices.values()) == {str(device)}
+    record_property('provider_tensor_devices', devices)
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
+    assert torch.get_default_device() == default_device
+    record_property('rng_default_device_preserved', True)
+
+
+def test_ema_update_false_freezes_velocity_but_moves_anchor(table, cuda_decode, record_property):
+    """``update: false`` freezes the velocity EMA; the anchor still tracks the
+    last committed token (documented in mask_providers), so masks() still moves."""
+    device = cuda_decode.device
+    cpu_rng = torch.get_rng_state().clone()
+    cuda_rng = torch.cuda.get_rng_state(device).clone()
+    default_device = torch.get_default_device()
+    with torch.random.fork_rng(devices=[device.index]):
+        prompt = torch.randn(6, 8, device=device)
+        frozen = EMAVelocityMaskProvider(2, table, update=False, extrapolate_ema=False, level='last')
+        frozen.init_from_prompt(prompt)
+        velocity_before = frozen._velocity.clone()
+        ref_before = frozen._ref_norm.clone()
+        new_embed = torch.randn(8, device=device)
+        frozen.on_token_committed(new_embed, prompt[-1])
+        assert torch.equal(frozen._velocity, velocity_before)
+        assert torch.equal(frozen._ref_norm, ref_before)
+        assert torch.equal(frozen._anchor, new_embed)
+        # masks use the new anchor as origin → values change even with frozen velocity.
+        assert not torch.allclose(frozen.masks(), velocity_before)  # shape differs anyway; pin anchor effect:
+        assert torch.allclose(frozen.masks()[0], new_embed + frozen._step_vector(velocity_before, ref_before))
+    devices = {'table': str(table.device), 'prompt': str(prompt.device), 'new_embed': str(new_embed.device), 'mask': str(frozen.masks().device)}
+    assert set(devices.values()) == {str(device)}
+    record_property('provider_tensor_devices', devices)
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
+    assert torch.get_default_device() == default_device
+    record_property('rng_default_device_preserved', True)
+
+
+def test_ema_extrapolate_ema_rebuilds_masks_after_commit(table, cuda_decode, record_property):
+    device = cuda_decode.device
+    cpu_rng = torch.get_rng_state().clone()
+    cuda_rng = torch.cuda.get_rng_state(device).clone()
+    default_device = torch.get_default_device()
+    with torch.random.fork_rng(devices=[device.index]):
+        prompt = torch.randn(6, 8, device=device)
+        moving = EMAVelocityMaskProvider(2, table, update=True, extrapolate_ema=True, beta=0.5, step_scale=1.0)
+        moving.init_from_prompt(prompt)
+        first = moving.masks().clone()
+        moving.on_token_committed(prompt[-1] + 1.0, prompt[-1])
+        assert first.shape == moving.masks().shape
+        assert not torch.equal(first, moving.masks())
+    devices = {'table': str(table.device), 'prompt': str(prompt.device), 'mask': str(moving.masks().device)}
+    assert set(devices.values()) == {str(device)}
+    record_property('provider_tensor_devices', devices)
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
+    assert torch.get_default_device() == default_device
+    record_property('rng_default_device_preserved', True)

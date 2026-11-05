@@ -125,6 +125,6 @@ Python配置对象直接从 `spec_mtp.structure.<algorithm|data|model|system>.co
 
 Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproject.toml)，当前研究宿主为 `spec_mtp`。目录入口：[产品或库源码](src/spec_mtp/)、[研究声明与适配](studies/)、[测试](tests/)、[当前文档](docs/)。运行与测试按本 README、相关设计和实际配置选择，不把历史命令视为新的实验授权。
 
-文档职责按 AGENTS.md 维护。通用调研不代替文献调研，研究计划不代替开发计划。历史测量在运行记录，结构调整在开发记录。本轮从已关联 DreamSoul 资料库读取研发根约定及相关代码、协作、测试、研究计划、文献、文档和架构规范。本地资料的读取不代表云端同步或最新远端核验。
+文档职责按 AGENTS.md 维护。通用调研不代替文献调研，研究计划不代替开发计划。历史测量在运行记录，结构调整在开发记录。
 
-模型所有权、KV值保全、报告真实launch与四项观测张量合同使用CUDA。报告的纯读写、身份与路径门按真实artifact/process镜像保CPU；CLI在新外部Run用原4prompt×32token条件验证CUDA模型与forward，不改原CPUsmoke。登记945函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别814/445/119/12函数；快速CPU1359参数、CUDA289项执行（288质量项、1测量项）、native12项，实际终态与提交身份见同日运行记录。微型工程验证不代表真实权重研究或性能收益。
+模型所有权、KV值保全、报告真实launch、观测及ESP/EMA provider张量合同使用CUDA。报告纯读写、身份与路径门保CPU；真实CLI与小张量验证按实际职责归现有镜像，旧混合测试随归位移除。登记945函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别809/445/124/12函数；快速CPU1359参数、CUDA294项执行（293质量项、1测量项）、native12项，实际终态与提交身份见同日运行记录。旧72项观测模型矩阵保持暂停，微型工程验证不代表真实权重研究或性能收益。

@@ -180,3 +180,7 @@ Hypothesis attention属性保原max_examples、策略、dtype/BC/seed范围及�
 保存数字导出的5函数15参数归 `tests/spec_mtp/structure/artifact/readout/test_report.py`，只读Study质量门1参数合既有 `_shared/flow/process/test_run.py`，真实make/launch/report链1参数合既有 `_shared/flow/test_cli.py`；原混合test_readout_report删除。一个必要artifact镜像承载同一write_numbers职责，不按断言拆文件；process用例内联原最小三文件输入，避免测试间导入或改变失败刺激。CLI复用原CUDA Study工厂，在本用例临时recipe挂真实forward设备观察，不改共享recipe常量、原smoke或conftest。声明/源码与外部运行根分开，make后来源绑定新CUDAversion/Run，报告仍只读。
 
 四项observation blend代数合同合已有mask/test_providers，原table/logits/shape/gain/condition/tree及17条断言保持；前三原seed0/1/2使用局部CUDA Generator，原无seed的fallback不新增seed，selected CUDA fork_rng保存环境，四项核全局CPU/CUDA RNG和默认设备未变。实际table/logits/provider输出写设备属性，不添加假的模型forward；不导入会在collect构造CPU PROMPTS的旧测试模块。旧文件其余13函数/helpers及PROMPTS保持，原72参数模型矩阵不自动迁入或派发。元数据按真实write_numbers、study_gate、共享CLI和ObservationBlendMaskProvider方法登记，单元/完整CLI旅程与C1/C3分别表达。
+
+ESP/EMA的update=False、offset/sample初始化及extrapolate_ema提交更新四项合同合已有mask/test_providers，构造ESP/EMA的单项接线合同合mask/test_factory，原混合test_mask_provider_boundaries删除，不新增测试文件或生产模块。32×8表的局部seed0在providers用文件内fixture供四项使用，factory就地构造同尺寸/seed表，不跨测试导入或为两行构造增加共享层。sample两独立Generator仍seed3；原无seed的prompt/token在selected CUDA RNG作用域创建，不追加固定seed。
+
+五项记录实际表及参与张量设备；factory只核构造后的embedding_table归属，不伪造mask或模型执行。全局CPU/CUDA RNG和默认设备恢复按实际状态断言取证。保原14条断言及原shape、lam/update/extrapolate/beta/step_scale/level，不以CUDA迁移改变数学判据。原providers6函数、factory1函数及conftest保持，新增数值均按真实方法的unit/content/C3/GPU1登记，quick和native计划对象不变。

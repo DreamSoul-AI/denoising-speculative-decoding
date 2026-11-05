@@ -2,20 +2,18 @@
 更新日期：2026年11月5日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-基线 `42508db`，继续 `codex/structure-cleanup-20261105` 更新Draft PR106到dev。约30分钟迁移报告真实launch与四项观测张量合同；不改生产算法、原smoke声明、旧Run或科学来源。
+基线 `0c40940`，继续 `codex/structure-cleanup-20261105` 更新Draft PR106到dev。约30分钟只迁移五项provider小张量合同：四项归现有providers镜像、一项构造合同归factory镜像，删除旧混合文件；不改生产算法、原科学条件或旧Run，旧72参数观测模型矩阵继续暂停。
 
 | **步骤与预估** | **目标** | **验收** |
 | --- | --- | --- |
-| 核对，5分钟 | 最新AGENTS、测试/代码/日志规范、远端RPipe main，追实际调用及输入 | 远端414ccb7固定职责镜像/独立验证边界；不访问本机RPipe/dayan |
-| 报告迁移，9分钟 | 六项纯JSON/path/只读合同与一项真实CLI launch分职责；后者以新外部Run和CUDA配置执行 | 保原report只读、upstream identity、stale和缺证据拒绝；实测模型/运行设备与CUDA可用性落盘，不只改标签 |
-| 张量与文档，6分钟 | 四项blend/depth/rejection合同合现有provider镜像，显式CUDA，元数据和研究边界同步 | 原参数、shape、gain、seed、树、断言及raises保留；不导入旧测试模块，不改其余函数/夹具，不造助手模块 |
-| 净HEAD验证及交付，10分钟 | 快速纯CPU、顺序native/CUDA、Ruff/mypy、报告/来源拒绝/20锁及独审 | 登记945不增，原CPU120秒/GPU各300秒预算保持；设备RTX5090Dv2；普通推原分支回读Draft→dev，main/dev不改、不绕过检查 |
+| 核对，5分钟 | 最新AGENTS及相关代码/测试/日志规范、远端RPipe main，核原fixture和真实实现 | 原5函数5参数、32×8表seed0、sample generator seed3、无额外模型；职责和随机状态边界明确 |
+| 迁移，9分钟 | 合现有providers/factory，复用cuda_decode及必要文件内fixture | 原输入、shape、update/extrapolate参数、全部断言保持；实际表/prompt/mask等设备落盘，不导入旧测试作helper或造生产助手 |
+| 元数据与文档，5分钟 | 按真实target/unit/C3/GPU1登记，同步设计、唯一研究/开发计划及记录 | 945登记不增；完整CPU计划移出5项，quick与native不扩；研究问题/算法/对照不变 |
+| 验证与交付，11分钟 | RTX5090Dv2定向、净HEAD快速纯CPU及顺序native/CUDA回归，报告/来源/独审与普通推送 | 原120/300/300秒预算保持，未跑/缺证据不记通过；两checkout干净，Draft→dev保持，main/dev与必需检查不动 |
 
-CPU仅快速纯合同。GPU先确认torch.cuda.is_available，实际设备入逐项证据；满载等待或缩小规模，不回CPU。报告生成本身是只读I/O，真实launch的模型计算必须CUDA；两者分别记录，不把报告中一个device标签当模型已运行证据。新工程version/Run冻结实际配置、源码和输入，原CPUsmoke及旧结果仍保原身份。
+执行前已确认torch.cuda.is_available=true，实际cuda:0 NVIDIA GeForce RTX 5090 D v2；运行期再从逐项设备证据核对，不CPU回退。表保持局部seed0，采样显式generator保持seed3；原未指定seed的prompt/token不新增seed，通过selected CUDA fork_rng控制作用域并核全局CPU/CUDA RNG和默认设备恢复。跨CPU/CUDA的相同seed不冒称相同随机字节。
 
-四项观测合同只验证已有代数与状态不变量，不开展旧72参数模型矩阵、T1分布研究或新算法。四项历史原字节仍缺时严格拒绝，20来源锁不变；最终净HEAD只跑一次来源拒绝driver，不扫refs/ACL/全盘、不补签。实际结果入同日运行记录和round32回执，未运行不记通过。
-
-本轮迁移11函数21参数：纯CPU6函数16参数原已在快速计划，只映射路径，保持445函数/1359参数；四项provider合同进cuda-validation（119函数、288质量+1测量），一项真实CLI链进native（12函数/12参数）。完整cpu-pr移出这5数值函数后为814函数，未据此推算或宣称完整CPU计划通过。945登记与120/300/300秒预算不扩；GPU200/250秒是调度估计，不是性能结论。报告原21条断言与四项观测原17条断言、参数/raises保持，旧共享CLI函数、recipe常量、process旧函数及生产/conftest不改。
+五项原不在quick，仅从cpu-pr移出。预期四计划809/445/124/12函数，CPUquick1359参数、CUDA294项执行（293质量+1测量）、native12参数；正式结果以净HEAD回执为准。仅单卡小张量，无模型forward，不假造模型调用字段。四历史原字节仍unknown时严格拒绝，20旧来源锁保持；最终HEAD来源driver只跑一次，不扫refs/ACL/全盘、不补签旧材料。
 
 # 二、六类核对与落实
 | **类别** | **已有实现条件** | **仍需完成的具体差距** |
