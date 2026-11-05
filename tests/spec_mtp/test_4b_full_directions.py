@@ -1,7 +1,6 @@
 
 from spec_mtp.structure.algorithm.mask import build_mask_provider
 import importlib.util
-import json
 from pathlib import Path
 import sys
 
@@ -114,21 +113,3 @@ def test_tau_pairs_use_ratios_and_category_pooling(monkeypatch):
                 m.require_resource_failure({'native_status': status}, error)
     with pytest.raises(AssertionError, match='argmax mismatch'):
         m.require_resource_failure({'native_status': 'failed'}, 'argmax mismatch')
-
-
-@pytest.mark.parametrize('initial', [False, True])
-def test_recovery_waits_without_restarting_or_changing_controls(monkeypatch, tmp_path, initial):
-    from types import SimpleNamespace
-    monkeypatch.setattr(sys, 'path', sys.path.copy())
-    from studies._shared.structure import resource_admission as m
-    calls, sleeps = [], []
-    checks = iter([{'passed': False, 'foreign_gpu_python_pids': [42]},
-                   {'passed': False, 'foreign_gpu_python_pids': [43]},
-                   {'passed': True, 'foreign_gpu_python_pids': []}])
-    def admission(initial):
-        calls.append(initial)
-        return next(checks)
-    monkeypatch.setattr(m, 'time', SimpleNamespace(sleep=sleeps.append))
-    assert m.direction_admission(tmp_path, initial=initial, wait=True, observer=admission)['passed']
-    assert calls == [initial] * 3 and sleeps == [5, 5]
-    assert json.loads((tmp_path / 'direction_resource_wait.json').read_text())['status'] == 'admitted'

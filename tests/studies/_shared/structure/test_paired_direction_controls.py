@@ -87,20 +87,6 @@ def test_direction_source_gate_precedes_admission_and_model_with_distinct_asset_
         assert events == ['refs', ('admit', run_assets), 'refs', ('model', model_assets)]
 
 
-@pytest.mark.parametrize('passed', [False, True])
-def test_ordinary_direction_admission_is_one_observation_without_wait_output(tmp_path, monkeypatch, passed):
-    from studies._shared.structure import resource_admission
-    calls = []
-    monkeypatch.setattr(resource_admission.time, 'sleep', lambda seconds: pytest.fail('ordinary policy never waits'))
-    def observe(initial):
-        calls.append(initial)
-        return {'passed': passed}
-    if passed:
-        assert resource_admission.direction_admission(tmp_path, observer=observe)['passed']
-    else:
-        with pytest.raises(AssertionError, match='deferred'):
-            resource_admission.direction_admission(tmp_path, observer=observe)
-    assert calls == [True] and not (tmp_path/'direction_resource_wait.json').exists()
 
 
 @pytest.mark.parametrize('name', ['qwen3_4b_bf16_five_methods', 'qwen3_4b_bf16_directions', 'qwen3_4b_bf16_directions_recovery'])

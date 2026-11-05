@@ -119,6 +119,8 @@ Python配置对象直接从 `spec_mtp.structure.<algorithm|data|model|system>.co
 
 ## 研发维护与文档现状
 
+资源准入在普通与优化Python模式下均显式保留完整容量、argmax审计、BF16和单次方向观察拒绝门，原阈值与等待政策保持。配对报告在来源复核、图资源释放及回执构造全部成功后才发布完成凭证；清理失败保留原始异常。资源与报告测试分别镜像 `studies/_shared/structure/` 和 `studies/_shared/flow/write/`，按真实调用层级与成本登记，CPU/Agg验证与CUDA验证分别记录。
+
 Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproject.toml)，当前研究宿主为 `spec_mtp`。目录入口：[产品或库源码](src/spec_mtp/)、[研究声明与适配](studies/)、[测试](tests/)、[当前文档](docs/)。运行与测试按本 README、相关设计和实际配置选择，不把历史命令视为新的实验授权。
 
 文档职责按 AGENTS.md 维护。通用调研不代替文献调研，研究计划不代替开发计划。历史测量在运行记录，结构调整在开发记录。本轮从已关联 DreamSoul 资料库读取研发根约定及相关代码、协作、测试、研究计划、文献、文档和架构规范。本地资料的读取不代表云端同步或最新远端核验。

@@ -181,6 +181,8 @@ CLI、YAML/JSON、token 数据、Hub 文件和旧运行记录都校验形状、�
 诊断日志由统一 Logger 保存为 UTF-8 JSONL，包含 timestamp/level/event/logger/message/app_name/app_version/runtime_id/process_name/pid，按场景加 Run/phase、outcome 和实际耗时。未知可选项省略，凭据、prompt 正文和完整 tensor 不进普通日志。sink 故障记录实际影响，日志无错误不能作为成功依据。
 
 CSV指标行与诊断日志分开。可选文件Logger按首个有效header固定列序，每次追加前核现有header和末尾记录边界；同键重排不改变字段含义，schema不符、header损坏或目标状态变化必须拒绝，旧行不修补。stdout-only仍可输出动态指标，四位小数与step/prefix格式保持。追加IO失败上抛，CSV不是原子事务、并发写协议或科学完成标记；native正式指标资产由collect和后续gate另行校验。
+
+配对报告写端拥有本次Figure及派生文件。主体失败后释放Figure，清理次错随原异常保留，不能遮盖首错；正常释放成功后才构造receipt、复核输入与源码并发布完成标记。receipt构造或释放期间漂移、清理失败均不能产生成功终态，已写partial事实保留。共享publisher接口不因整理变化，保存计数/Agg渲染不是CUDA或性能测量；新源码摘要与历史原件身份分别记录。
 ## （三）失败处理
 | **故障** | **处理与继续条件** |
 | --- | --- |

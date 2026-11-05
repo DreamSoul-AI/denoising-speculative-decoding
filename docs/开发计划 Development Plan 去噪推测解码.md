@@ -2,44 +2,52 @@
 更新日期：2026年11月5日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-继续 `codex/structure-cleanup-20261105` 并更新 PR 106。远端必需状态阻断合并时继续工程整理，不修改规则或伪造状态。本轮比较基线为上一轮 `8b40874`，算法、默认参数、历史输入和冻结观测合同保持。本轮按用户要求不访问或修改RPipe，只复用此前已读的远端固定 `414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6` 结构原则，未重新核实其分支现状。
+继续 `codex/structure-cleanup-20261105`，更新Draft PR106到dev；比较基线为 `890cce5`。本轮不访问或修改dayan、RPipe，不合并、强推或绕过必需检查。结构原则只复用此前已读的远端固定414ccb7，不重新核实分支现状。算法、科学阈值、原件SHA、旧Run和研究暂停状态保持。
 
-本次先用约30分钟规划，再进入目标模式实施和完整验证，总计预估45–50分钟。规划窗口从2026年11月5日17:04:40至约17:34:40（Asia/Shanghai），期间只读取实现/规范、收集测试与做临时纯IO反例，不修改生产或测试源码。下列任务为本次具体方案，实际结果只从日期运行记录和PR定位。
+先用约30分钟规划，再进入目标模式实施。规划窗口为2026年11月5日18:08:08至约18:38:08（Asia/Shanghai），期间只读取、收集参数与做任务临时根内的受控IO取证，不改生产或测试源码，不运行模型/GPU。实施与验证预计再15–20分钟，实际结果从日期记录和PR定位。
 
 ## 本轮目标、步骤与验收
 | **阶段与预计时长** | **具体工作** | **验收** |
 | --- | --- | --- |
-| 规划1，8分钟 | 核基线、全部checks消费者、38函数/54参数及来源锁；读取CSV真实调用路径 | 区分当前唯一测试消费者、20份原来源锁与4项原字节缺口；不把历史路径当当前导入 |
-| 规划2，10分钟 | 逐函数划分validation、Run gate、Study gate、revalidation与CSV合同，确认CPU/GPU成本和夹具归属 | 保原函数、参数和失败判据；47个纯IO参数与7个实际张量参数分开；CSV错列有最小IO反例 |
-| 规划3，7分钟 | 独立审查删除影响、CSV追加政策、夹具惰性与净HEAD验收集合 | 不改历史SHA/Run，异常类身份保持；列清数据损坏、缺结果、设备不符和预算失败如何拒绝 |
-| 规划4，5分钟 | 冻结当前设计、精确ID映射、元数据及执行顺序 | 源码/测试尚未修改；每项有真实owner、目标文件、验收命令和停止条件 |
-| 实施1，6分钟 | 归位checks/CSV及已有revalidation镜像，四个假证据工厂复用现有conftest；同步全部调用方后删除checks转导出层 | 38个原checks函数及54参数不丢；原5个revalidation函数和CSV用例保留；无新生产模块或独立助手文件 |
-| 实施2，4分钟 | 在原CSV Logger内修复已复现的列序/追加header问题，补边界与IO拒绝测试，同步清单和正文 | 文件列序固定，同键重排正确，schema或header不合时写前拒绝；stdout原格式保持；错误上抛，旧行不重写 |
-| 实施3，6–8分钟 | 静态检查、独立审查、净HEAD CPU快测；确认CUDA可用并顺序执行受影响CUDA与native smoke计划 | 每参数正式结果、实际设备、报告/证据SHA、只读重建和缺件拒绝均有效；CPU不运行7个alignment张量参数 |
-| 交付，2分钟 | 普通推送原分支，更新Draft PR106并回读，核main/dev和工作树 | 目标dev、Draft保持；不合并、不强推、不改保护，不提交制品 |
+| 规划1，8分钟 | 核剩余resource/paired三个旧镜像、实际调用者、历史来源与当前配置 | 区分真实owner、纯IO/Agg、资源政策与GPU数值；不把torch导入当CUDA证据 |
+| 规划2，10分钟 | 枚举14个旧ID/29参数、失败合同、成本和最小修复 | 资源四处原条件拒绝不因优化模式消失；配对Figure清理与receipt阶段复核形成明确终态顺序 |
+| 规划3，7分钟 | 独立审查原义、导入依赖、source catalog及20份旧锁 | 不改阈值/公式，不丢保留用例的importlib依赖，不回签原件或旧完成标记 |
+| 规划4，5分钟 | 冻结目标文件、参数/元数据、回归范围与交付判据 | 14旧ID迁移加3新函数，预期945唯一登记；未执行与实际验证分开 |
+| 实施1，6分钟 | 并行归位资源与paired镜像，先失败回归再做原模块最小修复 | 无新生产模块/助手文件，原29参数后缀保持，3新函数13参数有真实红绿证据 |
+| 实施2，2分钟 | 同步清单、README/设计/日期记录，完成独立差异审查和静态检查 | 目标/层级/成本按实际调用分类，纯IO不冒称GPU；全部受影响用例可定位 |
+| 验证，6–8分钟 | 净HEAD CPU快测、确认CUDA可用后顺序执行已有CUDA和native计划，复核原件缺失拒绝 | 同HEAD/设备/预算/终态有效，报告只读重建与全部链接/SHA有效，20旧锁字节保持 |
+| 交付，2分钟 | 普通推送原分支，更新并回读Draft PR106 | 目标dev、Draft保持，main/dev未改，制品不入Git，不绕过检查 |
 
-测试按真实职责归位：纯验证合已有 `tests/studies/_shared/structure/test_validation.py`；Run gate归 `tests/studies/_shared/flow/summarize/test_run.py`，Study gate归 `tests/studies/_shared/flow/process/test_run.py`；原revalidation测试迁 `tests/studies/_shared/flow/test_revalidate.py` 并合并原checks中的保存件复核。CSV归 `tests/studies/_shared/structure/test_csv_logger.py`。共享工厂 `saved_decode_config`、`saved_decode_assets`、`saved_decode_study`、`corrupt_saved_argmax` 位于既有 `tests/conftest.py`，只在请求时导入和创建材料，每次返回独立对象，不跨测试文件导入助手。
+## 资源准入与镜像合同
+`studies/_shared/structure/resource_admission.py` 保留三种政策：原nonofficial测量host峰值加reserve及初始VRAM/util门；norm/paired读取原capacity替换预算、保各自observer；direction普通拒绝不等待，recovery按原5秒周期等待和记当前Run资产。不统一政策，不改数值、分类、路径或等待策略。
 
-alignment七参数的主合同是最终gate拒绝不一致保存计数，放summarize镜像，真实collect只构造有效基线。测试先断言CUDA可用、记录设备，在有界CUDA默认设备上下文内执行实际collect和verify/gate，核张量实际设备，退出恢复上下文；不改生产数学或把设备字符串当GPU证据。元数据为integration/content/C3/GPU1，加入cuda-validation并从CPU计划精确排除。其余受影响纯IO及CSV回归进入cpu-quick，按实际调用细分unit/integration和C1/C2，不提高既有预算掩盖超时。
+原两个资源测试及分散在nonofficial、norm、full_directions、paired_controls中的四个资源合同，共六函数八参数，归 `tests/studies/_shared/structure/test_resource_admission.py`。删除仅为它们存在的动态模块loader；保留用例仍需importlib时改为正常import，其他历史/CUDA测试不动。纯观察器、容量标量、JSON与sleep spy按实际unit/C1分类，不因字段名含CUDA升为GPU。
 
-CSV Logger仍负责可选CSV和现有stdout格式，不合并诊断JSONL或Tracker。文件首次列序由有效header确定；每次追加前重读有序header及末尾记录边界，同键顺序变化按固定header写。首次使用的零字节文件可正常写一个header；非空文件的空/重复/损坏header、非UTF8、缺末尾换行及缺键/增键均拒绝。同一实例发现header有序列表变化、目标被清空或移除也拒绝，不自行补header或修复旧行。无文件输出时保留动态字段、step/prefix及四位小数；IO故障原样上抛，不宣称原子追加、多writer或完整旧CSV重验。
+在原生产文件中将apply_capacity三处assert和普通direction一处assert改为相同条件的显式AssertionError；原方向消息保持，peak使用 `not (peak > 0)`，不换成可能改变NaN语义的反条件。仅保证这些已有拒绝条件不会被Python -O删去，不声明整个科学宿主支持优化模式，也不扩JSON schema或更改阈值。
 
-CSV镜像保原 `test_appends_rows_under_one_header`，新增七个单一行为函数：固定header重排（同/新实例）、schema准入（缺/增/首空）、坏header/追加边界（10种）、已有零字节文件、step/prefix与UTF8、stdout动态字段（2种）、IO错误（mkdir/open/write）。合计八函数23参数，都是快速CPU IO；新行为先用反例观察失败，再做原模块最小修复。step同名键的现有语义不在本轮扩展，真实调用方未使用该组合。
+新增一个优化子进程回归、七独立参数：direction接受/拒绝、capacity有效/未完成/argmax数量不符/dtype不符/零peak，含两个正控制。child用显式try/except/exit作oracle，不用assert；显式observer与fake geometry隔离，禁止默认观察、NVIDIA查询、sleep、模型或Torch计算。该跨进程内容检查为integration/C2，CPU适用；计时仅为测试成本。
 
-验收按同一净提交执行，以下输出根必须各自全新且位于本任务授权临时根：
+## 配对报告与发布合同
+纯文本/Figure继续归 `studies/_shared/structure/paired_report.py`，其镜像从旧shared移到 `_shared/structure/test_paired_report.py`；写端镜像归 `_shared/flow/write/test_run.py`。原八函数21参数后缀、固定Git成员/SHA、实际运行字节SHA、JSON等义及非JSON原字节比较保持，未提供引用继续明确未知。Figure保原有符号差值、样式和无timing含义；Agg和保存标量绘图是CPU工作，torch导入只维持Windows DLL顺序。
+
+仅调整 `studies/_shared/flow/write/run.py::write_paired_report` 生命周期：保存及原保存后verify若失败，先clear已取得Figure；次清理错误附于primary.figure_cleanup_error并原样抛主错。正常clear成功后再构造outputs SHA/JSON receipt，最后复核输入与来源，才publish/return。clear失败或receipt/clear期间漂移都不得留完成标记，允许保留实际partial PNG/Markdown。`publish_new_completion` 的API和body不改，不新建发布框架；共享文件改变会自然改变smoke/capacity等新source catalog，不改旧hash掩盖变化。
+
+只新增两个参数化函数、共六参数：receipt构造期间input/source漂移及clear期间input漂移；clear单错、save主错加clear次错、verify主错加clear次错。用tiny Figure stub检验IO生命周期，不把stub称真实绘图或GPU验证；原signed bars用例保真实Agg。真实读件/绘图路径为integration，纯Figure为unit；CLI缺参、两个Study wrapper到共同callee的spy合同及completion helper为unit，不为两个wrapper再造微文件。成本区分真实Agg/多阶段IO与轻量spy，并保实际耗时及未知内存，不能凭字段存在宣称合规。
+
+## 净提交验收与停止条件
+14个旧ID迁移不增函数，新增三函数13参数，登记预期942→945；受影响17函数42参数全部为CPU内容/IO，既有CUDA集合不增。原用例已在上一净提交CPU计划覆盖，规划不重复当新结果；新负例必须真实红绿，之后所有受影响用例在本轮净HEAD重跑。
 
 ```text
 python -m ruff check src studies tests
 python -m mypy
-python -m mypy --namespace-packages --explicit-package-bases --follow-imports=silent studies/_shared/structure/csv_logger.py
+python -m mypy --namespace-packages --explicit-package-bases --follow-imports=silent studies/_shared/structure/resource_admission.py studies/_shared/flow/write/run.py
 python tests/run.py --plan cpu-quick --output-root <新CPU根>
 python tests/run.py --plan cuda-validation --output-root <新CUDA根>
 python tests/run.py --plan cuda-native-smoke --output-root <新native-CUDA根>
 ```
 
-两GPU计划顺序执行，各保既有300秒预算；cpu-quick保120秒。预计44个既有函数改测试ID、七个新增CSV函数使登记总量935→942，实际以AST与清单核对；原54个checks参数及原11个revalidation参数后缀不变。净HEAD还须核所有受影响函数有正式终态、报告SHA与只读重建一致、三份报告链接有效、20份原来源锁字节不变及四原件缺失的拒绝回执。任何必需项失败、跳过、缺件、源漂移或CUDA不可用均阻断交付；负结果不删，预算不足先缩小经说明的范围或等待，不回退CPU充数。
+三验证根各自全新，缓存、日志与临时材料只在本任务授权D根；CPU保120秒，两GPU各300秒并顺序运行。实际GPU运行先确认torch.cuda.is_available并保存真实设备，忙时等待，不CPU回退或虚构性能结论。四原运行字节缺失继续严格拒绝，不加载张量、不输出新分析，不执行归档代码或拿当前helper补签。全部终态、报告/证据SHA、只读重建、链接、20原锁和独立审查闭环后才推送；失败、跳过、漏项、源漂移或缺CUDA均不能记完成。
 
-必须保留的失败边界：缺阶段/结果或实验子集不能通过；source/config/输入文件漂移先拒绝，旧成功文件不被预检覆盖；完整argmax为T0门、AR只诊断；四项原运行字节未知继续严格拒绝且不加载张量。当前checks删除会改变新来源摘要，旧来源锁不重新签、不排除被删文件绕过核验。模型、算法和停止的研究协议不因整理获得新执行。
 
 # 二、六类核对与落实
 | **类别** | **已有实现条件** | **仍需完成的具体差距** |

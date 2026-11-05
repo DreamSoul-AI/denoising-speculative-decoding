@@ -41,10 +41,13 @@ def observe(initial=False):
 
 def apply_capacity(record, capacity, initial):
     """Apply the unchanged measured 4B budget to an observed resource record."""
-    assert capacity['complete'] and capacity['decode']['argmax_checked_tokens'] == 256
-    assert capacity['decode']['dtype'] == 'torch.bfloat16'
+    if not (capacity['complete'] and capacity['decode']['argmax_checked_tokens'] == 256):
+        raise AssertionError()
+    if not (capacity['decode']['dtype'] == 'torch.bfloat16'):
+        raise AssertionError()
     peak = capacity['peak_process_tree_rss_bytes']
-    assert peak > 0
+    if not (peak > 0):
+        raise AssertionError()
     required_vram = (capacity['decode']['cuda_peak_reserved_bytes'] + (1 << 20) - 1) // (1 << 20) + 1024
     ram_ok = record['host_available_bytes'] + record['current_worker_rss_bytes'] >= peak + RESERVE if initial else record['host_available_bytes'] >= RESERVE
     return dict(record, initial=initial, passed=not record['foreign_gpu_processes'] and ram_ok and
@@ -84,7 +87,8 @@ def direction_admission(assets, *, initial=True, wait=False, observer=None):
     while True:
         check = inspect(initial=initial)
         if not wait:
-            assert check['passed'], f'Nonpreemptive GPU admission deferred: {check}'
+            if not (check['passed']):
+                raise AssertionError(f'Nonpreemptive GPU admission deferred: {check}')
             return check
         if check['passed']:
             if waiting:

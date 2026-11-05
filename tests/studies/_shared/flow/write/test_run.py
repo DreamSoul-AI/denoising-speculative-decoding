@@ -151,3 +151,58 @@ def test_completion_publication_failure_never_deletes_prior_receipts_or_keeps_a_
     with pytest.raises(OSError, match='injected receipt'):
         writer.publish_new_completion(path, '{"complete":true}')
     assert not path.exists()
+
+
+@pytest.mark.parametrize('fault', ['receipt_input', 'receipt_source', 'clear_input'])
+def test_paired_report_receipt_stage_drift_prevents_completion(report_case, monkeypatch, fault):
+    from studies._shared.structure import paired_report
+    case = report_case
+    fake_source = case.output.parent/'fake-render-source.py'
+    fake_source.write_text('# original controlled source', encoding='utf-8')
+    monkeypatch.setattr(paired_report, '__file__', str(fake_source))
+    cleared = []
+    def savefig(stream, **kwargs):
+        stream.write(b'controlled lifecycle stub; not a rendered Figure')
+    def clear():
+        cleared.append(True)
+        if fault == 'clear_input': case.path.write_text('changed', encoding='utf-8')
+    monkeypatch.setattr(paired_report, 'paired_counts_figure',
+                        lambda data: SimpleNamespace(savefig=savefig, clear=clear))
+    dumps = json.dumps
+    def receipt_dumps(value, *args, **kwargs):
+        result = dumps(value, *args, **kwargs)
+        if isinstance(value, dict) and 'rendering_sources' in value and fault != 'clear_input':
+            (case.path if fault == 'receipt_input' else fake_source).write_text('changed', encoding='utf-8')
+        return result
+    monkeypatch.setattr(json, 'dumps', receipt_dumps)
+    with pytest.raises(ValueError, match='changed'):
+        _write(case)
+    assert cleared == [True] and (case.output/'paired_report.md').is_file()
+    assert not (case.output/'report_complete.json').exists()
+
+
+@pytest.mark.parametrize('fault', ['clear_only', 'save_and_clear', 'verify_and_clear'])
+def test_paired_report_cleanup_preserves_primary_and_blocks_completion(report_case, monkeypatch, fault):
+    from spec_mtp.structure.artifact import provenance
+    from studies._shared.structure import paired_report
+    case = report_case
+    primary, cleanup = OSError('controlled primary failure'), RuntimeError('controlled Figure cleanup failure')
+    def savefig(stream, **kwargs):
+        stream.write(b'controlled lifecycle stub; not a rendered Figure')
+        if fault == 'save_and_clear': raise primary
+    def clear():
+        raise cleanup
+    monkeypatch.setattr(paired_report, 'paired_counts_figure',
+                        lambda data: SimpleNamespace(savefig=savefig, clear=clear))
+    native_hash = provenance.file_sha256
+    def source_hash(path):
+        if fault == 'verify_and_clear' and case.output.exists() and Path(path) == case.path:
+            raise primary
+        return native_hash(path)
+    monkeypatch.setattr(provenance, 'file_sha256', source_hash)
+    expected = cleanup if fault == 'clear_only' else primary
+    with pytest.raises(type(expected)) as caught:
+        _write(case)
+    assert caught.value is expected
+    if fault != 'clear_only': assert caught.value.figure_cleanup_error is cleanup
+    assert not (case.output/'report_complete.json').exists()

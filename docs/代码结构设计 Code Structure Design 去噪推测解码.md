@@ -123,6 +123,8 @@ native/state 的历史验证复用现有角色索引及每成员固定提交，�
 
 资源观察、纯 capacity 判定和准入服务集中于一个 `_shared/structure/resource_admission.py`，调用方显式提供 capacity 与 observer，区分原 nonofficial/norm/paired 政策，不临时改写模块全局观察器。完整校准生命周期归 norm_scan 的单个 `flow/execute/capacity.py`，显式本地模型/完整清单、冻结输入/计划/配置、CUDA 与新外部根，关闭模型和最终来源复核后才发布完成记录。原 q295、1500 输入、256 输出及 template/scale2 协议保持，工程修复只让当前显式 mask_policy 真正接入原观察钩子，不重签旧 capacity。
 
+资源准入自身的观察、标量预算、显式observer与等待政策在 `tests/studies/_shared/structure/test_resource_admission.py` 同一镜像验证，不按旧Study出处分散。capacity三处原条件及普通direction拒绝使用显式控制流，异常类、消息、短路及NaN语义保持，优化Python也不能删除这些门；这不构成整个宿主支持优化模式。模拟观察器、JSON与优化子进程属于CPU内容/IO测试，不因字段写有CUDA而虚标GPU；真实模型控制另用CUDA。
+
 配对与方向控制复用现有 shared 两柱：配对执行与方向生命周期归 `structure/algorithm.py`，方向向量的原公式归 `geometry_4b.py`，输入准入归 `validation.py`，注册归 `recipe.py`。普通与 recovery 的准入策略显式区分，等待记录使用实际资产根；不得用模块全局替换串改另一协议。随机方向保留原 CPU generator 的种子序列与随后到目标设备的转换，不能在目录整理时改成另一随机过程。三个旧顶层控制入口不保留 facade，norm/paired 的实际消费者直接依赖所属部件。
 
 ESP preflight、numerics、reduction_check 与 shape_check 的相同 4B untimed 适配沿用已有共享 algorithm/model/recipe，特殊数值与 shape 合同仍由各自部件承担。导入不注册，只有原 Study 来源门通过后的显式 register 才装配；配置删除旧 include，旧 Run、锁和原字节来源身份保持。此归并不恢复已停止的 BF16/独立 AR 机理排查，不产生新的性能数字。
@@ -160,3 +162,5 @@ Run与Study门分别由 `_shared/flow/summarize/run.py` 和 `flow/process/run.py
 alignment保存计数测试以最终门为主信号，collect构造有效基线，放summarize镜像；实际张量计算在有界CUDA上下文中验证，另记当前设备，不改保存JSON的旧标签。普通JSON/配置/来源拒绝仍是纯IO检查。当前来源树删除兼容文件会改变新manifest，历史锁与Run按原字节保留，不能通过排除成员或补签摘要继续旧执行。
 
 CSV指标仍由既有 `structure/csv_logger.py` 的Logger维护，其真实镜像为 `tests/studies/_shared/structure/test_csv_logger.py`。文件固定首个有效header的有序列，逐次核header及末LF追加边界（含CRLF）；同schema重排列值正确，schema/header/目标状态变化写前拒绝。已有零字节文件仅首次可建header，已有行不清洗或重写；无文件stdout保原动态格式。该模块不承担诊断JSONL、Tracker、科学gate或并发/原子提交职责，不新增持久化框架。
+
+配对报告的纯文本与Figure归 `structure/paired_report.py`，镜像归 `_shared/structure/test_paired_report.py`；文件、固定原件绑定、绘图及完成发布链归 `flow/write/run.py`，镜像为 `_shared/flow/write/test_run.py`。真实Agg渲染和轻量解析/发布spy分开定成本，两个Study wrapper到共同入口的身份契约保一个参数化用例，不添微型转调文件。writer取得Figure后负责错误与清理：主体失败保原异常，清理次错附其figure_cleanup_error；正常释放成功后构造receipt，再复核输入和来源，最后独占发布。纯渲染公式、原SHA、实际字节与Git字节身份及publish_new_completion接口保持，不增加发布框架或回签旧source catalog。

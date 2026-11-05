@@ -103,20 +103,26 @@ def write_paired_report(study, bindings_path, repository, output_root):
         with (output / 'paired_report.md').open('x', encoding='utf-8', newline='\n') as stream:
             stream.write(text)
         verify()
-        import matplotlib
-        result = {'schema': 1, 'study': study, 'scope': 'CPU saved scalars and historical prose; no model/tensor forward',
-            'historical_inputs': historical,
-            'runtime_inputs': {role: {'path': str(path), 'sha256': observed[path]} for role, path in actual.items()},
-            'bindings_input': {'path': str(binding_path), 'sha256': observed[binding_path]},
-            'unprovided_historical_references': sorted(set(members) - actual.keys()),
-            'rendering_sources': {str(path): digest for path, digest in sources.items()},
-            'rendering_environment': {'matplotlib': matplotlib.__version__, 'backend': 'Agg', 'dpi': 150},
-            'outputs': {path.name: provenance.file_sha256(path) for path in (image, output / 'paired_report.md')}}
-        payload = json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + '\n'
-        publish_new_completion(output / 'report_complete.json', payload)
-        return output / 'paired_report.md'
-    finally:
-        figure.clear()
+    except BaseException as error:
+        try:
+            figure.clear()
+        except BaseException as cleanup:
+            setattr(error, 'figure_cleanup_error', cleanup)
+        raise
+    figure.clear()
+    import matplotlib
+    result = {'schema': 1, 'study': study, 'scope': 'CPU saved scalars and historical prose; no model/tensor forward',
+        'historical_inputs': historical,
+        'runtime_inputs': {role: {'path': str(path), 'sha256': observed[path]} for role, path in actual.items()},
+        'bindings_input': {'path': str(binding_path), 'sha256': observed[binding_path]},
+        'unprovided_historical_references': sorted(set(members) - actual.keys()),
+        'rendering_sources': {str(path): digest for path, digest in sources.items()},
+        'rendering_environment': {'matplotlib': matplotlib.__version__, 'backend': 'Agg', 'dpi': 150},
+        'outputs': {path.name: provenance.file_sha256(path) for path in (image, output / 'paired_report.md')}}
+    payload = json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + '\n'
+    verify()
+    publish_new_completion(output / 'report_complete.json', payload)
+    return output / 'paired_report.md'
 
 
 def paired_report_main(study, argv=None):
