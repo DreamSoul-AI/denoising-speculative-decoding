@@ -3,7 +3,7 @@
 
 截至2026年10月21日的 8B 非官方 Table 1 独立复验已经完成，论文目标未复现。数字和原件在 [历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>)。提交 token 的验证前向 argmax 自检与独立 AR 一致率分别报告，τ 是提交数与解码调用数之比，不能据此认定实际速度收益。
 
-已实现的 K 校正是协议 `postcommit-final-norm-v1` 的合成工程夹具，不是 2026年10月31日会议中的 trajectory 与 observation 联合更新，也不是 Kalman 滤波。160 对数据协议和真实模型收益都还没有执行。历史协议与合成测量入口见 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>) 与 [联合 mask 检查](<docs/运行记录 Run Record/2026-11-01 联合mask检查.md>)。
+当前优先核验并收束已有 EMA 与具体 Kalman 方案。EMA 已有局部接受收益证据；多个 Kalman 配方为负或未确认，不能混为统一成功结论。当前成果、对照与结案顺序见唯一 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)。`k_affine_residual` 的 `postcommit-final-norm-v1` 仅为静态 K 合成工程夹具，不代表已有 Kalman 变体；160 对协议和真实模型收益未执行。
 
 # 一、文档入口
 | **文档** | **维护内容** |
@@ -13,7 +13,8 @@
 | [文献调研 Literature Review 去噪推测解码](<docs/文献调研 Literature Review 去噪推测解码.md>) | 已读文献、阅读深度和与本项目的关系 |
 | [架构设计 Architecture Design 去噪推测解码](<docs/架构设计 Architecture Design 去噪推测解码.md>) | 职责、状态、流程、质量目标和取舍 |
 | [代码结构设计 Code Structure Design 去噪推测解码](<docs/代码结构设计 Code Structure Design 去噪推测解码.md>) | 模块责任、接口、依赖和测试镜像 |
-| [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 研究问题、假设、对照和停止规则 |
+| [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 当前成果与结论、重点问题、对照和结案规则 |
+| [研究成果归档](<docs/研究成果归档 Research Archive 去噪推测解码.md>) | 已关闭或低后续投入价值的旧支线记录，不承接当前计划 |
 | [开发计划 Development Plan 去噪推测解码](<docs/开发计划 Development Plan 去噪推测解码.md>) | 剩余工程、验收和待确认的来源策略 |
 | [缺陷记录 Bug Report 去噪推测解码](<docs/缺陷记录 Bug Report 去噪推测解码.md>) | 尚未关闭的问题 |
 | [开发记录 Development Record](<docs/开发记录 Development Record/INDEX.md>) | 代码与文档结构调整。目录见 [INDEX](<docs/开发记录 Development Record/INDEX.md>)。 |
@@ -24,7 +25,7 @@
 
 `python -m spec_mtp` / `spec-mtp` 由 `flow/cli.py` 提供 `decode/audit/compare`。Study 使用 `python -m studies._shared.flow.cli`，接入宿主 `flow/study_cli.py` 与默认六阶段。包初始化不加载模型或整套调度器。流程由本仓实现，不再内嵌 `src/rpipe/`。旧流程 API facade 已删除，构建直接使用所属层工厂。九个共用诊断再导出已清理，消费者直接导入真实模块。已登记的 Study 顶层遗留入口清单为空，其余结构与测试镜像差距见代码结构设计与开发计划。
 
-算法由 Enmao 重新设计，当前进行结构整理与有界工程验证。新算法方向由 Enmao 确定，旧协议作为历史证据。正确性、优化和性能验证优先 CUDA，运行前确认可用并记录实际设备，CPU 只做快速单元测试。GPU 满载时等待或缩小规模，模型下载仍不在当前范围。每轮从 dev 工作分支经 PR 集成，不直接修改 main。
+当前主线是验证已有 Kalman/EMA 正确且可用，尽快完成方案与旧 Run 结案；工程整理优先解决直接阻塞这些工作的缺口，不等待新算法。正确性、优化和性能验证使用 CUDA，先确认可用并记录实际设备；CPU 只做快速纯合同单元测试。GPU 满载时等待或缩小规模，模型下载不在范围。本任务普通推送现有工作分支，经 Draft PR106 面向 dev 评审，不修改 main/dev 或绕过检查。
 
 第三方 ESP 来源树及 `ORIGIN.json` 保留，不能把它称为作者官方实现。原始 SpecBench 数据保留于 `datasets/spec_bench/question.jsonl`。
 
@@ -103,7 +104,7 @@ profile 在 CUDA 工作负载上使用 cProfile，component 是主机侧 self-ti
 
 native shared CLI 的 smoke 测试按架构 NS0–NS4 使用独立 CUDA 验证身份。测试复制原声明到外部新根，显式绑定 system/eval 设备，微型模型在 CUDA 初始化并记录实际输入、权重摘要、dtype/backend和运行种子；CPU只准备固定离散token及做纯IO拒绝检查。T0以完整提交链argmax验收，独立AR与接受数为诊断，旧CPU的27/31/8不作CUDA基线。原CPU Study声明、旧Run和历史图保持原义，不因测试迁移重签。
 
-native CLI 验证使用独立测试计划：`python tests/run.py --plan cuda-native-smoke --output-root <另一外部新验证目录>`，单卡、300秒预算，包含11个随机tiny的数值入口路径；不并入原cuda-validation预算。两组GPU验证依次执行，实际设备与来源保存到各自回执，纯配置/来源拒绝仍由cpu-quick选择。该计划不运行真实权重或旧研究矩阵。
+native CLI 验证使用独立测试计划：`python tests/run.py --plan cuda-native-smoke --output-root <另一外部新验证目录>`，单卡、300秒预算，包含11个原smoke数值入口路径及1个报告launch，共12项；不并入原cuda-validation预算。两组GPU验证依次执行，实际设备与来源保存到各自回执，纯配置/来源拒绝仍由cpu-quick选择。该计划不运行真实权重或旧研究矩阵。
 
 typed request的轻量合同归API测试镜像；audit与科学CLI用例依赖的合成解码数值，以及decode生成/AR/选择器、mask、KV、tree/attention合同，使用cuda-validation，纯参数/路径/保存表示检查留CPU快速计划。共享夹具按显式设备创建并核embedding与forward，真实tiny模型由同一工厂恢复RNG/设备并关闭owned资源。日志区分选择器张量、刻意零forward与实际forward；局部CUDA Generator须保持全局状态。科学CLI的728参数本地模型验证使用测试内委托loader移到CUDA，不代表生产CLI增加了设备选项；它不替代真实模型研究或跨设备等价验收。Hypothesis保max_examples=80的原属性规模，单个属性仍算一个pytest参数结果，不加计内部示例。
 
