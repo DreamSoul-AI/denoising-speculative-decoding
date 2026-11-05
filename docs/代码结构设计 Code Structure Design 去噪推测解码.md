@@ -174,3 +174,5 @@ loop镜像不保模块级CPU session或张量。无效prompt通过纯device工�
 tree与attention各有真实leaf镜像 `decode/test_tree.py`、`decode/test_tree_attention.py`；mask的providers与factory分别用 `mask/test_providers.py`、`mask/test_factory.py`，不为少一个测试文件错置实际owner。SpecDecoder cache选择属loop，KV类型/裁剪/选槽归已有model/test_hf_causal，不另造混合边界模块。跨组真实模型只复用conftest的cuda_tiny_model工厂，显式CUDA初始化与配置，fork_rng/设备上下文保持调用者状态，finally关闭所有owned session，teardown不改已验property。原有函数与新验证范围分别声明，不将同文件旧用例自动视为CUDA已验。
 
 Hypothesis attention属性保原max_examples、策略、dtype/BC/seed范围及每example新建cache。device fixture不可变，设备证据仅append，function-scoped healthcheck的局部豁免须与该生命周期一起解释；不豁免真实数据失败或缩例掩盖成本。空树、整数预算、缓存容量与不支持类型为CPU纯合同，真实概率/掩码/模型/Generator用CUDA并核设备。naive/cache等值只比较同次输入，CPU和CUDA随机初始化不当作相同模型或树的字节复现。
+
+模型镜像 `tests/spec_mtp/structure/model/test_hf_causal.py` 中借用所有权和具体KV选槽沿用原文件/ID，数值接入已有cuda_decode，未增加生产模块或共享夹具。借用模型保原LlamaConfig全部实参与默认配置，在CUDA上下文创建并验证CPU/selected CUDA RNG及默认设备恢复；不借用会改变原配置的tiny工厂。关闭后保native对象、embedding Parameter与完整state_dict 12项持久化张量的值/存储身份，原closed异常仍在native forward之前拒绝；不扩大为training模式或非持久buffer不变。KV在cache.update前保存独立CUDA克隆，核两层prefix2与block[0,2]保留原位置[0,1,2,4]，防别名掩盖原值破坏。两项按真实target的unit/content/C3/GPU1登记，后两项既有函数、conftest和生产源码保持。

@@ -2,25 +2,19 @@
 更新日期：2026年11月5日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-基线 `c5fccc4`，继续 `codex/structure-cleanup-20261105` 更新Draft PR106到dev。本轮约30分钟：核范围6分钟、归位10分钟、净提交验证/独审10分钟、交付4分钟。整理decoder/tree/cache边界测试，保原参数、断言、协议与科学输入，不新增算法或生产接口。
+基线 `5bacb4d`，在 `codex/structure-cleanup-20261105` 更新Draft PR106到dev。本轮约30分钟，只将模型所有权与KV值保全两项旧CPU数值合同迁到既有CUDA镜像，不改算法、生产接口或科学输入。
 
-只读核远端RPipe main=`414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6`，读取代码结构设计的职责镜像与独立验证章节；不访问本机RPipe/dayan，不同步模板实现。
-
-## 步骤与验收
-| **步骤与预估** | **具体改动** | **验收** |
+| **步骤与预估** | **目标** | **验收** |
 | --- | --- | --- |
-| 核对，6分钟 | 原decoder10函数12参数、tree8函数8参数、attention6函数6参数逐项定真实owner/资源 | 共24函数26参数；4纯CPU合同、22实际CUDA；Hypothesis max_examples80是1个pytest参数，不算80独立通过 |
-| 实施，10分钟 | loop6函数合现镜像，KV2合现hf_causal；providers2/factory1/tree8/attention5各归真实leaf镜像。conftest只追加一个惰性cuda_tiny_model factory | 原43断言、raises/参数/Hyp策略保留；无新生产模块或逐函数助手壳；原conftest、loop14、hf_causal2旧函数保持，不连带宣称旧数值已CUDA |
-| 验证，10分钟 | 新20数值函数22参数移出CPU计划入CUDA，4纯合同入快速CPU；实际设备、模型/树/attention/Generator分别取证 | 登记945不增，四计划821/445/113/11函数；CPU快速1359参数、CUDA283项执行、native11项。预算120/300/300秒不扩，报告/20锁/来源拒绝/独审闭环 |
-| 交付，4分钟 | 同步README、代码结构、研究边界与日期记录，普通推原分支并回读PR | 两checkout干净，Draft→dev、main/dev不改、必需检查不绕过、制品不进Git |
+| 核对，5分钟 | 读取AGENTS、相关规范及远端RPipe main代码结构设计 | 固定远端414ccb7及职责镜像边界，不访问本机RPipe/dayan |
+| 实施，8分钟 | 两项原ID接已有cuda_decode，独立快照防别名，细化元数据 | 原配置、5条断言和raises保留；完整state_dict及对象/存储保全，KV原位置[0,1,2,4]；后两函数及conftest保持 |
+| 文档，4分钟 | 同步唯一计划、README、代码结构、研究边界与日期记录 | 不增加平行计划、生产模块或算法主张 |
+| 验证，10分钟 | 净HEAD快速CPU、顺序native/CUDA、报告重建/来源拒绝及独立审查 | 945登记；四计划819/445/115/11函数；CPU1359、CUDA284质量+1测量、native11，原120/300/300秒预算不扩；实际CUDA设备落盘 |
+| 交付，3分钟 | 普通推当前分支并回读Draft PR106 | 两checkout干净、目标dev、main/dev不改、不绕过必需检查、制品不入Git |
 
-真实模型仍为原64/32/64/1配置，context40/128/256按原调用保持。新factory显式CUDA初始化、局部CPU/selected CUDA seed和fork_rng/device恢复，记录实际embedding及forward，finally关闭所有owned session；不复制module-scoped模型或在teardown改已冻结property。原未指定seed的cache类型检查按新CUDA夹具身份记录，不冒称复现其旧随机权重。
+借用模型保持原LlamaConfig的16/8/16/1配置及全部未显式默认值（含max_position_embeddings2048），不替换为通用tiny工厂。使用CUDA初始化与embedding计算，比较完整state_dict 12项；native forward预期0。CPU RNG字节只用于状态合同检查，不算CPU数值替代。KV原输入/期望均CUDA，克隆发生在update前。两项从cpu-pr精确排除并进入cuda-validation；cpu-quick整个声明不改。GPU调度估计195秒只作准入参考，不是性能测量。
 
-tree空树/整数预算、attention缓存容量、未知KV类型四项是纯合同；其余实际张量、模型与Generator一律C3/GPU1。Hyp原80策略、dtype/BC/seed范围、每example本地cache、seeds+seeds双遍及LRU保持；仅针对不可变device/append-only观察fixture豁免function-scoped healthcheck，不屏蔽真实失败。最多960次naive/cache双构建比较按实测成本接入，不缩规模或抬预算掩盖。局部测得Hyp call约1.66秒、冷模型初始化约9.17秒，时间只用于调度估算。
-
-原随机tiny EOS用例保id3/seed及AR/预算断言，本轮局部实际未触EOS，只记录eos_observed=False/termination_reason=budget，不按名字宣称覆盖EOS停止；既有确定EOS夹具单独提供该门。掩码BF16/FP32一致是缓存表示合同，不恢复已停止的BF16独立AR机理研究。
-
-验证继续使用Ruff、默认mypy、cpu-quick与顺序cuda-native-smoke/cuda-validation。先确认CUDA并保存实际设备/负载，忙时等待或缩小规模，不CPU回退；逐参数终态、报告只读重建/SHA/链接及20旧锁需在净HEAD完成。四历史原字节仍缺失，读端严格拒绝；只核已知375字节日志/manifest/两索引，不扫refs/ACL/全盘、不补签，最终driver只执行一次，无输出且未到张量加载。
+验证先确认torch.cuda.is_available和实际GPU，忙时等待、不CPU回退。正式净HEAD仅一次严格历史export/cross-Phi拒绝；四原件仍未知、20旧锁保持，只核已知日志/manifest/两索引，不扫refs/ACL/全盘、不补签。未执行/缺结果不记通过，完整cpu-pr与远端CI不冒称本地快速计划。
 
 # 二、六类核对与落实
 | **类别** | **已有实现条件** | **仍需完成的具体差距** |

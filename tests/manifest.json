@@ -2114,17 +2114,41 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
-      "target": "spec_mtp.structure.model.hf_causal",
+      "target": "spec_mtp.structure.model.hf_causal.HFCausalLM.close",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path",
-      "target": "spec_mtp.structure.model.hf_causal",
+      "target": "spec_mtp.structure.model.hf_causal.keep_block_positions",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/studies/_shared/structure/test_resource_admission.py::test_host_peak_plus_margin_and_actual_foreign_gpu",
@@ -11210,6 +11234,14 @@
         {
           "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
+          "reason": "Real CUDA borrowed-model ownership and independent KV-value preservation contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path",
+          "reason": "Real CUDA borrowed-model ownership and independent KV-value preservation contract; no CPU replacement."
         }
       ],
       "cpu_only": true
@@ -11782,13 +11814,15 @@
         "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_returned_tensors_do_not_alias_the_cache",
         "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_uses_it_only_for_dynamic_trees",
         "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_efficient_cache_matches_naive_builder",
-        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes"
+        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
+        "tests/spec_mtp/structure/model/test_hf_causal.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
+        "tests/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
-        "estimated_device_seconds": 190,
-        "estimate_basis": "Prior clean CUDA261 parameters took106.95s; new22-CUDA targeted cases took about16s including cold native initialization, Hypothesis80 call1.66s.190s is scheduling estimate;300s budget unchanged.",
+        "estimated_device_seconds": 195,
+        "estimate_basis": "Round31 two targeted CUDA model-ownership and KV-preservation cases passed on RTX 5090 D v2. 195s is a scheduling estimate, not a performance conclusion; the 300s device budget is unchanged.",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false

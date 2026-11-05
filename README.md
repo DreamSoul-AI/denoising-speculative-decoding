@@ -126,3 +126,5 @@ Python配置对象直接从 `spec_mtp.structure.<algorithm|data|model|system>.co
 Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproject.toml)，当前研究宿主为 `spec_mtp`。目录入口：[产品或库源码](src/spec_mtp/)、[研究声明与适配](studies/)、[测试](tests/)、[当前文档](docs/)。运行与测试按本 README、相关设计和实际配置选择，不把历史命令视为新的实验授权。
 
 文档职责按 AGENTS.md 维护。通用调研不代替文献调研，研究计划不代替开发计划。历史测量在运行记录，结构调整在开发记录。本轮从已关联 DreamSoul 资料库读取研发根约定及相关代码、协作、测试、研究计划、文献、文档和架构规范。本地资料的读取不代表云端同步或最新远端核验。
+
+模型所有权与KV值保全两项原CPU数值合同现使用CUDA，路径与测试ID保持。借用关闭检查native对象、embedding Parameter和完整state_dict的值/存储，关闭后拒绝进入native forward；KV先独立快照再核两层选槽。登记945函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别819/445/115/11函数；快速CPU1359参数、CUDA285项执行（284质量项、1测量项）、native11项，实际通过与提交身份见同日运行记录。模型小配置工程合同不代表真实权重研究或性能收益。
