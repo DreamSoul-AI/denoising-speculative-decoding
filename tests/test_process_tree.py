@@ -7,10 +7,12 @@ from types import SimpleNamespace
 import psutil
 import pytest
 
-from tests.conftest import cli, _process_tree
+from tests.conftest import cli
+from tests import _process_tree
 
 
 def test_successful_cli_helper_reaps_owned_descendant(tmp_path, monkeypatch):
+    assert cli.__globals__['_process_tree'] is _process_tree
     record = tmp_path / 'owned-child.json'
     child = "import os,time,json,psutil,pathlib; pathlib.Path(" + repr(str(record)) + ").write_text(json.dumps({'pid':os.getpid(),'created':psutil.Process().create_time()})); time.sleep(60)"
     (tmp_path / 'owned_probe.py').write_text(

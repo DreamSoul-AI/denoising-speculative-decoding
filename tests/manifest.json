@@ -3110,11 +3110,18 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_registry.py::test_modelscope_respects_local_files_only",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_direct_cuda_model.py::test_modelscope_respects_local_files_only",
+      "target": "studies._shared.structure.model._materialize_hub",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "cost_class": "c1",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1"
     },
     {
       "test_id": "tests/studies/shared/test_smoke_study.py::test_smoke_study_matches_plain_generation",
@@ -3222,33 +3229,61 @@
       ]
     },
     {
-      "test_id": "tests/studies/shared/test_study_phase_exports.py::test_native_phase_dispatches_exported_callable",
-      "target": "studies/shared",
-      "tags": [
-        "offline_cpu"
-      ]
-    },
-    {
-      "test_id": "tests/studies/shared/test_study_phase_exports.py::test_seven_cells_are_exact_original_tail_with_new_identity",
-      "target": "studies/shared",
-      "tags": [
-        "offline_cpu"
-      ]
-    },
-    {
-      "test_id": "tests/studies/shared/test_study_phase_exports.py::test_historical_continuation_original_source_refs",
-      "target": "studies/shared",
+      "test_id": "tests/spec_mtp/flow/test_study.py::test_native_phase_dispatches_exported_callable",
+      "target": "spec_mtp.flow.study.run_study_phase",
       "tags": [
         "offline_cpu",
-        "external_evidence"
-      ]
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "cost_class": "c1",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1"
     },
     {
-      "test_id": "tests/studies/shared/test_study_phase_exports.py::test_continuation_mapping_preserves_contract_and_old_history",
-      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
+      "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/process/test_norm_saved_readout.py::test_seven_cells_are_exact_original_tail_with_new_identity",
+      "target": "studies.qwen3_4b_bf16_bias_norm_continuation.study.yaml / frozen source_refs",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "cost_class": "c1",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1"
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/process/test_norm_saved_readout.py::test_historical_continuation_original_source_refs",
+      "target": "studies.qwen3_4b_bf16_bias_norm_continuation.study.yaml / frozen source_refs",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup",
+        "external_evidence"
+      ],
+      "level": "unit",
+      "cost_class": "c1",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1"
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/process/test_norm_saved_readout.py::test_continuation_mapping_preserves_contract_and_old_history",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run.continuation_entries",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "cost_class": "c1",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1"
     },
     {
       "test_id": "tests/test_run.py::test_manifest_covers_all_declared_sources",
@@ -3499,25 +3534,46 @@
       ]
     },
     {
-      "test_id": "tests/tools/test_cli_ownership.py::test_successful_cli_helper_reaps_owned_descendant",
-      "target": "tests.conftest.cli",
+      "test_id": "tests/test_process_tree.py::test_successful_cli_helper_reaps_owned_descendant",
+      "target": "tests.conftest.cli -> tests._process_tree.ProcessTree",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "cost_class": "c1",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1"
     },
     {
-      "test_id": "tests/tools/test_cli_ownership.py::test_timeout_confirms_owned_process_cleanup",
-      "target": "tests.conftest.cli",
+      "test_id": "tests/test_process_tree.py::test_timeout_confirms_owned_process_cleanup",
+      "target": "tests.conftest.cli -> tests._process_tree.ProcessTree",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "cost_class": "c1",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1"
     },
     {
-      "test_id": "tests/tools/test_cli_ownership.py::test_unsupported_process_ownership_refuses_before_launch",
-      "target": "tests.conftest.cli",
+      "test_id": "tests/test_process_tree.py::test_unsupported_process_ownership_refuses_before_launch",
+      "target": "tests._process_tree.ProcessTree.start",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "cost_class": "c1",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1"
     },
     {
       "test_id": "tests/spec_mtp/test_structure_flow_gates.py::test_legacy_allowlist_rejects_a_new_violation",
@@ -9175,6 +9231,118 @@
         "offline_cpu",
         "structure_cleanup"
       ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_batch_report_rebuilds_saved_measurement_and_quality_counts",
+      "target": "tests.run.render_report",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_batch_report_rejects_changed_saved_identity_and_semantics",
+      "target": "tests.run.render_report",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_batch_report_preserves_missing_collection_and_unselected_reasons",
+      "target": "tests.run.Recorder",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_batch_report_write_failure_never_publishes_success",
+      "target": "tests.run.Recorder",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_batch_report_escapes_saved_names_and_omits_failure_payload",
+      "target": "tests.run.render_report",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_batch_report_records_source_admission_failure_without_current_manifest_fallback",
+      "target": "tests.run.main",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_batch_report_rejects_resolved_evidence_escape_before_hashing",
+      "target": "tests.run.render_report",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_batch_report_rechecks_inputs_after_markdown_write",
+      "target": "tests.run.Recorder",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
     }
   ],
   "plans": {
@@ -9784,7 +9952,15 @@
         "tests/test_run.py::test_location_metadata_is_limited_to_unit_checks",
         "tests/spec_mtp/structure/artifact/test_provenance.py::test_current_plan_navigation_keeps_all_frozen_historical_members",
         "tests/spec_mtp/structure/artifact/test_provenance.py::test_fixed_plan_commit_path_and_digest_never_follow_current_navigation",
-        "tests/spec_mtp/structure/artifact/test_provenance.py::test_navigation_cleanup_cannot_bypass_missing_frozen_study_inputs"
+        "tests/spec_mtp/structure/artifact/test_provenance.py::test_navigation_cleanup_cannot_bypass_missing_frozen_study_inputs",
+        "tests/test_run.py::test_batch_report_rebuilds_saved_measurement_and_quality_counts",
+        "tests/test_run.py::test_batch_report_rejects_changed_saved_identity_and_semantics",
+        "tests/test_run.py::test_batch_report_preserves_missing_collection_and_unselected_reasons",
+        "tests/test_run.py::test_batch_report_write_failure_never_publishes_success",
+        "tests/test_run.py::test_batch_report_escapes_saved_names_and_omits_failure_payload",
+        "tests/test_run.py::test_batch_report_records_source_admission_failure_without_current_manifest_fallback",
+        "tests/test_run.py::test_batch_report_rejects_resolved_evidence_escape_before_hashing",
+        "tests/test_run.py::test_batch_report_rechecks_inputs_after_markdown_write"
       ],
       "exclude": []
     },

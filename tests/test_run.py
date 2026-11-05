@@ -61,8 +61,10 @@ def test_explicit_plan_selects_only_required_cases_and_rejects_missing_collectio
     items = [SimpleNamespace(nodeid=required+'[case]'), SimpleNamespace(nodeid=other)]
     record.pytest_collection_modifyitems(config, items)
     assert record.selected == {required+'[case]'} and [item.nodeid for item in dropped] == [other]
+    missing_root = tmp_path/'missing-attempt'; missing_root.mkdir()
+    missing_record = runner.Recorder(body, plan, missing_root, {'run_id': 'missing-attempt'})
     with pytest.raises(pytest.UsageError, match='missing'):
-        record.pytest_collection_modifyitems(config, [SimpleNamespace(nodeid=other)])
+        missing_record.pytest_collection_modifyitems(config, [SimpleNamespace(nodeid=other)])
 
 
 def test_phase_evidence_records_actual_plan_and_device_metrics(tmp_path):
@@ -124,7 +126,7 @@ def _manifest(tmp_path, *, cuda=False):
         body['plans']['check']['resources'] = {'gpu_count': 1, 'estimated_device_seconds': 10,
             'estimate_basis': 'controlled IO fixture', 'memory_requirement': 'fixture device metadata only',
             'network': False, 'model_download': False}
-    path = tmp_path / 'manifest.json'
+    path = tmp_path / 'declaration.json'
     def read():
         path.write_text(json.dumps(body), encoding='utf-8')
         return runner.read_plan(path, 'check')
@@ -251,7 +253,9 @@ def _measurement_recorder(tmp_path, result_type='numeric'):
                metric_specs=[{'name': 'sum', 'unit': 'dimensionless', 'statistic': 'single'}])
     body, plan = read()
     record = runner.Recorder(body, plan, tmp_path, {'run_id': 'measurement-fixture'})
-    node = row['test_id']; record.selected = {node}
+    node = row['test_id']
+    record.pytest_collection_modifyitems(SimpleNamespace(hook=SimpleNamespace(pytest_deselected=lambda **kw: None)),
+                                         [SimpleNamespace(nodeid=node)])
     assert runner._measurement_error(row, {'metrics': [_metric()]}) is None
     return record, node
 
@@ -437,3 +441,149 @@ def test_cuda_scalar_measurement_records_actual_samples_and_environment(record_p
     record_property('cuda_device', torch.cuda.get_device_name(device))
     print('actual_measurement_device=', total.device, 'gpu=', torch.cuda.get_device_name(device))
     assert total.device.type == 'cuda' and observed == 28.
+
+
+@pytest.mark.parametrize('result_type', ['numeric', 'categorical'])
+def test_batch_report_rebuilds_saved_measurement_and_quality_counts(tmp_path, result_type):
+    record, node = _measurement_recorder(tmp_path, result_type)
+    record.environment.update(plan_id='saved-plan', head='saved-head', budget_seconds=30)
+    # Collection identity belongs to the original environment used at collection.
+    selection = json.loads((tmp_path/'selection.json').read_text())
+    selection['environment'] = runner._identity(record.environment)
+    (tmp_path/'selection.json').write_text(json.dumps(selection), encoding='utf-8')
+    for phase in ('setup', 'call', 'teardown'):
+        _phase(record, node, phase, properties=[('metrics', [_metric()])] if phase == 'call' else [])
+    session = SimpleNamespace(exitstatus=0); record.pytest_sessionfinish(session, 0)
+    summary = json.loads((tmp_path/'summary.json').read_text())
+    report = runner.render_report(tmp_path)
+    assert report == (tmp_path/'report.md').read_text(encoding='utf-8')
+    assert session.exitstatus == 0 and summary['report_sha256']
+    assert '| 测量完成 | 1 |' in report
+    assert '| 质量通过 | ' + str(int(result_type == 'categorical')) + ' |' in report
+    assert 'saved-plan' in report and 'saved-head' in report and '设备实际时长/峰值及费用未统一采集，保持未知' in report
+    assert '28.0' in report and '.call.json)' in report
+
+
+@pytest.mark.parametrize('fault', ['head', 'numeric_as_passed', 'counter', 'phase_identity', 'promoted_exit_code'])
+def test_batch_report_rejects_changed_saved_identity_and_semantics(tmp_path, fault):
+    record, node = _measurement_recorder(tmp_path)
+    for phase in ('setup', 'call', 'teardown'):
+        _phase(record, node, phase, properties=[('metrics', [_metric()])] if phase == 'call' else [])
+    code = 2 if fault == 'promoted_exit_code' else 0
+    session = SimpleNamespace(exitstatus=code); record.pytest_sessionfinish(session, code)
+    assert runner.render_report(tmp_path)
+    if fault == 'head': path = tmp_path/'environment.json'
+    elif fault in ('counter', 'promoted_exit_code'): path = tmp_path/'summary.json'
+    elif fault == 'phase_identity': path = next(tmp_path.glob('*.call.json'))
+    else: path = next(tmp_path.glob('*.result.json'))
+    body = json.loads(path.read_text())
+    if fault == 'head': body['head'] = 'changed-head'
+    elif fault == 'counter': body['measurement_completed'] = 99
+    elif fault == 'promoted_exit_code': body['exit_code'] = 0
+    elif fault == 'phase_identity': body['environment']['run_id'] = 'another-run'
+    else: body['status'] = 'passed'
+    path.write_text(json.dumps(body), encoding='utf-8')
+    with pytest.raises(ValueError): runner.render_report(tmp_path)
+
+
+def test_batch_report_preserves_missing_collection_and_unselected_reasons(tmp_path):
+    body, _ = runner.read_plan(ROOT/'tests/manifest.json', 'cpu-pr')
+    required, excluded = (row['test_id'] for row in body['tests'][:2])
+    plan = {'include': [required], 'exclude': [{'test_id': excluded, 'reason': 'explicit cost boundary'}], 'budget_seconds': 30}
+    record = runner.Recorder(body, plan, tmp_path, {'run_id': 'failed-collection'})
+    with pytest.raises(pytest.UsageError):
+        record.pytest_collection_modifyitems(SimpleNamespace(hook=None), [])
+    session = SimpleNamespace(exitstatus=4); record.pytest_sessionfinish(session, 4)
+    report = (tmp_path/'report.md').read_text(encoding='utf-8')
+    assert session.exitstatus != 0 and '缺收集声明' in report and required in report
+    assert 'explicit cost boundary' in report and '未知' in report
+
+
+@pytest.mark.parametrize('fault', ['report', 'summary'])
+def test_batch_report_write_failure_never_publishes_success(tmp_path, monkeypatch, fault):
+    record, node = _measurement_recorder(tmp_path)
+    for phase in ('setup', 'call', 'teardown'):
+        _phase(record, node, phase, properties=[('metrics', [_metric()])] if phase == 'call' else [])
+    if fault == 'report':
+        original = Path.open
+        def fail_report(path, *args, **kwargs):
+            if path.name == 'report.md': raise OSError('payload must not be displayed')
+            return original(path, *args, **kwargs)
+        monkeypatch.setattr(Path, 'open', fail_report)
+    else:
+        original = record.save
+        def fail_summary(name, value):
+            if name == 'summary.json': raise OSError('controlled final write failure')
+            return original(name, value)
+        monkeypatch.setattr(record, 'save', fail_summary)
+    session = SimpleNamespace(exitstatus=0)
+    if fault == 'summary':
+        with pytest.raises(OSError): record.pytest_sessionfinish(session, 0)
+        assert not (tmp_path/'summary.json').exists()
+        assert '正式完成状态以' in (tmp_path/'report.md').read_text(encoding='utf-8')
+    else:
+        record.pytest_sessionfinish(session, 0)
+        summary = json.loads((tmp_path/'summary.json').read_text())
+        assert session.exitstatus == 1 and summary['error_type'] == 'OSError' and 'report_sha256' not in summary
+
+
+def test_batch_report_escapes_saved_names_and_omits_failure_payload(tmp_path):
+    record, node = _measurement_recorder(tmp_path, 'categorical')
+    metric = _metric(); metric['context']['environment']['untrusted'] = '<script>secret</script>'
+    record.entries[node]['metric_specs'][0]['unit'] = '<unit>|[fake](https://invalid)'
+    metric['unit'] = record.entries[node]['metric_specs'][0]['unit']
+    _phase(record, node, 'setup')
+    _phase(record, node, 'call', properties=[('metrics', [metric])], outcome='failed')
+    _phase(record, node, 'teardown')
+    session = SimpleNamespace(exitstatus=1); record.pytest_sessionfinish(session, 1)
+    report = (tmp_path/'report.md').read_text(encoding='utf-8')
+    assert '<unit>' not in report and '&#124;' in report and '&#91;fake&#93;' in report
+    assert '<script>' not in report and 'secret' not in report and 'controlled phase failure' not in report
+
+
+def test_batch_report_records_source_admission_failure_without_current_manifest_fallback(tmp_path, monkeypatch):
+    def invalid_source(*args): raise ValueError('private source payload')
+    monkeypatch.setattr(runner, 'read_plan', invalid_source)
+    output = tmp_path/'source-failure'
+    assert runner.main(['--plan', 'unknown-plan', '--output-root', str(output)]) == 1
+    report = runner.render_report(output)
+    assert 'ValueError' in report and 'private source payload' not in report and '未保存selection' in report
+    assert '[选择](selection.json)' not in report
+
+
+@pytest.mark.parametrize('member', ['result', 'report'])
+@pytest.mark.parametrize('placement', ['outside', 'same_root_alias'])
+def test_batch_report_rejects_resolved_evidence_escape_before_hashing(tmp_path, monkeypatch, member, placement):
+    record, node = _measurement_recorder(tmp_path)
+    for phase in ('setup', 'call', 'teardown'):
+        _phase(record, node, phase, properties=[('metrics', [_metric()])] if phase == 'call' else [])
+    session = SimpleNamespace(exitstatus=0); record.pytest_sessionfinish(session, 0)
+    victim = next(tmp_path.glob('*.result.json')) if member == 'result' else tmp_path/'report.md'
+    resolve, read_bytes = Path.resolve, Path.read_bytes
+    def redirected(path, *args, **kwargs):
+        if path == victim:
+            return (tmp_path.parent if placement == 'outside' else tmp_path)/'bound-other-file.json'
+        return resolve(path, *args, **kwargs)
+    def forbid_unchecked_read(path):
+        assert path != victim, 'escaped evidence was hashed before containment'
+        return read_bytes(path)
+    monkeypatch.setattr(Path, 'resolve', redirected)
+    monkeypatch.setattr(Path, 'read_bytes', forbid_unchecked_read)
+    with pytest.raises(ValueError, match='escapes'): runner.render_report(tmp_path)
+
+
+def test_batch_report_rechecks_inputs_after_markdown_write(tmp_path, monkeypatch):
+    record, node = _measurement_recorder(tmp_path)
+    for phase in ('setup', 'call', 'teardown'):
+        _phase(record, node, phase, properties=[('metrics', [_metric()])] if phase == 'call' else [])
+    original = Path.open
+    def drifting_write(path, *args, **kwargs):
+        stream = original(path, *args, **kwargs)
+        if path.name == 'report.md':
+            environment = tmp_path/'environment.json'
+            environment.write_text('{"run_id":"drifted"}', encoding='utf-8')
+        return stream
+    monkeypatch.setattr(Path, 'open', drifting_write)
+    session = SimpleNamespace(exitstatus=0); record.pytest_sessionfinish(session, 0)
+    summary = json.loads((tmp_path/'summary.json').read_text())
+    assert session.exitstatus == 1 and summary['error_type'] == 'ValueError' and 'report_sha256' not in summary

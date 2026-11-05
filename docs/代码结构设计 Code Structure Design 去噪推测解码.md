@@ -146,3 +146,9 @@ extension 的 numerics、kernel、operator 保存张量审计集中到一个 `st
 测量结果合同仍由既有tests/run.py及tests/test_run.py承担，不新增生产模块。numeric或明确请求metrics/samples的用例先声明唯一metric_specs（name/unit/statistic），经record_property提交同名测量，核有限实数、单位与口径、正样本数、非负暖机、数据规模/环境/测量边界及本轮支持的inline raw_samples；不建立附件执行器。重复property、空/缺采集、无call或阶段不完整不能覆盖成成功。有效numeric终态为测量完成，质量判定保持未评估，不混入categorical质量通过；categorical原断言合同保持。每个参数结果独立保存，失败测量保留已发生事实，整批仍严格阻断。
 
 当前声明文档入口与冻结历史来源各有职责：只有实际消费者用作当前导航的引用可跟随唯一中文文档入口；历史source_path/member/commit/blob/hash随原协议保留，不能因路径改名重签或根据同名猜原件。新make必须冻结实际声明，旧Run与来源锁不写回。
+
+批次报告仍由既有tests/run.py与tests/test_run.py维护，不新增生产模块或独立报告CLI。运行根保存本次有效声明/计划与environment快照、selection、phase/result；render_report(root)从实际落盘证据生成report.md。报告分开执行、测量、质量、成本与未验证范围，保source/level/type/priority/cost汇总、预算/设备/时间及证据定位；未知资源不填零，不从研究计数推性能。原始longrepr只留诊断证据，正文只显示错误类别，不扩散敏感载荷。
+
+summary为最后完成依据：先保存pending、生成报告并绑定SHA，再发布正式summary；报告或证据写失败只能失败。缺收集或CUDA不可用也保明确未执行范围和失败报告；不把未枚举参数当已完成。报告核声明、环境、选择和终态的一致身份/计数，拒绝漂移或把numeric改为质量通过，不用派生报告重新签原事实。只读重建函数不覆盖旧文件，不新增附件/基准框架。
+
+测试公共子进程拥有关系只用已有_process_tree，避免conftest重复装载同一helper。纯phase派发镜像归宿主flow/study，continuation保存声明/计数检查归已有norm读件镜像；默认六阶段及停止的研究协议不改。旧smoke真实模型比较的CPU历史计数与未来CUDA协议另行设计，本轮仅明确其未执行范围，不借目录迁移扩大数值运行。

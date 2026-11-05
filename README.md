@@ -99,6 +99,8 @@ profile 在 CUDA 工作负载上使用 cProfile，component 是主机侧 self-ti
 
 本机快速单元执行 `python tests/run.py --plan cpu-quick --output-root <外部新验证目录>`，CUDA 工程正确性执行 `python tests/run.py --plan cuda-validation --output-root <另一外部新验证目录>`。CUDA计划不可用即失败，回执保存实际设备、精度和显存；两计划分开报告。原 cpu-pr 计划保留既有用途，本轮不以其全量CPU结果替代CUDA验证。静态清单先验证必需项和精确排除，逐参数 setup/call/teardown 写独立记录，缺收集、缺终态、失败、跳过和证据写失败均非零。预算随所选计划：cpu-quick为120秒、cuda-validation为300秒、cpu-pr为420秒，在测试边界检查；子进程测试各有有限超时，单个本地计算不支持强制中断。运行产物不进 Git。
 
+每次计划在外部输出根冻结有效声明/计划 `manifest.json`、`environment.json`、`selection.json` 和逐参数phase/result，生成中文 `report.md`，最后发布绑定报告及证据SHA的 `summary.json`。报告从落盘记录汇总执行、测量、质量、维度、预算、成本和未验证范围；没有正式summary或其退出码非零就不是成功。缺收集、准入失败、缺阶段及报告写失败均保留失败/未知，不用当前源码清单补回未记录的事实。只读 `render_report(root)` 可核对重建，无额外CLI；旧输入与报告不覆盖，原异常载荷不展入正文。
+
 测量类（numeric或metrics/samples粒度）须在声明给出唯一 `metric_specs`（name/unit/statistic），通过 `record_property('metrics', [...])` 提交同名有限实数、样本/暖机规模、数据规模、环境、测量边界及inline raw_samples。记录中的 `metrics` 保留原user_properties映射，测量列表位于 `metrics.metrics`，原设备诊断可并列。空/缺采集、重复属性、阶段不完整或写失败均阻断；采集后的可变对象不能改写已保存call事实。每参数的 `*.result.json` 在完整阶段后定稿，numeric为 `status=measured`、`verdict=null`，不算质量通过；summary分别记录measurement_completed与quality_passed，两者独立，带有效测量的分类用例可同时计入。当前只支持inline样本，不建立附件或基准框架；微型CUDA内容测量不提供性能结论。
 
 Study声明的 `provenance.project_plan.path` 只有在无commit/hash的当前导航角色时跟随唯一中文研究计划；带commit/path/sha的固定组及 `docs/source_refs.json` 仍按原Git身份读取。historical_sections中的anchor按原版本索引解释，不指向当前中文正文锚点。导航维护不修改历史source_path/commit/blob/hash、旧Run或原科学输入；原件缺失仍拒绝。

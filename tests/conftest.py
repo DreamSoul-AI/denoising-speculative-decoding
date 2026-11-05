@@ -1,7 +1,6 @@
 """Shared helpers: copy the smoke Study into a temp dir and run it through RPipe."""
 
 import os
-import importlib.util
 import shutil
 import subprocess
 import sys
@@ -10,11 +9,10 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests import _process_tree
+
 ROOT = Path(__file__).resolve().parents[1]
 SMOKE = ROOT / 'studies' / 'smoke'
-_spec = importlib.util.spec_from_file_location('sd_test_process_tree', Path(__file__).with_name('_process_tree.py'))
-_process_tree = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_process_tree)
 
 # Child interpreters must verify this checkout, not a different globally editable SD.
 os.environ['PYTHONPATH'] = os.pathsep.join((
