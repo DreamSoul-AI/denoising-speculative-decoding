@@ -105,6 +105,10 @@ native shared CLI 的 smoke 测试按架构 NS0–NS4 使用独立 CUDA 验证�
 
 native CLI 验证使用独立测试计划：`python tests/run.py --plan cuda-native-smoke --output-root <另一外部新验证目录>`，单卡、300秒预算，包含11个随机tiny的数值入口路径；不并入原cuda-validation预算。两组GPU验证依次执行，实际设备与来源保存到各自回执，纯配置/来源拒绝仍由cpu-quick选择。该计划不运行真实权重或旧研究矩阵。
 
+Run和Study质量门分别从 `studies._shared.flow.summarize.run`、`studies._shared.flow.process.run` 使用 `run_gate`、`study_gate`；保存件验证从 `studies._shared.structure.validation` 使用，不再通过旧 `flow.checks` 转导出。删除当前兼容文件会改变新来源摘要，旧来源锁与Run仍按原身份解释，不补签或删成员绕过校验。
+
+可选CSV Logger按首个有效header固定列序，同键重排仍写入正确列；追加前核header、schema及末尾换行，目标被改换/清空/移除或输入损坏时拒绝，旧行不重写。首次零字节文件可写一个header，新实例沿用有效header。stdout-only仍输出动态指标；它与collect正式CSV、Tracker及诊断JSONL各守原职责，不提供原子追加或并发写保证。alignment保存计数的七参数回归在真实CUDA计算结果上核设备，加入cuda-validation，纯JSON/来源拒绝保持CPU快测。
+
 测量类（numeric或metrics/samples粒度）须在声明给出唯一 `metric_specs`（name/unit/statistic），通过 `record_property('metrics', [...])` 提交同名有限实数、样本/暖机规模、数据规模、环境、测量边界及inline raw_samples。记录中的 `metrics` 保留原user_properties映射，测量列表位于 `metrics.metrics`，原设备诊断可并列。空/缺采集、重复属性、阶段不完整或写失败均阻断；采集后的可变对象不能改写已保存call事实。每参数的 `*.result.json` 在完整阶段后定稿，numeric为 `status=measured`、`verdict=null`，不算质量通过；summary分别记录measurement_completed与quality_passed，两者独立，带有效测量的分类用例可同时计入。当前只支持inline样本，不建立附件或基准框架；微型CUDA内容测量不提供性能结论。
 
 Study声明的 `provenance.project_plan.path` 只有在无commit/hash的当前导航角色时跟随唯一中文研究计划；带commit/path/sha的固定组及 `docs/source_refs.json` 仍按原Git身份读取。historical_sections中的anchor按原版本索引解释，不指向当前中文正文锚点。导航维护不修改历史source_path/commit/blob/hash、旧Run或原科学输入；原件缺失仍拒绝。

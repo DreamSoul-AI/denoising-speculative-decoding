@@ -1,6 +1,7 @@
 """Dedicated revalidation checks immutable Study inputs before importing policies."""
 
 import importlib
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -102,3 +103,26 @@ def test_revalidation_process_restores_evidence_checker_after_guarded_dispatch(t
     else:
         assert revalidate.process_study(tmp_path, tmp_path / 'policy.py') == {'study': str(tmp_path.resolve())}
     assert process.verify_evidence is original
+
+
+def test_revalidation_keeps_failure_and_execute_bytes_and_is_idempotent(tmp_path,monkeypatch, saved_decode_study):
+    from pathlib import Path
+    from studies._shared.structure import validation
+    ctx=saved_decode_study(tmp_path,[('a','failed',False,'d')])
+    run=ctx.study_dir/'runs/run_a'
+    body=json.loads((run/'result.json').read_text())
+    body.update(control={},metrics={},error='SpecMtpGateError: old AR gate')
+    (run/'result.json').write_text(json.dumps(body))
+    previous=(run/'result.json').read_bytes()
+    raw=(run/'assets/decode_observations.json').read_bytes()
+    import spec_mtp.structure.algorithm.decode.loop as decoding
+    monkeypatch.setattr(decoding.SpecDecoder,'generate',lambda *a:pytest.fail('execute must not rerun'))
+    result=revalidate.revalidate_run(ctx.study_dir,'run_a',Path(validation.__file__))
+    assert result['status']=='succeeded' and result['spec_mtp']['argmax_all_passed']
+    migration=result['spec_mtp']['revalidation']
+    assert migration['execute_rerun'] is False
+    assert (run/'assets'/migration['previous_result_asset']).read_bytes()==previous
+    assert (run/'assets/decode_observations.json').read_bytes()==raw
+    saved=(run/'result.json').read_bytes()
+    revalidate.revalidate_run(ctx.study_dir,'run_a',Path(validation.__file__))
+    assert (run/'result.json').read_bytes()==saved

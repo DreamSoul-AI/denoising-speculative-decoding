@@ -179,6 +179,8 @@ CLI、YAML/JSON、token 数据、Hub 文件和旧运行记录都校验形状、�
 原始结果、摘要与终态之间没有跨文件事务保证。先写临时文件、校验后原子替换适用于单文件保全，不保证整套运行原子提交。缺结束记录或 raw 截断即未确认，不能因行数看似齐全推正常完成。重算另存分析版本与输入哈希，不能覆盖旧结论。
 
 诊断日志由统一 Logger 保存为 UTF-8 JSONL，包含 timestamp/level/event/logger/message/app_name/app_version/runtime_id/process_name/pid，按场景加 Run/phase、outcome 和实际耗时。未知可选项省略，凭据、prompt 正文和完整 tensor 不进普通日志。sink 故障记录实际影响，日志无错误不能作为成功依据。
+
+CSV指标行与诊断日志分开。可选文件Logger按首个有效header固定列序，每次追加前核现有header和末尾记录边界；同键重排不改变字段含义，schema不符、header损坏或目标状态变化必须拒绝，旧行不修补。stdout-only仍可输出动态指标，四位小数与step/prefix格式保持。追加IO失败上抛，CSV不是原子事务、并发写协议或科学完成标记；native正式指标资产由collect和后续gate另行校验。
 ## （三）失败处理
 | **故障** | **处理与继续条件** |
 | --- | --- |
@@ -216,9 +218,9 @@ CLI、YAML/JSON、token 数据、Hub 文件和旧运行记录都校验形状、�
 | Study/RPipe 集成 | 来源拒绝、单 Run 故障、取消、process 子集 | 宿主入口被调用一次，唯一协调权、首错与终态保存，旧成功字节不变 |
 | 用户科学 CLI 旅程 | 显式 decode/audit/compare、无参数/help | help 零载模，假模型贯通到可见结果；审计和比较零启动 |
 
-假模型和可枚举 CPU logits 为低成本关键门。真实 tiny BF16、目标4B/8B、CUDA/cache/ABI、包安装和资源行为分别验证，假调用不能代替真实模型证据。第三方原树只核来源字节及明确适配合同，不纳入本仓任意格式化或未来源文件镜像改造。
+纯JSON、配置、保存标量和IO为快速CPU门；实际张量验证使用CUDA并记录设备。真实tiny BF16、目标4B/8B、CUDA/cache/ABI、包安装和资源行为分别验证，假调用不能代替真实模型证据。第三方原树只核来源字节及明确适配合同，不纳入本仓任意格式化或未来源文件镜像改造。
 ## （二）计划、元数据与结果
-保留 pytest，未来最小执行适配复用其选择和逐项结果机制，不重造测试框架。静态配置声明 test_id、level/type/cost_class/result_type/priority、目标/tags 和 result_detail，逐参数/attempt 独立。测试说明和排除项在本文维护，不新增 tests/README。
+保留pytest，现有执行适配复用其选择、阶段和逐参数结果机制。静态配置声明test_id、level/type/cost_class/result_type/priority、目标/tags和result_detail，逐参数/attempt独立。测试说明与排除跟随实际合同及唯一清单，不新增tests/README。
 
 快速计划选受影响 P1/P2、C1 的离线数据/状态/审计项，回归计划扩至相关 C2 和假模型集成。GPU测试按实际规模与资源消耗定成本，微型工程夹具与大矩阵分别安排，须明确设备、单项/整批时间与内存/显存预算、配置数量、重复、并发及停止规则。当前没有实测预算不编数字；旧 GPU 计划暂停，不借测试名恢复研究。
 

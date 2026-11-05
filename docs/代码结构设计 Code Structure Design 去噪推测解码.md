@@ -154,3 +154,9 @@ summary为最后完成依据：先保存pending、生成报告并绑定SHA，再
 测试公共子进程拥有关系只用已有_process_tree，避免conftest重复装载同一helper。纯phase派发镜像归宿主flow/study，continuation保存声明/计数检查归已有norm读件镜像；默认六阶段及停止的研究协议不改。
 
 shared CLI 的 native smoke 与其参数/调用性质共同归 `tests/studies/_shared/flow/test_cli.py`，按 NS0–NS4 独立定义 CUDA 验证身份。设备初始化适配只存在于测试复制的 recipe，生产模型工厂及原 Study 声明不因此改写；实际输入、模型摘要和后端随原采集链冻结。纯来源性质归已有 `structure/test_sources.py`、配置性质归已有 `structure/test_config.py`，来源门和声明因子性质归实际 `structure/test_validation.py`；测试直接调用真实所属部件，不保混合 properties 文件或 flow facade。每个原性质、Hypothesis 参数规模、失败判据及历史排除仍分别维护。
+
+Run与Study门分别由 `_shared/flow/summarize/run.py` 和 `flow/process/run.py` 承担，纯验证归 `structure/validation.py`，不设 `flow/checks.py` 转导出层。对应测试分别镜像到summarize/process，纯验证合已有validation镜像；保存件revalidation共用一个真实 `flow/test_revalidate.py`。四个合成保存件工厂复用既有 `tests/conftest.py`，依赖惰性导入，每次创建独立config/assets/study，不缓存可变证据或复制助手文件。异常保持宿主observation的同一class，默认六阶段必要run导出保留。
+
+alignment保存计数测试以最终门为主信号，collect构造有效基线，放summarize镜像；实际张量计算在有界CUDA上下文中验证，另记当前设备，不改保存JSON的旧标签。普通JSON/配置/来源拒绝仍是纯IO检查。当前来源树删除兼容文件会改变新manifest，历史锁与Run按原字节保留，不能通过排除成员或补签摘要继续旧执行。
+
+CSV指标仍由既有 `structure/csv_logger.py` 的Logger维护，其真实镜像为 `tests/studies/_shared/structure/test_csv_logger.py`。文件固定首个有效header的有序列，逐次核header及末LF追加边界（含CRLF）；同schema重排列值正确，schema/header/目标状态变化写前拒绝。已有零字节文件仅首次可建header，已有行不清洗或重写；无文件stdout保原动态格式。该模块不承担诊断JSONL、Tracker、科学gate或并发/原子提交职责，不新增持久化框架。

@@ -2498,270 +2498,498 @@
       ]
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_exact_match_one_passes",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_exact_match_one_passes",
+      "target": "studies._shared.structure.validation.evaluate_run",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_gate_failures",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_gate_failures",
+      "target": "studies._shared.structure.validation.evaluate_run",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_unaudited_esp_run_fails",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_unaudited_esp_run_fails",
+      "target": "studies._shared.structure.validation.evaluate_run",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_run_gate_raises_and_records",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/summarize/test_run.py::test_run_gate_raises_and_records",
+      "target": "studies._shared.flow.summarize.run.run_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_complete_pass",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/process/test_run.py::test_study_gate_complete_pass",
+      "target": "studies._shared.flow.process.run.study_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_subset_is_incomplete",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/process/test_run.py::test_study_gate_subset_is_incomplete",
+      "target": "studies._shared.flow.process.run.study_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_missing_result_is_incomplete",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/process/test_run.py::test_study_gate_missing_result_is_incomplete",
+      "target": "studies._shared.flow.process.run.study_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_failed_run_fails",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/process/test_run.py::test_study_gate_failed_run_fails",
+      "target": "studies._shared.flow.process.run.study_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_mixed_source_digest_fails",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/process/test_run.py::test_study_gate_mixed_source_digest_fails",
+      "target": "studies._shared.flow.process.run.study_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_seed_mismatch_is_incomplete",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/process/test_run.py::test_study_gate_seed_mismatch_is_incomplete",
+      "target": "studies._shared.flow.process.run.study_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_skips_run_scope",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/process/test_run.py::test_study_gate_skips_run_scope",
+      "target": "studies._shared.flow.process.run.study_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_ar_baseline_needs_summary",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_ar_baseline_needs_summary",
+      "target": "studies._shared.structure.validation.evaluate_run",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_alignment_probe_needs_its_csv",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_alignment_probe_needs_its_csv",
+      "target": "studies._shared.structure.validation.evaluate_run",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_empty_rate_is_missing",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_empty_rate_is_missing",
+      "target": "studies._shared.structure.validation.evaluate_run",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_two_overall_rows_are_rejected",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_two_overall_rows_are_rejected",
+      "target": "studies._shared.structure.validation.evaluate_run",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_task_name_is_case_insensitive",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_task_name_is_case_insensitive",
+      "target": "studies._shared.structure.validation.evaluate_run",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_run_gate_without_draft_still_gates",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/summarize/test_run.py::test_run_gate_without_draft_still_gates",
+      "target": "studies._shared.flow.summarize.run.run_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_empty_index_is_incomplete",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/process/test_run.py::test_study_gate_empty_index_is_incomplete",
+      "target": "studies._shared.flow.process.run.study_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_explicit_expected_factors",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/process/test_run.py::test_study_gate_explicit_expected_factors",
+      "target": "studies._shared.flow.process.run.study_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_declared_factors_without_axes",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_declared_factors_without_axes",
+      "target": "studies._shared.structure.validation.declared_factors",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_final_gate_requires_raw_evidence",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/summarize/test_run.py::test_final_gate_requires_raw_evidence",
+      "target": "studies._shared.flow.summarize.run.run_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_final_gate_reports_ar_mismatch_without_blocking_argmax",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/summarize/test_run.py::test_final_gate_reports_ar_mismatch_without_blocking_argmax",
+      "target": "studies._shared.flow.summarize.run.run_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_final_gate_rejects_source_drift",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/summarize/test_run.py::test_final_gate_rejects_source_drift",
+      "target": "studies._shared.flow.summarize.run.run_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_final_gate_rejects_config_drift",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/summarize/test_run.py::test_final_gate_rejects_config_drift",
+      "target": "studies._shared.flow.summarize.run.run_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_study_gate_rechecks_missing_evidence",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/process/test_run.py::test_study_gate_rechecks_missing_evidence",
+      "target": "studies._shared.flow.process.run.study_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_legacy_axis_seed_is_not_an_experiment_factor",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_legacy_axis_seed_is_not_an_experiment_factor",
+      "target": "studies._shared.structure.validation.declared_factors",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_final_gate_rejects_live_input_file_drift",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/summarize/test_run.py::test_final_gate_rejects_live_input_file_drift",
+      "target": "studies._shared.flow.summarize.run.run_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_cuda_device_alias_does_not_look_like_config_drift",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_cuda_device_alias_does_not_look_like_config_drift",
+      "target": "studies._shared.structure.validation.verify_evidence",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_study_quality_failure_marks_generic_envelope_incomplete",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/process/test_run.py::test_study_quality_failure_marks_generic_envelope_incomplete",
+      "target": "studies._shared.flow.process.run.study_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_declared_factors_follow_mapping_axis_override_contract",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_declared_factors_follow_mapping_axis_override_contract",
+      "target": "studies._shared.structure.validation.declared_factors",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_declared_factors_bind_inherited_conditions",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_declared_factors_bind_inherited_conditions",
+      "target": "studies._shared.structure.validation.declared_factors",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_argmax_audit_required_even_when_ar_exact",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_argmax_audit_required_even_when_ar_exact",
+      "target": "studies._shared.structure.validation.evaluate_run + studies._shared.structure.validation.verify_evidence",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_argmax_token_and_owner_tampering_fails",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_argmax_token_and_owner_tampering_fails",
+      "target": "studies._shared.structure.validation.evaluate_run",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_ar_mismatch_is_diagnostic_and_native_gate_passes",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/summarize/test_run.py::test_ar_mismatch_is_diagnostic_and_native_gate_passes",
+      "target": "studies._shared.flow.summarize.run.run_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_jsonl_argmax_audit_must_match_raw",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_jsonl_argmax_audit_must_match_raw",
+      "target": "studies._shared.structure.validation.evaluate_run",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_revalidation_keeps_failure_and_execute_bytes_and_is_idempotent",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_revalidate.py::test_revalidation_keeps_failure_and_execute_bytes_and_is_idempotent",
+      "target": "studies._shared.flow.revalidate -> cli.check_study_inputs / guarded policy dispatch",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_cached_ar_summary_does_not_block_argmax_gate",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/summarize/test_run.py::test_cached_ar_summary_does_not_block_argmax_gate",
+      "target": "studies._shared.flow.summarize.run.run_gate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c2"
     },
     {
-      "test_id": "tests/studies/shared/test_csv_logger.py::test_appends_rows_under_one_header",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_csv_logger.py::test_appends_rows_under_one_header",
+      "target": "studies._shared.structure.csv_logger.Logger.log",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c1"
     },
     {
       "test_id": "tests/studies/_shared/structure/test_config.py::test_convert_nests_attribute_access",
@@ -3652,11 +3880,20 @@
       ]
     },
     {
-      "test_id": "tests/studies/shared/test_checks.py::test_alignment_gate_rejects_inconsistent_persisted_counts",
-      "target": "studies._shared.structure.validation",
+      "test_id": "tests/studies/_shared/flow/summarize/test_run.py::test_alignment_gate_rejects_inconsistent_persisted_counts",
+      "target": "studies._shared.flow.collect.run.run + studies._shared.flow.summarize.run.run_gate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda"
+      ],
+      "level": "integration",
+      "type": "content",
+      "result_type": "categorical",
+      "result_detail": "summary",
+      "priority": "p1",
+      "cost_class": "c3",
+      "resources": {
+        "gpu_count": 1
+      }
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_prompts.py::test_dolly_prompt_limit_preserves_zero_and_filtered_order",
@@ -5354,52 +5591,56 @@
       ]
     },
     {
-      "test_id": "tests/studies/shared/flow/test_revalidate.py::test_revalidation_rejects_source_checkout_before_validator_or_writes",
-      "target": "studies._shared.flow.revalidate",
-      "level": "unit",
+      "test_id": "tests/studies/_shared/flow/test_revalidate.py::test_revalidation_rejects_source_checkout_before_validator_or_writes",
+      "target": "studies._shared.flow.revalidate -> cli.check_study_inputs / guarded policy dispatch",
+      "level": "integration",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
       "priority": "p1",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/flow/test_revalidate.py::test_revalidation_source_snapshot_drift_precedes_validator",
-      "target": "studies._shared.flow.revalidate",
-      "level": "unit",
+      "test_id": "tests/studies/_shared/flow/test_revalidate.py::test_revalidation_source_snapshot_drift_precedes_validator",
+      "target": "studies._shared.flow.revalidate -> cli.check_study_inputs / guarded policy dispatch",
+      "level": "integration",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
       "priority": "p1",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/flow/test_revalidate.py::test_revalidation_reuses_shared_preflight_before_loading_policy",
-      "target": "studies._shared.flow.revalidate",
-      "level": "unit",
+      "test_id": "tests/studies/_shared/flow/test_revalidate.py::test_revalidation_reuses_shared_preflight_before_loading_policy",
+      "target": "studies._shared.flow.revalidate -> cli.check_study_inputs / guarded policy dispatch",
+      "level": "integration",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
       "priority": "p1",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/flow/test_revalidate.py::test_revalidation_process_restores_evidence_checker_after_guarded_dispatch",
-      "target": "studies._shared.flow.revalidate",
-      "level": "unit",
+      "test_id": "tests/studies/_shared/flow/test_revalidate.py::test_revalidation_process_restores_evidence_checker_after_guarded_dispatch",
+      "target": "studies._shared.flow.revalidate -> cli.check_study_inputs / guarded policy dispatch",
+      "level": "integration",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
       "priority": "p1",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_launch_scheduler_does_not_retry_failed_runs_by_default",
@@ -5439,8 +5680,8 @@
       ]
     },
     {
-      "test_id": "tests/studies/shared/flow/test_revalidate.py::test_validator_requires_a_loadable_python_module",
-      "target": "studies._shared.flow.revalidate",
+      "test_id": "tests/studies/_shared/flow/test_revalidate.py::test_validator_requires_a_loadable_python_module",
+      "target": "studies._shared.flow.revalidate.load_validator",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5448,7 +5689,8 @@
       "priority": "p1",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_roundtrip_restores_all_globals_but_not_explicit_generator",
@@ -9538,6 +9780,97 @@
         "offline_cpu",
         "structure_cleanup"
       ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_csv_logger.py::test_csv_rows_follow_one_frozen_header",
+      "target": "studies._shared.structure.csv_logger.Logger.log",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_csv_logger.py::test_csv_schema_admission_preserves_previous_bytes",
+      "target": "studies._shared.structure.csv_logger.Logger.log",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_csv_logger.py::test_invalid_existing_csv_header_is_not_repaired",
+      "target": "studies._shared.structure.csv_logger.Logger.log",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_csv_logger.py::test_empty_existing_csv_receives_one_header",
+      "target": "studies._shared.structure.csv_logger.Logger.log",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_csv_logger.py::test_step_prefix_and_utf8_csv_round_trip",
+      "target": "studies._shared.structure.csv_logger.Logger.log",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_csv_logger.py::test_stdout_only_logger_keeps_dynamic_rows",
+      "target": "studies._shared.structure.csv_logger.Logger.log",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_csv_logger.py::test_csv_io_errors_propagate",
+      "target": "studies._shared.structure.csv_logger.Logger.log",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     }
   ],
   "plans": {
@@ -9839,6 +10172,10 @@
         {
           "test_id": "tests/studies/_shared/flow/test_cli.py::test_bf16_five_methods_and_independent_ar_native_cli",
           "reason": "Native smoke now requires its independent CUDA initialization/input/T0 contract; run cuda-native-smoke, never CPU fallback."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/summarize/test_run.py::test_alignment_gate_rejects_inconsistent_persisted_counts",
+          "reason": "Seven saved alignment count cases execute real CUDA tensor math; use cuda-validation, no CPU fallback."
         }
       ],
       "cpu_only": true
@@ -9901,14 +10238,14 @@
         "tests/spec_mtp/structure/make/test_schedule.py::test_saved_launch_plan_rejects_unbound_or_malformed_jobs",
         "tests/spec_mtp/structure/make/test_schedule.py::test_missing_launch_plan_returns_none_without_creating_artifacts",
         "tests/spec_mtp/structure/make/test_schedule.py::test_generated_powershell_stays_shared_and_propagates_worker_exit_status",
-        "tests/studies/shared/flow/test_revalidate.py::test_revalidation_rejects_source_checkout_before_validator_or_writes",
-        "tests/studies/shared/flow/test_revalidate.py::test_revalidation_source_snapshot_drift_precedes_validator",
-        "tests/studies/shared/flow/test_revalidate.py::test_revalidation_reuses_shared_preflight_before_loading_policy",
-        "tests/studies/shared/flow/test_revalidate.py::test_revalidation_process_restores_evidence_checker_after_guarded_dispatch",
+        "tests/studies/_shared/flow/test_revalidate.py::test_revalidation_rejects_source_checkout_before_validator_or_writes",
+        "tests/studies/_shared/flow/test_revalidate.py::test_revalidation_source_snapshot_drift_precedes_validator",
+        "tests/studies/_shared/flow/test_revalidate.py::test_revalidation_reuses_shared_preflight_before_loading_policy",
+        "tests/studies/_shared/flow/test_revalidate.py::test_revalidation_process_restores_evidence_checker_after_guarded_dispatch",
         "tests/spec_mtp/test_esp_qwen_protocol.py::test_launch_once_restores_native_scheduler",
         "tests/spec_mtp/test_esp_qwen_protocol.py::test_launch_scheduler_does_not_retry_failed_runs_by_default",
         "tests/spec_mtp/structure/make/test_schedule.py::test_worker_admission_failure_does_not_rewrite_a_previous_scientific_success",
-        "tests/studies/shared/flow/test_revalidate.py::test_validator_requires_a_loadable_python_module",
+        "tests/studies/_shared/flow/test_revalidate.py::test_validator_requires_a_loadable_python_module",
         "tests/spec_mtp/structure/algorithm/test_resume.py::test_unfrozen_cuda_rng_state_does_not_query_or_initialize_cuda",
         "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_command_binds_local_inputs_and_writes_only_new_external_output",
         "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_command_rejects_unadmitted_inputs_before_model_or_output",
@@ -10215,7 +10552,52 @@
         "tests/studies/_shared/structure/test_config.py::test_unknown_variant_raises",
         "tests/studies/_shared/structure/test_config.py::test_empty_variant_returns_input",
         "tests/studies/_shared/structure/test_validation.py::test_declared_factors_is_the_full_product",
-        "tests/studies/_shared/structure/test_validation.py::test_ar_rate_never_substitutes_for_missing_argmax_audit"
+        "tests/studies/_shared/structure/test_validation.py::test_ar_rate_never_substitutes_for_missing_argmax_audit",
+        "tests/studies/_shared/structure/test_validation.py::test_exact_match_one_passes",
+        "tests/studies/_shared/structure/test_validation.py::test_gate_failures",
+        "tests/studies/_shared/structure/test_validation.py::test_unaudited_esp_run_fails",
+        "tests/studies/_shared/flow/summarize/test_run.py::test_run_gate_raises_and_records",
+        "tests/studies/_shared/flow/process/test_run.py::test_study_gate_complete_pass",
+        "tests/studies/_shared/flow/process/test_run.py::test_study_gate_subset_is_incomplete",
+        "tests/studies/_shared/flow/process/test_run.py::test_study_gate_missing_result_is_incomplete",
+        "tests/studies/_shared/flow/process/test_run.py::test_study_gate_failed_run_fails",
+        "tests/studies/_shared/flow/process/test_run.py::test_study_gate_mixed_source_digest_fails",
+        "tests/studies/_shared/flow/process/test_run.py::test_study_gate_seed_mismatch_is_incomplete",
+        "tests/studies/_shared/flow/process/test_run.py::test_study_gate_skips_run_scope",
+        "tests/studies/_shared/structure/test_validation.py::test_ar_baseline_needs_summary",
+        "tests/studies/_shared/structure/test_validation.py::test_alignment_probe_needs_its_csv",
+        "tests/studies/_shared/structure/test_validation.py::test_empty_rate_is_missing",
+        "tests/studies/_shared/structure/test_validation.py::test_two_overall_rows_are_rejected",
+        "tests/studies/_shared/structure/test_validation.py::test_task_name_is_case_insensitive",
+        "tests/studies/_shared/flow/summarize/test_run.py::test_run_gate_without_draft_still_gates",
+        "tests/studies/_shared/flow/process/test_run.py::test_study_gate_empty_index_is_incomplete",
+        "tests/studies/_shared/flow/process/test_run.py::test_study_gate_explicit_expected_factors",
+        "tests/studies/_shared/structure/test_validation.py::test_declared_factors_without_axes",
+        "tests/studies/_shared/flow/summarize/test_run.py::test_final_gate_requires_raw_evidence",
+        "tests/studies/_shared/flow/summarize/test_run.py::test_final_gate_reports_ar_mismatch_without_blocking_argmax",
+        "tests/studies/_shared/flow/summarize/test_run.py::test_final_gate_rejects_source_drift",
+        "tests/studies/_shared/flow/summarize/test_run.py::test_final_gate_rejects_config_drift",
+        "tests/studies/_shared/flow/process/test_run.py::test_study_gate_rechecks_missing_evidence",
+        "tests/studies/_shared/structure/test_validation.py::test_legacy_axis_seed_is_not_an_experiment_factor",
+        "tests/studies/_shared/flow/summarize/test_run.py::test_final_gate_rejects_live_input_file_drift",
+        "tests/studies/_shared/structure/test_validation.py::test_cuda_device_alias_does_not_look_like_config_drift",
+        "tests/studies/_shared/flow/process/test_run.py::test_study_quality_failure_marks_generic_envelope_incomplete",
+        "tests/studies/_shared/structure/test_validation.py::test_declared_factors_follow_mapping_axis_override_contract",
+        "tests/studies/_shared/structure/test_validation.py::test_declared_factors_bind_inherited_conditions",
+        "tests/studies/_shared/structure/test_validation.py::test_argmax_audit_required_even_when_ar_exact",
+        "tests/studies/_shared/structure/test_validation.py::test_argmax_token_and_owner_tampering_fails",
+        "tests/studies/_shared/flow/summarize/test_run.py::test_ar_mismatch_is_diagnostic_and_native_gate_passes",
+        "tests/studies/_shared/structure/test_validation.py::test_jsonl_argmax_audit_must_match_raw",
+        "tests/studies/_shared/flow/test_revalidate.py::test_revalidation_keeps_failure_and_execute_bytes_and_is_idempotent",
+        "tests/studies/_shared/flow/summarize/test_run.py::test_cached_ar_summary_does_not_block_argmax_gate",
+        "tests/studies/_shared/structure/test_csv_logger.py::test_appends_rows_under_one_header",
+        "tests/studies/_shared/structure/test_csv_logger.py::test_csv_rows_follow_one_frozen_header",
+        "tests/studies/_shared/structure/test_csv_logger.py::test_csv_schema_admission_preserves_previous_bytes",
+        "tests/studies/_shared/structure/test_csv_logger.py::test_invalid_existing_csv_header_is_not_repaired",
+        "tests/studies/_shared/structure/test_csv_logger.py::test_empty_existing_csv_receives_one_header",
+        "tests/studies/_shared/structure/test_csv_logger.py::test_step_prefix_and_utf8_csv_round_trip",
+        "tests/studies/_shared/structure/test_csv_logger.py::test_stdout_only_logger_keeps_dynamic_rows",
+        "tests/studies/_shared/structure/test_csv_logger.py::test_csv_io_errors_propagate"
       ],
       "exclude": []
     },
@@ -10285,13 +10667,14 @@
         "tests/studies/output_space_extension/flow/process/test_run.py::test_saved_transfer_analysis_preserves_skipped_prompts_and_second_slot_validity",
         "tests/studies/output_space_extension/structure/test_saved_q178_diagnostics.py::test_saved_q178_audits_use_real_cuda_state_and_reject_corrupt_captures",
         "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_current_cuda_smoke_matrix_records_full_t0_and_sampling_scope",
-        "tests/test_run.py::test_cuda_scalar_measurement_records_actual_samples_and_environment"
+        "tests/test_run.py::test_cuda_scalar_measurement_records_actual_samples_and_environment",
+        "tests/studies/_shared/flow/summarize/test_run.py::test_alignment_gate_rejects_inconsistent_persisted_counts"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
         "estimated_device_seconds": 120,
-        "estimate_basis": "previous 155-case CUDA plan: 108.68 seconds; adds one bounded eight-element CUDA numeric acquisition (no benchmark)",
+        "estimate_basis": "Clean 8b40874 CUDA plan executed 156 parameters in 105.33 seconds; adds seven bounded CUDA alignment scalar-result/gate cases, no model or benchmark.",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false
