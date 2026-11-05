@@ -41,10 +41,10 @@ def test_saved_readout_requires_existing_published_input(tmp_path):
 
 def test_readout_retains_ar_mismatch_and_audit_counts_after_native_validation(reader, tmp_path, monkeypatch):
     from studies._shared.structure import validation
-    from studies.qwen3_4b_bf16_five_methods import untimed_pairing
+    from studies._shared.structure import validation as untimed_pairing
     checked = []
     monkeypatch.setattr(validation, 'verify_evidence', lambda *args: checked.append(True))
-    monkeypatch.setattr(untimed_pairing, 'verify_inputs', lambda *args: None)
+    monkeypatch.setattr(untimed_pairing, 'verify_paired_inputs', lambda *args: None)
     folder = tmp_path/'run'; assets = folder/'assets'; assets.mkdir(parents=True)
     settings = {'task': 'esp_mtp'}
     prompts = [dict(question_id=i, category='a', input_ids=[10]) for i in range(480)]

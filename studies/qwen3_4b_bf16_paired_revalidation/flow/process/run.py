@@ -32,7 +32,7 @@ class PublishedReadout(SavedReadout):
             ('qwen3_4b_bf16_paired_revalidation', 'paired_repeat.py'),
             ('qwen3_4b_bf16_bias_norm_scan', 'norm_control.py'),
             ('_shared', 'structure/resource_admission.py'),
-            ('qwen3_4b_bf16_five_methods', 'untimed_pairing.py'))]
+            ('qwen3_4b_bf16_five_methods', 'recipe.py'))]
         return {str(p.resolve()): file_sha256(p) for p in paths}
 
     def read_fixed(self, path, repository, commit, member, sha256):

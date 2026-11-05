@@ -765,3 +765,43 @@ def probe_window(model, packet, spec, reference, variants=VARIANTS, control='zer
             row['seed_logits_equal_input_first'] = torch.equal(local[row['variant']]['seed_logits'], local['input_first']['seed_logits'])
     assert next((r for r in rows if r['variant'] == control))['next_verified_chain_equals_reference'], 'Native control differs from old Run; stop, no numerical study'
     return (rows, local)
+
+
+def direction_control(provider, mode, start, info):
+    """Replace only velocity construction, retaining native mean/anchor/EMA code."""
+    assert mode in ('template', 'random0', 'random1', 'random2', 'content')
+    assert not provider.normalize and not provider.extrapolate_ema and provider.level_mode == 'order0'
+    original_init, original_commit = provider.init_from_prompt, provider.on_token_committed
+
+    def initialize(embeds, generator=None):
+        original_init(embeds, generator=generator)
+        full_mean, template = provider._level.clone(), (embeds[1] - embeds[0]).clone()
+        if mode == 'content':
+            assert 0 <= start < len(embeds) - 1
+            original_init(embeds[start:])
+            provider._level = full_mean
+        elif mode == 'template':
+            provider._velocity = template
+        else:
+            seed = int(mode[-1])
+            vector = torch.randn(embeds.shape[-1], generator=torch.Generator().manual_seed(seed))
+            vector *= template.float().norm().cpu() / vector.norm()
+            provider._velocity = vector.to(device=embeds.device, dtype=embeds.dtype)
+            assert abs(float(provider._velocity.float().norm() / template.float().norm()) - 1) < .01
+        v = provider._velocity.float()
+        info.update(mode=mode, content_start=start if mode == 'content' else None,
+            velocity_norm=float(v.norm()), template_norm=float(template.float().norm()),
+            norm_ratio=float(v.norm() / template.float().norm()),
+            cosine_to_template=float(torch.nn.functional.cosine_similarity(v, template.float(), dim=0)),
+            full_prompt_mean_preserved=bool(torch.equal(provider._level, full_mean)),
+            velocity_sha256=hashlib.sha256(provider._velocity.detach().cpu().view(torch.uint8).numpy().tobytes()).hexdigest())
+        assert info['full_prompt_mean_preserved']
+
+    def commit(new, previous):
+        velocity = provider._velocity
+        original_commit(new, previous)
+        if mode != 'content':
+            provider._velocity = velocity
+
+    provider.init_from_prompt, provider.on_token_committed = initialize, commit
+    return provider

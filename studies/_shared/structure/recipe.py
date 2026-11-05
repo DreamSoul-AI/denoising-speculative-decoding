@@ -113,6 +113,76 @@ def register_untimed(study_root) -> None:
     AlgorithmRegistry.register('eval', SOURCE, UntimedEval)
 
 
+def _source_study_root(study_root):
+    from pathlib import Path
+    from spec_mtp.structure.artifact.layout import STUDY_SOURCE_NAME, check_study_snapshot
+    root = Path(study_root).resolve(strict=True)
+    marker = root/STUDY_SOURCE_NAME
+    if marker.exists() or marker.is_symlink():
+        if marker.is_symlink():
+            raise ValueError('Study source binding must be a regular file')
+        raw = marker.read_bytes()
+        check_study_snapshot(root)
+        if marker.read_bytes() != raw:
+            raise ValueError('Study source binding changed during registration')
+        return Path(json.loads(raw)['source_dir']).resolve(strict=True)
+    return root
+
+
+def register_pairing(study_root) -> None:
+    from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+    from spec_mtp.structure.model.factory import ModelRegistry
+    from studies._shared.structure.algorithm import PairedUntimedEval
+    from studies._shared.structure.model import build_cuda
+
+    bound_root = _source_study_root(study_root)
+    if not bound_root.is_dir() or not (bound_root/'study.yaml').is_file():
+        raise ValueError('pairing registration requires an explicit Study root containing study.yaml')
+    class BoundPairedEval(PairedUntimedEval):
+        pairing_root = bound_root
+    ModelRegistry.register('hf_causal', SOURCE, build_cuda)
+    AlgorithmRegistry.register('eval', SOURCE, BoundPairedEval)
+
+
+def register_direction(study_root, *, admission_assets, pairing_root=None, execution_root=None, recovery=False) -> None:
+    from functools import partial
+    from pathlib import Path
+    from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+    from spec_mtp.structure.model.factory import ModelRegistry
+    from studies._shared.structure.algorithm import DirectionEval
+
+    bound_study = Path(study_root).resolve(strict=True)
+    source = _source_study_root(bound_study)
+    bound_execution = Path(execution_root).resolve(strict=True) if execution_root is not None else source.parents[1]
+    bound_pairing = Path(pairing_root).resolve(strict=True) if pairing_root is not None else bound_execution/'studies/qwen3_4b_bf16_five_methods'
+    bound_admission = Path(admission_assets).resolve()
+    bound_admission.relative_to(bound_study)
+    if (not bound_study.is_dir() or not (bound_study/'study.yaml').is_file()
+            or not bound_pairing.is_dir() or not (bound_pairing/'study.yaml').is_file()
+            or not bound_execution.is_dir() or type(recovery) is not bool):
+        raise ValueError('direction registration requires explicit Study, paired Study, execution roots and a boolean policy')
+    recovery_policy = bool(recovery)
+    class BoundDirectionEval(DirectionEval):
+        study_root = bound_study
+        pairing_root = bound_pairing
+        execution_root = bound_execution
+        recovery = recovery_policy
+    ModelRegistry.register('hf_causal', SOURCE, partial(_build_direction_cuda,
+        study_root=bound_study, execution_root=bound_execution, admission_assets=bound_admission, recovery=recovery_policy))
+    AlgorithmRegistry.register('eval', SOURCE, BoundDirectionEval)
+
+
+def _build_direction_cuda(model_config, assets_dir, data_meta=None, *, study_root, execution_root, admission_assets, recovery):
+    from studies._shared.structure.validation import check_direction_refs
+    from studies._shared.structure.resource_admission import direction_admission
+    from studies._shared.structure.model import build_cuda
+    check_direction_refs(study_root, execution_root)
+    check = direction_admission(admission_assets, initial=True, wait=recovery)
+    model = build_cuda(model_config, assets_dir, data_meta)
+    model.meta['direction_admission'] = check
+    return model
+
+
 def register(ctx: RecipeContext) -> None:
     from spec_mtp.structure.make.expand import load_study_yaml
 

@@ -11,6 +11,8 @@ from studies._shared.structure import algorithm, model, recipe
 
 ROOT = Path(__file__).resolve().parents[4]
 STUDIES = ('output_space_4b_holdout', 'output_space_4b_recheck', 'output_space_4b_recheck_v2', 'output_space_4b_input_control')
+ESP_STUDIES = ('esp_table1_bf16_preflight', 'esp_table1_bf16_numerics',
+               'esp_table1_bf16_reduction_check', 'esp_table1_bf16_shape_check')
 
 
 @pytest.mark.parametrize('name', STUDIES)
@@ -57,3 +59,42 @@ def test_untimed_registration_rejects_missing_study_root_without_registry_mutati
     monkeypatch.setattr(AlgorithmRegistry, 'register', lambda *args: pytest.fail('invalid root cannot register'))
     with pytest.raises((ValueError, FileNotFoundError)):
         recipe.register_untimed(target)
+
+
+@pytest.mark.parametrize('name', ESP_STUDIES)
+@pytest.mark.parametrize('native_failure', [False, True])
+def test_esp_recipe_import_is_inert_and_failed_source_gate_cannot_install_overrides(monkeypatch, name, native_failure):
+    import importlib
+    import os
+    events = []
+    study = ROOT / 'studies' / name
+    monkeypatch.setenv('CUBLAS_WORKSPACE_CONFIG', 'existing-before-admission')
+    def native(ctx):
+        assert ctx.study_dir == study
+        assert os.environ['CUBLAS_WORKSPACE_CONFIG'] == 'existing-before-admission'
+        events.append('native')
+        if native_failure:
+            raise RuntimeError('original source/input admission rejected')
+    monkeypatch.setattr(recipe, 'register', native)
+    monkeypatch.setattr(recipe, 'register_sources', lambda: pytest.fail('import must not mutate registries'))
+    monkeypatch.setattr(ModelRegistry, 'register', lambda *args: events.append(('model', args)))
+    monkeypatch.setattr(AlgorithmRegistry, 'register', lambda *args: events.append(('algorithm', args)))
+    loaded = load_recipe(study, {'recipe': 'recipe.py'})
+    assert events == [] and os.environ['CUBLAS_WORKSPACE_CONFIG'] == 'existing-before-admission'
+    if native_failure:
+        with pytest.raises(RuntimeError, match='source/input admission rejected'):
+            loaded.register(SimpleNamespace(study_dir=study))
+        assert events == ['native']
+        assert os.environ['CUBLAS_WORKSPACE_CONFIG'] == 'existing-before-admission'
+    else:
+        loaded.register(SimpleNamespace(study_dir=study))
+        assert events[0] == 'native'
+        assert events[1] == ('model', ('hf_causal', 'spec_mtp', model.build_cuda))
+        assert events[2] == ('algorithm', ('eval', 'spec_mtp', algorithm.UntimedEval))
+        expected = [algorithm.UntimedEval]
+        if name != 'esp_table1_bf16_preflight':
+            expected.append(importlib.import_module('studies.' + name + '.numerics').NumericsEval)
+        if name == 'esp_table1_bf16_shape_check':
+            expected.append(importlib.import_module('studies.' + name + '.shape_control').ShapeEval)
+        assert [entry[1][2] for entry in events if isinstance(entry, tuple) and entry[0] == 'algorithm'] == expected
+        assert os.environ['CUBLAS_WORKSPACE_CONFIG'] == ('existing-before-admission' if name == 'esp_table1_bf16_preflight' else ':4096:8')

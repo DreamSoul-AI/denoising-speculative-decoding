@@ -122,3 +122,7 @@ native/state 的历史验证复用现有角色索引及每成员固定提交，�
 四个 output_space_4b Study 共用既有部件：UntimedEval 归 `_shared/structure/algorithm.py`，CUDA 直接物化工厂归既有 model.py，显式适配注册归既有 recipe.py。Study recipe 在 register(ctx) 通过原准入后选择该适配，导入模块不再全局注册。四份相同 untimed_4b 删除，计时零占位、warmup 禁止和完整 token/argmax 语义保持，不新建四份转调文件。
 
 资源观察、纯 capacity 判定和准入服务集中于一个 `_shared/structure/resource_admission.py`，调用方显式提供 capacity 与 observer，区分原 nonofficial/norm/paired 政策，不临时改写模块全局观察器。完整校准生命周期归 norm_scan 的单个 `flow/execute/capacity.py`，显式本地模型/完整清单、冻结输入/计划/配置、CUDA 与新外部根，关闭模型和最终来源复核后才发布完成记录。原 q295、1500 输入、256 输出及 template/scale2 协议保持，工程修复只让当前显式 mask_policy 真正接入原观察钩子，不重签旧 capacity。
+
+配对与方向控制复用现有 shared 两柱：配对执行与方向生命周期归 `structure/algorithm.py`，方向向量的原公式归 `geometry_4b.py`，输入准入归 `validation.py`，注册归 `recipe.py`。普通与 recovery 的准入策略显式区分，等待记录使用实际资产根；不得用模块全局替换串改另一协议。随机方向保留原 CPU generator 的种子序列与随后到目标设备的转换，不能在目录整理时改成另一随机过程。三个旧顶层控制入口不保留 facade，norm/paired 的实际消费者直接依赖所属部件。
+
+ESP preflight、numerics、reduction_check 与 shape_check 的相同 4B untimed 适配沿用已有共享 algorithm/model/recipe，特殊数值与 shape 合同仍由各自部件承担。导入不注册，只有原 Study 来源门通过后的显式 register 才装配；配置删除旧 include，旧 Run、锁和原字节来源身份保持。此归并不恢复已停止的 BF16/独立 AR 机理排查，不产生新的性能数字。

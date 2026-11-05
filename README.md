@@ -58,7 +58,9 @@ paired_revalidation 的保存报告用 `python -m studies.qwen3_4b_bf16_paired_r
 
 上述两组的原生旧件读出由同一 process 的 `native --help` 查看，要求显式旧 Study/数据根与新输出根；旧来源锁不兼容仍拒绝。norm 的 `reused --data-root <原执行根> --output-root <新根>` 保留只核复用端点的范围。geometry 的独立读件子进程使用该模块入口与独占子输出，不再按旧顶层分析脚本启动。
 
-四个 output_space_4b Study 共用 untimed/CUDA 适配，在 recipe 的原来源门通过后注册，导入 recipe 不再改注册表。计时字段的零值仍是禁用占位。旧 Run 与 source lock 保留原身份；声明移除已迁脚本后，新执行仍须按新 version/Run 冻结当前来源。
+四个 output_space_4b 与 ESP preflight/numerics/reduction_check/shape_check 共用 untimed/CUDA 适配，在 recipe 的原来源门通过后注册，导入 recipe 不改注册表或 CUBLAS 配置。ESP 特有 numerics/shape 仍在显式注册时依次覆盖。计时字段的零值仍是禁用占位。旧 Run 与 source lock 保留原身份；声明移除已迁脚本后，新执行仍须按新 version/Run 冻结当前来源。
+
+五方法配对执行与普通/recovery 方向执行使用共享 algorithm/geometry/validation/recipe，Study 根和配对原件根显式绑定。方向公式与原 CPU 随机序列保持，普通版资源不足立即拒绝，recovery 只在既定准入边界等待并把记录写入实际 Run assets，不再写源码根 `.tmp`。配置、旧来源表与执行材料缺失仍拒绝，不因模块归并恢复暂停的研究矩阵。
 
 容量校准入口为 `python -m studies.qwen3_4b_bf16_bias_norm_scan.flow.execute.capacity --model-root <本地模型> --model-sources <完整模型清单> --prompts <冻结manifest> --prompts-sha256 <SHA> --study <冻结study.yaml> --study-sha256 <SHA> --plan <计划> --plan-sha256 <SHA> --version <新版本> --device cuda:0 --output-root <新外部根>`。入口保持 q295/1500 输入/256 输出/template2，要求非优化 Python、真实 CUDA、完整来源校验与模型关闭后最后发布完成标记，不联网取权重。当前只用 tiny CUDA 验工程，未重新测量真实 4B 容量或旧主机进程树峰值。准入共用 resource_admission 的显式 capacity/observer，保留各协议非抢占及 RAM 政策。
 

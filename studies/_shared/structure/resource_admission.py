@@ -73,3 +73,26 @@ def wait_for_admission(assets, initial=False, *, capacity=None, observer=None):
             return record
         print('Waiting for actual GPU vacancy/host RAM', json.dumps(record), flush=True)
         time.sleep(5)
+
+
+def direction_admission(assets, *, initial=True, wait=False, observer=None):
+    """Preserve the direction 14-GiB/foreign-process policy and its explicit recovery wait."""
+    from studies._shared.structure.geometry_4b import admission__diagnose_4b_mask_windows
+    inspect = admission__diagnose_4b_mask_windows if observer is None else observer
+    waiting = False
+    path = Path(assets)/'direction_resource_wait.json'
+    while True:
+        check = inspect(initial=initial)
+        if not wait:
+            assert check['passed'], f'Nonpreemptive GPU admission deferred: {check}'
+            return check
+        if check['passed']:
+            if waiting:
+                path.write_text(json.dumps({'status': 'admitted', 'pid': os.getpid(), **check}, indent=2)+'\n', encoding='utf-8')
+            return check
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({'status': 'waiting', 'pid': os.getpid(), **check}, indent=2)+'\n', encoding='utf-8')
+        if not waiting:
+            print('GPU admission waiting:', check, flush=True)
+        waiting = True
+        time.sleep(5)

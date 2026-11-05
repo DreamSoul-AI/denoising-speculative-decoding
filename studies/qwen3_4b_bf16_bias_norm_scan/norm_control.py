@@ -4,7 +4,6 @@ from functools import partial
 import json
 from pathlib import Path
 import subprocess
-import sys
 from typing import Any
 from unittest.mock import patch
 
@@ -13,11 +12,9 @@ import torch
 ROOT = Path(__file__).resolve().parents[2]
 STUDY = Path(__file__).resolve().parent
 BASE = ROOT / 'studies/qwen3_4b_bf16_five_methods'
-sys.path.insert(0, str(STUDY))
-for folder in ('qwen3_4b_bf16_five_methods', 'qwen3_4b_bf16_directions', 'esp_table1_nonofficial_revalidation'):
-    sys.path.insert(0, str(ROOT / 'studies' / folder))
-from untimed_pairing import PairedUntimedEval, build_cuda  # noqa: E402
-from direction_control import control  # noqa: E402
+from studies._shared.structure.algorithm import PairedUntimedEval
+from studies._shared.structure.model import build_cuda
+from studies._shared.structure.geometry_4b import direction_control as control
 from studies._shared.structure.resource_admission import wait_for_admission as resource_wait
 wait_for_admission = partial(resource_wait, capacity=STUDY / 'docs/capacity_calibration_v1.json')
 from studies._shared.structure import evaluate as assembly
@@ -62,6 +59,7 @@ def admitted_build(*args, **kwargs):
 
 
 class NormEval(PairedUntimedEval):
+    pairing_root = BASE
     admission_wait = staticmethod(wait_for_admission)
 
     def run(self, data, model, system, tracker):

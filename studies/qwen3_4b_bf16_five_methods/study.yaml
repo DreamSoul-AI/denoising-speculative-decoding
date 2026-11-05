@@ -19,7 +19,6 @@ provenance:
   - docs/modelscope-content-verification-v1.json
   - docs/prompts_manifest.json
   - docs/specbench-source.json
-  - untimed_pairing.py
 flow:
   study_phases: true
   prepare_shared: false

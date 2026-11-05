@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 import torch
-from numerics import NumericsEval
+from studies.esp_table1_bf16_shape_check.numerics import NumericsEval
 from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
 
 def rowwise_linear(original, x):

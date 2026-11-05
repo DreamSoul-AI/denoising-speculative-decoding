@@ -85,7 +85,7 @@ def run(args):
         raise ValueError('capacity requires the original template/step-scale-2 setting')
     package = package_files()
     from studies.qwen3_4b_bf16_bias_norm_scan import norm_control
-    from studies.qwen3_4b_bf16_directions import direction_control
+    from studies._shared.structure import geometry_4b as direction_control
     local_sources = {}
     for module in (norm_control, direction_control):
         assert module.__file__ is not None

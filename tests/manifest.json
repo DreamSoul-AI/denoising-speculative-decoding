@@ -228,31 +228,43 @@
     },
     {
       "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_full_direction_preserves_native_mean_and_declared_velocity",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.geometry_4b.direction_control",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "cost_class": "c3",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_native_tiny_bf16_direction_controls_remain_argmax_safe",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.geometry_4b.direction_control",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "cost_class": "c3",
+      "level": "integration"
     },
     {
       "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_tau_pairs_use_ratios_and_category_pooling",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.analyze_4b_full_directions",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_recovery_waits_without_restarting_or_changing_controls",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.resource_admission.direction_admission",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_4b_geometry.py::test_trace_root_is_generated_index_and_bad_totals_are_rejected",
@@ -410,31 +422,43 @@
     },
     {
       "test_id": "tests/spec_mtp/test_4b_pairing_contract.py::test_predeclared_11_cells_share_bf16_data_and_two_mask_trees",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_five_methods",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_4b_pairing_contract.py::test_historical_11_cell_original_inputs",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_five_methods",
       "tags": [
-        "external_evidence"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_4b_pairing_contract.py::test_pairing_adapter_checks_before_decode_and_restores_globals",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.algorithm.PairedUntimedEval",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "integration"
     },
     {
       "test_id": "tests/spec_mtp/test_4b_pairing_contract.py::test_direct_cuda_loader_preserves_bf16_and_restores",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.model.build_cuda",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_4b_pairs.py::test_4b_pairing_retains_gains_losses_ties_and_main_calls",
@@ -1261,24 +1285,33 @@
     },
     {
       "test_id": "tests/spec_mtp/test_esp_bf16_controls.py::test_bf16_controls_restore_and_record",
-      "target": "spec_mtp",
+      "target": "studies.esp_table1_bf16_numerics.numerics / esp_table1_bf16_reduction_check.numerics / esp_table1_bf16_shape_check.numerics",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_bf16_shapes.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
-      "target": "spec_mtp",
+      "target": "studies.esp_table1_bf16_shape_check.shape_control",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "cost_class": "c3",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_bf16_shapes.py::test_shape_patch_is_local_and_restores_on_failure",
-      "target": "spec_mtp",
+      "target": "studies.esp_table1_bf16_shape_check.shape_control",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "cost_class": "c3",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_protocol_aggregation_keeps_call_weighting_and_quality",
@@ -7809,6 +7842,90 @@
         "offline_cpu",
         "structure_cleanup"
       ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_paired_direction_controls.py::test_control_registration_uses_snapshot_source_and_keeps_roots_separate",
+      "target": "studies._shared.structure.recipe",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_paired_direction_controls.py::test_direction_source_gate_precedes_admission_and_model_with_distinct_asset_roots",
+      "target": "studies._shared.structure.recipe",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_paired_direction_controls.py::test_direction_source_refs_reject_bad_identity_before_execution",
+      "target": "studies._shared.structure.validation.check_direction_refs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_paired_direction_controls.py::test_ordinary_direction_admission_is_one_observation_without_wait_output",
+      "target": "studies._shared.structure.resource_admission.direction_admission",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_paired_direction_controls.py::test_paired_direction_recipes_keep_native_gate_first_and_import_inert",
+      "target": "studies._shared.structure.recipe",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_untimed_recipe.py::test_esp_recipe_import_is_inert_and_failed_source_gate_cannot_install_overrides",
+      "target": "studies._shared.structure.recipe.register_untimed / ESP consumer recipes",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
     }
   ],
   "plans": {
@@ -8002,6 +8119,22 @@
         {
           "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_tiny_cuda_uses_the_controlled_policy_and_complete_argmax_chain",
           "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_full_direction_preserves_native_mean_and_declared_velocity",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_native_tiny_bf16_direction_controls_remain_argmax_safe",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/test_esp_bf16_shapes.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/test_esp_bf16_shapes.py::test_shape_patch_is_local_and_restores_on_failure",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -8251,7 +8384,20 @@
         "tests/studies/shared/structure/test_resource_admission.py::test_explicit_capacity_observer_wait_does_not_mutate_the_shared_observer",
         "tests/studies/shared/structure/test_resource_admission.py::test_norm_capacity_observes_original_policy_without_the_superseded_8b_initial_budget",
         "tests/spec_mtp/test_bias_norm_scan.py::test_measured_4b_admission_keeps_reserve_and_gpu_exclusion",
-        "tests/spec_mtp/test_nonofficial_revalidation.py::test_host_peak_plus_margin_and_actual_foreign_gpu"
+        "tests/spec_mtp/test_nonofficial_revalidation.py::test_host_peak_plus_margin_and_actual_foreign_gpu",
+        "tests/spec_mtp/test_4b_full_directions.py::test_recovery_waits_without_restarting_or_changing_controls",
+        "tests/spec_mtp/test_4b_full_directions.py::test_tau_pairs_use_ratios_and_category_pooling",
+        "tests/spec_mtp/test_4b_pairing_contract.py::test_direct_cuda_loader_preserves_bf16_and_restores",
+        "tests/spec_mtp/test_4b_pairing_contract.py::test_historical_11_cell_original_inputs",
+        "tests/spec_mtp/test_4b_pairing_contract.py::test_pairing_adapter_checks_before_decode_and_restores_globals",
+        "tests/spec_mtp/test_4b_pairing_contract.py::test_predeclared_11_cells_share_bf16_data_and_two_mask_trees",
+        "tests/spec_mtp/test_esp_bf16_controls.py::test_bf16_controls_restore_and_record",
+        "tests/studies/_shared/structure/test_paired_direction_controls.py::test_control_registration_uses_snapshot_source_and_keeps_roots_separate",
+        "tests/studies/_shared/structure/test_paired_direction_controls.py::test_direction_source_gate_precedes_admission_and_model_with_distinct_asset_roots",
+        "tests/studies/_shared/structure/test_paired_direction_controls.py::test_direction_source_refs_reject_bad_identity_before_execution",
+        "tests/studies/_shared/structure/test_paired_direction_controls.py::test_ordinary_direction_admission_is_one_observation_without_wait_output",
+        "tests/studies/_shared/structure/test_paired_direction_controls.py::test_paired_direction_recipes_keep_native_gate_first_and_import_inert",
+        "tests/studies/_shared/structure/test_untimed_recipe.py::test_esp_recipe_import_is_inert_and_failed_source_gate_cannot_install_overrides"
       ],
       "exclude": []
     },
@@ -8305,13 +8451,17 @@
         "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_saved_depth_preserves_legality_and_equal_state_counterexample",
         "tests/studies/output_space_cross_task/flow/process/test_canonical_readout_entry.py::test_canonical_entry_reads_actual_cuda_states_with_separate_historical_source_commit",
         "tests/studies/_shared/structure/test_untimed_algorithm.py::test_untimed_decoder_preserves_complete_argmax_with_ar_as_diagnostic_on_cuda",
-        "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_tiny_cuda_uses_the_controlled_policy_and_complete_argmax_chain"
+        "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_tiny_cuda_uses_the_controlled_policy_and_complete_argmax_chain",
+        "tests/spec_mtp/test_4b_full_directions.py::test_full_direction_preserves_native_mean_and_declared_velocity",
+        "tests/spec_mtp/test_4b_full_directions.py::test_native_tiny_bf16_direction_controls_remain_argmax_safe",
+        "tests/spec_mtp/test_esp_bf16_shapes.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
+        "tests/spec_mtp/test_esp_bf16_shapes.py::test_shape_patch_is_local_and_restores_on_failure"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
         "estimated_device_seconds": 120,
-        "estimate_basis": "previous 74-case CUDA engineering plan: 95.87 seconds; this round adds bounded small fixtures",
+        "estimate_basis": "previous 114-case CUDA plan: 99.63 seconds; adds bounded direction/shape fixtures",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false

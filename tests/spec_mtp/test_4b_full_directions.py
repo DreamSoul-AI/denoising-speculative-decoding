@@ -1,7 +1,6 @@
 
 from spec_mtp.structure.algorithm.mask import build_mask_provider
 import importlib.util
-import ast
 import json
 from pathlib import Path
 import sys
@@ -15,17 +14,23 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def tool(monkeypatch):
-    monkeypatch.setattr(sys, 'path', sys.path.copy())
-    spec = importlib.util.spec_from_file_location('full_direction_control', ROOT / 'studies/qwen3_4b_bf16_directions/direction_control.py')
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    from types import SimpleNamespace
+    from studies._shared.structure.geometry_4b import direction_control
+    return SimpleNamespace(control=direction_control)
+
+
+def cuda_device():
+    assert torch.cuda.is_available(), 'CUDA is required; no CPU substitute'
+    device = torch.device('cuda:0')
+    print(f'direction correctness device={device} name={torch.cuda.get_device_name(device)}', flush=True)
+    return device
 
 
 @pytest.mark.parametrize('mode', ['template', 'random0', 'random1', 'random2', 'content'])
 def test_full_direction_preserves_native_mean_and_declared_velocity(monkeypatch, mode):
     m = tool(monkeypatch)
-    e = torch.randn(9, 16, generator=torch.Generator().manual_seed(7)).bfloat16()
+    device = cuda_device()
+    e = torch.randn(9, 16, generator=torch.Generator().manual_seed(7)).bfloat16().to(device)
     provider = EMAVelocityMaskProvider(2, e, beta=.9999, level='order0', lam=.1)
     info = {}
     m.control(provider, mode, 3, info).init_from_prompt(e[:7])
@@ -36,6 +41,9 @@ def test_full_direction_preserves_native_mean_and_declared_velocity(monkeypatch,
     if mode == 'template':
         assert torch.equal(velocity, e[1] - e[0])
     if mode.startswith('random'):
+        cpu_vector = torch.randn(e.shape[-1], generator=torch.Generator().manual_seed(int(mode[-1])))
+        cpu_vector *= (e[1]-e[0]).float().norm().cpu()/cpu_vector.norm()
+        assert torch.equal(velocity, cpu_vector.to(device=e.device, dtype=e.dtype))
         assert abs(info['norm_ratio'] - 1) < .01
         repeat = EMAVelocityMaskProvider(2, e, beta=.9999, level='order0', lam=.1)
         m.control(repeat, mode, 3, {}).init_from_prompt(e[:7])
@@ -54,7 +62,8 @@ def test_full_direction_preserves_native_mean_and_declared_velocity(monkeypatch,
         previous = new
 
 
-def test_native_tiny_bf16_direction_controls_remain_argmax_safe(monkeypatch):
+@pytest.mark.parametrize('mode', ['template', 'random0', 'random1', 'random2', 'content'])
+def test_native_tiny_bf16_direction_controls_remain_argmax_safe(monkeypatch, mode):
     import spec_mtp.structure.algorithm.decode.loop as decoding
     from spec_mtp.structure.model.hf_causal import HFCausalLM
     from studies._shared.structure.config import _convert
@@ -63,17 +72,22 @@ def test_native_tiny_bf16_direction_controls_remain_argmax_safe(monkeypatch):
     torch.manual_seed(17)
     model = HFCausalLM(tiny_config={'vocab_size': 32, 'hidden_size': 16, 'intermediate_size': 32,
         'num_hidden_layers': 1, 'num_attention_heads': 2, 'num_key_value_heads': 2,
-        'max_position_embeddings': 128}, torch_dtype='bfloat16', attn_implementation='eager')
-    prompt = torch.tensor([[1, 2, 3, 4, 5]])
+        'max_position_embeddings': 128}, torch_dtype='bfloat16', attn_implementation='eager').to(cuda_device())
+    prompt = torch.tensor([[1, 2, 3, 4, 5]], device=model.device)
     spec = _convert({'method': 'ema_velocity', 'num_masks': 2, 'block_complexity': 30, 'impl': 'naive',
         'tree': {'mode': 'dynamic', 'pruning': True}, 'ema': {'level': 'order0', 'beta': .9999, 'lam': .1}})
     original = build_mask_provider
+    evaluation = _convert({'temperature': 0., 'max_new_tokens': 12})
+    expected, timed = decoding.SpecDecoder(model, spec, evaluation,
+        mask_policy=m.control(original(spec, model.embedding_table), mode, 2, {})).generate(prompt)
     monkeypatch.setattr(decoding, 'time', SimpleNamespace(perf_counter=lambda: 0.))
-    for mode in ['template', 'random0', 'random1', 'random2', 'content']:
-        policy = m.control(original(spec, model.embedding_table), mode, 2, {})
-        output, stats = decoding.SpecDecoder(model, spec, _convert({'temperature': 0., 'max_new_tokens': 12}), mask_policy=policy).generate(prompt)
-        assert output.shape[1] == 17 and stats['verification_argmax_audit']['passed']
-        assert stats['verification_argmax_audit']['checked_committed_tokens'] == 12
+    output, stats = decoding.SpecDecoder(model, spec, evaluation,
+        mask_policy=m.control(original(spec, model.embedding_table), mode, 2, {})).generate(prompt)
+    assert torch.equal(expected, output)
+    clocks = {'prefill_time', 'decode_time', 'draft_seconds', 'verify_seconds'}
+    assert {k:v for k,v in timed.items() if k not in clocks} == {k:v for k,v in stats.items() if k not in clocks}
+    assert output.shape[1] == 17 and stats['verification_argmax_audit']['passed']
+    assert stats['verification_argmax_audit']['checked_committed_tokens'] == 12
 
 
 def test_tau_pairs_use_ratios_and_category_pooling(monkeypatch):
@@ -106,16 +120,7 @@ def test_tau_pairs_use_ratios_and_category_pooling(monkeypatch):
 def test_recovery_waits_without_restarting_or_changing_controls(monkeypatch, tmp_path, initial):
     from types import SimpleNamespace
     monkeypatch.setattr(sys, 'path', sys.path.copy())
-    path = ROOT / 'studies/qwen3_4b_bf16_directions_recovery/direction_control.py'
-    spec = importlib.util.spec_from_file_location('recovery_direction_control', path)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    original = ROOT / 'studies/qwen3_4b_bf16_directions/direction_control.py'
-    def control_source(file):
-        source = file.read_text()
-        node = next(n for n in ast.parse(source).body if isinstance(n, ast.FunctionDef) and n.name == 'control')
-        return ast.get_source_segment(source, node)
-    assert control_source(path) == control_source(original)
+    from studies._shared.structure import resource_admission as m
     calls, sleeps = [], []
     checks = iter([{'passed': False, 'foreign_gpu_python_pids': [42]},
                    {'passed': False, 'foreign_gpu_python_pids': [43]},
@@ -123,9 +128,7 @@ def test_recovery_waits_without_restarting_or_changing_controls(monkeypatch, tmp
     def admission(initial):
         calls.append(initial)
         return next(checks)
-    monkeypatch.setattr(m, 'ROOT', tmp_path)
-    monkeypatch.setattr(m, 'admission', admission)
     monkeypatch.setattr(m, 'time', SimpleNamespace(sleep=sleeps.append))
-    assert m.wait_admission(initial=initial)['passed']
+    assert m.direction_admission(tmp_path, initial=initial, wait=True, observer=admission)['passed']
     assert calls == [initial] * 3 and sleeps == [5, 5]
-    assert json.loads((tmp_path / '.tmp/full-direction-resource-wait.json').read_text())['status'] == 'admitted'
+    assert json.loads((tmp_path / 'direction_resource_wait.json').read_text())['status'] == 'admitted'

@@ -1,4 +1,3 @@
-import importlib.util
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -13,10 +12,8 @@ STUDY = ROOT/'studies/qwen3_4b_bf16_five_methods'
 
 
 def load_adapter():
-    spec = importlib.util.spec_from_file_location('paired_4b_adapter', STUDY/'untimed_pairing.py')
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    from studies._shared.structure import algorithm
+    return algorithm
 
 
 def test_predeclared_11_cells_share_bf16_data_and_two_mask_trees():
@@ -54,7 +51,7 @@ def test_pairing_adapter_checks_before_decode_and_restores_globals(tmp_path, mon
     snapshot = {'config': {'model_type': 'qwen3'}, 'files': [{'path': 'config.json', 'sha256': 'weights'}]}
     (docs/'prompts_manifest.json').write_text(json.dumps(manifest))
     (docs/'modelscope_snapshot.json').write_text(json.dumps(snapshot))
-    monkeypatch.setattr(adapter, '__file__', str(tmp_path/'untimed_pairing.py'))
+
     saved = {'dtype': 'torch.bfloat16', 'backend': 'eager', 'eos_ids': [2],
         'prompts': [{'category': 'a', 'input_ids': [1,2]}],
         'files': {'/cache/config.json': 'weights', '/data/question.jsonl': 'data'},
@@ -63,22 +60,28 @@ def test_pairing_adapter_checks_before_decode_and_restores_globals(tmp_path, mon
     if failure == 'dtype': saved['dtype'] = 'torch.float32'
     if failure == 'prompt': saved['prompts'][0]['input_ids'] = [3]
     if failure == 'weights': saved['files']['/cache/config.json'] = 'wrong'
-    weight = torch.ones(1, 2, dtype=torch.bfloat16)
+    class Weight:
+        shape = (1, 2)
+        def data_ptr(self): return 1
+        def clone(self): return SimpleNamespace(data_ptr=lambda: 2)
+    weight = Weight()
     module = SimpleNamespace(dtype=torch.bfloat16, device=torch.device('cuda'), embedding_table=weight,
         hf=SimpleNamespace(config=SimpleNamespace(model_type='qwen3'),
             get_output_embeddings=lambda: SimpleNamespace(weight=weight.clone() if failure == 'tied' else weight)))
     clock = decoding.time
     capture = lambda *args, **kwargs: saved
-    monkeypatch.setattr(adapter.evidence, 'capture', capture)
+    from studies._shared.structure import evidence
+    monkeypatch.setattr(evidence, 'capture', capture)
     decoded = []
     def parent(*args):
         assert decoding.time.perf_counter() == 0 and decoding.time is not clock
-        assert adapter.evidence.capture() is saved
+        assert evidence.capture() is saved
         decoded.append(True)
         if failure == 'runtime': raise RuntimeError('injected decode failure')
         return {'ok': True}
     monkeypatch.setattr(adapter.SpecMtpEvalAlgorithm, 'run', parent)
     algo = adapter.PairedUntimedEval.__new__(adapter.PairedUntimedEval)
+    algo.pairing_root = tmp_path
     algo.config = SimpleNamespace(setting=lambda *args: {'warmup': False})
     args = (None, SimpleNamespace(module=module), SimpleNamespace(assets_dir=tmp_path), None)
     if failure:
@@ -88,13 +91,13 @@ def test_pairing_adapter_checks_before_decode_and_restores_globals(tmp_path, mon
         assert algo.run(*args) == {'ok': True}
         assert json.loads((tmp_path/'pairing_contract.json').read_text())['manifest_checked']
     assert bool(decoded) == (failure in (None, 'runtime'))
-    assert decoding.time is clock and adapter.evidence.capture is capture
+    assert decoding.time is clock and evidence.capture is capture
 
 
 @pytest.mark.parametrize('failure', [False, True])
 def test_direct_cuda_loader_preserves_bf16_and_restores(monkeypatch, failure):
     from transformers import AutoModelForCausalLM
-    adapter = load_adapter()
+    from studies._shared.structure import model as adapter
     seen = {}
     def original(*args, **kwargs):
         seen.update(kwargs)

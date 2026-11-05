@@ -18,7 +18,6 @@ provenance:
   - docs/modelscope_snapshot.json
   - docs/prompts_manifest.json
   - docs/specbench-source.json
-  - untimed_4b.py
   - numerics.py
   - docs/preceding_results.json
   - shape_control.py

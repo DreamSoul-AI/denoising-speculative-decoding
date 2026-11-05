@@ -16,7 +16,6 @@ provenance:
       never re-sign old Runs.
   include:
   - docs/source_refs.json
-  - direction_control.py
 flow:
   study_phases: true
   prepare_shared: false

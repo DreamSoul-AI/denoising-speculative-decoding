@@ -4,7 +4,6 @@ from functools import partial
 import json
 from pathlib import Path
 import subprocess
-import sys
 from unittest.mock import patch
 
 import yaml
@@ -12,10 +11,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 STUDY = Path(__file__).resolve().parent
 BASE = ROOT / 'studies/qwen3_4b_bf16_five_methods'
-sys.path.insert(0, str(STUDY))
-for name in ('qwen3_4b_bf16_five_methods', 'qwen3_4b_bf16_bias_norm_scan', 'esp_table1_nonofficial_revalidation'):
-    sys.path.insert(0, str(ROOT / 'studies' / name))
-from untimed_pairing import PairedUntimedEval, build_cuda  # noqa: E402
+from studies._shared.structure.algorithm import PairedUntimedEval
+from studies._shared.structure.model import build_cuda
 from studies._shared.structure.resource_admission import wait_for_admission as resource_wait
 from studies._shared.structure import gpu_admission
 wait_for_admission = partial(resource_wait, capacity=ROOT / 'studies/qwen3_4b_bf16_bias_norm_scan/docs/capacity_calibration_v1.json',
@@ -58,6 +55,7 @@ def admitted_build(*args, **kwargs):
 
 
 class PairedRepeatEval(PairedUntimedEval):
+    pairing_root = BASE
     def run(self, data, model, system, tracker):
         check_refs()
         generate, ar = decoding.SpecDecoder.generate, ar_baseline.ar_generate

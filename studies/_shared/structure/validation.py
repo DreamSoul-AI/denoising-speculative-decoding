@@ -258,3 +258,33 @@ def verify_evidence(config: dict[str, Any], assets: Path) -> None:
                 expected_value = (torch.tensor(out['sums'][key][i]) / max(out['counts'][key], 1)).item()
                 if float(row[column]) != expected_value:
                     raise SpecMtpGateError('alignment CSV does not match raw evidence')
+
+
+def verify_paired_inputs(saved, manifest, snapshot):
+    assert saved['dtype'] == 'torch.bfloat16' and saved['backend'] == 'eager'
+    assert saved['eos_ids'] == manifest['eos_token_ids']
+    assert len(saved['prompts']) == len(manifest['rendered_prompts'])
+    for actual, expected in zip(saved['prompts'], manifest['rendered_prompts']):
+        assert actual['category'] == expected['category'] and actual['input_ids'] == expected['input_ids']
+    landed = {Path(name).name: sha for name, sha in saved['files'].items()}
+    assert landed['question.jsonl'] == manifest['data_sha256']
+    assert all(landed[f['path']] == f['sha256'] for f in snapshot['files'])
+    cfg = saved['settings']['eval']
+    assert cfg['temperature'] == 0 and cfg['max_new_tokens'] == 256 and cfg['warmup'] is False
+    assert cfg['stop_on_eos'] is True and cfg['run_ar_baseline'] is False
+
+
+def check_direction_refs(study_root, execution_root):
+    """Validate the original direction source table without rewriting or substituting it."""
+    from spec_mtp.structure.artifact.provenance import file_sha256
+    import re
+    study_root, execution_root = Path(study_root).resolve(strict=True), Path(execution_root).resolve(strict=True)
+    refs = json.loads((study_root/'docs/source_refs.json').read_text(encoding='utf-8'))
+    if not isinstance(refs, dict) or not refs:
+        raise ValueError('direction source references must be a nonempty mapping')
+    for name, expected in refs.items():
+        if not isinstance(name, str) or not isinstance(expected, str) or not re.fullmatch(r'[0-9a-f]{64}', expected):
+            raise ValueError('direction source reference must name a file and its exact SHA256')
+        path = (execution_root/name).resolve(strict=True)
+        path.relative_to(execution_root)
+        assert file_sha256(path) == expected, name

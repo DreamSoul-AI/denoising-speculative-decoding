@@ -73,7 +73,7 @@ def summarize(rows, is_ar):
 def load_cell(study, folder, cfg, prompts, manifest, snapshot, reference, *, reader=None):
     from studies._shared.structure.evidence import file_hash
     from studies._shared.structure.validation import verify_evidence
-    from studies.qwen3_4b_bf16_five_methods.untimed_pairing import verify_inputs
+    from studies._shared.structure.validation import verify_paired_inputs as verify_inputs
     read_json = read if reader is None else reader.read_json
     if reader is not None:
         file_hash = reader.sha

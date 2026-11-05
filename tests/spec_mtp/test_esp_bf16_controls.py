@@ -1,17 +1,15 @@
 """BF16 reproduction controls restore backend state even if native decoding fails."""
 import json
-from pathlib import Path
+import importlib
 from types import SimpleNamespace
 import pytest
 import torch
 
-ROOT = Path(__file__).resolve().parents[2]
-
+@pytest.mark.parametrize('study', ['esp_table1_bf16_numerics', 'esp_table1_bf16_reduction_check', 'esp_table1_bf16_shape_check'])
 @pytest.mark.parametrize('reduced,deterministic', [(True,False),(False,False),(True,True),(False,True)])
 @pytest.mark.parametrize('failure', [False,True])
-def test_bf16_controls_restore_and_record(monkeypatch, tmp_path, reduced, deterministic, failure):
-    monkeypatch.syspath_prepend(str(ROOT/'studies/esp_table1_bf16_numerics'))
-    import numerics
+def test_bf16_controls_restore_and_record(monkeypatch, tmp_path, reduced, deterministic, failure, study):
+    numerics = importlib.import_module('studies.' + study + '.numerics')
     old_reduced = torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction
     old_det = torch.are_deterministic_algorithms_enabled()
     old_warn = torch.is_deterministic_algorithms_warn_only_enabled()

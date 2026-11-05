@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 import torch
-from untimed_4b import UntimedEval
+from studies._shared.structure.algorithm import UntimedEval
 from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
 
 class NumericsEval(UntimedEval):
