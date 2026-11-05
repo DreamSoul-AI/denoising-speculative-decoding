@@ -5,8 +5,8 @@ import torch
 
 from spec_mtp.structure.algorithm.counts import round_split
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
-from spec_mtp.structure.algorithm.mask import (BonusSlotMaskProvider, ESPMaskProvider, ObservationBlendMaskProvider,
-                            OutputHiddenMaskProvider, PreforwardSignalCollector, apply_lowrank_delta,
+from spec_mtp.structure.algorithm.mask import (BonusSlotMaskProvider, ESPMaskProvider,
+                            PreforwardSignalCollector, apply_lowrank_delta,
                             build_mask_provider, centered_r2, fit_lowrank_delta)
 from spec_mtp.structure.model.hf_causal import HFCausalLM
 from spec_mtp.structure.algorithm.decode.tree import DraftTree
@@ -114,29 +114,6 @@ def test_bonus_slot_replaces_only_the_immediate_token_and_stays_lossless():
         build_mask_provider({**spec, 'observation': {'gain': 1}}, table)
 
 
-def test_top1_form_uses_the_most_likely_allowed_token():
-    torch.manual_seed(5)
-    table = torch.randn(12, 4)
-    logits = torch.randn(2, 12)
-    logits[0, 3], logits[0, 9], logits[1, 7] = 9.0, 8.0, 9.0
-    tree = DraftTree(root_token=0, tokens=[3, 5, 7], depths=[1, 1, 2], parents=[0, 0, 1])
-    plain = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 1.0, form='top1')
-    plain.init_from_prompt(torch.randn(5, 4))
-    plain.observe_mask_logits(logits)
-    assert plain.protocol == 'trajectory-observation-top1-v1'
-    assert torch.allclose(plain.masks(), table[[3, 7]])
-    rejecting = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 1.0, condition='rejection', form='top1')
-    rejecting.init_from_prompt(torch.randn(5, 4))
-    rejecting.observe_mask_logits(logits)
-    assert rejecting.protocol == 'trajectory-observation-top1-rejection-v1'
-    owners = rejecting.masks_for_tree(tree)
-    assert torch.allclose(owners[0, 0], table[9])
-    second = torch.softmax(logits[1], dim=-1)
-    second[7] = -1
-    assert torch.allclose(owners[1, 0], table[int(second.argmax())])
-    assert torch.allclose(owners[0, 1], table[7]) and torch.allclose(owners[2, 0], table[7])
-    with pytest.raises(ValueError, match='form'):
-        ObservationBlendMaskProvider(ESPMaskProvider(1, table), table, 0.5, form='median')
 
 
 def test_decoder_observes_prefill_and_every_continuing_round():
@@ -154,24 +131,8 @@ def test_decoder_observes_prefill_and_every_continuing_round():
     assert all(row.shape == (2, model.vocab_size) for row in seen)
 
 
-@pytest.mark.parametrize('spec_observation,match', [
-    ({'gain': 1.5}, 'gain'), ({'gain': True}, 'gain'), ({'gain': 0.5, 'K': 1}, 'only gain')])
-def test_invalid_observation_settings_are_rejected(spec_observation, match):
-    spec = {**_spec('esp', 1, 'static'), 'observation': spec_observation}
-    with pytest.raises(ValueError, match=match):
-        build_mask_provider(spec, torch.randn(10, 4))
 
 
-def test_observation_rejects_hidden_providers_and_bad_logits():
-    table = torch.randn(10, 4)
-    with pytest.raises(ValueError, match='input-embedding'):
-        ObservationBlendMaskProvider(OutputHiddenMaskProvider(1, table), table, 0.5)
-    blend = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 0.5)
-    blend.init_from_prompt(torch.randn(3, 4))
-    with pytest.raises(ValueError, match='one logit row'):
-        blend.observe_mask_logits(torch.randn(3, 10))
-    with pytest.raises(ValueError, match='finite candidate'):
-        blend.observe_mask_logits(torch.full((2, 10), float('nan')))
 
 
 def test_scalar_kalman_step_steady_gain_and_lossless_decode():

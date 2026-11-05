@@ -31,11 +31,23 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_observation_blend.py::test_top1_form_uses_the_most_likely_allowed_token",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_top1_form_uses_the_most_likely_allowed_token",
+      "target": "spec_mtp.structure.algorithm.mask.providers.ObservationBlendMaskProvider.masks_for_tree",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_oracle_masks_accept_full_depth_after_prefill",
@@ -177,18 +189,42 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_observation_blend.py::test_invalid_observation_settings_are_rejected",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_invalid_observation_settings_are_rejected",
+      "target": "spec_mtp.structure.algorithm.mask.factory.build_mask_provider",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_observation_blend.py::test_observation_rejects_hidden_providers_and_bad_logits",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_observation_rejects_hidden_providers_and_bad_logits",
+      "target": "spec_mtp.structure.algorithm.mask.providers.ObservationBlendMaskProvider.observe_mask_logits",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/test_observation_blend.py::test_round_split_groups_by_previous_outcome",
@@ -11424,6 +11460,18 @@
         {
           "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema",
           "reason": "Real CUDA ESP/EMA provider initialization, state-update or factory tensor-input contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_top1_form_uses_the_most_likely_allowed_token",
+          "reason": "Real CUDA observation top1, invalid-setting or bad-logit tensor contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_invalid_observation_settings_are_rejected",
+          "reason": "Real CUDA observation top1, invalid-setting or bad-logit tensor contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_observation_rejects_hidden_providers_and_bad_logits",
+          "reason": "Real CUDA observation top1, invalid-setting or bad-logit tensor contract; no CPU replacement."
         }
       ],
       "cpu_only": true
@@ -12007,13 +12055,16 @@
         "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_offset_and_sample_inits",
         "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_update_false_freezes_velocity_but_moves_anchor",
         "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_extrapolate_ema_rebuilds_masks_after_commit",
-        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema"
+        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_top1_form_uses_the_most_likely_allowed_token",
+        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_invalid_observation_settings_are_rejected",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_observation_rejects_hidden_providers_and_bad_logits"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
         "estimated_device_seconds": 205,
-        "estimate_basis": "Prior CUDA289 executions took108.28s; five bounded32x8 provider/factory tensor contracts are added with original inputs/oracles.205s is scheduling estimate, not performance evidence;300s budget unchanged.",
+        "estimate_basis": "Prior CUDA294 executions took106.79s; five observation top1/admission tensor parameters are added with original stimuli/oracles. Existing205s scheduling estimate and300s budget are unchanged; no performance claim.",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false

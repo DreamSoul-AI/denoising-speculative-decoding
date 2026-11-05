@@ -3,7 +3,7 @@ import pytest
 import torch
 
 from spec_mtp.structure.algorithm.decode.tree import DraftTree
-from spec_mtp.structure.algorithm.mask.providers import ObservationBlendMaskProvider
+from spec_mtp.structure.algorithm.mask.providers import ObservationBlendMaskProvider, OutputHiddenMaskProvider
 from spec_mtp.structure.algorithm.mask import ESPMaskProvider, EMAVelocityMaskProvider
 
 @pytest.mark.parametrize('init, prompt_len, match', [
@@ -278,6 +278,72 @@ def test_ema_extrapolate_ema_rebuilds_masks_after_commit(table, cuda_decode, rec
     devices = {'table': str(table.device), 'prompt': str(prompt.device), 'mask': str(moving.masks().device)}
     assert set(devices.values()) == {str(device)}
     record_property('provider_tensor_devices', devices)
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
+    assert torch.get_default_device() == default_device
+    record_property('rng_default_device_preserved', True)
+
+
+def test_top1_form_uses_the_most_likely_allowed_token(cuda_decode, record_property):
+    device = cuda_decode.device
+    cpu_rng = torch.get_rng_state().clone()
+    cuda_rng = torch.cuda.get_rng_state(device).clone()
+    default_device = torch.get_default_device()
+    with torch.random.fork_rng(devices=[device.index]):
+        generator = torch.Generator(device=device).manual_seed(5)
+        table = torch.randn(12, 4, generator=generator, device=device)
+        logits = torch.randn(2, 12, generator=generator, device=device)
+        logits[0, 3], logits[0, 9], logits[1, 7] = 9.0, 8.0, 9.0
+        tree = DraftTree(root_token=0, tokens=[3, 5, 7], depths=[1, 1, 2], parents=[0, 0, 1])
+        plain = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 1.0, form='top1')
+        plain.init_from_prompt(torch.randn(5, 4, generator=generator, device=device))
+        plain.observe_mask_logits(logits)
+        assert plain.protocol == 'trajectory-observation-top1-v1'
+        assert torch.allclose(plain.masks(), table[[3, 7]])
+        rejecting = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 1.0, condition='rejection', form='top1')
+        rejecting.init_from_prompt(torch.randn(5, 4, generator=generator, device=device))
+        rejecting.observe_mask_logits(logits)
+        assert rejecting.protocol == 'trajectory-observation-top1-rejection-v1'
+        owners = rejecting.masks_for_tree(tree)
+        assert torch.allclose(owners[0, 0], table[9])
+        second = torch.softmax(logits[1], dim=-1)
+        second[7] = -1
+        assert torch.allclose(owners[1, 0], table[int(second.argmax())])
+        assert torch.allclose(owners[0, 1], table[7]) and torch.allclose(owners[2, 0], table[7])
+        with pytest.raises(ValueError, match='form'):
+            ObservationBlendMaskProvider(ESPMaskProvider(1, table), table, 0.5, form='median')
+    devices = {'table': str(table.device), 'logits': str(logits.device),
+               'plain_output': str(plain.masks().device), 'output': str(owners.device)}
+    assert set(devices.values()) == {str(device)}
+    record_property('observation_tensor_devices', devices)
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
+    assert torch.get_default_device() == default_device
+    record_property('rng_default_device_preserved', True)
+
+
+def test_observation_rejects_hidden_providers_and_bad_logits(cuda_decode, record_property):
+    device = cuda_decode.device
+    cpu_rng = torch.get_rng_state().clone()
+    cuda_rng = torch.cuda.get_rng_state(device).clone()
+    default_device = torch.get_default_device()
+    with torch.random.fork_rng(devices=[device.index]):
+        table = torch.randn(10, 4, device=device)
+        with pytest.raises(ValueError, match='input-embedding'):
+            ObservationBlendMaskProvider(OutputHiddenMaskProvider(1, table), table, 0.5)
+        blend = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 0.5)
+        prompt = torch.randn(3, 4, device=device)
+        blend.init_from_prompt(prompt)
+        wrong_row_logits = torch.randn(3, 10, device=device)
+        with pytest.raises(ValueError, match='one logit row'):
+            blend.observe_mask_logits(wrong_row_logits)
+        nan_logits = torch.full((2, 10), float('nan'), device=device)
+        with pytest.raises(ValueError, match='finite candidate'):
+            blend.observe_mask_logits(nan_logits)
+    devices = {'table': str(table.device), 'prompt': str(prompt.device),
+               'wrong_row_logits': str(wrong_row_logits.device), 'nan_logits': str(nan_logits.device)}
+    assert set(devices.values()) == {str(device)}
+    record_property('observation_tensor_devices', devices)
     assert torch.equal(torch.get_rng_state(), cpu_rng)
     assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
     assert torch.get_default_device() == default_device

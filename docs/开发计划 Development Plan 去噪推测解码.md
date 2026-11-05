@@ -1,19 +1,19 @@
 **去噪推测解码 开发计划**
-更新日期：2026年11月5日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
+更新日期：2026年11月6日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-基线 `0c40940`，继续 `codex/structure-cleanup-20261105` 更新Draft PR106到dev。约30分钟只迁移五项provider小张量合同：四项归现有providers镜像、一项构造合同归factory镜像，删除旧混合文件；不改生产算法、原科学条件或旧Run，旧72参数观测模型矩阵继续暂停。
+基线 `2bba761`，继续 `codex/structure-cleanup-20261105` 更新Draft PR106到dev。本轮约30分钟迁移observation top1、非法设置和坏logits的3函数5参数，合现有providers/factory镜像；旧72参数观测模型矩阵继续暂停，不改算法、原科学条件或生产模块。
 
 | **步骤与预估** | **目标** | **验收** |
 | --- | --- | --- |
-| 核对，5分钟 | 最新AGENTS及相关代码/测试/日志规范、远端RPipe main，核原fixture和真实实现 | 原5函数5参数、32×8表seed0、sample generator seed3、无额外模型；职责和随机状态边界明确 |
-| 迁移，9分钟 | 合现有providers/factory，复用cuda_decode及必要文件内fixture | 原输入、shape、update/extrapolate参数、全部断言保持；实际表/prompt/mask等设备落盘，不导入旧测试作helper或造生产助手 |
-| 元数据与文档，5分钟 | 按真实target/unit/C3/GPU1登记，同步设计、唯一研究/开发计划及记录 | 945登记不增；完整CPU计划移出5项，quick与native不扩；研究问题/算法/对照不变 |
-| 验证与交付，11分钟 | RTX5090Dv2定向、净HEAD快速纯CPU及顺序native/CUDA回归，报告/来源/独审与普通推送 | 原120/300/300秒预算保持，未跑/缺证据不记通过；两checkout干净，Draft→dev保持，main/dev与必需检查不动 |
+| 核对，5分钟 | 最新AGENTS、相关规范、远端RPipe main、原函数/参数与真实调用 | 3声明5参数、6原断言、5个raises上下文及原3组非法配置保持；区分完整模型与小张量 |
+| 迁移，9分钟 | providers承接top1/坏logits，factory承接非法设置；复用cuda_decode | 原seed5用局部CUDA Generator，无seed输入保持未指定并隔离；参与张量设备及RNG/default守卫落盘，无测试间导入或假模型forward |
+| 元数据与文档，5分钟 | 实际target/unit/C3/GPU1，唯一计划、设计和日期记录对齐 | 945登记不增；quick/native不扩；当前职责与迁移历史分别归设计/记录，精简重复工程边界 |
+| 验证与交付，11分钟 | RTX5090Dv2定向、净HEAD快速纯CPU及顺序native/CUDA，报告/来源/独审与普通推送 | 原120/300/300秒预算不扩，未跑/缺结果不记通过；Draft→dev、main/dev和必需检查不动 |
 
-执行前已确认torch.cuda.is_available=true，实际cuda:0 NVIDIA GeForce RTX 5090 D v2；运行期再从逐项设备证据核对，不CPU回退。表保持局部seed0，采样显式generator保持seed3；原未指定seed的prompt/token不新增seed，通过selected CUDA fork_rng控制作用域并核全局CPU/CUDA RNG和默认设备恢复。跨CPU/CUDA的相同seed不冒称相同随机字节。
+CUDA预检已确认torch.cuda.is_available=true，cuda:0 NVIDIA GeForce RTX 5090 D v2，GPU忙时等或缩小规模，不回CPU。top1保12×4表、2×12logits、原树/手置9/8/9峰值和seed5；非法设置保原_spec(esp,1,static)完整有效值，拒绝gain1.5、布尔gain及额外K；坏logits保hidden provider、3×10错行数与2×10 NaN刺激。固定Git AST核原参数，不执行旧模块的CPU PROMPTS。
 
-五项原不在quick，仅从cpu-pr移出。预期四计划809/445/124/12函数，CPUquick1359参数、CUDA294项执行（293质量+1测量）、native12参数；正式结果以净HEAD回执为准。仅单卡小张量，无模型forward，不假造模型调用字段。四历史原字节仍unknown时严格拒绝，20旧来源锁保持；最终HEAD来源driver只跑一次，不扫refs/ACL/全盘、不补签旧材料。
+三函数原仅在cpu-pr，迁后四计划806/445/127/12函数；quick1359参数、CUDA299项执行（298质量+1测量）、native12。原providers10/factory2、剩余旧10函数/helpers/PROMPTS保持；仅清理迁走后三个用例不再使用的旧import。四历史原字节缺口继续严格拒绝，20旧锁保持；净HEAD来源driver只跑一次，不扫refs/ACL/全盘、不补签。
 
 # 二、六类核对与落实
 | **类别** | **已有实现条件** | **仍需完成的具体差距** |

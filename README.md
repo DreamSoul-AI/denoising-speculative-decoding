@@ -127,4 +127,4 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 文档职责按 AGENTS.md 维护。通用调研不代替文献调研，研究计划不代替开发计划。历史测量在运行记录，结构调整在开发记录。
 
-模型所有权、KV值保全、报告真实launch、观测及ESP/EMA provider张量合同使用CUDA。报告纯读写、身份与路径门保CPU；真实CLI与小张量验证按实际职责归现有镜像，旧混合测试随归位移除。登记945函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别809/445/124/12函数；快速CPU1359参数、CUDA294项执行（293质量项、1测量项）、native12项，实际终态与提交身份见同日运行记录。旧72项观测模型矩阵保持暂停，微型工程验证不代表真实权重研究或性能收益。
+模型所有权、KV值保全、报告真实launch及provider数值合同使用CUDA。ESP/EMA状态、observation top1/拒绝与factory准入按真实职责归现有providers/factory镜像，报告纯I/O门保CPU；缺证据与非法输入仍严格拒绝。登记945函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别806/445/127/12函数；快速CPU1359参数、CUDA299项执行（298质量项、1测量项）、native12项，实际终态与提交身份见运行记录。旧72项观测模型矩阵保持暂停，工程验证不代表真实权重研究或性能收益。
