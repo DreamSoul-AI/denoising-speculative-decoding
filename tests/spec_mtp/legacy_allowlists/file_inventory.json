@@ -1,12 +1,4 @@
 [
-  "studies/esp_table1_bf16_full/analyze_results.py",
-  "studies/esp_table1_bf16_full/untimed_bf16.py",
-  "studies/esp_table1_bf16_full_argmax/argmax_audit.py",
-  "studies/esp_table1_bf16_full_argmax/untimed_bf16.py",
-  "studies/esp_table1_bf16_qwen_protocol/untimed_bf16.py",
-  "studies/esp_table1_nonofficial_revalidation/argmax_audit.py",
-  "studies/esp_table1_nonofficial_revalidation/revalidation_contract.py",
-  "studies/esp_table1_nonofficial_revalidation/untimed_bf16.py",
   "studies/output_space_extension/analyze_kernels.py",
   "studies/output_space_extension/analyze_numerics.py",
   "studies/output_space_extension/analyze_operators.py",

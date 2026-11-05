@@ -19,7 +19,6 @@ provenance:
   - docs/modelscope_snapshot.json
   - docs/prompts_manifest.json
   - docs/specbench-source.json
-  - untimed_bf16.py
 flow:
   study_phases: true
   prepare_shared: false

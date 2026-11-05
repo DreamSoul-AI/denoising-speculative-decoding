@@ -27,9 +27,9 @@ def summarize(rows):
             'argmax_all_passed': all(row.get('argmax_passed') is True for row in rows)}
 
 
-def ordered_cells(observed):
+def ordered_cells(observed, *, declarations=CELLS):
     result=[]
-    for bc,k,role,target in CELLS:
+    for bc,k,role,target in declarations:
         cell=dict(observed.get((bc,k),{}),BC=bc,num_masks=k,role=role,target=target)
         cell['pending']=(bc,k) not in observed
         for metric in ('pooled_tau','prompt_mean_tau','category_mean_pooled_tau'):

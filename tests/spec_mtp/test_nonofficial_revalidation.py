@@ -36,7 +36,6 @@ def test_host_peak_plus_margin_and_actual_foreign_gpu(monkeypatch):
     assert not m.observe(initial=False)['passed']
 
 
-def test_copied_untimed_and_argmax_helpers_are_original_bytes():
+def test_copied_untimed_and_argmax_helpers_are_original_bytes(historical_file):
     for name in ('untimed_bf16.py', 'argmax_audit.py'):
-        assert (ROOT / 'studies/esp_table1_nonofficial_revalidation' / name).read_bytes() == (
-            ROOT / 'studies/esp_table1_bf16_full_argmax' / name).read_bytes()
+        assert historical_file('studies/esp_table1_nonofficial_revalidation/' + name).read_bytes() == historical_file('studies/esp_table1_bf16_full_argmax/' + name).read_bytes()

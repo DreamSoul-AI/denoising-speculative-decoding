@@ -308,14 +308,12 @@ def paired_matrix_settings(study_root, pairing_root):
 
 
 
-def check_control_refs(study_root, execution_root, *, kind, git_repository=None):
+def check_source_refs(study_root, execution_root, *, git_repository=None):
     """Check original saved source/plan identities without replacing them with current helpers."""
     from spec_mtp.structure.artifact.provenance import file_sha256, read_historical_bytes
     study, execution = Path(study_root).resolve(strict=True), Path(execution_root).resolve(strict=True)
     if source_study_root(study).parents[1] != execution:
         raise ValueError('control source binding changed execution root')
-    if kind not in ('norm', 'paired', 'continuation'):
-        raise ValueError('unknown paired/norm control protocol')
     refs = json.loads((study/'docs/source_refs.json').read_text(encoding='utf-8'))
     files = refs['files']
     if not isinstance(files, dict) or not files:
@@ -333,6 +331,15 @@ def check_control_refs(study_root, execution_root, *, kind, git_repository=None)
     plan = refs['project_plan']
     read_historical_bytes(execution if git_repository is None else git_repository,
                           plan['commit'], plan['path'], plan['sha256'])
+    return refs
+
+
+def check_control_refs(study_root, execution_root, *, kind, git_repository=None):
+    """Retain the paired matrix and continuation's exact original source chain."""
+    study, execution = Path(study_root).resolve(strict=True), Path(execution_root).resolve(strict=True)
+    if kind not in ('norm', 'paired', 'continuation'):
+        raise ValueError('unknown paired/norm control protocol')
+    check_source_refs(study, execution, git_repository=git_repository)
     if kind == 'continuation':
         check_control_refs(execution/'studies/qwen3_4b_bf16_bias_norm_scan', execution,
                            kind='norm', git_repository=git_repository)

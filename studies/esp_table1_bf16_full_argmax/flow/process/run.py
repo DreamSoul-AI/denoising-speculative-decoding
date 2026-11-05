@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 from studies._shared.structure.evidence import digest
 from studies.esp_table1_bf16_full_argmax.structure.readout import summarize, ordered_cells
-from studies.esp_table1_bf16_full_argmax.argmax_audit import token_digest
+from studies._shared.structure.esp_controls import token_digest
 
 
 class SavedReadout:
@@ -36,11 +36,12 @@ class SavedReadout:
         from spec_mtp.structure.artifact.provenance import file_sha256
 
         checkout = Path(__file__).resolve().parents[4]
-        names = ('esp_table1_bf16_full_argmax', 'esp_table1_bf16_qwen_protocol', 'esp_table1_nonofficial_revalidation')
+        names = ('esp_table1_bf16_full_argmax', 'esp_table1_bf16_qwen_protocol', 'esp_table1_nonofficial_revalidation', 'esp_table1_bf16_full')
         paths = [path for name in names for pillar in ('structure', 'flow')
                  for path in (checkout / 'studies' / name / pillar).rglob('*.py')]
-        paths += [checkout / 'studies' / name / 'argmax_audit.py'
-                  for name in ('esp_table1_bf16_full_argmax', 'esp_table1_nonofficial_revalidation')]
+        from studies._shared.structure import esp_controls
+        assert esp_controls.__file__ is not None
+        paths.append(Path(esp_controls.__file__))
         return {str(path.resolve()): file_sha256(path) for path in paths}
 
     def _input(self, path, *, strict=True):

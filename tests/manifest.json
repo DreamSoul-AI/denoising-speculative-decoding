@@ -1259,94 +1259,133 @@
     },
     {
       "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_observer_preserves_bf16_outputs_calls_and_restores",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.esp_controls.observe_argmax",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "cost_class": "c3",
+      "level": "integration"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_wrong_selection_is_rejected_and_restored",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.esp_controls.observe_argmax",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "cost_class": "c3",
+      "level": "integration"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_eos_or_budget_trim_is_not_counted_as_committed_and_wrong_owner_fails",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.esp_controls.bind_committed",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_tau_aggregation_does_not_gate_on_ar_and_keeps_all_weights",
-      "target": "spec_mtp",
+      "target": "studies.esp_table1_bf16_full_argmax.structure.readout",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_new_full_contract_keeps_original_settings_and_480_inputs",
-      "target": "spec_mtp",
+      "target": "studies.esp_table1_bf16_full_argmax.structure.readout",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_historical_full_argmax_original_inputs",
-      "target": "spec_mtp",
+      "target": "studies.esp_table1_bf16_full_argmax.structure.readout",
       "tags": [
-        "external_evidence"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_pending_report_does_not_link_unpublished_local_evidence",
-      "target": "spec_mtp",
+      "target": "studies.esp_table1_bf16_full_argmax.flow.process.run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "integration"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_tau_plot_requires_full_argmax_pass_but_not_ar_exact",
-      "target": "spec_mtp",
+      "target": "studies.esp_table1_bf16_full_argmax.flow.write.run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "integration"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_protocol_aggregation_keeps_call_weighting_and_quality",
-      "target": "spec_mtp",
+      "target": "studies.esp_table1_bf16_qwen_protocol.structure.readout",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_protocol_primary_cannot_be_selected_from_tau",
-      "target": "spec_mtp",
+      "target": "studies.esp_table1_bf16_qwen_protocol.structure.readout",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_launch_once_restores_native_scheduler",
-      "target": "spec_mtp",
+      "target": "studies._shared.flow.launch_once",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_corrected_studies_keep_full_coverage_and_mask_update",
-      "target": "spec_mtp",
+      "target": "studies.esp_table1_bf16_qwen_protocol.structure.readout",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_historical_qwen_original_prompt_coverage",
-      "target": "spec_mtp",
+      "target": "studies.esp_table1_bf16_qwen_protocol.structure.readout",
       "tags": [
-        "external_evidence"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_esp_repeat_roots.py::test_terminal_repeat_is_not_an_extra_nonterminal_opportunity",
@@ -1668,10 +1707,13 @@
     },
     {
       "test_id": "tests/spec_mtp/test_nonofficial_revalidation.py::test_copied_untimed_and_argmax_helpers_are_original_bytes",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.esp_controls / original fixed Git helper identities",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_norm_queue_audit.py::test_pending_and_native_failure_do_not_run_a_model_or_readout",
@@ -4976,14 +5018,15 @@
     },
     {
       "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_launch_scheduler_does_not_retry_failed_runs_by_default",
-      "target": "spec_mtp.structure.make.schedule",
+      "target": "studies._shared.flow.launch_once",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
       "priority": "p1",
       "tags": [
-        "offline_cpu"
+        "offline_cpu",
+        "structure_cleanup"
       ]
     },
     {
@@ -7973,7 +8016,7 @@
     {
       "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_esp_registration_rejects_non_boolean_shape_before_changing_registry",
       "target": "studies._shared.structure.esp_controls",
-      "level": "unit",
+      "level": "integration",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
@@ -8128,6 +8171,216 @@
       "test_id": "tests/studies/_shared/structure/test_norm_controls.py::test_reused_control_keeps_two_prompt_diagnostics_as_independent_snapshots",
       "target": "studies._shared.structure.algorithm",
       "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_esp_numeric_policy_keeps_backend_and_scopes_optional_observer",
+      "target": "studies._shared.structure.esp_controls",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_esp_policy_rechecks_source_snapshot_before_and_after_native_execution",
+      "target": "studies._shared.structure.esp_controls",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_esp_registration_binds_snapshot_source_and_run_assets_without_loading",
+      "target": "studies._shared.structure.esp_controls",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_esp_revalidation_source_gate_and_wait_precede_loader_with_separate_asset_roots",
+      "target": "studies._shared.structure.esp_controls",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_full_esp_adapter_combines_untimed_cuda_decode_and_optional_external_audit",
+      "target": "studies._shared.structure.esp_controls",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_full_esp_recipe_native_gate_precedes_all_overrides_and_import_is_inert",
+      "target": "studies._shared.structure.esp_controls",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_nonofficial_runtime_guard_preserves_original_model_prompts_count_and_progress",
+      "target": "studies._shared.structure.esp_controls",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_cli_requires_all_explicit_input_and_output_roots",
+      "target": "studies.esp_table1_bf16_full.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_readout_never_overwrites_existing_output",
+      "target": "studies.esp_table1_bf16_full.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_readout_preserves_ar_quality_and_complete_negative_results",
+      "target": "studies.esp_table1_bf16_full.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_readout_publishes_ready_evidence_last_and_keeps_failed_publication_partial",
+      "target": "studies.esp_table1_bf16_full.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_readout_rechecks_original_inputs_and_current_tool_before_publication",
+      "target": "studies.esp_table1_bf16_full.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_readout_rejects_unbound_sources_or_inconsistent_saved_records_before_output",
+      "target": "studies.esp_table1_bf16_full.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/esp_table1_bf16_full/structure/test_full_ar_readout.py::test_full_reuses_count_formulas_without_inheriting_argmax_cell_roles",
+      "target": "studies.esp_table1_bf16_full.structure.readout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/esp_table1_bf16_full/structure/test_full_ar_readout.py::test_full_saved_ar_mismatch_is_not_hidden_by_an_argmax_pass",
+      "target": "studies.esp_table1_bf16_full.structure.readout",
+      "level": "unit",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
@@ -8361,6 +8614,18 @@
         },
         {
           "test_id": "tests/studies/_shared/structure/test_norm_controls.py::test_content_direction_reuses_one_cuda_provider_with_distinct_prompt_offsets",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_observer_preserves_bf16_outputs_calls_and_restores",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_wrong_selection_is_rejected_and_restored",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_full_esp_adapter_combines_untimed_cuda_decode_and_optional_external_audit",
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         }
       ],
@@ -8646,7 +8911,32 @@
         "tests/studies/_shared/structure/test_norm_controls.py::test_norm_control_original_refs_and_plan_reject_before_model",
         "tests/studies/_shared/structure/test_norm_controls.py::test_norm_control_snapshot_roots_policy_and_original_matrix",
         "tests/studies/_shared/structure/test_norm_controls.py::test_norm_control_source_failure_never_reaches_admission_or_loader",
-        "tests/studies/_shared/structure/test_norm_controls.py::test_reused_control_keeps_two_prompt_diagnostics_as_independent_snapshots"
+        "tests/studies/_shared/structure/test_norm_controls.py::test_reused_control_keeps_two_prompt_diagnostics_as_independent_snapshots",
+        "tests/spec_mtp/test_esp_argmax_audit.py::test_eos_or_budget_trim_is_not_counted_as_committed_and_wrong_owner_fails",
+        "tests/spec_mtp/test_esp_argmax_audit.py::test_historical_full_argmax_original_inputs",
+        "tests/spec_mtp/test_esp_argmax_audit.py::test_new_full_contract_keeps_original_settings_and_480_inputs",
+        "tests/spec_mtp/test_esp_argmax_audit.py::test_pending_report_does_not_link_unpublished_local_evidence",
+        "tests/spec_mtp/test_esp_argmax_audit.py::test_tau_aggregation_does_not_gate_on_ar_and_keeps_all_weights",
+        "tests/spec_mtp/test_esp_argmax_audit.py::test_tau_plot_requires_full_argmax_pass_but_not_ar_exact",
+        "tests/spec_mtp/test_esp_qwen_protocol.py::test_corrected_studies_keep_full_coverage_and_mask_update",
+        "tests/spec_mtp/test_esp_qwen_protocol.py::test_historical_qwen_original_prompt_coverage",
+        "tests/spec_mtp/test_esp_qwen_protocol.py::test_protocol_aggregation_keeps_call_weighting_and_quality",
+        "tests/spec_mtp/test_esp_qwen_protocol.py::test_protocol_primary_cannot_be_selected_from_tau",
+        "tests/spec_mtp/test_nonofficial_revalidation.py::test_copied_untimed_and_argmax_helpers_are_original_bytes",
+        "tests/studies/_shared/structure/test_esp_controls.py::test_esp_numeric_policy_keeps_backend_and_scopes_optional_observer",
+        "tests/studies/_shared/structure/test_esp_controls.py::test_esp_policy_rechecks_source_snapshot_before_and_after_native_execution",
+        "tests/studies/_shared/structure/test_esp_controls.py::test_esp_registration_binds_snapshot_source_and_run_assets_without_loading",
+        "tests/studies/_shared/structure/test_esp_controls.py::test_esp_revalidation_source_gate_and_wait_precede_loader_with_separate_asset_roots",
+        "tests/studies/_shared/structure/test_esp_controls.py::test_full_esp_recipe_native_gate_precedes_all_overrides_and_import_is_inert",
+        "tests/studies/_shared/structure/test_esp_controls.py::test_nonofficial_runtime_guard_preserves_original_model_prompts_count_and_progress",
+        "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_cli_requires_all_explicit_input_and_output_roots",
+        "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_readout_never_overwrites_existing_output",
+        "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_readout_preserves_ar_quality_and_complete_negative_results",
+        "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_readout_publishes_ready_evidence_last_and_keeps_failed_publication_partial",
+        "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_readout_rechecks_original_inputs_and_current_tool_before_publication",
+        "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_readout_rejects_unbound_sources_or_inconsistent_saved_records_before_output",
+        "tests/studies/esp_table1_bf16_full/structure/test_full_ar_readout.py::test_full_reuses_count_formulas_without_inheriting_argmax_cell_roles",
+        "tests/studies/esp_table1_bf16_full/structure/test_full_ar_readout.py::test_full_saved_ar_mismatch_is_not_hidden_by_an_argmax_pass"
       ],
       "exclude": []
     },
@@ -8706,15 +8996,18 @@
         "tests/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
         "tests/spec_mtp/test_bias_norm_scan.py::test_native_tiny_bf16_argmax_audit_for_scaled_bias",
         "tests/spec_mtp/test_paired_revalidation.py::test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token",
+        "tests/studies/_shared/structure/test_norm_controls.py::test_content_direction_reuses_one_cuda_provider_with_distinct_prompt_offsets",
+        "tests/spec_mtp/test_esp_argmax_audit.py::test_observer_preserves_bf16_outputs_calls_and_restores",
+        "tests/spec_mtp/test_esp_argmax_audit.py::test_wrong_selection_is_rejected_and_restored",
+        "tests/studies/_shared/structure/test_esp_controls.py::test_full_esp_adapter_combines_untimed_cuda_decode_and_optional_external_audit",
         "tests/studies/_shared/structure/test_esp_controls.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
-        "tests/studies/_shared/structure/test_esp_controls.py::test_shape_patch_is_local_and_restores_on_failure",
-        "tests/studies/_shared/structure/test_norm_controls.py::test_content_direction_reuses_one_cuda_provider_with_distinct_prompt_offsets"
+        "tests/studies/_shared/structure/test_esp_controls.py::test_shape_patch_is_local_and_restores_on_failure"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
         "estimated_device_seconds": 120,
-        "estimate_basis": "previous 132-case CUDA plan: 98.59 seconds; adds bounded native norm fixtures",
+        "estimate_basis": "previous 140-case CUDA plan: 103.41 seconds; adds bounded ESP observer/policy fixtures",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false

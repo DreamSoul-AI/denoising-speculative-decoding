@@ -130,3 +130,7 @@ ESP preflight、numerics、reduction_check 与 shape_check 的相同 4B untimed 
 ESP 的后端状态作用域与模型局部 Linear 作用域集中到唯一 `_shared/structure/esp_controls.py`：三份相同 NumericsEval 和依赖它的 ShapeEval、rowwise_linear 共用原实现，显式注册选择最终执行类。此模块隔离特有后端控制，避免 evaluate 与 algorithm 循环依赖，也不把三份副本搬成三份小模块；代价是维护一个作用域及其成功/异常恢复合同。原数值公式、状态恢复顺序和输出字段保持，调用方直接导入该模块。
 
 norm、paired repeat 与 continuation 控制继续复用上述 shared 职责：初始 bias 的纯观察归 geometry，三个执行类归 algorithm，来源表、固定 Git 计划和配对矩阵合同归 validation，recipe 在原门之后显式绑定运行根、已核原源、Run assets 和准入策略。Continuation 保留自身加 norm 的原来源链，采用 paired 的 observer 与 norm capacity，不额外混入 paired 来源门。三份顶层实现删除，容量入口和保存读件冻结实际新部件，原 refs/Run/计划身份另留，不能以路径变化绕过原锁。
+
+ESP full/Qwen 的 numeric policy、full_argmax 的独立提交链观察及非官方复验继续归已有 esp_controls；四份 untimed、两份相同 argmax 与非官方 contract 不各自维护副本。NumericPolicyEval、ArgmaxEval 与 RevalidationEval 分别承接原作用域与附加门，recipe 显式选择，实际来源表/固定 Git 计划的共同校验归 validation。非官方模型摘要、480 条原输入、逐 prompt 准入和完整数量门独立保留，audit 独占创建、异常时移除 hook 并恢复原调用，不把原 AR exact 与 argmax 两类质量定义混合。
+
+full 的完整 AR 读件及中文报告由一个必要的 `structure/readout.py` 承接，既有 `flow/process/run.py` 负责显式输入根、执行源码根、新外部输出和最终发布。计数复用 full_argmax 的纯统计，四格声明作为显式参数传入，默认 argmax 角色不变；full 的 BC10 auxiliary 与完整 AR 不一致仍按其原判据报告。来源和输入先核、读取后再核，完整观测与质量通过分别记录，不以相邻协议的质量门筛掉旧负结果，也不为一个旧命令新建转调文件。

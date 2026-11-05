@@ -8,9 +8,6 @@ freeze: true
 provenance:
   include:
   - docs/source_refs.json
-  - untimed_bf16.py
-  - argmax_audit.py
-  - revalidation_contract.py
   project_plan:
     commit: 085722e30c5bb30387f65f268648b58321aa9146
     path: docs/研究计划 Denoising Speculative Decoding.md

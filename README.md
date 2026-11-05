@@ -48,6 +48,8 @@ input-mask 的 q171 图使用同一组显式参数运行 `python -m studies.inpu
 
 ESP 四格及 Qwen 旧协议分别使用 `python -m studies.esp_table1_bf16_full_argmax.flow.process.run`、`python -m studies.esp_table1_bf16_qwen_protocol.flow.process.run`，必需 `--study-dir <实际输入Study> --execution-root <原执行源码与引用所在根> --output-root <新外部目录>`。独立复验的 `studies.esp_table1_nonofficial_revalidation.flow.process.run` 另需 `--baseline-dir <原基线证据/源码目录> --baseline-runs <原基线Run目录>`，不能拿当前 helper 冒充原聚合器。原生来源锁仍按原合同拒绝漂移，缺少兼容执行源码时不能声称重聚合成功。图可单独用 full_argmax 的 `flow.write.run --report <已保存四格证据JSON> --report-sha256 <实际摘要> --output-root <新外部目录>`。派生报告、图及输入绑定写新根，正式完整证据在绘图与来源复核后最后发布，失败只留 partial。
 
+full 的完整 AR 读端使用 `python -m studies.esp_table1_bf16_full.flow.process.run --study-dir <实际输入Study> --execution-root <原执行源码根> --output-root <新外部目录>`，保留 BC10 auxiliary 和逐格 AR exact 判据。四格已观测与质量通过分别报告，AR 不一致的负结果可完整读出；原运行件、输入或原源缺失仍拒绝，不改用 argmax 门或当前 helper 补签来源。
+
 4B 的 recheck、recheck_v2、holdout、input_control 分别用 `python -m studies.<Study>.flow.process.run --study-dir <旧Study输入> --execution-root <原运行根> --execution <保存execution JSON> --repository <本地Git> --commit <完整提交> --execution-git-sha256 <Git原件SHA256> --output-root <新外部目录>`，共用配对公式但保留各自输入和质量条件，只复核保存计数，不重新验收 native gate。holdout 与 recheck_v2 的 `flow.write.run --bindings <JSON> --repository <本地Git> --output-root <新外部目录>` 生成中文报告和配对图；bindings 的角色值为 `{"path":"实际输入","commit":"完整提交","sha256":"Git原件SHA256"}`，execution 必需，其余历史引用未提供时不生成失效链接。
 
 cross_task 采样路径分析使用 `python -m studies.output_space_cross_task.flow.process.run <first-delta|sampling-expansion|continuation> --inputs <角色输入JSON> --inputs-sha256 <实际SHA256> --output-root <新外部目录>`。输入索引固定 schema=1、kind、repository、commit、reports、files 与 producer_sources，报告分别给实际路径和固定 Git 身份，原工具/计划与张量/选择集分别绑定。后两种数值审计另需 `--device cuda:0`，first-delta 只读保存 JSON。历史 acceptance 图使用该 Study 的 `flow.write.run --execution <JSON> --execution-git-sha256 <Git原件SHA256> --canonical <JSON> --canonical-git-sha256 <Git原件SHA256> --repository <本地Git> --commit <完整提交> --output-root <新外部目录>`，保留四条主图与单独 q241 对照，未运行模型。
@@ -63,6 +65,8 @@ paired_revalidation 的保存报告用 `python -m studies.qwen3_4b_bf16_paired_r
 五方法配对执行与普通/recovery 方向执行使用共享 algorithm/geometry/validation/recipe，Study 根和配对原件根显式绑定。方向公式与原 CPU 随机序列保持，普通版资源不足立即拒绝，recovery 只在既定准入边界等待并把记录写入实际 Run assets，不再写源码根 `.tmp`。配置、旧来源表与执行材料缺失仍拒绝，不因模块归并恢复暂停的研究矩阵。
 
 ESP 后端和局部 Linear 控制统一在 `_shared/structure/esp_controls.py`，三份相同 numerics 与 shape 不再独立维护副本。recipe 在原准入后选择 NumericsEval 或 ShapeEval，成功和异常时恢复原后端状态与局部 forward；微型 CUDA 只验证作用域与 shape 工程合同，不恢复已停止的算子机理研究。
+
+ESP full/Qwen 的 numeric policy、full_argmax 的独立 argmax 观察和非官方复验也使用该共享模块。四个 recipe 通过原准入后显式选择 policy/argmax/revalidation，导入不注册；运行前后核快照，非官方的原模型摘要、480 条输入、计数与逐 prompt 资源门另行保持。audit 独占创建，错误时恢复 selector/generate 并移除 hook，旧审计不追加新执行。
 
 norm、paired repeat 与 continuation 也通过共享部件装配，运行根经 study_source 绑定定位原科学身份，配对矩阵不取临时目录名作 experiment。来源、固定 Git 计划及准入策略分别保留，资源等待后复核再载模；同一 decoder 的诊断逐 prompt 保存独立快照，content 起点随当前 prompt 读取。八格、七格与十一格仍是各自暂停的协议，不因入口可用自动派发。
 

@@ -1,6 +1,5 @@
 
 from spec_mtp.structure.algorithm.mask import build_mask_provider
-import importlib.util
 import json
 from pathlib import Path
 import pytest
@@ -10,15 +9,15 @@ from studies._shared.structure.config import _convert
 from spec_mtp.structure.model.hf_causal import HFCausalLM
 
 ROOT = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location('esp_argmax_audit', ROOT/'studies/esp_table1_bf16_full_argmax/argmax_audit.py')
-audit = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(audit)
+from studies._shared.structure import esp_controls as audit
 
 
 def decoder():
+    assert torch.cuda.is_available(), "CUDA required; no CPU fallback"
+    print("ESP audit device=cuda:0 name="+torch.cuda.get_device_name(0), flush=True)
     torch.manual_seed(7)
     model = HFCausalLM(tiny_config={'vocab_size':32, 'hidden_size':16, 'intermediate_size':32,
-        'num_layers':1, 'num_heads':2, 'num_kv_heads':1, 'max_position_embeddings':64}).to(torch.bfloat16)
+        'num_layers':1, 'num_heads':2, 'num_kv_heads':1, 'max_position_embeddings':64}).to(device="cuda:0", dtype=torch.bfloat16)
     config = _convert({'method':'esp', 'num_masks':1, 'block_complexity':10, 'impl':'naive',
         'tree':{'mode':'dynamic','pruning':True}, 'mask':{'init':'mean_prompt','lam':.1,'update':True}})
     return decoding.SpecDecoder(model, config, {'temperature':0, 'max_new_tokens':7, 'stop_on_eos':False}, mask_policy=build_mask_provider(config, model.embedding_table))
@@ -29,7 +28,7 @@ def test_observer_preserves_bf16_outputs_calls_and_restores(tmp_path, prefill_on
     dec = decoder()
     if prefill_only:
         dec.max_new_tokens = 1
-    prompt = torch.tensor([[1,2,3]])
+    prompt = torch.tensor([[1,2,3]], device="cuda:0")
     expected, base = dec.generate(prompt)
     generate, select = decoding.SpecDecoder.generate, decoding.select_token
     with audit.observe_argmax(tmp_path):
@@ -49,16 +48,31 @@ def test_observer_preserves_bf16_outputs_calls_and_restores(tmp_path, prefill_on
             pass
 
 
-def test_wrong_selection_is_rejected_and_restored(tmp_path, monkeypatch):
+@pytest.mark.parametrize('cleanup_failure', [False, True])
+def test_wrong_selection_is_rejected_and_restored(tmp_path, monkeypatch, cleanup_failure):
     dec = decoder()
+    if cleanup_failure:
+        register = dec.model.register_forward_hook
+        def broken_cleanup(*args):
+            handle = register(*args)
+            remove = handle.remove
+            def cleanup():
+                remove()
+                raise RuntimeError('secondary hook cleanup failed')
+            handle.remove = cleanup
+            return handle
+        monkeypatch.setattr(dec.model, 'register_forward_hook', broken_cleanup)
     wrong = lambda row, temperature, generator: (int(row.argmax().item()) + 1) % row.numel()
     monkeypatch.setattr(decoding, 'select_token', wrong)
     generate = decoding.SpecDecoder.generate
-    with pytest.raises(AssertionError, match='forward argmax'):
+    with pytest.raises(AssertionError, match='forward argmax') as raised:
         with audit.observe_argmax(tmp_path):
-            dec.generate(torch.tensor([[1,2,3]]))
+            dec.generate(torch.tensor([[1,2,3]], device="cuda:0"))
     assert decoding.select_token is wrong and decoding.SpecDecoder.generate is generate
     assert not dec.model._forward_hooks and not (tmp_path/'argmax_audit.jsonl').read_text()
+    errors = getattr(raised.value, 'cleanup_errors', ())
+    assert len(errors) == int(cleanup_failure)
+    if errors: assert str(errors[0]) == 'secondary hook cleanup failed'
 
 
 def test_eos_or_budget_trim_is_not_counted_as_committed_and_wrong_owner_fails():
@@ -104,7 +118,9 @@ def test_new_full_contract_keeps_original_settings_and_480_inputs():
     before = yaml.safe_load((previous/'study.yaml').read_text())
     after = yaml.safe_load((current/'study.yaml').read_text())
     assert before['axes']==after['axes'] and before['seeds']==after['seeds']
-    assert 'argmax_audit.py' in after['provenance']['include']
+    assert 'argmax_audit.py' not in after['provenance']['include']
+    assert not (current/'argmax_audit.py').exists()
+    assert audit.__name__ == 'studies._shared.structure.esp_controls'
 
 
 def test_historical_full_argmax_original_inputs(historical_file):

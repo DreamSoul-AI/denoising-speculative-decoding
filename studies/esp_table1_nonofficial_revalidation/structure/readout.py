@@ -1,7 +1,7 @@
 """Pure saved-repeat argmax reconciliation and paired count readout."""
 from typing import Any
 from studies.esp_table1_bf16_full_argmax.structure.readout import summarize as summarize
-from studies.esp_table1_nonofficial_revalidation.argmax_audit import token_digest
+from studies._shared.structure.esp_controls import token_digest
 
 TARGETS = {10: None, 30: 1.63, 60: 1.74}
 METRICS = ('pooled_tau', 'prompt_mean_tau', 'category_mean_pooled_tau')

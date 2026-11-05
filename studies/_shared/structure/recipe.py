@@ -244,3 +244,42 @@ def _build_control_cuda(model_config, assets_dir, data_meta=None, *, study_root,
     model = build_cuda(model_config, assets_dir, data_meta)
     model.meta['paired_repeat_admission' if kind == 'paired' else 'norm_scan_admission'] = admission
     return model
+
+
+def register_esp(study_root, *, admission_assets, kind) -> None:
+    """Bind full ESP policy/audit adapters after the native recipe source gate."""
+    from functools import partial
+    from pathlib import Path
+    from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+    from spec_mtp.structure.model.factory import ModelRegistry
+    from studies._shared.structure.esp_controls import NumericPolicyEval, ArgmaxEval, RevalidationEval
+    from studies._shared.structure.model import build_cuda
+    classes = {'policy': NumericPolicyEval, 'argmax': ArgmaxEval, 'revalidation': RevalidationEval}
+    if kind not in classes:
+        raise ValueError('unknown ESP execution policy')
+    runtime = Path(study_root).resolve(strict=True)
+    source = source_study_root(runtime)
+    if not (runtime/'study.yaml').is_file() or not (source/'study.yaml').is_file():
+        raise ValueError('ESP registration requires an explicit Study declaration')
+    execution = source.parents[1]
+    assets = Path(admission_assets).resolve()
+    assets.relative_to(runtime)
+    bound = type('BoundEspEval', (classes[kind],), {'study_root': runtime, 'execution_root': execution,
+        'baseline_root': execution/'studies/esp_table1_bf16_full_argmax'})
+    builder = partial(_build_esp_revalidation_cuda, study_root=runtime, execution_root=execution,
+                      admission_assets=assets) if kind == 'revalidation' else build_cuda
+    ModelRegistry.register('hf_causal', SOURCE, builder)
+    AlgorithmRegistry.register('eval', SOURCE, bound)
+
+
+def _build_esp_revalidation_cuda(model_config, assets_dir, data_meta=None, *, study_root, execution_root, admission_assets):
+    from studies._shared.structure.validation import check_source_refs
+    from studies._shared.structure.resource_admission import wait_for_admission
+    from studies._shared.structure.model import build_cuda
+    check_source_refs(study_root, execution_root)
+    admission = wait_for_admission(admission_assets, initial=True)
+    print('Initial host-RAM/GPU admission', json.dumps(admission), flush=True)
+    check_source_refs(study_root, execution_root)
+    model = build_cuda(model_config, assets_dir, data_meta)
+    model.meta['initial_resource_admission'] = admission
+    return model
