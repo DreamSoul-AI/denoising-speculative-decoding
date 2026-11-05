@@ -19,14 +19,16 @@ def test_language_rows_are_distributions_over_branching_successors():
             assert language[row[position - 2], row[position - 1], row[position]] > 0
 
 
-def test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only():
+def test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only(record_property):
+    assert torch.cuda.is_available(), 'pilot training requires real CUDA; no CPU fallback'
     config = json.loads(json.dumps(pilot.DEFAULT))
     config.update(content_vocab=8, max_new_tokens=6, trees=[{'num_masks': 2, 'branches': [3, 2]}])
     config['model'].update(hidden_size=16, intermediate_size=32, max_position_embeddings=64)
     config['train'].update(sequences=32, length=16, steps=3, batch=4)
     config['prompts'] = {'fit': 2, 'holdout': 2, 'cross': 2, 'length': 8}
     config['variants'] = [list(variant) for variant in pilot.SUFFIX]
-    result = pilot.run_seed(config, 5)
+    result = pilot.run_seed(config, 5, device='cuda:0')
+    record_property('cuda_device', torch.cuda.get_device_name(0))
     entry = result['trees'][0]
     assert set(entry['fit_grid']['esp_rejection']) == {'0.0', '0.25', '0.5', '0.75', '1.0'}
     for base in pilot.BASES:
@@ -47,9 +49,28 @@ def test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only():
             assert all(pair['incomparable'] == 0 for pair in pairs.values())
 
 
+@pytest.mark.parametrize('mode', ['correction', 'affine'])
+def test_tiny_correction_protocols_keep_fits_and_argmax_on_cuda(mode, record_property):
+    assert torch.cuda.is_available(), 'correction wiring requires real CUDA; no CPU fallback'
+    config = json.loads(json.dumps(pilot.DEFAULT))
+    config.update(content_vocab=8, max_new_tokens=4, variants=[], trees=[{'num_masks': 1, 'branches': [2]}])
+    config[mode] = True
+    config['model'].update(hidden_size=8, intermediate_size=16, num_hidden_layers=1, max_position_embeddings=64)
+    config['train'].update(sequences=16, length=12, steps=1, batch=2)
+    config['prompts'] = {'fit': 4, 'holdout': 1, 'cross': 1, 'length': 4}
+    result = pilot.run_seed(config, 5, device='cuda:0')
+    record_property('cuda_device', torch.cuda.get_device_name(0))
+    assert result['fit']['rows'] == 12
+    assert all(arm['argmax_all_passed'] and arm['ar_equal_all']
+               for split in result['trees'][0]['splits'].values() for arm in split['arms'].values())
+    if mode == 'affine':
+        assert all(torch.isfinite(torch.tensor(value)) for value in result['fit']['mse'].values())
+
+
 @pytest.mark.parametrize('tree', [{'num_masks': 1, 'branches': [3]}, {'num_masks': 2, 'branches': [3, 2]},
                                   {'num_masks': 3, 'branches': [2, 2, 2]}])
-def test_oracle_masks_accept_full_depth_after_prefill(tree):
+def test_oracle_masks_accept_full_depth_after_prefill(tree, record_property):
+    assert torch.cuda.is_available(), 'pilot oracle validation requires real CUDA; no CPU fallback'
     from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
     from spec_mtp.structure.algorithm.mask import build_mask_provider
     from spec_mtp.structure.model.hf_causal import HFCausalLM
@@ -58,8 +79,8 @@ def test_oracle_masks_accept_full_depth_after_prefill(tree):
     model = HFCausalLM(tiny_config={'vocab_size': 50, 'hidden_size': 32, 'intermediate_size': 64,
                                     'num_layers': 2, 'num_heads': 4, 'num_kv_heads': 2,
                                     'max_position_embeddings': 128})
-    model.hf.float()
-    prompt = torch.randint(0, 50, (1, 9), generator=torch.Generator().manual_seed(4))
+    model.hf.float().to('cuda:0')
+    prompt = torch.randint(0, 50, (1, 9), generator=torch.Generator().manual_seed(4)).to('cuda:0')
     eval_cfg = {'max_new_tokens': 25, 'temperature': 0.0, 'stop_on_eos': False}
     reference = ar_generate(model, prompt, eval_cfg)[0]
     spec = pilot.spec_for('esp', tree, 0.0)
@@ -72,8 +93,5 @@ def test_oracle_masks_accept_full_depth_after_prefill(tree):
     k = tree['num_masks']
     later = [len(row['accepted_nodes']) for row in stats['trace'][1:] if not row['stopped']]
     assert later and all(accepted == k for accepted in later)
-
-
-def test_output_inside_source_tree_is_rejected(tmp_path):
-    with pytest.raises(ValueError, match='outside the source tree'):
-        pilot.run(pilot.DEFAULT, pilot.Path(pilot.__file__).parent / 'never-created')
+    model.close()
+    record_property('cuda_device', torch.cuda.get_device_name(0))

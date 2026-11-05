@@ -6,9 +6,5 @@
   "studies/trajectory_observation/structure/bonus_aligned_gain.py [argparse]",
   "studies/trajectory_observation/structure/bonus_aligned_gain.py [main]",
   "studies/trajectory_observation/structure/output_hidden_kalman.py [argparse]",
-  "studies/trajectory_observation/structure/output_hidden_kalman.py [main]",
-  "studies/trajectory_observation/structure/pilot.py [argparse]",
-  "studies/trajectory_observation/structure/pilot.py [main]",
-  "studies/trajectory_observation/structure/preforward_signal.py [argparse]",
-  "studies/trajectory_observation/structure/preforward_signal.py [main]"
+  "studies/trajectory_observation/structure/output_hidden_kalman.py [main]"
 ]

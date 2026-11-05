@@ -86,3 +86,7 @@ trajectory的office三类命令集中于flow/execute/office.py，structure保留
 native训练恢复沿现有职责实现，不新建恢复框架：`algorithm/base.py` 分离只读 `load_resume` 与 `apply_resume`，`algorithm/resume.py` 负责持久化状态准入与RNG校验，`algorithm/train/` 先构造合同并准入、再应用；`system/factory.py` 的 `checkpoint_path` 与读取共用只读路径规则，保存仍由原System维护。`data/factory.py` 的 `validate_training_state` 纯校验v2数据状态，`data/resume.py` 维护游标及sampler/loader generator关系。测试在 `tests/spec_mtp/structure/{algorithm/train,data,system}/` 镜像，独立进程夹具只在测试内，不成为生产入口。当前分工对照远端RPipe main固定414ccb7的读取、准入、应用与原子快照机制，未复制其整套库或更改本仓旧编码。
 
 `flow/execute/fair_branch.py` 拥有原fair协议CLI与会话生命周期，`fresh_replace.py` 内的 `prepare_local_inputs` 供两条replacement flow共用本地输入预检，返回已解析的输入路径和绑定复核，不让各入口重新跟随原路径别名。`structure/fair_branch.py` 保留纯参数化的选择、校准和统计，移除main、固定模型路径与联网读件。默认pytest仍用现有prepend，入口镜像测试以 `test_fair_branch_entry.py`、`test_fresh_replace_entry.py` 区分同名结构测试。
+
+pilot与preforward_signal的CLI、输出发布及会话生命周期同样归各自 `flow/execute/`。pilot显式冻结本地config、计划SHA、源码和CUDA设备；structure保留合成数据、训练及各既有模式的数学。preforward复用本地模型/输入准入，固定81–208与128条校准模板，structure只接显式rows和设备，不猜模型目录。宿主mask拟合的辅助张量与输入device一致，不依赖默认CPU；不以搬目录改变公式。
+
+small_matrix的transfer/cross-prompt旧入口归并至现有 `flow/process/run.py`，仅新增离线命令协调；纯状态/槽位比较复用已有 `studies/_shared/structure/extension_diagnostics.py`。固定Git报告、实际报告和张量独立绑定，不执行归档源码或按当前manifest替换历史身份；新的工具来源另记。其余trajectory/window/plot消费者按各自真实输入继续整理，不复制整套历史脚本。

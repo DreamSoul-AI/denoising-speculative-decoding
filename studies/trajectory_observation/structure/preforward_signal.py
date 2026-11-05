@@ -6,25 +6,19 @@ The map is fit on the template prefix and scored on SpecBench 81-208.
 
 from __future__ import annotations
 
-import argparse
 import json
-from pathlib import Path
 import time
 
 import torch
-from transformers import AutoTokenizer
 
-from spec_mtp.structure.data.prompts import load_questions, render
+from spec_mtp.structure.data.prompts import render
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
 from spec_mtp.structure.algorithm.mask import (
     ESPMaskProvider, PreforwardSignalCollector, RIDGE_GRID, apply_lowrank_delta,
     centered_r2, fit_lowrank_delta,
 )
-from spec_mtp.structure.model.hf_causal import HFCausalLM
 
 
-ROOT = Path(__file__).resolve().parents[3]
-TEMP_ROOT = Path(r'D:\360安全浏览器下载\Agent\DreamSoul\temp')
 HEADS = (
     'Name the color of', 'A compiler turns', 'The Pacific Ocean is', 'After the rain',
     'Please sort these', 'An electron has', 'The word for cat in', 'When the loop ends',
@@ -38,10 +32,6 @@ TAILS = (
     'a single page', 'the right margin', 'two fresh copies', 'the last stop',
     'one plain box', 'the middle line',
 )
-MODELS = {
-    '4b': Path(r'D:\models\Qwen3-4B'),
-    '0.6b': ROOT / 'studies/input_mask_baseline/shared/model/modelscope/Qwen/Qwen3-0.6B',
-}
 FEATURES = ('z', 'expected', 'hidden', 'topk')
 PRIMARY = ('expected', 'hidden', 'topk')
 RANKS = (4, 16)
@@ -58,12 +48,14 @@ def templates():
     return texts
 
 
-def prompts_for(name):
+def prompts_for(name, rows=None):
     if name == 'calibration':
         return [{'qid': f'template-{index}', 'text': text} for index, text in enumerate(templates()[:128])]
     if name != 'specbench':
         raise ValueError(name)
-    rows = [row for row in load_questions(ROOT / 'datasets/spec_bench/question.jsonl')
+    if rows is None:
+        raise ValueError('SpecBench rows must be supplied explicitly')
+    rows = [row for row in rows
             if isinstance(row['question_id'], int) and 81 <= row['question_id'] <= 208]
     rows.sort(key=lambda row: row['question_id'])
     if [row['question_id'] for row in rows] != list(range(81, 209)):
@@ -76,19 +68,6 @@ def tree_spec():
             'tree': {'mode': 'static', 'branches': [4], 'pruning': True},
             'mask': {'init': 'mean_prompt', 'lam': 0.1, 'update': True}}
 
-
-def load_model(path):
-    model = HFCausalLM(str(path), local_files_only=True, torch_dtype='bfloat16', attn_implementation='eager')
-    model.hf.to('cuda')
-    original = model.forward
-
-    def forward(*args, **kwargs):
-        kwargs['last_hidden_only'] = True
-        return original(*args, **kwargs)
-
-    model.forward = forward
-    tokenizer = AutoTokenizer.from_pretrained(str(path), local_files_only=True)
-    return model, tokenizer
 
 
 def read_rows(path):
@@ -117,7 +96,7 @@ def run_prompts(model, prompts, tokens, path):
             if prompt['qid'] in done:
                 continue
             provider = PreforwardSignalCollector(ESPMaskProvider(1, model.embedding_table), model.embedding_table)
-            ids = render(tokenizer_of(model), prompt['text']).to('cuda')
+            ids = render(tokenizer_of(model), prompt['text']).to(model.device)
             started = time.perf_counter()
             _out, stats = SpecDecoder(model, spec, eval_cfg, mask_policy=provider).generate(ids)
             if not stats['verification_argmax_audit']['passed']:
@@ -236,8 +215,8 @@ def _score(train_blocks, test_blocks, fit, device):
     train_delta, train_error = _cat(train_blocks)
     test_delta, test_error = _cat(test_blocks)
     center = train_error.mean(dim=0)
-    train_pred = apply_lowrank_delta(train_delta.to(device), fit).cpu()
-    test_pred = apply_lowrank_delta(test_delta.to(device), fit).cpu()
+    train_pred = apply_lowrank_delta(train_delta.to(device), fit)
+    test_pred = apply_lowrank_delta(test_delta.to(device), fit)
     return {'train_r2': centered_r2(train_error, train_pred, center),
             'holdout_r2': centered_r2(test_error, test_pred, center),
             'rows_train': int(train_error.shape[0]), 'rows_holdout': int(test_error.shape[0])}
@@ -291,8 +270,8 @@ def _stratify(train_blocks, test_stored, feature, fit, device):
     blocks = _pairs(test_stored, feature)
     accepted = torch.cat(test_stored['accepted'])
     delta, error = _cat(blocks)
-    pred = apply_lowrank_delta(delta.to(device), fit).cpu()
-    out = {}
+    pred = apply_lowrank_delta(delta.to(device), fit)
+    out: dict[str, dict[str, float | int | None] | None] = {}
     for name, mask in (('accepted_0', accepted == 0), ('accepted_gt_0', accepted > 0)):
         if int(mask.sum()) < 2:
             out[name] = None
@@ -305,8 +284,10 @@ def _stratify(train_blocks, test_stored, feature, fit, device):
     return out
 
 
-def fit_and_summarize(calibration, holdout, output):
-    device = torch.device('cuda')
+def fit_and_summarize(calibration, holdout, output, device):
+    device = torch.device(device)
+    calibration, holdout = ({key: values if key == 'qid' else [value.to(device) for value in values]
+                             for key, values in stored.items()} for stored in (calibration, holdout))
     summary = {'protocol': 'preforward-signal-r2-v1', 'features': {}, 'scalars': _describe(holdout)}
     for feature in FEATURES:
         print(f'fit {feature}', flush=True)
@@ -338,25 +319,3 @@ def fit_and_summarize(calibration, holdout, output):
     (output / 'summary.json').write_text(json.dumps(summary), encoding='utf-8')
     print(json.dumps(summary['gate'], ensure_ascii=False), flush=True)
     return summary
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--model', choices=sorted(MODELS), required=True)
-    parser.add_argument('--output', type=Path, required=True)
-    args = parser.parse_args()
-    output = args.output.resolve()
-    if TEMP_ROOT.resolve() not in output.parents and output != TEMP_ROOT.resolve():
-        raise SystemExit(f'output must stay under {TEMP_ROOT}')
-    output.mkdir(parents=True, exist_ok=True)
-    model, tokenizer = load_model(MODELS[args.model])
-    model._preforward_tokenizer = tokenizer
-    calibration = run_prompts(model, prompts_for('calibration'), 24, output / 'calibration.jsonl')
-    holdout = run_prompts(model, prompts_for('specbench'), 64, output / 'specbench.jsonl')
-    if len(calibration['qid']) != 128 or len(holdout['qid']) != 128:
-        raise RuntimeError('collection did not cover 128 calibration and 128 SpecBench prompts')
-    fit_and_summarize(calibration, holdout, output)
-
-
-if __name__ == '__main__':
-    main()

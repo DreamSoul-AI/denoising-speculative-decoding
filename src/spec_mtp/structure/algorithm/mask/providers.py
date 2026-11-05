@@ -634,10 +634,10 @@ class VerifyCorrectionMaskProvider:
         if self._gram0 is not None:
             rhs0, a0, b0 = self._rhs0, self._A0, self._b0
             assert rhs0 is not None and a0 is not None and b0 is not None
-            self._gram = self._gram0.clone()
-            self._rhs = rhs0.clone()
-            self._A = a0.clone()
-            self._b = b0.clone()
+            self._gram = self._gram0.to(device=prompt_embeds.device).clone()
+            self._rhs = rhs0.to(device=prompt_embeds.device).clone()
+            self._A = a0.to(device=prompt_embeds.device).clone()
+            self._b = b0.to(device=prompt_embeds.device).clone()
         if self._U0 is not None:
             v0, b0 = self._V0, self._b0
             assert v0 is not None and b0 is not None
@@ -671,7 +671,7 @@ class VerifyCorrectionMaskProvider:
                 assert gram is not None and rhs is not None
                 self._gram = gram + row[:, None] * row[None, :]
                 self._rhs = rhs + row[:, None] * error.double()[None, :]
-                eye = torch.eye(self._gram.shape[0], dtype=torch.float64)
+                eye = torch.eye(self._gram.shape[0], dtype=row.dtype, device=row.device)
                 if self._ridge is None:
                     penalty = 1e-8 * eye
                 else:
@@ -726,7 +726,7 @@ class VerifyCorrectionMaskProvider:
         if self._A0 is not None:
             weight = self._A
             assert weight is not None
-            report['A_drift'] = float((weight.double() - self._A0.double()).pow(2).sum().sqrt())
+            report['A_drift'] = float((weight.double() - self._A0.to(device=weight.device).double()).pow(2).sum().sqrt())
         if self._U0 is not None:
             left, right, v0 = self._U, self._V, self._V0
             assert left is not None and right is not None and v0 is not None

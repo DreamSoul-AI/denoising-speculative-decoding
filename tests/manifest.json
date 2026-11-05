@@ -39,10 +39,17 @@
     },
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_oracle_masks_accept_full_depth_after_prefill",
-      "target": "studies.trajectory_observation",
+      "target": "studies.trajectory_observation.structure.pilot",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/spec_mtp/test_observation_blend.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
@@ -60,24 +67,31 @@
     },
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_language_rows_are_distributions_over_branching_successors",
-      "target": "studies.trajectory_observation",
+      "target": "studies.trajectory_observation.structure.pilot",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only",
-      "target": "studies.trajectory_observation",
+      "target": "studies.trajectory_observation.structure.pilot",
       "tags": [
-        "offline_cpu"
-      ]
-    },
-    {
-      "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_output_inside_source_tree_is_rejected",
-      "target": "studies.trajectory_observation",
-      "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/spec_mtp/test_observation_blend.py::test_zero_gain_is_the_trajectory_provider_token_for_token",
@@ -5707,6 +5721,314 @@
         "offline_cuda",
         "recovery_boundary"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_fit_recovers_known_map_and_residual_without_host_solve",
+      "target": "spec_mtp.structure.algorithm.mask.fit",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_ridge_selection_scores_prompt_folds_on_device",
+      "target": "spec_mtp.structure.algorithm.mask.fit",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_keeps_runtime_git_and_current_source_identities_separate",
+      "target": "studies.output_space_small_matrix.flow.process.run.analyze",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_rejects_missing_or_unbound_originals_without_output",
+      "target": "studies.output_space_small_matrix.flow.process.run.analyze",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_rejects_output_overlap_or_reuse",
+      "target": "studies.output_space_small_matrix.flow.process.run.analyze",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_rechecks_input_and_computation_sources_before_output",
+      "target": "studies.output_space_small_matrix.flow.process.run.analyze",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_never_falls_back_to_cpu",
+      "target": "studies.output_space_small_matrix.flow.process.run.analyze",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_cross_prompt_does_not_invent_missing_original_helper_identity",
+      "target": "studies.output_space_small_matrix.flow.process.run.analyze",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_rejects_optimized_python_before_reading_inputs",
+      "target": "studies.output_space_small_matrix.flow.process.run.analyze",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_cli_requires_explicit_history_input_device_and_output",
+      "target": "studies.output_space_small_matrix.flow.process.run.analyze",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_transfer_cuda_audit_preserves_propagation_and_committed_state_guards",
+      "target": "studies._shared.structure.extension_diagnostics",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_cross_prompt_cuda_audit_preserves_trace_state_and_margin_guards",
+      "target": "studies._shared.structure.extension_diagnostics",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_tensor_files_run_on_cuda_with_pinned_report_bindings",
+      "target": "studies.output_space_small_matrix.flow.process.run.analyze",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_entry_binds_local_protocol_inputs_and_records_device_without_old_matrix",
+      "target": "studies.trajectory_observation.flow.execute",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_entry_rejects_unbound_inputs_without_output_or_scientific_calls",
+      "target": "studies.trajectory_observation.flow.execute",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_pilot_configuration_rejects_ambiguous_or_invalid_protocol_before_work",
+      "target": "studies.trajectory_observation.flow.execute",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_entry_source_drift_does_not_publish_completion",
+      "target": "studies.trajectory_observation.flow.execute",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_pilot_missing_or_failed_correctness_audit_cannot_publish_completion",
+      "target": "studies.trajectory_observation.flow.execute",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_entry_requires_explicit_bindings_before_dispatch",
+      "target": "studies.trajectory_observation.flow.execute",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_pilot_source_identity_limits_git_trust_and_preserves_unknown_state",
+      "target": "studies.trajectory_observation.flow.execute",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_preforward_signal.py::test_preforward_fit_and_scores_use_cuda_tensors",
+      "target": "studies.trajectory_observation.structure.preforward_signal",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_correction_protocols_keep_fits_and_argmax_on_cuda",
+      "target": "studies.trajectory_observation.structure.pilot",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
     }
   ],
   "plans": {
@@ -5804,6 +6126,42 @@
         {
           "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_serialization_error_survives_a_second_stream_close_failure",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_fit_recovers_known_map_and_residual_without_host_solve",
+          "reason": "Requires actual CUDA training, fitting or saved tensor analysis; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_ridge_selection_scores_prompt_folds_on_device",
+          "reason": "Requires actual CUDA training, fitting or saved tensor analysis; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_transfer_cuda_audit_preserves_propagation_and_committed_state_guards",
+          "reason": "Requires actual CUDA training, fitting or saved tensor analysis; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_cross_prompt_cuda_audit_preserves_trace_state_and_margin_guards",
+          "reason": "Requires actual CUDA training, fitting or saved tensor analysis; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_tensor_files_run_on_cuda_with_pinned_report_bindings",
+          "reason": "Requires actual CUDA training, fitting or saved tensor analysis; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only",
+          "reason": "Requires actual CUDA training, fitting or saved tensor analysis; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_correction_protocols_keep_fits_and_argmax_on_cuda",
+          "reason": "Requires actual CUDA training, fitting or saved tensor analysis; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_oracle_masks_accept_full_depth_after_prefill",
+          "reason": "Requires actual CUDA training, fitting or saved tensor analysis; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/trajectory_observation/structure/test_preforward_signal.py::test_preforward_fit_and_scores_use_cuda_tensors",
+          "reason": "Requires actual CUDA training, fitting or saved tensor analysis; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -5921,7 +6279,23 @@
         "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_path_rejects_explicit_unpublished_staging_material",
         "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_path_rechecks_selected_bundle_for_unpublished_alias",
         "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_reads_the_resolved_input_bound_before_argument_alias_changes",
-        "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_entry_reads_the_resolved_input_bound_before_argument_alias_changes"
+        "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_entry_reads_the_resolved_input_bound_before_argument_alias_changes",
+        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_keeps_runtime_git_and_current_source_identities_separate",
+        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_rejects_missing_or_unbound_originals_without_output",
+        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_rejects_output_overlap_or_reuse",
+        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_rechecks_input_and_computation_sources_before_output",
+        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_never_falls_back_to_cpu",
+        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_cross_prompt_does_not_invent_missing_original_helper_identity",
+        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_rejects_optimized_python_before_reading_inputs",
+        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_cli_requires_explicit_history_input_device_and_output",
+        "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_entry_binds_local_protocol_inputs_and_records_device_without_old_matrix",
+        "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_entry_rejects_unbound_inputs_without_output_or_scientific_calls",
+        "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_pilot_configuration_rejects_ambiguous_or_invalid_protocol_before_work",
+        "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_entry_source_drift_does_not_publish_completion",
+        "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_pilot_missing_or_failed_correctness_audit_cannot_publish_completion",
+        "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_entry_requires_explicit_bindings_before_dispatch",
+        "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_pilot_source_identity_limits_git_trust_and_preserves_unknown_state",
+        "tests/studies/trajectory_observation/structure/test_pilot.py::test_language_rows_are_distributions_over_branching_successors"
       ],
       "exclude": []
     },
@@ -5951,7 +6325,16 @@
         "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_resume_preserves_stall_and_terminal_checkpoints_do_no_work",
         "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_checkpoint_failure_keeps_primary_error_when_tracker_cleanup_also_fails",
         "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch",
-        "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_serialization_error_survives_a_second_stream_close_failure"
+        "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_serialization_error_survives_a_second_stream_close_failure",
+        "tests/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_fit_recovers_known_map_and_residual_without_host_solve",
+        "tests/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_ridge_selection_scores_prompt_folds_on_device",
+        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_transfer_cuda_audit_preserves_propagation_and_committed_state_guards",
+        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_cross_prompt_cuda_audit_preserves_trace_state_and_margin_guards",
+        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_tensor_files_run_on_cuda_with_pinned_report_bindings",
+        "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_seed_keeps_ar_output_and_selects_gain_on_fit_prompts_only",
+        "tests/studies/trajectory_observation/structure/test_pilot.py::test_oracle_masks_accept_full_depth_after_prefill",
+        "tests/studies/trajectory_observation/structure/test_preforward_signal.py::test_preforward_fit_and_scores_use_cuda_tensors",
+        "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_correction_protocols_keep_fits_and_argmax_on_cuda"
       ],
       "exclude": []
     }

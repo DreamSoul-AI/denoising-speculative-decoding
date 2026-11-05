@@ -141,3 +141,109 @@ def analyze_saved_followup(report, data, tensors):
             'zero_accepted': data['per_prompt'][index]['cells']['output_order0']['accepted'],
             'one_accepted': data['per_prompt'][index]['cells']['output_order1']['accepted'], 'cases': cases})
     return findings
+
+
+def analyze_small_matrix_transfers(report, raw, old):
+    """Verify saved single-slot propagation and state comparisons without forwards."""
+    if not __debug__:
+        raise RuntimeError('saved tensor audit requires Python assertions enabled')
+    import torch
+    placebo = 'output_order1_from_output_order1'
+    assert next(c for c in report['cases'] if c['label'] == placebo)['replay']['placebo_full_semantic_equal']
+    findings = []
+    for case in report['cases']:
+        label, recipient, donor = case['label'], case['recipient'], case['donor']
+        sample = lambda root: raw[label + ':' + str(root)]
+        baseline = lambda root: raw[placebo + ':' + str(root)]
+        intervention = raw[label + ':intervention']
+        assert torch.equal(intervention['donor_vector'], old[donor + ':83']['current_masks'][0, 1])
+        assert torch.equal(sample(83)['seed_mask_inputs'], old[recipient + ':83']['seed_mask_inputs'])
+        edges = []
+        for source, destination, owner in [(83, 84, 0), (84, 86, 1)]:
+            assert torch.equal(sample(source)['current_mask_hidden'][owner], sample(destination)['current_state']['proxies'])
+            assert torch.equal(sample(source)['current_masks'][owner], sample(destination)['seed_mask_inputs'])
+            assert sample(destination)['source_root'] == source and sample(destination)['source_owner'] == owner
+            edges.append({'source_root': source, 'destination_root': destination, 'selected_owner': owner,
+                          'hidden_to_proxy_bit_identical': True, 'mask_to_seed_bit_identical': True})
+        states_equal, velocities_zero, deltas, windows = [], [], [], []
+        for root in report['targets']:
+            current = sample(root)['current_state']
+            ref = baseline(root)['current_state']
+            states_equal.append(all(torch.equal(current[k], ref[k]) for k in ('anchor', 'velocity')))
+            velocities_zero.append(bool(torch.count_nonzero(current['velocity']) == 0))
+            deltas.append({'root_position': root,
+                           'proxy0_L2_delta_vs_order1_placebo': float((current['proxies'][0] - ref['proxies'][0]).norm()),
+                           'proxy1_L2_delta_vs_order1_placebo': float((current['proxies'][1] - ref['proxies'][1]).norm())})
+        for root in (94, 97):
+            actual, original = sample(root), old[donor + ':' + str(root)]
+            windows.append({'root_position': root,
+                'first_seed_bit_identical_to_donor_order_baseline': torch.equal(actual['seed_mask_inputs'][0], original['seed_mask_inputs'][0]),
+                'first_seed_logit_max_abs_delta_vs_donor_baseline': float((actual['seed_logits'][0] - original['seed_logits'][0]).abs().max())})
+        if recipient == 'output_order1':
+            assert all(states_equal), 'committed anchor/velocity changed at a declared root'
+        else:
+            assert all(velocities_zero), 'order0 acquired committed velocity'
+        findings.append({'label': label, 'first_seed_at83_unchanged': True,
+            'transferred_vector_norm': float(intervention['donor_vector'].norm()),
+            'original_vector_norm': float(intervention['original_vector'].norm()),
+            'transfer_vector_L2_delta': float((intervention['donor_vector'] - intervention['original_vector']).norm()),
+            'propagation_edges': edges, 'proxy_deltas_vs_order1_placebo': deltas,
+            'anchor_and_velocity_bit_identical_to_order1_placebo_at_all_declared_roots': all(states_equal),
+            'committed_velocity_zero_at_all_declared_roots': all(velocities_zero),
+            'later_seed_comparisons': windows})
+    return findings
+
+
+def analyze_small_matrix_cross_prompt(report, tensors):
+    """Recheck preserved cross-prompt traces, propagation and null-hit conditions."""
+    if not __debug__:
+        raise RuntimeError('saved tensor audit requires Python assertions enabled')
+    import torch
+    findings = []
+    for prompt in report['prompts']:
+        qid, root = prompt['question_id'], prompt['intervention_root']
+        baselines = {b['case']: b for b in prompt['baselines']}
+        for case in prompt['cases']:
+            label, recipient, donor = case['label'], case['recipient'], case['donor']
+            sample = lambda r: tensors[f'q{qid}:{label}:{r}']
+            baseline = lambda r: tensors[f'q{qid}:baseline:{recipient}:{r}']
+            donor_baseline = tensors[f'q{qid}:baseline:{donor}:{root}']
+            assert torch.equal(sample(root)['current_masks'][0, 1], donor_baseline['current_masks'][0, 1])
+            assert torch.equal(sample(root)['current_masks'][0, 0], baseline(root)['current_masks'][0, 0])
+            assert torch.equal(sample(root)['current_masks'][1:], baseline(root)['current_masks'][1:])
+            actual_trace = case['replay']['trace']
+            prior_trace = baselines[recipient]['trace']
+            keys = ('root_position', 'cache_before', 'cache_after', 'accepted_nodes', 'committed_tokens', 'stopped')
+            semantic_equal = [{k: t[k] for k in keys} for t in actual_trace] == [{k: t[k] for k in keys} for t in prior_trace]
+            assert semantic_equal and not case['matched_acceptance_changes'] and not case['replay']['unvisited_targets']
+            edges = []
+            start = next(i for i, t in enumerate(actual_trace) if t['root_position'] == root)
+            for source, destination in zip(actual_trace[start:start + 2], actual_trace[start + 1:start + 3]):
+                a, b = source['root_position'], destination['root_position']
+                owner = source['accepted_nodes'][-1] if source['accepted_nodes'] else 0
+                assert torch.equal(sample(a)['current_mask_hidden'][owner], sample(b)['current_state']['proxies'])
+                assert torch.equal(sample(a)['current_masks'][owner], sample(b)['seed_mask_inputs'])
+                edges.append({'source_root': a, 'destination_root': b, 'owner': owner,
+                              'hidden_to_proxy_bit_equal': True, 'mask_to_seed_bit_equal': True})
+            changed_seeds = changed_proxies = 0
+            max_margin_delta = 0.
+            for window in case['windows']:
+                r = window['root_position']
+                a, b = sample(r), baseline(r)
+                for state in ('anchor', 'velocity', 'proxies'):
+                    bit_equal = torch.equal(a['current_state'][state], b['current_state'][state])
+                    assert bit_equal == window['states'][state]['bit_equal']
+                    if state != 'proxies':
+                        assert bit_equal, 'same-position committed state differs in this measured batch'
+                changed_proxies += not window['states']['proxies']['bit_equal']
+                changed_seeds += not torch.equal(a['seed_mask_inputs'][0], b['seed_mask_inputs'][0])
+                delta = window['first_slot']['target_margin_vs_best_other'] - window['baseline_first_slot']['target_margin_vs_best_other']
+                max_margin_delta = max(max_margin_delta, abs(delta))
+                assert (window['first_slot']['target_margin_vs_best_other'] > 0) == (window['baseline_first_slot']['target_margin_vs_best_other'] > 0)
+            findings.append({'question_id': qid, 'label': label, 'semantic_trace_bit_equal': True,
+                'matched_windows': len(case['windows']), 'committed_anchor_and_velocity_bit_equal_all_windows': True,
+                'changed_first_seed_vectors': int(changed_seeds), 'changed_incoming_proxy_pairs': int(changed_proxies),
+                'max_abs_target_margin_delta': max_margin_delta, 'target_margin_sign_changed_windows': 0,
+                'accepted': case['replay']['stats']['accepted'], 'decode_calls': case['replay']['stats']['decode_calls'],
+                'propagation_edges': edges, 'terminal_after_first_shared_hit': actual_trace[start + 1]['stopped']})
+    return findings

@@ -2,16 +2,16 @@
 更新日期：2026年11月5日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-继续 `codex/structure-cleanup-20261105` 并更新 PR 106。远端必需状态阻断合并时继续工程整理，不修改规则或伪造状态。本轮比较基线为上一轮 `36a74db`，算法、默认参数、历史输入和冻结观测合同保持。结构参考限定远端RPipe main固定提交 `414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6` 的已读文件，不以本机其它checkout作参考。
+继续 `codex/structure-cleanup-20261105` 并更新 PR 106。远端必需状态阻断合并时继续工程整理，不修改规则或伪造状态。本轮比较基线为上一轮 `7692397`，算法、默认参数、历史输入和冻结观测合同保持。远端RPipe main重新核对仍为 `414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6`；只采用已读文件的结构与输入身份原则，不以本机其它checkout作参考。
 
-本轮约30分钟顺序为：4分钟核规范、远端来源与CUDA；10分钟完成epoch/早停的独立进程对照和必要修复；7分钟处理checkpoint提交前后写入故障；4分钟整理fair_branch旧入口；5分钟完成干净提交两计划、记录和同分支推送。验收分别核连续/恢复状态与停止位置、旧bundle保全及失败终态、显式输入与新输出根、当前HEAD逐项结果。此处是工程任务，不新增科学Study。
+本轮约30分钟顺序为：4分钟核规范、远端来源与CUDA；10分钟整理pilot/preforward_signal的flow入口与显式运行绑定；7分钟归并有直接依赖关系的transfer/cross-prompt历史分析入口；4分钟同步文档和交叉审查；5分钟完成干净提交两计划、记录和同分支推送。验收核冻结协议不变、实际训练/拟合使用CUDA、显式本地输入/计划SHA/新输出根、历史原件保全及当前HEAD逐项结果。此处是工程任务，不新增科学Study，不运行旧默认1500步训练或真实研究权重。
 
 # 二、六类核对与落实
 | **类别** | **本轮处理** | **仍需完成的具体差距** |
 | --- | --- | --- |
-| 目录结构 | 删除四个 API facade，构建直接调用既有工厂，真实 tracker 装配归 algorithm/tracker.py；删除九个纯诊断再导出 | 70 个顶层遗留文件、12 条 structure 命令记录尚未迁完；父包 structure/control 仍有间接装配链 |
+| 目录结构 | 删除四个 API facade，构建直接调用既有工厂，真实 tracker 装配归 algorithm/tracker.py；删除九个纯诊断再导出 | 68 个顶层遗留文件、8 条 structure 命令记录尚未迁完；父包 structure/control 仍有间接装配链 |
 | 配置与支持版本 | 文件 SHA256 统一使用 provenance.file_sha256 的有界流式读取，去除 Python 3.11 专属 file_digest 依赖 | Python 3.10 尚未实机运行，test_package 的 tomllib importorskip 会阻断该版本的严格计划，需确定测试兼容策略；不可据模拟缺 API 测试声称全版本支持 |
-| 入口脚本 | 共用launch_once委托sharedCLI，重验证先预检再载validator；独立worker固定import根、source/plan检查，生成PS1保存资源分配与退出码，默认无盲重试 | fresh、office及fair_branch已入flow，显式输入/计划/新输出，fair/fresh共用resolved输入绑定；pilot等legacy命令仍待按协议迁移，盘符清单4项不涵盖所有拼接路径 |
+| 入口脚本 | 共用launch_once委托sharedCLI，重验证先预检再载validator；独立worker固定import根、source/plan检查，生成PS1保存资源分配与退出码，默认无盲重试 | fresh、office、fair及pilot/preforward已入flow；真实模型共用resolved输入绑定，synthetic config显式冻结。其余legacy命令仍待迁移，盘符清单2项不涵盖所有拼接路径 |
 | 日志与输出 | 新诊断 JSONL 与安全单行呈现，旧文本只读；status/logs/report 统一实际路径与时序 | report 已要求外部新目标且只读检查；output_space_extension 离线槽位分析改显式输入/输出并独占创建。新增显式外部 Study 根，白名单快照与原源双校验，全部 runs/shared/docs/index/锁留运行根；轮转/保留及日志故障隔离未完成 |
 | 测试 | 新增行为和失败用例逐项登记，归细已迁测试的 target 与部分 unit 层级，静态直接反向导入清单归零 | 其余用例仍大量继承 integration，target 较宽；read_plan 尚未完整核枚举与成本/资源语义，需逐用例复核，不能只以字段存在认定合规 |
 | 文档 | 研究计划补三项既有 Study 的问题/边界/恢复条件，以及新设计接入前的选择与判读；同步当前设计和日期记录 | 提供固定 Git 原件只读接口，槽位与followup分析已迁入两柱；其余完整分析器仍依赖旧工具/计划映射，原 helper 身份存在未知，不能替换路径冒充同一来源 |
@@ -23,7 +23,7 @@
 2. 遗留模块：按消费者归并其余再导出与重复助手，分离 Study 组成和命令。保留来源字节，legacy 只减，CLI help 与单项测试可独立运行
 3. 测试合同：明确 Python 3.10 的测试依赖策略，逐项复核 level/target/成本及严格清单枚举，不能跳过必需项换取通过
 4. 日志可靠性：确定实际容量与保留要求，隔离诊断落盘故障和正式科学终态，保留首错及追加失败，不吞错或让日志代替结果
-5. 其它入口与分析器：继续迁移pilot/preforward_signal等专用入口，按消费者整理其余历史分析器；不启动旧矩阵。
+5. 其它入口与分析器：继续迁移bonus_aligned_gain/output_hidden_kalman等专用入口；small_matrix的transfer/cross-prompt已归现有flow/shared，继续核trajectory/window/plot四个读端的各自输入合同，不启动旧矩阵。实际来源缺失先保留未知，不拿当前源码替代。
 
 # 四、交付边界
 每轮 20–30 分钟，以当前 HEAD 的快速单元与有界 CUDA 验证、静态检查和审查证据更新同一 PR。保留平台实际分支保护，本轮不再尝试合并，不启用 autoMerge、Actions，不修改 workflow、设置或规则。

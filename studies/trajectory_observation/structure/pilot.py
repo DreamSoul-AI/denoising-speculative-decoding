@@ -1,19 +1,15 @@
-"""CPU synthetic check of trajectory-observation-blend-v1.
+"""Synthetic check of trajectory-observation-blend-v1.
 
-A tiny tied LLaMA is trained on CPU on two synthetic order-2 Markov languages
+A tiny tied LLaMA is trained on an explicit CUDA device on two synthetic order-2 Markov languages
 that share one vocabulary. The joint gain is chosen on language-A fit prompts
 only, frozen, and reported on held-out A prompts and on language-B prompts.
 This is a synthetic engineering pilot, not a real-model or speed result.
 
-Usage: python -m studies.trajectory_observation.structure.pilot --output <new dir outside the repo>
+Command orchestration: studies.trajectory_observation.flow.execute.pilot
 """
 
 from __future__ import annotations
 
-import argparse
-import hashlib
-import json
-import platform
 import subprocess
 import time
 from pathlib import Path
@@ -68,20 +64,24 @@ def sample(language, marker, count, length, generator):
     return rows
 
 
-def train_model(config, data, seed):
+def train_model(config, data, seed, device='cuda:0'):
     from transformers import LlamaConfig, LlamaForCausalLM
 
     train = config['train']
-    with torch.random.fork_rng(devices=[]):
+    device = torch.device(device)
+    if device.type != 'cuda' or not torch.cuda.is_available() or device.index is None:
+        raise ValueError('pilot training requires an explicit available CUDA device')
+    with torch.random.fork_rng(devices=[device.index]):
         torch.manual_seed(seed)
-        native = LlamaForCausalLM(LlamaConfig(vocab_size=config['content_vocab'] + 2, tie_word_embeddings=True,
-                                              attn_implementation='eager', **config['model']))
+        model_config = LlamaConfig(vocab_size=config['content_vocab'] + 2, tie_word_embeddings=True, **config['model'])
+        model_config._attn_implementation = 'eager'
+        native = LlamaForCausalLM(model_config).to(device)
         optimizer = torch.optim.AdamW(native.parameters(), lr=train['lr'], weight_decay=0.0)
         schedule = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, train['steps'])
         native.train()
         losses = []
         for step in range(train['steps']):
-            batch = data[torch.randint(0, data.shape[0], (train['batch'],))]
+            batch = data[torch.randint(0, data.shape[0], (train['batch'],))].to(device)
             loss = native(input_ids=batch, labels=batch).loss
             optimizer.zero_grad()
             loss.backward()
@@ -251,21 +251,21 @@ def _merge_trees(result, session, config, prompts, references):
     return result
 
 
-def _fit_pairs(session, config, sequences, base):
+def _fit_pairs(session, config, sequences, base) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     spec = spec_for(base, {'num_masks': 1, 'branches': [1]}, 0.0)
     prompt_len = config['prompts']['length']
     predicted, observed, target = [], [], []
     for seq in sequences:
-        embeds = session.embed(seq)[0]
+        embeds = session.embed(seq.to(session.device))[0]
         if embeds.size(0) <= prompt_len + 1:
             continue
         policy = build_mask_provider(spec, session.embedding_table)
         policy.init_from_prompt(embeds[:prompt_len])
         policy.on_token_committed(embeds[prompt_len], embeds[prompt_len - 1])
         for index in range(prompt_len + 1, embeds.size(0)):
-            predicted.append(policy.masks()[0].detach().float().cpu())
-            observed.append(embeds[index - 1].detach().float().cpu())
-            target.append(embeds[index].detach().float().cpu())
+            predicted.append(policy.masks()[0].detach().float())
+            observed.append(embeds[index - 1].detach().float())
+            target.append(embeds[index].detach().float())
             policy.on_token_committed(embeds[index], embeds[index - 1])
     return torch.stack(predicted), torch.stack(observed), torch.stack(target)
 
@@ -277,7 +277,7 @@ def _correction_trees(result, session, config, prompts, references):
     fits = {kind: fit_mask_correction(predicted, observed, target, kind) for kind in ('scalar', 'diagonal', 'affine')}
     result['fit'] = {'rows': int(predicted.shape[0]),
                      'scalar_k': fits['scalar']['k'],
-                     'diagonal_mean': float(torch.tensor(fits['diagonal']['k']).mean())}
+                     'diagonal_mean': float(torch.tensor(fits['diagonal']['k'], device=session.device).mean())}
     arms = {
         'esp_trajectory': ( 'esp', None),
         'ema_trajectory': ('ema', None),
@@ -309,8 +309,8 @@ def _correction_trees(result, session, config, prompts, references):
 
 def _affine_mse(m_hat, z, target, fit):
     delta = z.double() - m_hat.double()
-    weight = torch.tensor(fit['A'], dtype=torch.float64)
-    bias = torch.tensor(fit['b'], dtype=torch.float64)
+    weight = torch.tensor(fit['A'], dtype=torch.float64, device=m_hat.device)
+    bias = torch.tensor(fit['b'], dtype=torch.float64, device=m_hat.device)
     prediction = m_hat.double() + delta @ weight.T + bias
     return float((prediction - target.double()).pow(2).mean())
 
@@ -320,7 +320,7 @@ def _fit_blocks(session, config, sequences):
     prompt_len = config['prompts']['length']
     blocks = []
     for seq in sequences:
-        embeds = session.embed(seq)[0]
+        embeds = session.embed(seq.to(session.device))[0]
         if embeds.size(0) <= prompt_len + 1:
             continue
         policy = build_mask_provider(spec, session.embedding_table)
@@ -328,9 +328,9 @@ def _fit_blocks(session, config, sequences):
         policy.on_token_committed(embeds[prompt_len], embeds[prompt_len - 1])
         predicted, observed, target = [], [], []
         for index in range(prompt_len + 1, embeds.size(0)):
-            predicted.append(policy.masks()[0].detach().float().cpu())
-            observed.append(embeds[index - 1].detach().float().cpu())
-            target.append(embeds[index].detach().float().cpu())
+            predicted.append(policy.masks()[0].detach().float())
+            observed.append(embeds[index - 1].detach().float())
+            target.append(embeds[index].detach().float())
             policy.on_token_committed(embeds[index], embeds[index - 1])
         blocks.append((torch.stack(predicted), torch.stack(observed), torch.stack(target)))
     return blocks
@@ -348,8 +348,10 @@ def _ridge_trees(result, session, config, prompts, references):
         'eval_b': _fit_blocks(session, config, [references[qid] for qid, _prompt in prompts['eval_b']]),
     }
 
-    def stacked(blocks):
-        return tuple(torch.cat([block[axis] for block in blocks], dim=0) for axis in range(3))
+    def stacked(blocks) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        return (torch.cat([block[0] for block in blocks], dim=0),
+                torch.cat([block[1] for block in blocks], dim=0),
+                torch.cat([block[2] for block in blocks], dim=0))
 
     result['fit'] = {
         'rows': fit['rows'], 'prompts': fit['prompts'], 'hidden': hidden,
@@ -422,7 +424,7 @@ def _affine_trees(result, session, config, prompts, references):
     return result
 
 
-def run_seed(config, seed):
+def run_seed(config, seed, device='cuda:0'):
     generator = torch.Generator().manual_seed(seed)
     content = config['content_vocab']
     lang_a = make_language(content, config['branching'], config['sharpness'], generator)
@@ -432,73 +434,77 @@ def run_seed(config, seed):
     data = torch.cat([sample(lang_a, content, half, train['length'], generator),
                       sample(lang_b, content + 1, half, train['length'], generator)])
     started = time.perf_counter()
-    session, losses = train_model(config, data, seed)
+    session, losses = train_model(config, data, seed, device)
     train_seconds = time.perf_counter() - started
-    plan = config['prompts']
-    if config.get('affine_ridge'):
-        count = plan['fit']
-        splits = {'fit_a': sample(lang_a, content, count, plan['length'], generator),
-                  'fit_b': sample(lang_b, content + 1, count, plan['length'], generator),
-                  'eval_a': sample(lang_a, content, count, plan['length'], generator),
-                  'eval_b': sample(lang_b, content + 1, count, plan['length'], generator)}
-    else:
-        splits = {'fit': sample(lang_a, content, plan['fit'], plan['length'], generator),
-                  'holdout': sample(lang_a, content, plan['holdout'], plan['length'], generator),
-                  'cross': sample(lang_b, content + 1, plan['cross'], plan['length'], generator)}
-    prompts = {name: [(f'{name}-{index}', rows[index:index + 1]) for index in range(rows.shape[0])]
-               for name, rows in splits.items()}
-    eval_cfg = {'max_new_tokens': config['max_new_tokens'], 'temperature': 0.0, 'stop_on_eos': False}
-    references = {qid: ar_generate(session, prompt, eval_cfg)[0]
-                  for split in prompts.values() for qid, prompt in split}
-    result = {'seed': seed, 'train_losses': losses, 'train_seconds': train_seconds, 'trees': []}
-    if config.get('bonus_slot'):
-        return _bonus_trees(result, session, config, prompts, references)
-    if config.get('kalman_align'):
-        return _align_trees(result, session, config, prompts, references)
-    if config.get('kalman_merge'):
-        return _merge_trees(result, session, config, prompts, references)
-    if config.get('kalman'):
-        return _kalman_trees(result, session, config, prompts, references)
-    if config.get('correction'):
-        return _correction_trees(result, session, config, prompts, references)
-    if config.get('affine_ridge'):
-        return _ridge_trees(result, session, config, prompts, references)
-    if config.get('affine'):
-        return _affine_trees(result, session, config, prompts, references)
-    for tree in config['trees']:
-        entry = {'tree': tree, 'fit_grid': {}, 'selected_gain': {}, 'splits': {}}
-        variants = [tuple(variant) for variant in config['variants']]
-        for base in BASES:
-            trajectory = pooled(arm_rows(session, base, tree, 0.0, prompts['fit'], config, references))
-            for form, condition in variants:
-                key = f'{base}{SUFFIX[form, condition] or "_none"}'
-                grid = {'0.0': trajectory}
-                for gain in (*JOINT_GAINS, 1.0):
-                    grid[str(gain)] = pooled(arm_rows(session, base, tree, gain, prompts['fit'], config,
-                                                      references, condition, form))
-                entry['fit_grid'][key] = grid
-                entry['selected_gain'][key] = max(JOINT_GAINS, key=lambda g: (grid[str(g)]['tau'], -g))
-        for split in ('holdout', 'cross'):
-            arms, raw = {}, {}
+    try:
+        plan = config['prompts']
+        if config.get('affine_ridge'):
+            count = plan['fit']
+            splits = {'fit_a': sample(lang_a, content, count, plan['length'], generator),
+                      'fit_b': sample(lang_b, content + 1, count, plan['length'], generator),
+                      'eval_a': sample(lang_a, content, count, plan['length'], generator),
+                      'eval_b': sample(lang_b, content + 1, count, plan['length'], generator)}
+        else:
+            splits = {'fit': sample(lang_a, content, plan['fit'], plan['length'], generator),
+                      'holdout': sample(lang_a, content, plan['holdout'], plan['length'], generator),
+                      'cross': sample(lang_b, content + 1, plan['cross'], plan['length'], generator)}
+        prompts = {name: [(f'{name}-{index}', rows[index:index + 1]) for index in range(rows.shape[0])]
+                   for name, rows in splits.items()}
+        eval_cfg = {'max_new_tokens': config['max_new_tokens'], 'temperature': 0.0, 'stop_on_eos': False}
+        references = {qid: ar_generate(session, prompt, eval_cfg)[0]
+                      for split in prompts.values() for qid, prompt in split}
+        result = {'seed': seed, 'train_losses': losses, 'train_seconds': train_seconds, 'trees': []}
+        if config.get('bonus_slot'):
+            return _bonus_trees(result, session, config, prompts, references)
+        if config.get('kalman_align'):
+            return _align_trees(result, session, config, prompts, references)
+        if config.get('kalman_merge'):
+            return _merge_trees(result, session, config, prompts, references)
+        if config.get('kalman'):
+            return _kalman_trees(result, session, config, prompts, references)
+        if config.get('correction'):
+            return _correction_trees(result, session, config, prompts, references)
+        if config.get('affine_ridge'):
+            return _ridge_trees(result, session, config, prompts, references)
+        if config.get('affine'):
+            return _affine_trees(result, session, config, prompts, references)
+        for tree in config['trees']:
+            entry = {'tree': tree, 'fit_grid': {}, 'selected_gain': {}, 'splits': {}}
+            variants = [tuple(variant) for variant in config['variants']]
             for base in BASES:
-                plan_arms = [('trajectory', 0.0, 'none', 'mean')]
+                trajectory = pooled(arm_rows(session, base, tree, 0.0, prompts['fit'], config, references))
                 for form, condition in variants:
-                    suffix = SUFFIX[form, condition]
-                    gain = entry['selected_gain'][f'{base}{suffix or "_none"}']
-                    plan_arms += [(f'observation{suffix}', 1.0, condition, form),
-                                  (f'joint{suffix}', gain, condition, form)]
-                for name, gain, condition, form in plan_arms:
-                    rows = arm_rows(session, base, tree, gain, prompts[split], config, references, condition, form)
-                    raw[f'{base}_{name}'] = rows
-                    arms[f'{base}_{name}'] = {**pooled(rows), 'gain': gain, 'condition': condition, 'form': form}
-            entry['splits'][split] = {
-                'arms': arms, 'rows': raw,
-                'paired_vs_esp_trajectory': {name: paired(raw[name], raw['esp_trajectory'])
-                                             for name in raw if name != 'esp_trajectory'},
-                'paired_vs_own_trajectory': {name: paired(raw[name], raw[name.split('_')[0] + '_trajectory'])
-                                             for name in raw if not name.endswith('_trajectory')}}
-        result['trees'].append(entry)
-    return result
+                    key = f'{base}{SUFFIX[form, condition] or "_none"}'
+                    grid = {'0.0': trajectory}
+                    for gain in (*JOINT_GAINS, 1.0):
+                        grid[str(gain)] = pooled(arm_rows(session, base, tree, gain, prompts['fit'], config,
+                                                          references, condition, form))
+                    entry['fit_grid'][key] = grid
+                    entry['selected_gain'][key] = max(JOINT_GAINS, key=lambda g: (grid[str(g)]['tau'], -g))
+            for split in ('holdout', 'cross'):
+                arms, raw = {}, {}
+                for base in BASES:
+                    plan_arms = [('trajectory', 0.0, 'none', 'mean')]
+                    for form, condition in variants:
+                        suffix = SUFFIX[form, condition]
+                        gain = entry['selected_gain'][f'{base}{suffix or "_none"}']
+                        plan_arms += [(f'observation{suffix}', 1.0, condition, form),
+                                      (f'joint{suffix}', gain, condition, form)]
+                    for name, gain, condition, form in plan_arms:
+                        rows = arm_rows(session, base, tree, gain, prompts[split], config, references, condition, form)
+                        raw[f'{base}_{name}'] = rows
+                        arms[f'{base}_{name}'] = {**pooled(rows), 'gain': gain, 'condition': condition, 'form': form}
+                entry['splits'][split] = {
+                    'arms': arms, 'rows': raw,
+                    'paired_vs_esp_trajectory': {name: paired(raw[name], raw['esp_trajectory'])
+                                                 for name in raw if name != 'esp_trajectory'},
+                    'paired_vs_own_trajectory': {name: paired(raw[name], raw[name.split('_')[0] + '_trajectory'])
+                                                 for name in raw if not name.endswith('_trajectory')}}
+            result['trees'].append(entry)
+        return result
+
+    finally:
+        session.close()
 
 
 class OracleMaskProvider:
@@ -538,7 +544,7 @@ class OracleMaskProvider:
         return owners
 
 
-def run_oracle(config, seed):
+def run_oracle(config, seed, device='cuda:0'):
     """Trajectory versus oracle masks on the same model, prompts and trees as run_seed."""
     generator = torch.Generator().manual_seed(seed)
     content = config['content_vocab']
@@ -548,153 +554,54 @@ def run_oracle(config, seed):
     half = train['sequences'] // 2
     data = torch.cat([sample(lang_a, content, half, train['length'], generator),
                       sample(lang_b, content + 1, half, train['length'], generator)])
-    session, losses = train_model(config, data, seed)
-    plan = config['prompts']
-    sample(lang_a, content, plan['fit'], plan['length'], generator)
-    splits = {'holdout': sample(lang_a, content, plan['holdout'], plan['length'], generator),
-              'cross': sample(lang_b, content + 1, plan['cross'], plan['length'], generator)}
-    eval_cfg = {'max_new_tokens': config['max_new_tokens'], 'temperature': 0.0, 'stop_on_eos': False}
-    result = {'seed': seed, 'train_losses': losses, 'trees': []}
-    for tree in config['trees']:
-        entry = {'tree': tree, 'splits': {}}
-        for split, rows in splits.items():
-            arms = {}
-            for name, first_slot in (('esp_trajectory', None), ('esp_oracle', 0), ('esp_oracle_after_bonus', 1)):
-                if first_slot is not None and first_slot >= tree['num_masks']:
-                    continue
-                out = []
-                for index in range(rows.shape[0]):
-                    prompt = rows[index:index + 1]
-                    reference = ar_generate(session, prompt, eval_cfg)[0]
-                    spec = spec_for('esp', tree, 0.0)
-                    provider = build_mask_provider(spec, session.embedding_table)
-                    if first_slot is not None:
-                        provider = OracleMaskProvider(provider, session.embedding_table,
-                                                      reference[0, prompt.shape[1]:].tolist(), first_slot)
-                    decoder = SpecDecoder(session, spec, eval_cfg, generator=torch.Generator().manual_seed(0),
-                                          mask_policy=provider)
-                    output, stats = decoder.generate(prompt)
-                    out.append({'qid': f'{split}-{index}', 'accepted': stats['accepted'],
-                                'committed': stats['committed'], 'decode_calls': stats['decode_calls'],
-                                'new_tokens': stats['new_tokens'], 'rounds': round_split(stats['trace']),
-                                'argmax_passed': stats['verification_argmax_audit']['passed'],
-                                'ar_equal': bool(torch.equal(output, reference))})
-                arms[name] = {**pooled(out), 'rows': out}
-            entry['splits'][split] = arms
-        result['trees'].append(entry)
-    return result
+    session, losses = train_model(config, data, seed, device)
+    try:
+        plan = config['prompts']
+        sample(lang_a, content, plan['fit'], plan['length'], generator)
+        splits = {'holdout': sample(lang_a, content, plan['holdout'], plan['length'], generator),
+                  'cross': sample(lang_b, content + 1, plan['cross'], plan['length'], generator)}
+        eval_cfg = {'max_new_tokens': config['max_new_tokens'], 'temperature': 0.0, 'stop_on_eos': False}
+        result = {'seed': seed, 'train_losses': losses, 'trees': []}
+        for tree in config['trees']:
+            entry = {'tree': tree, 'splits': {}}
+            for split, rows in splits.items():
+                arms = {}
+                for name, first_slot in (('esp_trajectory', None), ('esp_oracle', 0), ('esp_oracle_after_bonus', 1)):
+                    if first_slot is not None and first_slot >= tree['num_masks']:
+                        continue
+                    out = []
+                    for index in range(rows.shape[0]):
+                        prompt = rows[index:index + 1]
+                        reference = ar_generate(session, prompt, eval_cfg)[0]
+                        spec = spec_for('esp', tree, 0.0)
+                        provider = build_mask_provider(spec, session.embedding_table)
+                        if first_slot is not None:
+                            provider = OracleMaskProvider(provider, session.embedding_table,
+                                                          reference[0, prompt.shape[1]:].tolist(), first_slot)
+                        decoder = SpecDecoder(session, spec, eval_cfg, generator=torch.Generator().manual_seed(0),
+                                              mask_policy=provider)
+                        output, stats = decoder.generate(prompt)
+                        out.append({'qid': f'{split}-{index}', 'accepted': stats['accepted'],
+                                    'committed': stats['committed'], 'decode_calls': stats['decode_calls'],
+                                    'new_tokens': stats['new_tokens'], 'rounds': round_split(stats['trace']),
+                                    'argmax_passed': stats['verification_argmax_audit']['passed'],
+                                    'ar_equal': bool(torch.equal(output, reference))})
+                    arms[name] = {**pooled(out), 'rows': out}
+                entry['splits'][split] = arms
+            result['trees'].append(entry)
+        return result
+
+    finally:
+        session.close()
 
 
 def source_identity():
     root = Path(__file__).resolve().parents[3]
+    command = ['git', '-c', 'safe.directory=' + str(root), '-C', str(root)]
     try:
-        head = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True, timeout=20).strip()
-        dirty = bool(subprocess.check_output(['git', '-C', str(root), 'status', '--porcelain'], text=True,
+        head = subprocess.check_output([*command, 'rev-parse', 'HEAD'], text=True, timeout=20).strip()
+        dirty = bool(subprocess.check_output([*command, 'status', '--porcelain'], text=True,
                                              timeout=20).strip())
     except (OSError, subprocess.SubprocessError):
         head, dirty = None, None
     return {'git_head': head, 'dirty': dirty}
-
-
-def run(config, output, oracle=False):
-    output = Path(output)
-    root = Path(__file__).resolve().parents[3]
-    if output.resolve().is_relative_to(root):
-        raise ValueError('pilot output must stay outside the source tree')
-    output.mkdir(parents=True, exist_ok=False)
-    bonus_mode = config.get('bonus_slot')
-    protocol = ({'hard': 'bonus-slot-hard-v1', 'topk': 'bonus-slot-topk-v1'}.get(bonus_mode) if bonus_mode
-                else 'online-aligned-kalman-v1' if config.get('kalman_align')
-                else 'online-trajectory-kalman-v1' if config.get('kalman_merge')
-                else 'kalman-mask-scalar-v1' if config.get('kalman')
-                else 'trajectory-verify-correction-v1' if config.get('correction')
-                else 'trajectory-verify-affine-ridge-v1' if config.get('affine_ridge')
-                else 'trajectory-verify-affine-v1' if config.get('affine')
-                else PROTOCOL + ('-oracle-bound' if oracle else ''))
-    header = {'protocol': protocol,
-              'scope': 'CPU synthetic pilot; not a real-model, speed or sampling result',
-              'config': config, 'config_sha256': hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest(),
-              'source': source_identity(), 'torch': torch.__version__, 'python': platform.python_version(),
-              'platform': platform.platform(), 'device': 'cpu', 'dtype': 'float32'}
-    with (output / 'header.json').open('x', encoding='utf-8') as handle:
-        json.dump(header, handle, indent=2)
-    results = []
-    for seed in config['seeds']:
-        result = (run_oracle if oracle else run_seed)(config, seed)
-        with (output / f'seed-{seed}.json').open('x', encoding='utf-8') as handle:
-            json.dump(result, handle, indent=2, allow_nan=False)
-        results.append(result)
-    return header, results
-
-
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', required=True)
-    parser.add_argument('--seeds', type=int, nargs='*')
-    parser.add_argument('--oracle-bound', action='store_true',
-                        help='trajectory versus future-token oracle masks; an upper bound, not a method')
-    parser.add_argument('--variants', nargs='*', help='observation variants as form:condition, e.g. top1:rejection')
-    parser.add_argument('--bonus-slot', nargs='?', const='hard', default=None, choices=('hard', 'topk'),
-                        help='ESP trajectory versus bonus-slot-hard-v1 or bonus-slot-topk-v1')
-    parser.add_argument('--kalman', action='store_true',
-                        help='ESP, fixed EMA, blend-v1, online Kalman and frozen-K Kalman')
-    parser.add_argument('--kalman-merge', action='store_true',
-                        help='online verify Kalman versus ESP, plus trajectory and observation ablations')
-    parser.add_argument('--kalman-align', action='store_true',
-                        help='aligned residual Kalman versus ESP, plus trajectory and observation ablations')
-    parser.add_argument('--correction', action='store_true',
-                        help='trajectory, scalar Kalman, offline K and rejection-token baseline')
-    parser.add_argument('--affine', action='store_true',
-                        help='frozen affine versus ESP, plus rejection baseline and online affine')
-    parser.add_argument('--affine-ridge', action='store_true',
-                        help='mixed-language ridge affine versus ESP, plus online affine')
-    args = parser.parse_args(argv)
-    config = json.loads(json.dumps(DEFAULT))
-    if args.seeds:
-        config['seeds'] = args.seeds
-    if args.kalman_align and (args.kalman_merge or args.affine_ridge or args.affine or args.correction or args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
-        raise ValueError('kalman-align does not combine with the other pilot modes')
-    if args.kalman_merge and (args.affine_ridge or args.affine or args.correction or args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
-        raise ValueError('kalman-merge does not combine with the other pilot modes')
-    if args.affine_ridge and (args.affine or args.correction or args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
-        raise ValueError('affine-ridge does not combine with the other pilot modes')
-    if args.affine and (args.correction or args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
-        raise ValueError('affine does not combine with the other pilot modes')
-    if args.correction and (args.kalman or args.bonus_slot or args.variants or args.oracle_bound):
-        raise ValueError('correction does not combine with kalman, bonus-slot, variants or the oracle')
-    if args.kalman and (args.bonus_slot or args.variants or args.oracle_bound):
-        raise ValueError('kalman does not combine with bonus-slot, observation variants or the oracle')
-    if args.bonus_slot:
-        if args.variants or args.oracle_bound:
-            raise ValueError('bonus-slot does not combine with observation variants or the oracle')
-        config['bonus_slot'] = args.bonus_slot
-        config['variants'] = []
-    elif args.kalman_align:
-        config['kalman_align'] = True
-        config['variants'] = []
-    elif args.kalman_merge:
-        config['kalman_merge'] = True
-        config['variants'] = []
-    elif args.kalman:
-        config['kalman'] = True
-        config['blend_gain'] = 0.5
-        config['variants'] = []
-    elif args.correction:
-        config['correction'] = True
-        config['variants'] = []
-    elif args.affine_ridge:
-        config['affine_ridge'] = True
-        config['variants'] = []
-    elif args.affine:
-        config['affine'] = True
-        config['variants'] = []
-    elif args.variants:
-        variants = [item.split(':') for item in args.variants]
-        if any(tuple(variant) not in SUFFIX for variant in variants) or len(set(map(tuple, variants))) != len(variants):
-            raise ValueError('variants must be unique form:condition pairs from ' + repr(sorted(SUFFIX)))
-        config['variants'] = variants
-    run(config, args.output, oracle=args.oracle_bound)
-
-
-if __name__ == '__main__':
-    main()
