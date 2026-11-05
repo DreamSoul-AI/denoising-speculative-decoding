@@ -63,6 +63,10 @@ EMA五方法原件固定于Git b8b20b5ada7fd860894114cbf224ce749af430cf的 studi
 ## （一）EMA：核清既有收益边界
 既有主张是：固定协议下EMA相对input_zero或可信ESP基线提高接受效率。先核正证据实际β、λ、anchor、更新顺序、表精度及数据身份，分开first26调参与固定480条比较。已有结果支持已测条件下可用，不能单靠τ推断速度。
 
+当前有界试跑协议为ema-esp-4b-cuda-admission-v1：唯一假设是在Qwen3-4B BF16/eager CUDA、SpecBench原始JSONL前8条（qid81–88，首轮输入）、32新token且不因EOS停止时，既有EMA相对ESP提高接受数并减少同步generate墙钟。两臂均用K2/dynamic/pruned/BC30/naive，EMA保β=.9999、λ=.1、order0、step_scale=1、normalize=false、extrapolate_ema=false、update=true；ESP为mean_prompt、λ=.1、update=true。逐qid交替臂顺序，两次2-token预热不计入配对；生成前后CUDA同步，加载/哈希/输入渲染另记，不纳入解码墙钟。模型完整来源清单、渲染输入与token、配置、当前源码及临时执行脚本冻结到新外部Run；GPU诊断上界300秒，超时保partial。
+
+验收先要求16项全部完成、完整来源首尾校验和T0提交链审计通过，再判本次8对的accepted均差（EMA−ESP）>0且同步解码墙钟均差<0。任一方向不满足即本次假设不获支持；缺项或质量失败不作收益判定。不以8条短输出证明普遍加速或复现旧Dolly480结果，不加臂、不选优重跑、不扩Study。Kalman observation-only是另一个GPU覆盖缺口，本拍不随这项EMA试跑接卡。
+
 若材料不足以收束实用性，必要比较保同模型、输出协议、树/预算与资源，分开accepted、τ、完整时长和状态成本。已看过的Dolly八类与选过配置是探索/选择数据，不改标独立留出。接受收益而无墙钟收益时明确结为接受有效、速度未受益，不继续扩大搜索。
 
 ## （二）Kalman：逐配方验真
