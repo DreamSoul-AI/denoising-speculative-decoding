@@ -33,9 +33,11 @@ def producer_members(kind):
         tool, plan = PRODUCERS[role]
         producers[role] = {'tool': 'studies/_shared/structure/' + tool,
                           'plan': ('studies/output_space_extension/docs/' if role == 'operator' else ROOT) + plan}
-    if 'data' in producers:
-        producers['data']['tool'] = ('studies/_shared/structure/diagnose_sampling_continuation.py',
-                                     'tools/diagnose_sampling_continuation.py')
+    # These exact original members were verified against the fixed producer
+    # reports. A historical tools path is admitted only in its own input role.
+    for role in {'data', 'sampling', 'owner', 'local', 'prior'} & producers.keys():
+        tool = PRODUCERS[role][0]
+        producers[role]['tool'] = ('studies/_shared/structure/' + tool, 'tools/' + tool)
     return producers
 
 

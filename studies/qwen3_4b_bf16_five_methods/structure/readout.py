@@ -70,26 +70,32 @@ def summarize(rows, is_ar):
     return totals
 
 
-def load_cell(study, folder, cfg, prompts, manifest, snapshot, reference):
+def load_cell(study, folder, cfg, prompts, manifest, snapshot, reference, *, reader=None):
     from studies._shared.structure.evidence import file_hash
     from studies._shared.structure.validation import verify_evidence
     from studies.qwen3_4b_bf16_five_methods.untimed_pairing import verify_inputs
+    read_json = read if reader is None else reader.read_json
+    if reader is not None:
+        file_hash = reader.sha
+        for name in ('config.yaml', 'result.json', 'assets/decode_observations.json', 'assets/decode_inputs.json',
+                     'assets/pairing_contract.json', 'assets/spec_mtp_sources.json', 'assets/summary.csv'):
+            reader.sha(folder/name)
     assets = folder/'assets'
-    result = read(folder/'result.json')
+    result = read_json(folder/'result.json')
     gate = result['spec_mtp']
     assert result['status'] == 'succeeded' and gate['passed']
     assert gate['validation_policy'] == 'verifier-argmax-v1'
     verify_evidence(cfg, assets)
-    inputs = read(assets/'decode_inputs.json')
+    inputs = read_json(assets/'decode_inputs.json')
     verify_inputs(inputs, manifest, snapshot)
-    contract = read(assets/'pairing_contract.json')
+    contract = read_json(assets/'pairing_contract.json')
     assert contract['dtype'] == 'torch.bfloat16' and contract['device'].startswith('cuda')
     assert contract['tied_storage'] and contract['manifest_checked']
     assert contract['embedding_shape'] == [snapshot['config']['vocab_size'], snapshot['config']['hidden_size']]
     assert contract['bf16_reduced_precision_reduction'] and not contract['deterministic']
     settings = cfg['algorithm']['config']
     is_ar = settings['task'] == 'ar_baseline'
-    raw = read(assets/'decode_observations.json')['out']
+    raw = read_json(assets/'decode_observations.json')['out']
     assert len(raw['rows']) == len(raw['evidence']) == len(prompts) == 480
     assert is_ar or reference is not None
     rows, outputs = [], []

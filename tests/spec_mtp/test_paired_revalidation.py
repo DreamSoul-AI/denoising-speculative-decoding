@@ -21,7 +21,7 @@ def modules(monkeypatch):
         m = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(m)
         return m
-    return load('paired_repeat_test', STUDY / 'paired_repeat.py'), load('paired_repeat_readout_test', STUDY / 'analyze_results.py')
+    return load('paired_repeat_test', STUDY / 'paired_repeat.py'), importlib.import_module('studies.qwen3_4b_bf16_paired_revalidation.flow.process.run')
 
 
 def test_all_eleven_effective_configs_match_native_expansion(modules):

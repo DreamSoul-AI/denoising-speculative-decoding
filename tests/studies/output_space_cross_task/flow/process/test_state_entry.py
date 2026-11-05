@@ -30,8 +30,9 @@ def test_state_cli_requires_all_explicit_input_output_and_device_arguments(monke
     assert caught.value.code == 2
 
 
-@pytest.mark.parametrize('member', ['tools/diagnose_sampling_continuation.py', 'tools/diagnose_q241_state_factors.py'])
-def test_state_original_continuation_tool_is_accepted_only_in_its_exact_role(tmp_path, monkeypatch, member):
+@pytest.mark.parametrize('role', ['data', 'sampling', 'owner', 'local', 'prior'])
+@pytest.mark.parametrize('wrong_role', [False, True])
+def test_state_original_tools_are_accepted_only_in_their_exact_role(tmp_path, monkeypatch, role, wrong_role):
     import hashlib
     import importlib
     import json
@@ -46,21 +47,24 @@ def test_state_original_continuation_tool_is_accepted_only_in_its_exact_role(tmp
     data = json.dumps(report).encode()
     for name, raw in (('report.json', data), ('tool.py', tool), ('plan.md', plan)):
         (folder / name).write_bytes(raw)
-    report_member = state.MEMBERS['data']
-    plan_member = state.ROOT + 'SAMPLING_CONTINUATION_PLAN.md'
+    report_member = state.MEMBERS[role]
+    tool_name, plan_name = state.PRODUCERS[role]
+    member = 'tools/' + ('diagnose_q241_state_factors.py' if wrong_role else tool_name)
+    plan_member = state.ROOT + plan_name
     sources = {'tool': {'path': str(folder / 'tool.py'), 'member': member, 'git_sha256': sha(tool)},
                'plan': {'path': str(folder / 'plan.md'), 'member': plan_member, 'git_sha256': sha(plan)}}
     index = {'schema': 1, 'kind': 'sampled-depth', 'repository': str(repo), 'commit': 'a' * 40,
-        'reports': {'data': {'path': str(folder / 'report.json'), 'member': report_member, 'git_sha256': sha(data)}},
-        'files': {}, 'producer_sources': {'data': sources}}
+        'reports': {role: {'path': str(folder / 'report.json'), 'member': report_member, 'git_sha256': sha(data)}},
+        'files': {}, 'producer_sources': {role: sources}}
     index_path = folder / 'index.json'; index_path.write_text(json.dumps(index))
     blobs = {report_member: data, member: tool, plan_member: plan}
     monkeypatch.setattr(provenance, 'read_historical_bytes', lambda repo, commit, member, expected: blobs[member])
+    producers = state.producer_members('sampled-depth' if role == 'data' else 'sampling-owner')
     call = lambda: coordinator.bind_inputs('sampled-depth', index_path, sha(index_path.read_bytes()), tmp_path / 'export',
-                                           roles={'data'}, producers=state.producer_members('sampled-depth'))
-    if member == 'tools/diagnose_sampling_continuation.py':
+                                           roles={role}, producers={role: producers[role]})
+    if not wrong_role:
         session, _, reports, _, _ = call()
-        assert reports['data'] == report and not session.output.exists()
+        assert reports[role] == report and not session.output.exists()
     else:
         with pytest.raises(ValueError, match='original producer'):
             call()

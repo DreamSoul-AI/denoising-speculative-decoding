@@ -126,7 +126,7 @@ class SavedReadout:
                 or any(alias.resolve() != path for alias, path in self.resolved.items())):
             raise ValueError('saved inputs, pending artifacts or current readout sources changed')
 
-    def finish(self, figure=None):
+    def finish(self, figure=None, *, render=None):
         from spec_mtp.structure.artifact.provenance import file_sha256
 
         self.verify()
@@ -144,6 +144,10 @@ class SavedReadout:
             figure_path = self.output / 'figures/tau_acceptance.png'
             write_plot(figure, figure_path)
             figure_sources[figure_path.relative_to(self.output).as_posix()] = file_sha256(figure_path)
+        if render is not None:
+            for figure_path in render(self.output):
+                figure_path = Path(figure_path).resolve(strict=True)
+                figure_sources[figure_path.relative_to(self.output).as_posix()] = file_sha256(figure_path)
         self.verify()
         if any(file_sha256(self.output / name) != sha for name, sha in figure_sources.items()):
             raise ValueError('generated readout figure changed before publication')

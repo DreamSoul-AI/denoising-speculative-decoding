@@ -82,9 +82,7 @@ def test_unmade_readout_cannot_claim_completed_scan(monkeypatch, tmp_path):
     from studies._shared.structure.sources import SpecMtpSourceChangedError
     m = module(monkeypatch)
     monkeypatch.syspath_prepend(str(m.STUDY))
-    spec = importlib.util.spec_from_file_location('sd_norm_readout', m.STUDY / 'analyze_results.py')
-    readout = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(readout)
+    readout = importlib.import_module('studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run')
     fake_root = tmp_path / 'checkout'
     unmade = fake_root / 'studies/unmade'
     unmade.mkdir(parents=True)
@@ -92,15 +90,12 @@ def test_unmade_readout_cannot_claim_completed_scan(monkeypatch, tmp_path):
     monkeypatch.chdir(fake_root)
     output = tmp_path / 'output'
     with pytest.raises((SpecMtpSourceChangedError, FileNotFoundError)):
-        readout.main(study_dir=unmade, output_dir=output)
+        readout.native_readout(fake_root, unmade, output)
     assert not output.exists()
 
 
 def test_first_block_pairing_excludes_changed_prefill_and_missing_blocks(monkeypatch):
-    m = module(monkeypatch)
-    spec = importlib.util.spec_from_file_location('sd_norm_depth_readout', m.STUDY / 'analyze_results.py')
-    readout = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(readout)
+    readout = importlib.import_module('studies.qwen3_4b_bf16_bias_norm_scan.structure.readout')
     prompts = [{'question_id': i, 'input_ids': [1, 2]} for i in range(4)]
     def evidence(token, accepted):
         trace = [] if accepted is None else [{'accepted_nodes': list(range(accepted))}]
@@ -119,9 +114,7 @@ def test_first_block_pairing_excludes_changed_prefill_and_missing_blocks(monkeyp
 def norm_reader(monkeypatch):
     m = module(monkeypatch)
     monkeypatch.syspath_prepend(str(m.STUDY))
-    spec = importlib.util.spec_from_file_location('sd_norm_cpu_acceptance', m.STUDY / 'analyze_results.py')
-    reader = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(reader)
+    reader = importlib.import_module('studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run')
     return reader
 
 
@@ -168,7 +161,7 @@ def test_reused_only_readout_never_accepts_new_runs_or_plots(monkeypatch, tmp_pa
                        raw_argmax_checked_tokens=2400, raw_files_rechecked=6, files_sha256={}) for name in names}
     reference = [{'output_ids': [1]} for _ in range(480)]
     formal = {'cells': {'AR': {'run_id': 'AR', 'files_sha256': {'assets/decode_observations.json': 'fixture'}}}}
-    monkeypatch.setattr(m, 'load_reused', lambda root: (formal, None, None, None, reference, cells))
+    monkeypatch.setattr(m, 'load_reused', lambda root, reader=None: (formal, None, None, None, reference, cells))
     def forbidden(*args, **kwargs):
         pytest.fail('Reused-only mode cannot accept a new Run, check a new freeze or plot')
     monkeypatch.setattr(m._pair, 'load_cell', forbidden)
@@ -181,15 +174,15 @@ def test_reused_only_readout_never_accepts_new_runs_or_plots(monkeypatch, tmp_pa
     for name in ('study.yaml', 'experiment_config.yaml'):
         (study / name).write_bytes((m.STUDY / name).read_bytes())
     for relative in ('studies/norm/docs/source_refs.json',
-            'studies/base/docs/paired_evidence_v1.json',
+            'studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json',
             'studies/qwen3_4b_bf16_directions/docs/direction_evidence_v1.json'):
         path = fixture / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text('{}')
     monkeypatch.setattr(m, 'ROOT', fixture)
     monkeypatch.setattr(m, 'STUDY', study)
-    monkeypatch.setattr(m, 'BASE', fixture / 'studies/base')
-    proof = m.verify_reused(tmp_path / 'raw', tmp_path / 'output')
+    monkeypatch.setattr(m, 'BASE', fixture / 'studies/qwen3_4b_bf16_five_methods')
+    proof = m.verify_reused(fixture, tmp_path / 'output')
     assert proof['complete'] is False and proof['new_cells_inspected'] is False and proof['reused_only']
     assert len(proof['cells']) == 5 and len(proof['expected_new_cases']) == 8
     assert proof['raw_argmax_checked_tokens'] == 12000

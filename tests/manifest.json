@@ -628,42 +628,42 @@
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_unmade_readout_cannot_claim_completed_scan",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_first_block_pairing_excludes_changed_prefill_and_missing_blocks",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.structure.readout",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_norm_matrix_must_match_all_eight_frozen_cases",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_reused_only_readout_never_accepts_new_runs_or_plots",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_reused_only_missing_private_evidence_fails_without_new_outputs",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_published_reuse_checkpoint_matches_existing_endpoints",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
         "external_evidence"
       ]
@@ -1657,21 +1657,21 @@
     },
     {
       "test_id": "tests/spec_mtp/test_norm_queue_audit.py::test_pending_and_native_failure_do_not_run_a_model_or_readout",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_norm_queue_audit.py::test_one_completion_is_accounted_once_with_three_tau_aggregates",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_norm_queue_audit.py::test_all_eight_wait_for_native_study_process",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
         "offline_cpu"
       ]
@@ -3037,7 +3037,7 @@
     },
     {
       "test_id": "tests/studies/shared/test_study_phase_exports.py::test_continuation_mapping_preserves_contract_and_old_history",
-      "target": "studies/shared",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
         "offline_cpu"
       ]
@@ -7420,20 +7420,6 @@
       ]
     },
     {
-      "test_id": "tests/studies/output_space_cross_task/flow/process/test_state_entry.py::test_state_original_continuation_tool_is_accepted_only_in_its_exact_role",
-      "target": "studies.output_space_cross_task.flow.process.state",
-      "level": "integration",
-      "type": "content",
-      "cost_class": "c1",
-      "result_type": "categorical",
-      "priority": "p1",
-      "result_detail": "summary",
-      "tags": [
-        "offline_cpu",
-        "structure_cleanup"
-      ]
-    },
-    {
       "test_id": "tests/studies/output_space_cross_task/structure/test_continuation_readout_cuda.py::test_continuation_cli_binds_saved_inputs_before_tensor_loading_on_cuda",
       "target": "studies.output_space_cross_task.flow.process.run",
       "level": "integration",
@@ -7514,6 +7500,118 @@
       "result_detail": "summary",
       "tags": [
         "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_canonical_readout_entry.py::test_canonical_entry_reads_actual_cuda_states_with_separate_historical_source_commit",
+      "target": "studies.output_space_cross_task.flow.process.native",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_canonical_readout_entry.py::test_canonical_entry_rejects_unbound_saved_bytes_before_loading",
+      "target": "studies.output_space_cross_task.flow.process.native",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_state_entry.py::test_state_original_tools_are_accepted_only_in_their_exact_role",
+      "target": "studies.output_space_cross_task.flow.process.state",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/process/test_norm_saved_readout.py::test_actual_reused_report_reaggregates_without_native_acceptance",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/process/test_norm_saved_readout.py::test_native_output_cannot_enter_the_separate_continuation_input_root",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/process/test_norm_saved_readout.py::test_native_transaction_does_not_publish_complete_after_plot_failure_or_input_drift",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_paired_revalidation/flow/process/test_paired_saved_readout.py::test_paired_saved_counter_failures_do_not_publish",
+      "target": "studies.qwen3_4b_bf16_paired_revalidation.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_paired_revalidation/flow/process/test_paired_saved_readout.py::test_paired_saved_counts_preserve_tau_and_original_identity",
+      "target": "studies.qwen3_4b_bf16_paired_revalidation.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
         "structure_cleanup"
       ]
     }
@@ -7696,6 +7794,10 @@
         },
         {
           "test_id": "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_saved_depth_preserves_legality_and_equal_state_counterexample",
+          "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_cross_task/flow/process/test_canonical_readout_entry.py::test_canonical_entry_reads_actual_cuda_states_with_separate_historical_source_commit",
           "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
         }
       ],
@@ -7925,7 +8027,13 @@
         "tests/studies/output_space_cross_task/flow/process/test_native_saved_readout.py::test_synthetic_native_mre_is_json_only_and_refuses_device",
         "tests/studies/output_space_cross_task/flow/process/test_state_entry.py::test_state_cli_requires_all_explicit_input_output_and_device_arguments",
         "tests/studies/output_space_cross_task/flow/process/test_state_entry.py::test_state_entry_rejects_cpu_before_loading_any_saved_tensor",
-        "tests/studies/output_space_cross_task/flow/process/test_state_entry.py::test_state_original_continuation_tool_is_accepted_only_in_its_exact_role"
+        "tests/studies/output_space_cross_task/flow/process/test_canonical_readout_entry.py::test_canonical_entry_rejects_unbound_saved_bytes_before_loading",
+        "tests/studies/output_space_cross_task/flow/process/test_state_entry.py::test_state_original_tools_are_accepted_only_in_their_exact_role",
+        "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/process/test_norm_saved_readout.py::test_actual_reused_report_reaggregates_without_native_acceptance",
+        "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/process/test_norm_saved_readout.py::test_native_output_cannot_enter_the_separate_continuation_input_root",
+        "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/process/test_norm_saved_readout.py::test_native_transaction_does_not_publish_complete_after_plot_failure_or_input_drift",
+        "tests/studies/qwen3_4b_bf16_paired_revalidation/flow/process/test_paired_saved_readout.py::test_paired_saved_counter_failures_do_not_publish",
+        "tests/studies/qwen3_4b_bf16_paired_revalidation/flow/process/test_paired_saved_readout.py::test_paired_saved_counts_preserve_tau_and_original_identity"
       ],
       "exclude": []
     },
@@ -7976,7 +8084,8 @@
         "tests/studies/output_space_cross_task/structure/test_continuation_readout_cuda.py::test_saved_continuation_rejects_invalid_data_context_and_schema_on_cuda",
         "tests/studies/output_space_cross_task/structure/test_native_readout.py::test_canonical_saved_state_gate_uses_cuda_and_rejects_a_changed_anchor",
         "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_conditional_labels_current_fp64_without_inventing_cpu_reference",
-        "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_saved_depth_preserves_legality_and_equal_state_counterexample"
+        "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_saved_depth_preserves_legality_and_equal_state_counterexample",
+        "tests/studies/output_space_cross_task/flow/process/test_canonical_readout_entry.py::test_canonical_entry_reads_actual_cuda_states_with_separate_historical_source_commit"
       ],
       "exclude": [],
       "resources": {

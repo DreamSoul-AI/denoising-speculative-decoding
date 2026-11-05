@@ -42,14 +42,10 @@ def test_historical_continuation_original_source_refs(historical_file):
 
 @pytest.mark.parametrize('change', ['none', 'prompt', 'axis', 'executed_old'])
 def test_continuation_mapping_preserves_contract_and_old_history(monkeypatch, tmp_path, change):
-    import importlib.util
     from spec_mtp.structure.control.merge import deep_merge
     from studies._shared.structure import sources
     from spec_mtp.structure.artifact import provenance
-    path = ROOT / 'studies/qwen3_4b_bf16_bias_norm_scan/analyze_results.py'
-    spec = importlib.util.spec_from_file_location('norm_mapping_test', path)
-    reader = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(reader)
+    reader = importlib.import_module('studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run')
     monkeypatch.setattr(sources, 'check_frozen', lambda *a: None)
     monkeypatch.setattr(sources, 'manifest', lambda: {})
     monkeypatch.setattr(provenance, 'check_frozen', lambda *a: None)
