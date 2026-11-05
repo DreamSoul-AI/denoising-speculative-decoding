@@ -64,8 +64,8 @@ def test_untimed_registration_rejects_missing_study_root_without_registry_mutati
 @pytest.mark.parametrize('name', ESP_STUDIES)
 @pytest.mark.parametrize('native_failure', [False, True])
 def test_esp_recipe_import_is_inert_and_failed_source_gate_cannot_install_overrides(monkeypatch, name, native_failure):
-    import importlib
     import os
+    from studies._shared.structure import esp_controls
     events = []
     study = ROOT / 'studies' / name
     monkeypatch.setenv('CUBLAS_WORKSPACE_CONFIG', 'existing-before-admission')
@@ -92,9 +92,9 @@ def test_esp_recipe_import_is_inert_and_failed_source_gate_cannot_install_overri
         assert events[1] == ('model', ('hf_causal', 'spec_mtp', model.build_cuda))
         assert events[2] == ('algorithm', ('eval', 'spec_mtp', algorithm.UntimedEval))
         expected = [algorithm.UntimedEval]
-        if name != 'esp_table1_bf16_preflight':
-            expected.append(importlib.import_module('studies.' + name + '.numerics').NumericsEval)
         if name == 'esp_table1_bf16_shape_check':
-            expected.append(importlib.import_module('studies.' + name + '.shape_control').ShapeEval)
+            expected.append(esp_controls.ShapeEval)
+        elif name != 'esp_table1_bf16_preflight':
+            expected.append(esp_controls.NumericsEval)
         assert [entry[1][2] for entry in events if isinstance(entry, tuple) and entry[0] == 'algorithm'] == expected
         assert os.environ['CUBLAS_WORKSPACE_CONFIG'] == ('existing-before-admission' if name == 'esp_table1_bf16_preflight' else ':4096:8')

@@ -8,7 +8,6 @@ freeze: true
 provenance:
   include:
   - docs/source_refs.json
-  - norm_control.py
   - docs/capacity_calibration_v1.json
   - flow/execute/capacity.py
   project_plan:

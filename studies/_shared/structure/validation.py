@@ -279,6 +279,8 @@ def check_direction_refs(study_root, execution_root):
     from spec_mtp.structure.artifact.provenance import file_sha256
     import re
     study_root, execution_root = Path(study_root).resolve(strict=True), Path(execution_root).resolve(strict=True)
+    if source_study_root(study_root).parents[1] != execution_root:
+        raise ValueError('direction source binding changed execution root')
     refs = json.loads((study_root/'docs/source_refs.json').read_text(encoding='utf-8'))
     if not isinstance(refs, dict) or not refs:
         raise ValueError('direction source references must be a nonempty mapping')
@@ -288,3 +290,68 @@ def check_direction_refs(study_root, execution_root):
         path = (execution_root/name).resolve(strict=True)
         path.relative_to(execution_root)
         assert file_sha256(path) == expected, name
+
+
+def paired_matrix_settings(study_root, pairing_root):
+    """Static matrix contract, independently inspectable without private Run evidence."""
+    import yaml
+    from spec_mtp.structure.control.merge import deep_merge
+    STUDY, BASE = Path(study_root), Path(pairing_root)
+    original = yaml.safe_load((BASE / 'experiment_config.yaml').read_text(encoding='utf-8'))
+    original['experiment'] = source_study_root(STUDY).name
+    original['algorithm']['config']['version'] = 'qwen3-4b-bf16-paired-independent-20261016-v1'
+    assert yaml.safe_load((STUDY / 'experiment_config.yaml').read_text(encoding='utf-8')) == original
+    decl = yaml.safe_load((STUDY / 'study.yaml').read_text(encoding='utf-8'))
+    old = yaml.safe_load((BASE / 'study.yaml').read_text(encoding='utf-8'))
+    assert decl['axes'] == old['axes'] and decl['seeds'] == old['seeds'] == [123]
+    return [deep_merge(original['algorithm']['config'], setting) for setting in decl['axes']['algorithm.config']]
+
+
+
+def check_control_refs(study_root, execution_root, *, kind, git_repository=None):
+    """Check original saved source/plan identities without replacing them with current helpers."""
+    from spec_mtp.structure.artifact.provenance import file_sha256, read_historical_bytes
+    study, execution = Path(study_root).resolve(strict=True), Path(execution_root).resolve(strict=True)
+    if source_study_root(study).parents[1] != execution:
+        raise ValueError('control source binding changed execution root')
+    if kind not in ('norm', 'paired', 'continuation'):
+        raise ValueError('unknown paired/norm control protocol')
+    refs = json.loads((study/'docs/source_refs.json').read_text(encoding='utf-8'))
+    files = refs['files']
+    if not isinstance(files, dict) or not files:
+        raise ValueError('control source refs must contain a nonempty file mapping')
+    for name, expected in files.items():
+        if (not isinstance(name, str) or not isinstance(expected, str) or len(expected) != 64
+                or any(c not in '0123456789abcdef' for c in expected)):
+            raise ValueError('control source refs require relative members and SHA256 identities')
+        relative = Path(name)
+        if relative.is_absolute() or relative.drive or '..' in relative.parts:
+            raise ValueError('control source member escapes its execution root')
+        actual = (execution/relative).resolve(strict=True)
+        actual.relative_to(execution)
+        assert file_sha256(actual) == expected, name
+    plan = refs['project_plan']
+    read_historical_bytes(execution if git_repository is None else git_repository,
+                          plan['commit'], plan['path'], plan['sha256'])
+    if kind == 'continuation':
+        check_control_refs(execution/'studies/qwen3_4b_bf16_bias_norm_scan', execution,
+                           kind='norm', git_repository=git_repository)
+    if kind == 'paired':
+        return paired_matrix_settings(study, execution/'studies/qwen3_4b_bf16_five_methods')
+    return None
+
+
+def source_study_root(study_root):
+    from pathlib import Path
+    from spec_mtp.structure.artifact.layout import STUDY_SOURCE_NAME, check_study_snapshot
+    root = Path(study_root).resolve(strict=True)
+    marker = root/STUDY_SOURCE_NAME
+    if marker.exists() or marker.is_symlink():
+        if marker.is_symlink():
+            raise ValueError('Study source binding must be a regular file')
+        raw = marker.read_bytes()
+        check_study_snapshot(root)
+        if marker.read_bytes() != raw:
+            raise ValueError('Study source binding changed during registration')
+        return Path(json.loads(raw)['source_dir']).resolve(strict=True)
+    return root

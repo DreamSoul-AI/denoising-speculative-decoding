@@ -19,7 +19,6 @@ provenance:
   - docs/modelscope_snapshot.json
   - docs/prompts_manifest.json
   - docs/specbench-source.json
-  - numerics.py
   - docs/preceding_results.json
 flow:
   study_phases: true

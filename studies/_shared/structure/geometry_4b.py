@@ -114,9 +114,8 @@ def audit_saved(study, paired):
     """Recheck saved tokens and first blocks; do not re-sign native Runs."""
     from studies._shared.structure import validation
     from studies.qwen3_4b_bf16_bias_norm_scan.structure import readout as helpers
-    from studies.qwen3_4b_bf16_bias_norm_scan.norm_control import check_refs
     root = Path(__file__).resolve().parents[3]
-    check_refs()
+    validation.check_control_refs(root / "studies/qwen3_4b_bf16_bias_norm_scan", root, kind="norm")
     assert sha(study / 'docs/paired_evidence_v1.json') == sha(root / 'studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json')
     prompts = _original.read(root / 'studies/qwen3_4b_bf16_five_methods/docs/prompts_manifest.json')['rendered_prompts']
     assert len(prompts) == 480 and set(paired['cells']) == set(_original.CASES)
@@ -776,9 +775,10 @@ def direction_control(provider, mode, start, info):
     def initialize(embeds, generator=None):
         original_init(embeds, generator=generator)
         full_mean, template = provider._level.clone(), (embeds[1] - embeds[0]).clone()
+        content_start = start() if callable(start) else start
         if mode == 'content':
-            assert 0 <= start < len(embeds) - 1
-            original_init(embeds[start:])
+            assert 0 <= content_start < len(embeds) - 1
+            original_init(embeds[content_start:])
             provider._level = full_mean
         elif mode == 'template':
             provider._velocity = template
@@ -789,7 +789,7 @@ def direction_control(provider, mode, start, info):
             provider._velocity = vector.to(device=embeds.device, dtype=embeds.dtype)
             assert abs(float(provider._velocity.float().norm() / template.float().norm()) - 1) < .01
         v = provider._velocity.float()
-        info.update(mode=mode, content_start=start if mode == 'content' else None,
+        info.update(mode=mode, content_start=content_start if mode == 'content' else None,
             velocity_norm=float(v.norm()), template_norm=float(template.float().norm()),
             norm_ratio=float(v.norm() / template.float().norm()),
             cosine_to_template=float(torch.nn.functional.cosine_similarity(v, template.float(), dim=0)),
@@ -804,4 +804,21 @@ def direction_control(provider, mode, start, info):
             provider._velocity = velocity
 
     provider.init_from_prompt, provider.on_token_committed = initialize, commit
+    return provider
+
+
+def observe_initial_bias(provider, mode, info):
+    direction_control(provider, mode, None, info)
+    initialize = provider.init_from_prompt
+
+    def init(embeds, generator=None):
+        initialize(embeds, generator=generator)
+        step = provider._step_vector(provider._velocity, provider._ref_norm)
+        masks = provider.masks()
+        info.update(step_scale=provider.step_scale, initial_mean_norm=float(provider._level.float().norm()),
+            effective_step_norm=float(step.float().norm()),
+            rounded_slot_displacement_norms=(masks.float() - provider._level.float()).norm(dim=-1).tolist())
+        assert all(torch.isfinite(x).all() for x in (step, masks))
+
+    provider.init_from_prompt = init
     return provider

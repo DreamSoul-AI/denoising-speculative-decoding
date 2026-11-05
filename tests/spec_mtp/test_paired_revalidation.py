@@ -1,4 +1,4 @@
-"""CPU-only contracts for the separately authorized paired repeat."""
+"""Fast IO/spies and explicit CUDA argmax contracts for the independent paired repeat."""
 
 from spec_mtp.structure.algorithm.mask import build_mask_provider
 import importlib.util
@@ -15,13 +15,11 @@ STUDY = ROOT / 'studies/qwen3_4b_bf16_paired_revalidation'
 
 @pytest.fixture
 def modules(monkeypatch):
-    monkeypatch.syspath_prepend(str(STUDY))
-    def load(name, path):
-        spec = importlib.util.spec_from_file_location(name, path)
-        m = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(m)
-        return m
-    return load('paired_repeat_test', STUDY / 'paired_repeat.py'), importlib.import_module('studies.qwen3_4b_bf16_paired_revalidation.flow.process.run')
+    from functools import partial
+    from studies._shared.structure.validation import paired_matrix_settings
+    protocol = SimpleNamespace(matrix_settings=partial(paired_matrix_settings, STUDY,
+        ROOT/'studies/qwen3_4b_bf16_five_methods'))
+    return protocol, importlib.import_module('studies.qwen3_4b_bf16_paired_revalidation.flow.process.run')
 
 
 def test_all_eleven_effective_configs_match_native_expansion(modules):
@@ -57,24 +55,29 @@ def test_changed_or_incomplete_repeat_index_is_rejected(modules, damage):
 
 
 def test_resource_guard_precedes_model_and_both_decode_paths(modules, monkeypatch, tmp_path):
-    m, _ = modules
+    from studies._shared.structure import algorithm as m, recipe, validation, model
+    import spec_mtp.structure.algorithm.decode.loop as decoding
     events = []
-    monkeypatch.setattr(m, 'check_refs', lambda: events.append('refs'))
-    monkeypatch.setattr(m, 'wait_for_admission', lambda assets, initial=False: events.append(('admit', initial)) or {'passed': True})
-    monkeypatch.setattr(m, 'build_cuda', lambda *a, **kw: events.append('load') or SimpleNamespace(meta={}))
-    assert m.admitted_build(None, tmp_path).meta['paired_repeat_admission']['passed']
-    assert events == ['refs', ('admit', True), 'load']
+    monkeypatch.setattr(validation, 'check_control_refs', lambda *a, **kw: events.append('refs'))
+    waiter = lambda assets, initial=False: events.append(('admit', initial, assets)) or {'passed': True}
+    monkeypatch.setattr(model, 'build_cuda', lambda *a, **kw: events.append(('load', a[1])) or SimpleNamespace(meta={}))
+    assets, shared = tmp_path/'run-assets', tmp_path/'shared-model'
+    assert recipe._build_control_cuda(None, shared, study_root=tmp_path, execution_root=tmp_path,
+        admission_assets=assets, kind='paired', waiter=waiter).meta['paired_repeat_admission']['passed']
+    assert events == ['refs', ('admit', True, assets), 'refs', ('load', shared)]
     events.clear()
-    monkeypatch.setattr(m.decoding.SpecDecoder, 'generate', lambda *a: events.append('spec') or 'spec')
+    monkeypatch.setattr(decoding.SpecDecoder, 'generate', lambda *a: events.append('spec') or 'spec')
     monkeypatch.setattr(m.ar_baseline, 'ar_generate', lambda *a, **kw: events.append('ar') or 'ar')
     def base_run(self, *args):
-        assert m.decoding.SpecDecoder.generate(None, None) == 'spec'
+        assert decoding.SpecDecoder.generate(None, None) == 'spec'
         assert m.ar_baseline.ar_generate(None, None, {}) == 'ar'
         return 'complete'
     monkeypatch.setattr(m.PairedUntimedEval, 'run', base_run)
     instance = object.__new__(m.PairedRepeatEval)
-    assert instance.run(None, None, SimpleNamespace(assets_dir=tmp_path), None) == 'complete'
-    assert events == ['refs', ('admit', False), 'spec', ('admit', False), 'ar', 'refs']
+    instance.study_root = instance.execution_root = tmp_path
+    instance.admission_wait = waiter
+    assert instance.run(None, None, SimpleNamespace(assets_dir=assets), None) == 'complete'
+    assert events == ['refs', ('admit', False, assets), 'spec', ('admit', False, assets), 'ar', 'refs']
 
 
 def test_unmade_repeat_writes_pending_only(modules, monkeypatch, tmp_path):
@@ -95,14 +98,16 @@ def test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token():
     from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
     from studies._shared.structure.config import _convert
     from studies._shared.structure.validation import _check_argmax
+    assert torch.cuda.is_available(), "CUDA required; no CPU fallback"
+    print("paired correctness device=cuda:0 name="+torch.cuda.get_device_name(0), flush=True)
     torch.manual_seed(7)
     model = HFCausalLM(tiny_config={'vocab_size': 24, 'hidden_size': 16, 'intermediate_size': 32,
         'num_hidden_layers': 1, 'num_attention_heads': 2, 'num_key_value_heads': 1,
-        'max_position_embeddings': 64}, torch_dtype='bfloat16', attn_implementation='eager')
+        'max_position_embeddings': 64}, torch_dtype='bfloat16', attn_implementation='eager').to('cuda:0')
     spec = _convert({'method': 'esp', 'num_masks': 2, 'block_complexity': 30, 'impl': 'naive',
                      'mask': {'init': 'mean_prompt', 'lam': 0., 'update': False},
                      'tree': {'mode': 'dynamic', 'pruning': True}})
-    output, stats = SpecDecoder(model, spec, _convert({'temperature': 0., 'max_new_tokens': 6}), mask_policy=build_mask_provider(spec, model.embedding_table)).generate(torch.tensor([[1, 2, 3]]))
+    output, stats = SpecDecoder(model, spec, _convert({'temperature': 0., 'max_new_tokens': 6}), mask_policy=build_mask_provider(spec, model.embedding_table)).generate(torch.tensor([[1, 2, 3]], device="cuda:0"))
     item = {'input_ids': [1, 2, 3], 'output_ids': output[0].tolist(), 'ar_ids': [1, 2, 3, 999], 'stats': stats}
     assert _check_argmax(item) == 6
     item['output_ids'][-1] = (item['output_ids'][-1] + 1) % 24

@@ -8,7 +8,10 @@ from itertools import combinations
 from pathlib import Path
 
 import yaml
-from studies.qwen3_4b_bf16_paired_revalidation.paired_repeat import BASE, STUDY, ROOT, check_refs
+from studies._shared.structure.validation import check_control_refs
+ROOT = Path(__file__).resolve().parents[4]
+STUDY = Path(__file__).resolve().parents[2]
+BASE = ROOT / "studies/qwen3_4b_bf16_five_methods"
 from studies._shared.structure import geometry_4b as directions
 from studies.qwen3_4b_bf16_five_methods.structure import readout as original
 from studies.qwen3_4b_bf16_five_methods.structure import plots as paired_plots
@@ -29,8 +32,6 @@ class PublishedReadout(SavedReadout):
             assert module.__file__ is not None
             paths.append(Path(module.__file__))
         paths += [root/'studies'/name/file for name, file in (
-            ('qwen3_4b_bf16_paired_revalidation', 'paired_repeat.py'),
-            ('qwen3_4b_bf16_bias_norm_scan', 'norm_control.py'),
             ('_shared', 'structure/resource_admission.py'),
             ('qwen3_4b_bf16_five_methods', 'recipe.py'))]
         return {str(p.resolve()): file_sha256(p) for p in paths}
@@ -142,7 +143,7 @@ def main(argv=None):
 
 
 def check_index(entries, expected=None):
-    expected = check_refs() if expected is None else expected
+    expected = check_control_refs(STUDY, ROOT, kind="paired") if expected is None else expected
     assert [e['factors']['algorithm.config'] for e in entries] == expected
     assert all(len(e['runs']) == 1 for e in entries)
     assert [original.case_name(s) for s in expected] == list(original.CASES)
@@ -154,23 +155,28 @@ def check_index(entries, expected=None):
 def readout(output_dir, *, study_dir=None):
     from spec_mtp.structure.artifact.provenance import check_frozen as pcheck
     from studies._shared.structure.sources import check_frozen, manifest
+    from studies._shared.structure.validation import source_study_root
     study = STUDY if study_dir is None else Path(study_dir).resolve(strict=True)
-    session = PublishedReadout(study, output_dir, BASE)
+    if not (study/'docs/source_refs.json').is_file():
+        raise FileNotFoundError(study/'docs/source_refs.json')
+    execution = source_study_root(study).parents[1]
+    base = execution/"studies/qwen3_4b_bf16_five_methods"
+    session = PublishedReadout(study, output_dir, base)
     session.bind_declarations(study)
     output = session.output
     read_json = session.read_json
     session.sha(study/'docs/source_refs.json')
-    configs = check_refs()
+    configs = check_control_refs(study, execution, kind="paired")
     cells = {name: {'native_status': 'pending'} for name in original.CASES}
     index = study / 'index.json'
     if session.exists(index):
-        assert Path.cwd().resolve() == ROOT, 'Read from the frozen checkout root'
+        assert Path.cwd().resolve() == execution, 'Read from the frozen checkout root'
         decl = yaml.safe_load((study / 'study.yaml').read_text(encoding='utf-8'))
         check_frozen(study, decl, manifest())
         pcheck(study, decl)
-        entries = check_index(read_json(index)['experiments'])
-        prompts = read_json(BASE / 'docs/prompts_manifest.json')
-        snapshot = read_json(BASE / 'docs/modelscope_snapshot.json')
+        entries = check_index(read_json(index)['experiments'], expected=configs)
+        prompts = read_json(base / 'docs/prompts_manifest.json')
+        snapshot = read_json(base / 'docs/modelscope_snapshot.json')
         reference = None
         for name in original.CASES:
             folder = study / 'runs' / entries[name]
@@ -188,7 +194,7 @@ def readout(output_dir, *, study_dir=None):
             else:
                 assert all(cell[k] == cells['AR'][k] for k in ('model_digest', 'source_digest', 'runtime'))
     pairs = []
-    prior = read_json(BASE / 'docs/paired_evidence_v1.json')
+    prior = read_json(base / 'docs/paired_evidence_v1.json')
     versus_prior = []
     for name, cell in cells.items():
         if name == 'AR' or 'rows' not in cell:

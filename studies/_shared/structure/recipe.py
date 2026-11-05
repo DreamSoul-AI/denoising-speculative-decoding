@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from spec_mtp.structure.make.recipe import RecipeContext
 
+from studies._shared.structure.validation import source_study_root
+
 SOURCE = 'spec_mtp'
 FLASH_ATTENTION = ('flash_attention_2', 'flash_attention_3')
 
@@ -113,29 +115,13 @@ def register_untimed(study_root) -> None:
     AlgorithmRegistry.register('eval', SOURCE, UntimedEval)
 
 
-def _source_study_root(study_root):
-    from pathlib import Path
-    from spec_mtp.structure.artifact.layout import STUDY_SOURCE_NAME, check_study_snapshot
-    root = Path(study_root).resolve(strict=True)
-    marker = root/STUDY_SOURCE_NAME
-    if marker.exists() or marker.is_symlink():
-        if marker.is_symlink():
-            raise ValueError('Study source binding must be a regular file')
-        raw = marker.read_bytes()
-        check_study_snapshot(root)
-        if marker.read_bytes() != raw:
-            raise ValueError('Study source binding changed during registration')
-        return Path(json.loads(raw)['source_dir']).resolve(strict=True)
-    return root
-
-
 def register_pairing(study_root) -> None:
     from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
     from spec_mtp.structure.model.factory import ModelRegistry
     from studies._shared.structure.algorithm import PairedUntimedEval
     from studies._shared.structure.model import build_cuda
 
-    bound_root = _source_study_root(study_root)
+    bound_root = source_study_root(study_root)
     if not bound_root.is_dir() or not (bound_root/'study.yaml').is_file():
         raise ValueError('pairing registration requires an explicit Study root containing study.yaml')
     class BoundPairedEval(PairedUntimedEval):
@@ -152,7 +138,7 @@ def register_direction(study_root, *, admission_assets, pairing_root=None, execu
     from studies._shared.structure.algorithm import DirectionEval
 
     bound_study = Path(study_root).resolve(strict=True)
-    source = _source_study_root(bound_study)
+    source = source_study_root(bound_study)
     bound_execution = Path(execution_root).resolve(strict=True) if execution_root is not None else source.parents[1]
     bound_pairing = Path(pairing_root).resolve(strict=True) if pairing_root is not None else bound_execution/'studies/qwen3_4b_bf16_five_methods'
     bound_admission = Path(admission_assets).resolve()
@@ -178,6 +164,7 @@ def _build_direction_cuda(model_config, assets_dir, data_meta=None, *, study_roo
     from studies._shared.structure.model import build_cuda
     check_direction_refs(study_root, execution_root)
     check = direction_admission(admission_assets, initial=True, wait=recovery)
+    check_direction_refs(study_root, execution_root)
     model = build_cuda(model_config, assets_dir, data_meta)
     model.meta['direction_admission'] = check
     return model
@@ -212,3 +199,48 @@ def register(ctx: RecipeContext) -> None:
     (ctx.assets_dir / RUN_ASSET_NAME).write_text(
         json.dumps(current, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     register_sources()
+
+
+def register_control(study_root, *, admission_assets, kind) -> None:
+    """Bind norm/repeat/continuation execution without mutable module-wide Study paths."""
+    from functools import partial
+    from pathlib import Path
+    from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+    from spec_mtp.structure.model.factory import ModelRegistry
+    from studies._shared.structure.algorithm import NormEval, PairedRepeatEval, ContinuationEval
+    from studies._shared.structure.resource_admission import wait_for_admission
+    from studies._shared.structure import gpu_admission
+    classes = {'norm': NormEval, 'paired': PairedRepeatEval, 'continuation': ContinuationEval}
+    if kind not in classes:
+        raise ValueError('unknown paired/norm control protocol')
+    runtime = Path(study_root).resolve(strict=True)
+    source = source_study_root(runtime)
+    if not (runtime/'study.yaml').is_file() or not (source/'study.yaml').is_file():
+        raise ValueError('control registration needs an explicit Study declaration')
+    execution = source.parents[1]
+    pairing = execution/'studies/qwen3_4b_bf16_five_methods'
+    if not (pairing/'study.yaml').is_file():
+        raise ValueError('control registration needs its original paired Study')
+    assets = Path(admission_assets).resolve()
+    assets.relative_to(runtime)
+    capacity = execution/'studies/qwen3_4b_bf16_bias_norm_scan/docs/capacity_calibration_v1.json'
+    waiter = partial(wait_for_admission, capacity=capacity,
+                     observer=None if kind == 'norm' else gpu_admission.observe)
+    bound = type("BoundControlEval", (classes[kind],), {
+        "study_root": runtime, "execution_root": execution, "pairing_root": pairing,
+        "admission_wait": staticmethod(waiter)})
+    ModelRegistry.register('hf_causal', SOURCE, partial(_build_control_cuda,
+        study_root=runtime, execution_root=execution, admission_assets=assets, kind=kind, waiter=waiter))
+    AlgorithmRegistry.register('eval', SOURCE, bound)
+
+
+def _build_control_cuda(model_config, assets_dir, data_meta=None, *, study_root, execution_root,
+                        admission_assets, kind, waiter):
+    from studies._shared.structure.validation import check_control_refs
+    from studies._shared.structure.model import build_cuda
+    check_control_refs(study_root, execution_root, kind=kind)
+    admission = waiter(admission_assets, initial=True)
+    check_control_refs(study_root, execution_root, kind=kind)
+    model = build_cuda(model_config, assets_dir, data_meta)
+    model.meta['paired_repeat_admission' if kind == 'paired' else 'norm_scan_admission'] = admission
+    return model

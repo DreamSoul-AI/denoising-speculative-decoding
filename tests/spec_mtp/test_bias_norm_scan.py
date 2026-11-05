@@ -4,7 +4,6 @@ from spec_mtp.structure.algorithm.mask import build_mask_provider
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
-import sys
 
 import pytest
 import torch
@@ -16,18 +15,17 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def module(monkeypatch):
-    monkeypatch.setattr(sys, 'path', sys.path.copy())
-    path = ROOT / 'studies/qwen3_4b_bf16_bias_norm_scan/norm_control.py'
-    spec = importlib.util.spec_from_file_location('sd_norm_control', path)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
+    from studies._shared.structure.geometry_4b import observe_initial_bias
+    return SimpleNamespace(STUDY=ROOT/'studies/qwen3_4b_bf16_bias_norm_scan',
+                           observe_initial_bias=observe_initial_bias)
 
 
 @pytest.mark.parametrize('mode', ['template', 'random0', 'random1', 'random2'])
 def test_native_scale_retains_mean_and_seed_direction(monkeypatch, mode):
+    assert torch.cuda.is_available(), "CUDA required; no CPU fallback"
+    print("device", torch.cuda.get_device_name(0), "cuda:0", flush=True)
     m = module(monkeypatch)
-    embeds = torch.randn(10, 16, generator=torch.Generator().manual_seed(7)).bfloat16()
+    embeds = torch.randn(10, 16, generator=torch.Generator().manual_seed(7)).to(device="cuda:0", dtype=torch.bfloat16)
     directions = []
     for scale in (0., .5, 1., 2.):
         provider = EMAVelocityMaskProvider(2, embeds, beta=.9999, level='order0', lam=.1, step_scale=scale)
@@ -63,17 +61,19 @@ def test_native_tiny_bf16_argmax_audit_for_scaled_bias(monkeypatch, scale):
     from studies._shared.structure.config import _convert
     from spec_mtp.structure.model.hf_causal import HFCausalLM
     m = module(monkeypatch)
+    assert torch.cuda.is_available(), "CUDA required; no CPU fallback"
+    print("device", torch.cuda.get_device_name(0), "cuda:0", flush=True)
     torch.manual_seed(17)
     model = HFCausalLM(tiny_config={'vocab_size': 32, 'hidden_size': 16, 'intermediate_size': 32,
         'num_hidden_layers': 1, 'num_attention_heads': 2, 'num_key_value_heads': 2,
-        'max_position_embeddings': 128}, torch_dtype='bfloat16', attn_implementation='eager')
+        'max_position_embeddings': 128}, torch_dtype='bfloat16', attn_implementation='eager').to('cuda:0')
     spec = _convert({'method': 'ema_velocity', 'num_masks': 2, 'block_complexity': 30, 'impl': 'naive',
         'tree': {'mode': 'dynamic', 'pruning': True},
         'ema': {'level': 'order0', 'beta': .9999, 'lam': .1, 'step_scale': scale}})
     original = build_mask_provider
     monkeypatch.setattr(decoding, 'time', SimpleNamespace(perf_counter=lambda: 0.))
     policy = m.observe_initial_bias(original(spec, model.embedding_table), 'random1', {})
-    output, stats = decoding.SpecDecoder(model, spec, _convert({'temperature': 0., 'max_new_tokens': 12}), mask_policy=policy).generate(torch.tensor([[1, 2, 3, 4, 5]]))
+    output, stats = decoding.SpecDecoder(model, spec, _convert({'temperature': 0., 'max_new_tokens': 12}), mask_policy=policy).generate(torch.tensor([[1, 2, 3, 4, 5]], device="cuda:0"))
     assert output.shape[1] == 17
     assert stats['verification_argmax_audit']['passed'] and stats['verification_argmax_audit']['checked_committed_tokens'] == 12
 
@@ -150,8 +150,8 @@ def test_reused_only_readout_never_accepts_new_runs_or_plots(monkeypatch, tmp_pa
     from studies._shared.structure import sources
     m = norm_reader(monkeypatch)
     # This test isolates reused-only aggregation; separate tests verify missing provenance refusal.
-    from studies.qwen3_4b_bf16_bias_norm_scan import norm_control
-    monkeypatch.setattr(norm_control, 'check_refs', lambda: None)
+    from studies._shared.structure import validation
+    monkeypatch.setattr(validation, "check_control_refs", lambda *args, **kwargs: None)
     rows = [dict(question_id=i, category='a', accepted=1, model_calls=3, new_tokens=5,
                  committed=4, decode_calls=2) for i in range(480)]
     depth = [dict(question_id=i, initial_prefix_sha256='same', first_block_accepted=1) for i in range(480)]
@@ -239,16 +239,10 @@ def test_measured_4b_admission_keeps_reserve_and_gpu_exclusion(monkeypatch):
 
 
 def test_historical_norm_scan_immutable_source_refs(monkeypatch, historical_file):
-    m = module(monkeypatch)
     path = historical_file('studies/qwen3_4b_bf16_bias_norm_scan/docs/source_refs.json')
     import json
     refs = json.loads(path.read_text(encoding='utf-8'))
     for name in refs['files']:
         historical_file(name)
-    # Current validator reads the original frozen bytes; Git still queries the real repository.
-    check_output = m.subprocess.check_output
-    monkeypatch.setattr(m, 'subprocess', SimpleNamespace(
-        check_output=lambda args, **kwargs: check_output(args, **{**kwargs, 'cwd': ROOT})))
-    monkeypatch.setattr(m, 'ROOT', path.parents[3])
-    monkeypatch.setattr(m, 'STUDY', path.parents[1])
-    m.check_refs()
+    from studies._shared.structure.validation import check_control_refs
+    check_control_refs(path.parents[1], path.parents[3], kind='norm', git_repository=ROOT)

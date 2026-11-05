@@ -62,6 +62,10 @@ paired_revalidation 的保存报告用 `python -m studies.qwen3_4b_bf16_paired_r
 
 五方法配对执行与普通/recovery 方向执行使用共享 algorithm/geometry/validation/recipe，Study 根和配对原件根显式绑定。方向公式与原 CPU 随机序列保持，普通版资源不足立即拒绝，recovery 只在既定准入边界等待并把记录写入实际 Run assets，不再写源码根 `.tmp`。配置、旧来源表与执行材料缺失仍拒绝，不因模块归并恢复暂停的研究矩阵。
 
+ESP 后端和局部 Linear 控制统一在 `_shared/structure/esp_controls.py`，三份相同 numerics 与 shape 不再独立维护副本。recipe 在原准入后选择 NumericsEval 或 ShapeEval，成功和异常时恢复原后端状态与局部 forward；微型 CUDA 只验证作用域与 shape 工程合同，不恢复已停止的算子机理研究。
+
+norm、paired repeat 与 continuation 也通过共享部件装配，运行根经 study_source 绑定定位原科学身份，配对矩阵不取临时目录名作 experiment。来源、固定 Git 计划及准入策略分别保留，资源等待后复核再载模；同一 decoder 的诊断逐 prompt 保存独立快照，content 起点随当前 prompt 读取。八格、七格与十一格仍是各自暂停的协议，不因入口可用自动派发。
+
 容量校准入口为 `python -m studies.qwen3_4b_bf16_bias_norm_scan.flow.execute.capacity --model-root <本地模型> --model-sources <完整模型清单> --prompts <冻结manifest> --prompts-sha256 <SHA> --study <冻结study.yaml> --study-sha256 <SHA> --plan <计划> --plan-sha256 <SHA> --version <新版本> --device cuda:0 --output-root <新外部根>`。入口保持 q295/1500 输入/256 输出/template2，要求非优化 Python、真实 CUDA、完整来源校验与模型关闭后最后发布完成标记，不联网取权重。当前只用 tiny CUDA 验工程，未重新测量真实 4B 容量或旧主机进程树峰值。准入共用 resource_admission 的显式 capacity/observer，保留各协议非抢占及 RAM 政策。
 
 trajectory 真实模型专用入口为 `python -m studies.trajectory_observation.flow.execute.office <qwen8b|tree|traj> --help`、`python -m studies.trajectory_observation.flow.execute.fresh_replace --help`、`python -m studies.trajectory_observation.flow.execute.fair_branch --help` 与 `python -m studies.trajectory_observation.flow.execute.preforward_signal --help`。它们要求显式本地模型目录、目录外完整模型SHA清单、本地JSONL、计划文件及其SHA、新外部输出；fair_branch以 `--split specbench|dolly --input <本地JSONL>` 保留原337–464/前128切片，preforward保留SpecBench 81–208及128条校准模板，不再猜模型目录或联网取数据。共用本地输入准入，只读取已解析绑定路径。preforward的summary/fit可留作partial，只有收尾复核及关闭后写出的protocol_complete标记表示运行完整；旧gate字段不产生新研究授权。

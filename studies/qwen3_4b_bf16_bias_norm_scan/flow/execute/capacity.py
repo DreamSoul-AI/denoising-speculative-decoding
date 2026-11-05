@@ -18,7 +18,7 @@ def measure_decode(model, prompt, setting, *, max_new_tokens=256):
     import spec_mtp.structure.algorithm.decode.loop as decoding
     from studies._shared.structure.config import _convert
     from studies._shared.structure.validation import _check_argmax
-    from studies.qwen3_4b_bf16_bias_norm_scan.norm_control import observe_initial_bias
+    from studies._shared.structure.geometry_4b import observe_initial_bias
 
     if model.device.type != 'cuda' or model.dtype != torch.bfloat16:
         raise ValueError('capacity decode requires an actual CUDA BF16 model')
@@ -84,10 +84,10 @@ def run(args):
     if setting['direction'] != 'template' or setting['spec']['ema']['step_scale'] != 2:
         raise ValueError('capacity requires the original template/step-scale-2 setting')
     package = package_files()
-    from studies.qwen3_4b_bf16_bias_norm_scan import norm_control
+    from studies._shared.structure import algorithm, validation
     from studies._shared.structure import geometry_4b as direction_control
     local_sources = {}
-    for module in (norm_control, direction_control):
+    for module in (algorithm, validation, direction_control):
         assert module.__file__ is not None
         local_sources[Path(module.__file__)] = file_sha256(module.__file__)
     local_sources[Path(__file__)] = file_sha256(__file__)

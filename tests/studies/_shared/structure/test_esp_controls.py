@@ -1,11 +1,62 @@
-"""Check the BF16 linear shape control and model-local patch cleanup."""
+"""ESP metadata restoration and tiny CUDA model-local shape engineering contracts."""
+import json
 from types import SimpleNamespace
+
 import pytest
 import torch
 
+from studies._shared.structure import esp_controls as protocol
+
+
+@pytest.mark.parametrize('shape', [None, 0, 1, 'true'])
+def test_esp_registration_rejects_non_boolean_shape_before_changing_registry(monkeypatch, shape):
+    monkeypatch.setattr(protocol.AlgorithmRegistry, 'register', lambda *a: pytest.fail('invalid policy registered'))
+    with pytest.raises(ValueError, match='explicit boolean'):
+        protocol.register_controls(shape=shape)
+
+
+def test_esp_numerics_rejects_non_bf16_before_backend_or_asset_changes(tmp_path, monkeypatch):
+    monkeypatch.setattr(torch, 'use_deterministic_algorithms', lambda *a, **kw: pytest.fail('invalid dtype changed backend'))
+    adapter = object.__new__(protocol.NumericsEval)
+    adapter.config = SimpleNamespace(setting=lambda *a: {'deterministic': False, 'bf16_reduced_precision_reduction': True})
+    with pytest.raises(AssertionError):
+        adapter.run(None, SimpleNamespace(module=SimpleNamespace(dtype=torch.float32)),
+                    SimpleNamespace(assets_dir=tmp_path), None)
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize('reduced,deterministic', [(True,False),(False,False),(True,True),(False,True)])
+@pytest.mark.parametrize('failure', [False,True])
+def test_bf16_controls_restore_and_record(monkeypatch, tmp_path, reduced, deterministic, failure):
+    numerics = protocol
+    old_reduced = torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction
+    old_det = torch.are_deterministic_algorithms_enabled()
+    old_warn = torch.is_deterministic_algorithms_warn_only_enabled()
+    def run(*args):
+        assert torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction is reduced
+        assert torch.are_deterministic_algorithms_enabled() is deterministic
+        if failure:
+            raise RuntimeError('injected native failure')
+        return {'ok':True}
+    monkeypatch.setattr(numerics.UntimedEval, 'run', run)
+    algo = numerics.NumericsEval.__new__(numerics.NumericsEval)
+    controls = {'bf16_reduced_precision_reduction':reduced,'deterministic':deterministic}
+    algo.config = SimpleNamespace(setting=lambda _: controls)
+    args = (None,SimpleNamespace(module=SimpleNamespace(dtype=torch.bfloat16)),SimpleNamespace(assets_dir=tmp_path),None)
+    if failure:
+        with pytest.raises(RuntimeError,match='injected native failure'):
+            algo.run(*args)
+    else:
+        assert algo.run(*args)=={'ok':True}
+    assert json.loads((tmp_path/'numerics_controls.json').read_text())==dict(controls,dtype='torch.bfloat16')
+    assert torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction is old_reduced
+    assert torch.are_deterministic_algorithms_enabled() is old_det
+    assert torch.is_deterministic_algorithms_warn_only_enabled() is old_warn
+
+
 @pytest.mark.parametrize('shape', [(1,4,16),(2,3,16),(16,),(0,16)])
 def test_rowwise_bf16_is_partition_and_permutation_invariant(monkeypatch, shape):
-    from studies.esp_table1_bf16_shape_check import shape_control
+    shape_control = protocol
     assert torch.cuda.is_available(), 'tiny shape engineering correctness requires actual CUDA'
     device = torch.device('cuda:0')
     torch.manual_seed(123)
@@ -28,7 +79,7 @@ def test_rowwise_bf16_is_partition_and_permutation_invariant(monkeypatch, shape)
 @pytest.mark.parametrize('enabled', [False,True])
 @pytest.mark.parametrize('failure', [False,True])
 def test_shape_patch_is_local_and_restores_on_failure(monkeypatch,tmp_path,enabled,failure):
-    from studies.esp_table1_bf16_shape_check import shape_control
+    shape_control = protocol
     assert torch.cuda.is_available(), 'tiny patch engineering correctness requires actual CUDA'
     device = torch.device('cuda:0')
     net = torch.nn.Sequential(torch.nn.Linear(16,8,dtype=torch.bfloat16,device=device),torch.nn.SiLU(),torch.nn.Linear(8,4,dtype=torch.bfloat16,device=device))

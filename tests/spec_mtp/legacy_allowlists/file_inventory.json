@@ -3,11 +3,7 @@
   "studies/esp_table1_bf16_full/untimed_bf16.py",
   "studies/esp_table1_bf16_full_argmax/argmax_audit.py",
   "studies/esp_table1_bf16_full_argmax/untimed_bf16.py",
-  "studies/esp_table1_bf16_numerics/numerics.py",
   "studies/esp_table1_bf16_qwen_protocol/untimed_bf16.py",
-  "studies/esp_table1_bf16_reduction_check/numerics.py",
-  "studies/esp_table1_bf16_shape_check/numerics.py",
-  "studies/esp_table1_bf16_shape_check/shape_control.py",
   "studies/esp_table1_nonofficial_revalidation/argmax_audit.py",
   "studies/esp_table1_nonofficial_revalidation/revalidation_contract.py",
   "studies/esp_table1_nonofficial_revalidation/untimed_bf16.py",
@@ -15,9 +11,6 @@
   "studies/output_space_extension/analyze_numerics.py",
   "studies/output_space_extension/analyze_operators.py",
   "studies/output_space_extension/kernel_common.py",
-  "studies/qwen3_4b_bf16_bias_norm_continuation/continuation.py",
-  "studies/qwen3_4b_bf16_bias_norm_scan/norm_control.py",
-  "studies/qwen3_4b_bf16_paired_revalidation/paired_repeat.py",
   "studies/smoke/plot_validation.py",
   "studies/smoke/validate_migration.py"
 ]

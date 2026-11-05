@@ -84,7 +84,7 @@ def test_direction_source_gate_precedes_admission_and_model_with_distinct_asset_
         result = recipe._build_direction_cuda(None, model_assets, study_root=tmp_path, execution_root=tmp_path,
                                              admission_assets=run_assets, recovery=True)
         assert result.meta['direction_admission']['passed']
-        assert events == ['refs', ('admit', run_assets), ('model', model_assets)]
+        assert events == ['refs', ('admit', run_assets), 'refs', ('model', model_assets)]
 
 
 @pytest.mark.parametrize('passed', [False, True])

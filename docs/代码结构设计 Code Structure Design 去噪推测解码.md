@@ -126,3 +126,7 @@ native/state 的历史验证复用现有角色索引及每成员固定提交，�
 配对与方向控制复用现有 shared 两柱：配对执行与方向生命周期归 `structure/algorithm.py`，方向向量的原公式归 `geometry_4b.py`，输入准入归 `validation.py`，注册归 `recipe.py`。普通与 recovery 的准入策略显式区分，等待记录使用实际资产根；不得用模块全局替换串改另一协议。随机方向保留原 CPU generator 的种子序列与随后到目标设备的转换，不能在目录整理时改成另一随机过程。三个旧顶层控制入口不保留 facade，norm/paired 的实际消费者直接依赖所属部件。
 
 ESP preflight、numerics、reduction_check 与 shape_check 的相同 4B untimed 适配沿用已有共享 algorithm/model/recipe，特殊数值与 shape 合同仍由各自部件承担。导入不注册，只有原 Study 来源门通过后的显式 register 才装配；配置删除旧 include，旧 Run、锁和原字节来源身份保持。此归并不恢复已停止的 BF16/独立 AR 机理排查，不产生新的性能数字。
+
+ESP 的后端状态作用域与模型局部 Linear 作用域集中到唯一 `_shared/structure/esp_controls.py`：三份相同 NumericsEval 和依赖它的 ShapeEval、rowwise_linear 共用原实现，显式注册选择最终执行类。此模块隔离特有后端控制，避免 evaluate 与 algorithm 循环依赖，也不把三份副本搬成三份小模块；代价是维护一个作用域及其成功/异常恢复合同。原数值公式、状态恢复顺序和输出字段保持，调用方直接导入该模块。
+
+norm、paired repeat 与 continuation 控制继续复用上述 shared 职责：初始 bias 的纯观察归 geometry，三个执行类归 algorithm，来源表、固定 Git 计划和配对矩阵合同归 validation，recipe 在原门之后显式绑定运行根、已核原源、Run assets 和准入策略。Continuation 保留自身加 norm 的原来源链，采用 paired 的 observer 与 norm capacity，不额外混入 paired 来源门。三份顶层实现删除，容量入口和保存读件冻结实际新部件，原 refs/Run/计划身份另留，不能以路径变化绕过原锁。

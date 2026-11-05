@@ -18,9 +18,7 @@ provenance:
   - docs/modelscope_snapshot.json
   - docs/prompts_manifest.json
   - docs/specbench-source.json
-  - numerics.py
   - docs/preceding_results.json
-  - shape_control.py
 flow:
   study_phases: true
   prepare_shared: false

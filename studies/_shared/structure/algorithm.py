@@ -175,17 +175,17 @@ class DirectionEval(PairedUntimedEval):
         (assets / 'direction_admission.json').write_text(json.dumps(model.meta['direction_admission'], indent=2) + '\n')
 
         def controlled_builder(*args, **kwargs):
-            return control(builder(*args, **kwargs), mode, starts[current['index']], current['direction'])
+            return control(builder(*args, **kwargs), mode, lambda: starts[current['index']], current['direction'])
 
         def observed_generate(decoder, prompt):
             index = current['index']
             assert prompt[0].tolist() == expected[index]['input_ids']
             check = direction_admission(assets, initial=False, wait=self.recovery)
-            current['direction'] = {}
+            current['direction'].clear()
             output, stats = generate(decoder, prompt)
             assert stats['verification_argmax_audit']['passed']
             assert stats['prefill_time'] == stats['decode_time'] == 0
-            row = {'index': index, 'question_id': expected[index]['question_id'], 'direction': current['direction'],
+            row = {'index': index, 'question_id': expected[index]['question_id'], 'direction': dict(current['direction']),
                 'gpu_admission': check,
                 'accepted': stats['accepted'], 'committed': stats['committed'], 'decode_calls': stats['decode_calls'],
                 'new_tokens': stats['new_tokens'], 'argmax_checked_tokens': stats['verification_argmax_audit']['checked_committed_tokens']}
@@ -205,3 +205,97 @@ class DirectionEval(PairedUntimedEval):
         assert current['index'] == 480
         check_direction_refs(self.study_root, self.execution_root)
         return result
+
+
+class NormEval(PairedUntimedEval):
+    study_root: Path
+    execution_root: Path
+    admission_wait: Any
+    control_kind = "norm"
+
+    def check_refs(self):
+        from studies._shared.structure.validation import check_control_refs
+        return check_control_refs(self.study_root, self.execution_root, kind=self.control_kind)
+
+    def run(self, data, model, system, tracker):
+        self.check_refs()
+        from unittest.mock import patch
+        from studies._shared.structure import evaluate as assembly
+        from studies._shared.structure.geometry_4b import observe_initial_bias
+        import spec_mtp.structure.algorithm.decode.loop as decoding
+        expected = json.loads((self.pairing_root / 'docs/prompts_manifest.json').read_text(encoding='utf-8'))['rendered_prompts']
+        mode = self.config.setting('direction')
+        scale = self.config.setting('spec')['ema']['step_scale']
+        assert mode in ('template', 'random0', 'random1', 'random2') and scale in (.5, 2.)
+        assert len(expected) == 480
+        builder, generate = assembly.build_mask_provider, decoding.SpecDecoder.generate
+        current: dict[str, Any] = {'index': 0, 'bias': {}}
+        progress: list[dict[str, Any]] = []
+        assets = Path(system.assets_dir)
+        (assets / 'norm_admission_initial.json').write_text(json.dumps(model.meta['norm_scan_admission']) + '\n')
+
+        def controlled_builder(*args, **kwargs):
+            provider = builder(*args, **kwargs)
+            assert provider.step_scale == scale
+            return observe_initial_bias(provider, mode, current['bias'])
+
+        def observed_generate(decoder, prompt):
+            index = current['index']
+            assert prompt[0].tolist() == expected[index]['input_ids']
+            admission = self.admission_wait(assets, initial=False)
+            current['bias'].clear()
+            output, stats = generate(decoder, prompt)
+            audit = stats['verification_argmax_audit']
+            assert audit['passed'] and audit['checked_committed_tokens'] == stats['new_tokens']
+            assert stats['prefill_time'] == stats['decode_time'] == 0
+            row = {'index': index, 'question_id': expected[index]['question_id'], 'bias': dict(current['bias']),
+                'accepted': stats['accepted'], 'committed': stats['committed'], 'decode_calls': stats['decode_calls'],
+                'new_tokens': stats['new_tokens'], 'argmax_checked_tokens': audit['checked_committed_tokens'],
+                'attempt_by_depth': stats['attempt_by_depth'], 'accept_by_depth': stats['accept_by_depth'],
+                'first_block_accepted': len(stats['trace'][0]['accepted_nodes']) if stats['trace'] else None,
+                'gpu_admission': admission}
+            progress.append(row)
+            with (assets / 'norm_partial_private.jsonl').open('a', encoding='utf-8') as handle:
+                handle.write(json.dumps({'output_ids': output[0].tolist(), 'stats': stats, **row}) + '\n')
+            (assets / 'norm_progress.json').write_text(json.dumps({'direction': mode, 'step_scale': scale,
+                'completed': len(progress), 'total': 480, 'rows': progress}, indent=2) + '\n', encoding='utf-8')
+            if (index + 1) % 10 == 0:
+                print('Norm scan', mode, scale, index + 1, '/480', flush=True)
+            current['index'] += 1
+            return output, stats
+
+        with patch.object(assembly, 'build_mask_provider', side_effect=controlled_builder), \
+                patch.object(decoding.SpecDecoder, 'generate', observed_generate):
+            result = super().run(data, model, system, tracker)
+        assert current['index'] == 480
+        self.check_refs()
+        return result
+
+
+
+class PairedRepeatEval(PairedUntimedEval):
+    study_root: Path
+    execution_root: Path
+    admission_wait: Any
+    def run(self, data, model, system, tracker):
+        from unittest.mock import patch
+        from studies._shared.structure.validation import check_control_refs
+        import spec_mtp.structure.algorithm.decode.loop as decoding
+        check_control_refs(self.study_root, self.execution_root, kind="paired")
+        generate, ar = decoding.SpecDecoder.generate, ar_baseline.ar_generate
+        def ready_generate(decoder, prompt):
+            self.admission_wait(system.assets_dir, initial=False)
+            return generate(decoder, prompt)
+        def ready_ar(*args, **kwargs):
+            self.admission_wait(system.assets_dir, initial=False)
+            return ar(*args, **kwargs)
+        with patch.object(decoding.SpecDecoder, 'generate', ready_generate), patch.object(ar_baseline, 'ar_generate', ready_ar):
+            result = super().run(data, model, system, tracker)
+        check_control_refs(self.study_root, self.execution_root, kind="paired")
+        return result
+
+
+
+class ContinuationEval(NormEval):
+    """The unchanged norm protocol with its own source chain and paired resource observer."""
+    control_kind = "continuation"

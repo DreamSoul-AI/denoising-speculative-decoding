@@ -104,12 +104,12 @@ def check_matrix(decl, entries):
 
 def verify_reused(data_root, output_dir):
     data_root = Path(data_root).resolve(strict=True)
-    from studies.qwen3_4b_bf16_bias_norm_scan.norm_control import check_refs
+    from studies._shared.structure.validation import check_control_refs
     from studies._shared.structure import validation
     session = _native_session(data_root, STUDY, output_dir)
     sha256 = session.sha
     session.sha(STUDY/'docs/source_refs.json')
-    check_refs()
+    check_control_refs(STUDY, ROOT, kind="norm")
     formal, _, _, _, reference, cells = load_reused(data_root, reader=session)
     comparisons = []
     for base in ('zero/0', 'template/1'):
@@ -176,19 +176,20 @@ def continuation_entries(study, decl, entries, continuation):
 
 
 def native_readout(data_root, study_dir, output_dir, continuation_study=None):
-    from studies.qwen3_4b_bf16_bias_norm_scan.norm_control import check_refs
+    from studies._shared.structure.validation import check_control_refs, source_study_root
     from spec_mtp.structure.artifact.provenance import check_frozen as pcheck
     from spec_mtp.structure.make.expand import load_study_yaml
     from studies._shared.structure.sources import check_frozen, manifest
     data_root = Path(data_root).resolve(strict=True)
     study = Path(study_dir).resolve(strict=True)
+    execution = source_study_root(study).parents[1]
     continuation = Path(continuation_study).resolve(strict=True) if continuation_study else None
     output = _new_output(output_dir, data_root, study, *([continuation] if continuation is not None else []))
-    assert Path.cwd().resolve() == study.parents[1], 'Run from the frozen execution checkout root for declared relative inputs'
+    assert Path.cwd().resolve() == execution, 'Run from the frozen execution checkout root for declared relative inputs'
     session = _native_session(data_root, study, output, continuation)
     read_json, sha256 = session.read_json, session.sha
-    session.sha(STUDY/'docs/source_refs.json')
-    check_refs()
+    session.sha(study/'docs/source_refs.json')
+    check_control_refs(study, execution, kind="norm")
     decl = load_study_yaml(study)
     check_frozen(study, decl, manifest())
     pcheck(study, decl)

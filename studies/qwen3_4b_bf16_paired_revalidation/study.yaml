@@ -7,7 +7,6 @@ recipe: recipe.py
 freeze: true
 provenance:
   include:
-  - paired_repeat.py
   - docs/source_refs.json
   project_plan:
     commit: acaa68cd182225622f7f430a7e56cc7b8d1aae83

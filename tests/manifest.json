@@ -610,66 +610,93 @@
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.geometry_4b.observe_initial_bias",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "cost_class": "c3",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_eight_preregistered_cells_and_immutable_inputs",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_native_tiny_bf16_argmax_audit_for_scaled_bias",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.geometry_4b.observe_initial_bias",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "cost_class": "c3",
+      "level": "integration"
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_unmade_readout_cannot_claim_completed_scan",
       "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_first_block_pairing_excludes_changed_prefill_and_missing_blocks",
-      "target": "studies.qwen3_4b_bf16_bias_norm_scan.structure.readout",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_norm_matrix_must_match_all_eight_frozen_cases",
       "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_reused_only_readout_never_accepts_new_runs_or_plots",
       "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_reused_only_missing_private_evidence_fails_without_new_outputs",
       "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_published_reuse_checkpoint_matches_existing_endpoints",
       "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run",
       "tags": [
-        "external_evidence"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_measured_4b_admission_keeps_reserve_and_gpu_exclusion",
@@ -683,10 +710,13 @@
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_historical_norm_scan_immutable_source_refs",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.validation.check_control_refs",
       "tags": [
-        "external_evidence"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_branch_flow.py::test_branch_gate",
@@ -1284,36 +1314,6 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_esp_bf16_controls.py::test_bf16_controls_restore_and_record",
-      "target": "studies.esp_table1_bf16_numerics.numerics / esp_table1_bf16_reduction_check.numerics / esp_table1_bf16_shape_check.numerics",
-      "tags": [
-        "offline_cpu",
-        "structure_cleanup"
-      ],
-      "cost_class": "c1",
-      "level": "unit"
-    },
-    {
-      "test_id": "tests/spec_mtp/test_esp_bf16_shapes.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
-      "target": "studies.esp_table1_bf16_shape_check.shape_control",
-      "tags": [
-        "offline_cuda",
-        "structure_cleanup"
-      ],
-      "cost_class": "c3",
-      "level": "unit"
-    },
-    {
-      "test_id": "tests/spec_mtp/test_esp_bf16_shapes.py::test_shape_patch_is_local_and_restores_on_failure",
-      "target": "studies.esp_table1_bf16_shape_check.shape_control",
-      "tags": [
-        "offline_cuda",
-        "structure_cleanup"
-      ],
-      "cost_class": "c3",
-      "level": "unit"
-    },
-    {
       "test_id": "tests/spec_mtp/test_esp_qwen_protocol.py::test_protocol_aggregation_keeps_call_weighting_and_quality",
       "target": "spec_mtp",
       "tags": [
@@ -1843,38 +1843,53 @@
     },
     {
       "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_all_eleven_effective_configs_match_native_expansion",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_paired_revalidation.flow.process.run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_changed_or_incomplete_repeat_index_is_rejected",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_paired_revalidation.flow.process.run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_resource_guard_precedes_model_and_both_decode_paths",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.algorithm.PairedRepeatEval",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "integration"
     },
     {
       "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_unmade_repeat_writes_pending_only",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_paired_revalidation.flow.process.run",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "cost_class": "c1",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.validation._check_argmax",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "cost_class": "c3",
+      "level": "integration"
     },
     {
       "test_id": "tests/spec_mtp/test_phi_rms.py::test_phi64_uses_native_slot_and_scale_without_state_mutation",
@@ -7733,7 +7748,7 @@
     },
     {
       "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_continuation/test_continuation.py::test_continuation_wait_policy_is_injected_without_changing_the_norm_module",
-      "target": "studies.qwen3_4b_bf16_bias_norm_continuation.continuation",
+      "target": "studies._shared.structure.algorithm.ContinuationEval",
       "level": "integration",
       "type": "content",
       "cost_class": "c1",
@@ -7916,6 +7931,202 @@
     {
       "test_id": "tests/studies/_shared/structure/test_untimed_recipe.py::test_esp_recipe_import_is_inert_and_failed_source_gate_cannot_install_overrides",
       "target": "studies._shared.structure.recipe.register_untimed / ESP consumer recipes",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_bf16_controls_restore_and_record",
+      "target": "studies._shared.structure.esp_controls",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_esp_numerics_rejects_non_bf16_before_backend_or_asset_changes",
+      "target": "studies._shared.structure.esp_controls",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_esp_registration_rejects_non_boolean_shape_before_changing_registry",
+      "target": "studies._shared.structure.esp_controls",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
+      "target": "studies._shared.structure.esp_controls",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_shape_patch_is_local_and_restores_on_failure",
+      "target": "studies._shared.structure.esp_controls",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_norm_controls.py::test_content_direction_reuses_one_cuda_provider_with_distinct_prompt_offsets",
+      "target": "studies._shared.structure.geometry_4b.direction_control",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_norm_controls.py::test_continuation_checks_only_own_and_norm_original_source_chain",
+      "target": "studies._shared.structure.validation.check_control_refs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_norm_controls.py::test_control_source_drift_during_admission_rejects_before_loading",
+      "target": "studies._shared.structure.recipe.register_control",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_norm_controls.py::test_native_control_reader_uses_verified_source_checkout_for_arbitrary_external_run_root",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.process.run / qwen3_4b_bf16_paired_revalidation.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_norm_controls.py::test_norm_control_native_gate_precedes_registration_without_import_side_effects",
+      "target": "studies._shared.structure.recipe.register_control",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_norm_controls.py::test_norm_control_original_refs_and_plan_reject_before_model",
+      "target": "studies._shared.structure.validation.check_control_refs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_norm_controls.py::test_norm_control_snapshot_roots_policy_and_original_matrix",
+      "target": "studies._shared.structure.recipe.register_control / validation.paired_matrix_settings",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_norm_controls.py::test_norm_control_source_failure_never_reaches_admission_or_loader",
+      "target": "studies._shared.structure.recipe.register_control",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_norm_controls.py::test_reused_control_keeps_two_prompt_diagnostics_as_independent_snapshots",
+      "target": "studies._shared.structure.algorithm",
       "level": "integration",
       "type": "content",
       "cost_class": "c1",
@@ -8129,11 +8340,27 @@
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/test_esp_bf16_shapes.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
+          "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/test_esp_bf16_shapes.py::test_shape_patch_is_local_and_restores_on_failure",
+          "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_native_tiny_bf16_argmax_audit_for_scaled_bias",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_shape_patch_is_local_and_restores_on_failure",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/_shared/structure/test_norm_controls.py::test_content_direction_reuses_one_cuda_provider_with_distinct_prompt_offsets",
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         }
       ],
@@ -8391,13 +8618,35 @@
         "tests/spec_mtp/test_4b_pairing_contract.py::test_historical_11_cell_original_inputs",
         "tests/spec_mtp/test_4b_pairing_contract.py::test_pairing_adapter_checks_before_decode_and_restores_globals",
         "tests/spec_mtp/test_4b_pairing_contract.py::test_predeclared_11_cells_share_bf16_data_and_two_mask_trees",
-        "tests/spec_mtp/test_esp_bf16_controls.py::test_bf16_controls_restore_and_record",
         "tests/studies/_shared/structure/test_paired_direction_controls.py::test_control_registration_uses_snapshot_source_and_keeps_roots_separate",
         "tests/studies/_shared/structure/test_paired_direction_controls.py::test_direction_source_gate_precedes_admission_and_model_with_distinct_asset_roots",
         "tests/studies/_shared/structure/test_paired_direction_controls.py::test_direction_source_refs_reject_bad_identity_before_execution",
         "tests/studies/_shared/structure/test_paired_direction_controls.py::test_ordinary_direction_admission_is_one_observation_without_wait_output",
         "tests/studies/_shared/structure/test_paired_direction_controls.py::test_paired_direction_recipes_keep_native_gate_first_and_import_inert",
-        "tests/studies/_shared/structure/test_untimed_recipe.py::test_esp_recipe_import_is_inert_and_failed_source_gate_cannot_install_overrides"
+        "tests/studies/_shared/structure/test_untimed_recipe.py::test_esp_recipe_import_is_inert_and_failed_source_gate_cannot_install_overrides",
+        "tests/spec_mtp/test_bias_norm_scan.py::test_eight_preregistered_cells_and_immutable_inputs",
+        "tests/spec_mtp/test_bias_norm_scan.py::test_first_block_pairing_excludes_changed_prefill_and_missing_blocks",
+        "tests/spec_mtp/test_bias_norm_scan.py::test_historical_norm_scan_immutable_source_refs",
+        "tests/spec_mtp/test_bias_norm_scan.py::test_norm_matrix_must_match_all_eight_frozen_cases",
+        "tests/spec_mtp/test_bias_norm_scan.py::test_published_reuse_checkpoint_matches_existing_endpoints",
+        "tests/spec_mtp/test_bias_norm_scan.py::test_reused_only_missing_private_evidence_fails_without_new_outputs",
+        "tests/spec_mtp/test_bias_norm_scan.py::test_reused_only_readout_never_accepts_new_runs_or_plots",
+        "tests/spec_mtp/test_bias_norm_scan.py::test_unmade_readout_cannot_claim_completed_scan",
+        "tests/spec_mtp/test_paired_revalidation.py::test_all_eleven_effective_configs_match_native_expansion",
+        "tests/spec_mtp/test_paired_revalidation.py::test_changed_or_incomplete_repeat_index_is_rejected",
+        "tests/spec_mtp/test_paired_revalidation.py::test_resource_guard_precedes_model_and_both_decode_paths",
+        "tests/spec_mtp/test_paired_revalidation.py::test_unmade_repeat_writes_pending_only",
+        "tests/studies/_shared/structure/test_esp_controls.py::test_bf16_controls_restore_and_record",
+        "tests/studies/_shared/structure/test_esp_controls.py::test_esp_numerics_rejects_non_bf16_before_backend_or_asset_changes",
+        "tests/studies/_shared/structure/test_esp_controls.py::test_esp_registration_rejects_non_boolean_shape_before_changing_registry",
+        "tests/studies/_shared/structure/test_norm_controls.py::test_continuation_checks_only_own_and_norm_original_source_chain",
+        "tests/studies/_shared/structure/test_norm_controls.py::test_control_source_drift_during_admission_rejects_before_loading",
+        "tests/studies/_shared/structure/test_norm_controls.py::test_native_control_reader_uses_verified_source_checkout_for_arbitrary_external_run_root",
+        "tests/studies/_shared/structure/test_norm_controls.py::test_norm_control_native_gate_precedes_registration_without_import_side_effects",
+        "tests/studies/_shared/structure/test_norm_controls.py::test_norm_control_original_refs_and_plan_reject_before_model",
+        "tests/studies/_shared/structure/test_norm_controls.py::test_norm_control_snapshot_roots_policy_and_original_matrix",
+        "tests/studies/_shared/structure/test_norm_controls.py::test_norm_control_source_failure_never_reaches_admission_or_loader",
+        "tests/studies/_shared/structure/test_norm_controls.py::test_reused_control_keeps_two_prompt_diagnostics_as_independent_snapshots"
       ],
       "exclude": []
     },
@@ -8454,14 +8703,18 @@
         "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_tiny_cuda_uses_the_controlled_policy_and_complete_argmax_chain",
         "tests/spec_mtp/test_4b_full_directions.py::test_full_direction_preserves_native_mean_and_declared_velocity",
         "tests/spec_mtp/test_4b_full_directions.py::test_native_tiny_bf16_direction_controls_remain_argmax_safe",
-        "tests/spec_mtp/test_esp_bf16_shapes.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
-        "tests/spec_mtp/test_esp_bf16_shapes.py::test_shape_patch_is_local_and_restores_on_failure"
+        "tests/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
+        "tests/spec_mtp/test_bias_norm_scan.py::test_native_tiny_bf16_argmax_audit_for_scaled_bias",
+        "tests/spec_mtp/test_paired_revalidation.py::test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token",
+        "tests/studies/_shared/structure/test_esp_controls.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
+        "tests/studies/_shared/structure/test_esp_controls.py::test_shape_patch_is_local_and_restores_on_failure",
+        "tests/studies/_shared/structure/test_norm_controls.py::test_content_direction_reuses_one_cuda_provider_with_distinct_prompt_offsets"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
         "estimated_device_seconds": 120,
-        "estimate_basis": "previous 114-case CUDA plan: 99.63 seconds; adds bounded direction/shape fixtures",
+        "estimate_basis": "previous 132-case CUDA plan: 98.59 seconds; adds bounded native norm fixtures",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false
