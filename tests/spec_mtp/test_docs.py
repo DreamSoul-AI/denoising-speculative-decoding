@@ -46,6 +46,7 @@ def test_first_party_docs_have_one_canonical_chinese_copy():
         '架构设计 Architecture Design 去噪推测解码.md',
         '代码结构设计 Code Structure Design 去噪推测解码.md',
         '研究计划 Research Plan 去噪推测解码.md',
+        '研究成果归档 Research Archive 去噪推测解码.md',
         '开发计划 Development Plan 去噪推测解码.md',
         '缺陷记录 Bug Report 去噪推测解码.md',
     }
