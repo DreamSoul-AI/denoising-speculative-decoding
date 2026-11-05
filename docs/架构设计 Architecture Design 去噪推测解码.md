@@ -268,3 +268,8 @@ K 工程 fixture 使用随机 tied tiny LLaMA、CPU FP32、eager；先拟合并�
 | CR5 新进程对照 | 同一冻结条件连续k+m步，对照新进程载第k步checkpoint再执行m步。逐批核样本ID、全域RNG、参数与optimizer/scheduler/tracker/预算终态，记录实际PID、CUDA设备、版本与失败 | native微型CUDA覆盖6步预算及完整重绑、3epoch预算、5epoch预算下stall触发的早停；固定score只检验停止逻辑。终态恢复不新增batch、eval或科学写入，epoch与step双上限生效；原checkpoint摘要不变。只证明此固定环境与能力范围 |
 
 恢复功能、工程回归与研究结论分别报告。无法证明某域完整时保留partial/未知范围，不清空旧证据、不换成功重复，也不把恢复差异归因于新算法。
+
+## 微型探针与保存证据读端
+smoke当前CUDA微型探针与历史CPU图件有独立身份。探针在新版本和外部输出根冻结计划、模型、输入、协议、设备及随机条件；T0验证完整提交链argmax，采样AR只诊断。比较先要求probe/header/cells与最后完成标记逐SHA绑定，再要求同一冻结身份的完整报告，历史CPU报告不产生跨设备逐位保证。历史图只读原标量，不执行探针。
+
+extension保存张量审计只复用已冻结的原件。读端先核每种审计的精确角色集合、原运行件与固定Git成员、原工具/计划/辅助模块，再在显式CUDA设备计算，收尾复核原件与当前源后最后发布完成标记。旧实时模型与profiler不属于该能力。当前CUDA概率与margin不回写旧CPU参考，来源缺口阻断相应读取。

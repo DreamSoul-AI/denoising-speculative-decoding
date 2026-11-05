@@ -48,17 +48,20 @@ def saved_inputs(tmp_path, monkeypatch):
         return git_bytes
 
     def load(path, *, map_location, weights_only):
-        calls.append(('tensor', path, map_location, weights_only))
-        assert path == tensor and map_location == 'cpu' and weights_only is True
+        calls.append(('tensor', path, str(map_location), weights_only))
+        assert path == tensor and str(map_location) == 'cuda:0' and weights_only is True
         return {'saved': 'tensor fixture'}
 
-    def compute(saved_report, matrix, tensors):
+    def compute(saved_report, matrix, tensors, *, device):
+        assert str(device) == 'cuda:0'
         assert saved_report == report and matrix == data
         assert tensors == {'saved': 'tensor fixture'}
         return {'offline': True}
 
     monkeypatch.setattr(provenance, 'read_historical_bytes', historical)
     monkeypatch.setattr(torch, 'load', load)
+    monkeypatch.setattr(torch.cuda, 'is_available', lambda: True)
+    monkeypatch.setattr(torch.cuda, 'get_device_name', lambda *a: 'IO fixture; no CUDA calculation')
     monkeypatch.setattr(extension_diagnostics, 'analyze_saved_transfers', compute)
     return SimpleNamespace(module=module, raw=raw, repository=repository, execution=execution,
                            report=report, report_path=report_path, tensor=tensor, commit=commit,
@@ -67,7 +70,7 @@ def saved_inputs(tmp_path, monkeypatch):
 
 def _analyze(case, **overrides):
     args = {'raw_root': case.raw, 'execution': case.execution, 'repository': case.repository,
-            'commit': case.commit, 'execution_git_sha256': case.git_sha, 'output_root': case.output}
+            'commit': case.commit, 'execution_git_sha256': case.git_sha, 'output_root': case.output, 'device': 'cuda:0'}
     return case.module.analyze(**(args | overrides))
 
 
@@ -88,7 +91,7 @@ def test_analysis_distinguishes_git_blob_and_runtime_execution_bytes(saved_input
     assert result['findings'] == {'offline': True}
     assert case.calls == [('history', case.repository, case.commit,
                            case.module.EXECUTION_MEMBER, case.git_sha),
-                          ('tensor', case.tensor, 'cpu', True)]
+                          ('tensor', case.tensor, 'cuda:0', True)]
     assert before == {path: path.read_bytes() for path in inputs}
 
 
@@ -102,7 +105,7 @@ def test_analysis_rejects_computation_source_drift_before_output(saved_inputs, m
     fake_source.write_bytes(b'# margin before computation\n')
     monkeypatch.setattr(window_diagnostics, '__file__', str(fake_source))
 
-    def drift(*args):
+    def drift(*args, **kwargs):
         fake_source.write_bytes(b'# margin changed during computation\n')
         return {'offline': True}
 
@@ -155,6 +158,13 @@ def test_analysis_never_overwrites_an_existing_output(saved_inputs):
     assert not case.calls
 
 
+def test_transfer_analysis_requires_explicit_cuda_without_cpu_fallback(saved_inputs):
+    case = saved_inputs
+    with pytest.raises(ValueError, match='no CPU fallback'):
+        _analyze(case, device='cpu')
+    assert not case.calls and not case.output.exists()
+
+
 @pytest.mark.parametrize('placement', ['raw', 'runtime', 'repository', 'ancestor'])
 def test_analysis_output_root_is_separate_from_inputs_and_source(saved_inputs, placement):
     case = saved_inputs
@@ -166,12 +176,12 @@ def test_analysis_output_root_is_separate_from_inputs_and_source(saved_inputs, p
 
 
 @pytest.mark.parametrize('missing', ['--raw', '--execution', '--repository', '--commit',
-                                     '--execution-git-sha256', '--output-root'])
+                                     '--execution-git-sha256', '--output-root', '--device'])
 def test_analysis_cli_requires_every_input_and_output_identity(saved_inputs, missing, capsys):
     case = saved_inputs
     options = {'--raw': str(case.raw), '--execution': str(case.execution),
                '--repository': str(case.repository), '--commit': case.commit,
-               '--execution-git-sha256': case.git_sha, '--output-root': str(case.output)}
+               '--execution-git-sha256': case.git_sha, '--output-root': str(case.output), '--device': 'cuda:0'}
     args = [item for key, value in options.items() if key != missing for item in (key, value)]
     with pytest.raises(SystemExit) as stopped:
         case.module.main(args)
@@ -179,11 +189,15 @@ def test_analysis_cli_requires_every_input_and_output_identity(saved_inputs, mis
     assert not case.output.exists()
 
 
-def test_saved_transfer_analysis_preserves_skipped_prompts_and_second_slot_validity():
+def test_saved_transfer_analysis_preserves_skipped_prompts_and_second_slot_validity(record_property):
     import copy
     import torch
     from studies._shared.structure.extension_diagnostics import analyze_saved_transfers
 
+    assert torch.cuda.is_available(), 'saved transfer correctness requires actual CUDA'
+    device = torch.device('cuda:0')
+    print(f'saved transfer engineering tensor.device={device} name={torch.cuda.get_device_name(device)}', flush=True)
+    record_property('cuda_device', torch.cuda.get_device_name(device))
     report = {'prompts': [
         {'question_id': 10, 'intervention_root': None, 'status': 'no continuing common root'},
         {'question_id': 11, 'intervention_root': 0, 'cases': [], 'baselines': [
@@ -191,8 +205,8 @@ def test_saved_transfer_analysis_preserves_skipped_prompts_and_second_slot_valid
             for case in ('output_order0', 'output_order1')]},
     ]}
     raw = {
-        'q11:baseline:output_order0:0': {'seed_logits': torch.tensor([[0., 3., 1.], [0., 1., 4.]])},
-        'q11:baseline:output_order1:0': {'seed_logits': torch.tensor([[4., 3., 0.], [0., 4., 1.]])},
+        'q11:baseline:output_order0:0': {'seed_logits': torch.tensor([[0., 3., 1.], [0., 1., 4.]], device=device)},
+        'q11:baseline:output_order1:0': {'seed_logits': torch.tensor([[4., 3., 0.], [0., 4., 1.]], device=device)},
     }
     before_report = copy.deepcopy(report)
     before_raw = {key: value['seed_logits'].clone() for key, value in raw.items()}
@@ -200,7 +214,7 @@ def test_saved_transfer_analysis_preserves_skipped_prompts_and_second_slot_valid
         data = {'runs': [{'case': 'AR', 'raw': {'evidence': [
             {'output_ids': [0]}, {'output_ids': tokens}]}}]}
         before_data = copy.deepcopy(data)
-        findings = analyze_saved_transfers(report, data, raw)
+        findings = analyze_saved_transfers(report, data, raw, device=device)
         assert findings[0] == {'question_id': 10, 'status': 'no continuing common root'}
         assert findings[1]['question_id'] == 11 and findings[1]['cases'] == []
         natural, = findings[1]['natural_baseline_slots']

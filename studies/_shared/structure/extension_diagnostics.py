@@ -27,18 +27,18 @@ def frozen_targets(selection):
     return sorted(set([entry, *later[:3], *later[-2:]]))
 
 
-def slots(sample, tokens, position):
+def slots(sample, tokens, position, *, device=None):
     import torch
     from studies._shared.structure.window_diagnostics import margin
     first_target = tokens[position + 1]
-    first = margin(sample['seed_logits'][0], first_target)
+    first = margin(sample['seed_logits'][0], first_target, device=device)
     valid = int(sample['seed_logits'][0].argmax()) == first_target and position + 2 < len(tokens)
-    second = margin(sample['seed_logits'][1], tokens[position + 2]) if position + 2 < len(tokens) else None
+    second = margin(sample['seed_logits'][1], tokens[position + 2], device=device) if position + 2 < len(tokens) else None
     return {'first': first, 'second': second, 'second_AR_path_valid': valid,
             'seed_logits_finite': bool(torch.isfinite(sample['seed_logits']).all())}
 
 
-def analyze_saved_transfers(report, data, raw):
+def analyze_saved_transfers(report, data, raw, *, device=None):
     """Audit preserved observations without model forwards or output writes."""
     import torch
     native = {r['case']: r for r in data['runs']}
@@ -54,7 +54,7 @@ def analyze_saved_transfers(report, data, raw):
         baseline_samples = {case: {t['root_position']: raw[f'q{qid}:baseline:{case}:' + str(t['root_position'])]
             for t in row['trace'] if t['root_position'] >= root} for case, row in baselines.items()}
         for position in sorted(set(baseline_samples['output_order0']) & set(baseline_samples['output_order1'])):
-            zero, one = (slots(baseline_samples[c][position], tokens, position) for c in ('output_order0', 'output_order1'))
+            zero, one = (slots(baseline_samples[c][position], tokens, position, device=device) for c in ('output_order0', 'output_order1'))
             natural.append({'root_position': position, 'zero': zero, 'one': one,
                 'valid_second_slot_opposite_signs': bool(zero['second_AR_path_valid'] and one['second_AR_path_valid']
                     and zero['second']['target_margin_vs_best_other'] * one['second']['target_margin_vs_best_other'] < 0)})
@@ -73,11 +73,11 @@ def analyze_saved_transfers(report, data, raw):
             for recorded in case['windows']:
                 position = recorded['root_position']
                 current = sample(position)
-                w = {'root_position': position, 'actual': slots(current, tokens, position),
+                w = {'root_position': position, 'actual': slots(current, tokens, position, device=device),
                      'source_root': current['source_root'], 'source_owner': current['source_owner']}
                 assert w['actual']['seed_logits_finite']
                 if position in original:
-                    w['baseline'] = slots(original[position], tokens, position)
+                    w['baseline'] = slots(original[position], tokens, position, device=device)
                     for state in ('anchor', 'velocity', 'proxies'):
                         assert torch.equal(current['current_state'][state], original[position]['current_state'][state]) == recorded['states'][state]['bit_equal']
                     w['anchor_and_velocity_bit_equal'] = all(recorded['states'][k]['bit_equal'] for k in ('anchor', 'velocity'))

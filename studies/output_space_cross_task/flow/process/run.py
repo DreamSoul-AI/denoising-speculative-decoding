@@ -39,7 +39,7 @@ class CrossTaskReadout(SavedReadout):
 
 
 def bind_inputs(kind, inputs, inputs_sha256, output_root, *, roles, producers,
-                quality_fields=None, source_roles=None):
+                quality_fields=None, source_roles=None, session_type=None):
     """Bind the shared role index, exact historical producers and actual saved bytes once."""
     from spec_mtp.structure.artifact.provenance import file_sha256, read_historical_bytes
     index_path = Path(inputs).resolve(strict=True)
@@ -57,7 +57,8 @@ def bind_inputs(kind, inputs, inputs_sha256, output_root, *, roles, producers,
         value = Path(entry['path'])
         entry['path'] = str((value if value.is_absolute() else index_path.parent / value).resolve(strict=True))
     paths = [Path(entry['path']).resolve(strict=True) for entry in entries]
-    session = CrossTaskReadout(index_path.parent, output_root, repository, *(path.parent for path in paths))
+    selected = CrossTaskReadout if session_type is None else session_type
+    session = selected(index_path.parent, output_root, repository, *(path.parent for path in paths))
     if session.sha(index_path) != inputs_sha256:
         raise ValueError('input index changed during admission')
     def historical(entry):

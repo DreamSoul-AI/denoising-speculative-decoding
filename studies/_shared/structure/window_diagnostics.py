@@ -3,12 +3,13 @@
 from spec_mtp.structure.artifact.provenance import file_sha256
 from spec_mtp.structure.algorithm.mask import build_mask_provider
 from unittest.mock import patch
+from typing import Any
 SEMANTIC_KEYS = ('accepted', 'new_tokens', 'committed', 'decode_calls', 'hit_context_limit', 'attempt_by_depth', 'accept_by_depth')
 TRACE_KEYS = ('root_position', 'cache_before', 'cache_after', 'accepted_nodes', 'committed_tokens', 'stopped')
 
-def margin(logits, target):
+def margin(logits, target, *, device=None):
     import torch
-    row = logits.detach().float().cpu()
+    row = logits.detach().float().to('cpu' if device is None else device)
     top = row.topk(2)
     probs = torch.softmax(row, dim=-1)
     best_other = top.values[1] if int(top.indices[0]) == target else top.values[0]
@@ -26,7 +27,9 @@ def observe(model, prompt, spec, eval_cfg, eos, reference, targets, seed=124):
     assert k == 2 and spec['tree']['branches'] == [1, 1] and (not spec['tree']['pruning'])
     expected = {t['root_position']: t for t in reference['stats']['trace']}
     assert set(targets) <= set(expected)
-    active, latest_norm, latest_state, previous_seed, samples = ({}, {}, {}, {}, {})
+    active: dict[str, Any] = {}
+    previous_seed: dict[str, Any] = {}
+    latest_norm, latest_state, samples = ({}, {}, {})
     calls = 0
     original = OutputHiddenMaskProvider.masks_per_owner
 
@@ -94,7 +97,11 @@ def transfer(model, prompt, spec, eval_cfg, eos, reference, donor, original_mask
     assert spec['num_masks'] == 2 and spec['tree']['branches'] == [1, 1] and (not spec['tree']['pruning'])
     expected = reference['stats']['trace']
     intervention_call = next((i + 1 for i, t in enumerate(expected) if t['root_position'] == root))
-    active, state, previous, samples, intervention = ({}, {}, {}, {}, {})
+    active: dict[str, Any] = {}
+    state: dict[str, Any] = {}
+    previous: dict[str, Any] = {}
+    intervention: dict[str, Any] = {}
+    samples = {}
     calls = provider_calls = 0
     original = OutputHiddenMaskProvider.masks_per_owner
 

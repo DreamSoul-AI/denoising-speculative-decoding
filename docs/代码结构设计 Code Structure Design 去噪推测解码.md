@@ -134,3 +134,7 @@ norm、paired repeat 与 continuation 控制继续复用上述 shared 职责：�
 ESP full/Qwen 的 numeric policy、full_argmax 的独立提交链观察及非官方复验继续归已有 esp_controls；四份 untimed、两份相同 argmax 与非官方 contract 不各自维护副本。NumericPolicyEval、ArgmaxEval 与 RevalidationEval 分别承接原作用域与附加门，recipe 显式选择，实际来源表/固定 Git 计划的共同校验归 validation。非官方模型摘要、480 条原输入、逐 prompt 准入和完整数量门独立保留，audit 独占创建、异常时移除 hook 并恢复原调用，不把原 AR exact 与 argmax 两类质量定义混合。
 
 full 的完整 AR 读件及中文报告由一个必要的 `structure/readout.py` 承接，既有 `flow/process/run.py` 负责显式输入根、执行源码根、新外部输出和最终发布。计数复用 full_argmax 的纯统计，四格声明作为显式参数传入，默认 argmax 角色不变；full 的 BC10 auxiliary 与完整 AR 不一致仍按其原判据报告。来源和输入先核、读取后再核，完整观测与质量通过分别记录，不以相邻协议的质量门筛掉旧负结果，也不为一个旧命令新建转调文件。
+
+smoke 的 cell/trace/比较合同及历史 CPU Figure 共用一个 `structure/validation.py`，当前 tiny CUDA 的模型、36 格流程和发布归 `flow/execute/run.py`，历史图的显式输入/输出归既有 `flow/write/run.py`。删除两个旧顶层入口，不保归档布局 fallback 或依源码行号的 sys.settrace。原 CPU 报告按原身份只读；新 CUDA 版本冻结输入、模型、矩阵、RNG、dtype/backend 与设备，比较先校可比身份，不能把跨设备结果当原 CPU bitwise 迁移证明。T0 完整 argmax 为门，采样 AR 一致仅诊断，保原三 variant、四 prompt、三温度与种子/预算。
+
+extension 的 numerics、kernel、operator 保存张量审计集中到一个 `structure/saved_diagnostics.py`，命令及读件生命周期归既有 process。复用既有角色索引准入，只通过可选 session 类型切换实际读端来源范围，默认 cross-task 行为不变；原 tool/plan/common 与报告按各自旧字段精确绑定，不执行归档源码。共同 slot/margin 仅新增显式 device 参数，默认旧 CPU 语义不变，当前保存张量计算显式 CUDA，当前CUDA FP32 margin与旧CPU参考分身份记录。删除四个旧入口；已停止的真实模型加载/profiler 不提供当前派发 API，必要纯检查与事件归纳保留，原 common 路径只作固定 Git 历史成员。

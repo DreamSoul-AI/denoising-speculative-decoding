@@ -1494,10 +1494,13 @@
     },
     {
       "test_id": "tests/spec_mtp/test_extension_windows.py::test_second_slot_ar_path_requires_correct_first_and_available_target",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.extension_diagnostics",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "cost_class": "c3",
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_gpu_admission.py::test_recognized_display_process_is_not_a_blocker",
@@ -4493,11 +4496,12 @@
       "target": "studies._shared.structure.extension_diagnostics",
       "level": "unit",
       "type": "content",
-      "cost_class": "c1",
+      "cost_class": "c3",
       "result_type": "categorical",
       "priority": "p1",
       "tags": [
-        "offline_cpu"
+        "offline_cuda",
+        "structure_cleanup"
       ]
     },
     {
@@ -8390,6 +8394,230 @@
         "offline_cpu",
         "structure_cleanup"
       ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_run.py::test_transfer_analysis_requires_explicit_cuda_without_cpu_fallback",
+      "target": "studies.output_space_extension.flow.process.run.analyze",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_saved_q178_entry.py::test_saved_q178_binds_original_roles_and_separates_current_tool_from_old_cpu_reference",
+      "target": "studies.output_space_extension.flow.process.run.analyze_saved",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_saved_q178_entry.py::test_saved_q178_rechecks_source_drift_before_completion",
+      "target": "studies.output_space_extension.flow.process.run.analyze_saved",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_saved_q178_entry.py::test_saved_q178_rejects_unbound_roles_sources_and_cpu_before_loading",
+      "target": "studies.output_space_extension.flow.process.run.analyze_saved",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_saved_q178_entry.py::test_stopped_q178_live_entries_reject_before_dispatch",
+      "target": "studies.output_space_extension.flow.process.run.main",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/structure/test_saved_q178_diagnostics.py::test_margin_default_cpu_dispatch_is_unchanged_and_explicit_device_is_forwarded",
+      "target": "studies._shared.structure.window_diagnostics.margin",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/structure/test_saved_q178_diagnostics.py::test_saved_q178_audits_use_real_cuda_state_and_reject_corrupt_captures",
+      "target": "studies.output_space_extension.structure.saved_diagnostics",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_current_cuda_smoke_matrix_records_full_t0_and_sampling_scope",
+      "target": "studies.smoke.flow.execute.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_probe_comparison_requires_published_bundle_before_cuda_or_model",
+      "target": "studies.smoke.flow.execute.run.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_probe_preflight_refuses_bad_plan_device_or_legacy_compare_before_loading",
+      "target": "studies.smoke.flow.execute.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/smoke/flow/write/test_smoke_plot.py::test_historical_smoke_plot_refuses_drift_and_never_publishes_partial_completion",
+      "target": "studies.smoke.flow.write.run.write_plot",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/smoke/flow/write/test_smoke_plot.py::test_historical_smoke_plot_uses_explicit_input_and_new_root_only",
+      "target": "studies.smoke.flow.write.run.write_plot",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/smoke/structure/test_validation.py::test_cell_preserves_native_trace_and_separates_ar_diagnostic_from_argmax",
+      "target": "studies.smoke.structure.validation.cell_observation",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/smoke/structure/test_validation.py::test_comparison_requires_frozen_cuda_identity_before_any_bitwise_claim",
+      "target": "studies.smoke.structure.validation.compare_reports",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/smoke/structure/test_validation.py::test_historical_cpu_figure_keeps_original_934dac3_saved_identity",
+      "target": "studies.smoke.structure.validation.historical_cpu_figure",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/smoke/structure/test_validation.py::test_t0_cell_rejects_trace_or_argmax_contract_damage",
+      "target": "studies.smoke.structure.validation.cell_observation",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
     }
   ],
   "plans": {
@@ -8626,6 +8854,22 @@
         },
         {
           "test_id": "tests/studies/_shared/structure/test_esp_controls.py::test_full_esp_adapter_combines_untimed_cuda_decode_and_optional_external_audit",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/test_extension_windows.py::test_second_slot_ar_path_requires_correct_first_and_available_target",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_extension/flow/process/test_run.py::test_saved_transfer_analysis_preserves_skipped_prompts_and_second_slot_validity",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_extension/structure/test_saved_q178_diagnostics.py::test_saved_q178_audits_use_real_cuda_state_and_reject_corrupt_captures",
+          "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_current_cuda_smoke_matrix_records_full_t0_and_sampling_scope",
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         }
       ],
@@ -8936,7 +9180,21 @@
         "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_readout_rechecks_original_inputs_and_current_tool_before_publication",
         "tests/studies/esp_table1_bf16_full/flow/process/test_full_readout.py::test_full_readout_rejects_unbound_sources_or_inconsistent_saved_records_before_output",
         "tests/studies/esp_table1_bf16_full/structure/test_full_ar_readout.py::test_full_reuses_count_formulas_without_inheriting_argmax_cell_roles",
-        "tests/studies/esp_table1_bf16_full/structure/test_full_ar_readout.py::test_full_saved_ar_mismatch_is_not_hidden_by_an_argmax_pass"
+        "tests/studies/esp_table1_bf16_full/structure/test_full_ar_readout.py::test_full_saved_ar_mismatch_is_not_hidden_by_an_argmax_pass",
+        "tests/studies/output_space_extension/flow/process/test_run.py::test_transfer_analysis_requires_explicit_cuda_without_cpu_fallback",
+        "tests/studies/output_space_extension/flow/process/test_saved_q178_entry.py::test_saved_q178_binds_original_roles_and_separates_current_tool_from_old_cpu_reference",
+        "tests/studies/output_space_extension/flow/process/test_saved_q178_entry.py::test_saved_q178_rechecks_source_drift_before_completion",
+        "tests/studies/output_space_extension/flow/process/test_saved_q178_entry.py::test_saved_q178_rejects_unbound_roles_sources_and_cpu_before_loading",
+        "tests/studies/output_space_extension/flow/process/test_saved_q178_entry.py::test_stopped_q178_live_entries_reject_before_dispatch",
+        "tests/studies/output_space_extension/structure/test_saved_q178_diagnostics.py::test_margin_default_cpu_dispatch_is_unchanged_and_explicit_device_is_forwarded",
+        "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_probe_comparison_requires_published_bundle_before_cuda_or_model",
+        "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_probe_preflight_refuses_bad_plan_device_or_legacy_compare_before_loading",
+        "tests/studies/smoke/flow/write/test_smoke_plot.py::test_historical_smoke_plot_refuses_drift_and_never_publishes_partial_completion",
+        "tests/studies/smoke/flow/write/test_smoke_plot.py::test_historical_smoke_plot_uses_explicit_input_and_new_root_only",
+        "tests/studies/smoke/structure/test_validation.py::test_cell_preserves_native_trace_and_separates_ar_diagnostic_from_argmax",
+        "tests/studies/smoke/structure/test_validation.py::test_comparison_requires_frozen_cuda_identity_before_any_bitwise_claim",
+        "tests/studies/smoke/structure/test_validation.py::test_historical_cpu_figure_keeps_original_934dac3_saved_identity",
+        "tests/studies/smoke/structure/test_validation.py::test_t0_cell_rejects_trace_or_argmax_contract_damage"
       ],
       "exclude": []
     },
@@ -9001,13 +9259,17 @@
         "tests/spec_mtp/test_esp_argmax_audit.py::test_wrong_selection_is_rejected_and_restored",
         "tests/studies/_shared/structure/test_esp_controls.py::test_full_esp_adapter_combines_untimed_cuda_decode_and_optional_external_audit",
         "tests/studies/_shared/structure/test_esp_controls.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
-        "tests/studies/_shared/structure/test_esp_controls.py::test_shape_patch_is_local_and_restores_on_failure"
+        "tests/studies/_shared/structure/test_esp_controls.py::test_shape_patch_is_local_and_restores_on_failure",
+        "tests/spec_mtp/test_extension_windows.py::test_second_slot_ar_path_requires_correct_first_and_available_target",
+        "tests/studies/output_space_extension/flow/process/test_run.py::test_saved_transfer_analysis_preserves_skipped_prompts_and_second_slot_validity",
+        "tests/studies/output_space_extension/structure/test_saved_q178_diagnostics.py::test_saved_q178_audits_use_real_cuda_state_and_reject_corrupt_captures",
+        "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_current_cuda_smoke_matrix_records_full_t0_and_sampling_scope"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
         "estimated_device_seconds": 120,
-        "estimate_basis": "previous 140-case CUDA plan: 103.41 seconds; adds bounded ESP observer/policy fixtures",
+        "estimate_basis": "previous 147-case CUDA plan: 103.48 seconds; adds a bounded tiny 36-cell smoke matrix and saved-tensor extension fixtures",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false
