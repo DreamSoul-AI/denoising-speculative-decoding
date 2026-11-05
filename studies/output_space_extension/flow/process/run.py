@@ -160,10 +160,10 @@ def analyze(raw_root, execution, repository, commit, execution_git_sha256, outpu
     target = output_root / 'slot_diagnosis.json'
     if target.exists() or target.is_symlink():
         raise FileExistsError(target)
-    report_path = raw_root / 'diagnosis.json'
-    tensor_path = raw_root / 'selected_tensors.pt'
+    report_path = (raw_root / 'diagnosis.json').resolve(strict=True)
+    tensor_path = (raw_root / 'selected_tensors.pt').resolve(strict=True)
     for member in (report_path, tensor_path):
-        member.resolve().relative_to(raw_root)
+        member.relative_to(raw_root)
     report_sha = file_sha256(report_path)
     report = json.loads(report_path.read_text(encoding='utf-8'))
     if report.get('quality_passed') is not True or report.get('source_digest') != SOURCE_DIGEST:

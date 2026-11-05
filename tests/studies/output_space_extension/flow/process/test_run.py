@@ -165,6 +165,33 @@ def test_transfer_analysis_requires_explicit_cuda_without_cpu_fallback(saved_inp
     assert not case.calls and not case.output.exists()
 
 
+def test_transfer_analysis_pins_resolved_input_leaves_before_loading(saved_inputs, monkeypatch):
+    import torch
+    case = saved_inputs
+    bound = case.raw / 'bound'; bound.mkdir()
+    report, tensor = bound / 'report.json', bound / 'tensor.pt'
+    report.write_bytes(case.report_path.read_bytes()); tensor.write_bytes(case.tensor.read_bytes())
+    original = Path.resolve
+    redirected = [False]
+    def resolve(path, *args, **kwargs):
+        if path in (case.report_path, case.tensor):
+            if redirected[0]:
+                return bound / 'unrelated-later-target'
+            return report if path == case.report_path else tensor
+        return original(path, *args, **kwargs)
+    monkeypatch.setattr(Path, 'resolve', resolve)
+    loaded = []
+    def load(path, *, map_location, weights_only):
+        assert path == tensor and str(map_location) == 'cuda:0' and weights_only
+        loaded.append(path); redirected[0] = True
+        return {'saved': 'tensor fixture'}
+    monkeypatch.setattr(torch, 'load', load)
+    result = json.loads(_analyze(case).read_bytes())
+    assert loaded == [tensor] and result['findings'] == {'offline': True}
+    assert result['raw_report_sha256'] == _sha(report.read_bytes())
+    assert result['raw_tensor_sha256'] == _sha(tensor.read_bytes())
+
+
 @pytest.mark.parametrize('placement', ['raw', 'runtime', 'repository', 'ancestor'])
 def test_analysis_output_root_is_separate_from_inputs_and_source(saved_inputs, placement):
     case = saved_inputs

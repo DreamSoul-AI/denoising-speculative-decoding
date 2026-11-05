@@ -8618,6 +8618,20 @@
         "offline_cpu",
         "structure_cleanup"
       ]
+    },
+    {
+      "test_id": "tests/studies/output_space_extension/flow/process/test_run.py::test_transfer_analysis_pins_resolved_input_leaves_before_loading",
+      "target": "studies.output_space_extension.flow.process.run.analyze",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
     }
   ],
   "plans": {
@@ -9194,7 +9208,8 @@
         "tests/studies/smoke/structure/test_validation.py::test_cell_preserves_native_trace_and_separates_ar_diagnostic_from_argmax",
         "tests/studies/smoke/structure/test_validation.py::test_comparison_requires_frozen_cuda_identity_before_any_bitwise_claim",
         "tests/studies/smoke/structure/test_validation.py::test_historical_cpu_figure_keeps_original_934dac3_saved_identity",
-        "tests/studies/smoke/structure/test_validation.py::test_t0_cell_rejects_trace_or_argmax_contract_damage"
+        "tests/studies/smoke/structure/test_validation.py::test_t0_cell_rejects_trace_or_argmax_contract_damage",
+        "tests/studies/output_space_extension/flow/process/test_run.py::test_transfer_analysis_pins_resolved_input_leaves_before_loading"
       ],
       "exclude": []
     },
