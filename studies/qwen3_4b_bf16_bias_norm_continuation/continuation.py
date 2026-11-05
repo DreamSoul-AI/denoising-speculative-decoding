@@ -4,13 +4,12 @@ import json
 from pathlib import Path
 import subprocess
 import sys
-from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[2]
 STUDY = Path(__file__).resolve().parent
 for folder in ('qwen3_4b_bf16_bias_norm_scan', 'qwen3_4b_bf16_paired_revalidation'):
     sys.path.insert(0, str(ROOT / 'studies' / folder))
 import norm_control
-from paired_admission import wait_for_admission
+from studies.qwen3_4b_bf16_paired_revalidation.paired_repeat import wait_for_admission
 
 def check_refs():
     refs = json.loads((STUDY / 'docs/source_refs.json').read_text(encoding='utf-8'))
@@ -29,10 +28,11 @@ def admitted_build(*args, **kwargs):
     return model
 
 class ContinuationEval(norm_control.NormEval):
+    admission_wait = staticmethod(wait_for_admission)
+
     def run(self, data, model, system, tracker):
         check_refs()
-        with patch.object(norm_control, 'wait_for_admission', wait_for_admission):
-            result = super().run(data, model, system, tracker)
+        result = super().run(data, model, system, tracker)
         check_refs()
         return result
 

@@ -20,7 +20,6 @@ provenance:
   - docs/history_inventory.json
   - docs/prompts_manifest.json
   - docs/preceding_results.json
-  - untimed_4b.py
 flow:
   study_phases: true
   prepare_shared: false

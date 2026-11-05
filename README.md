@@ -58,6 +58,10 @@ paired_revalidation 的保存报告用 `python -m studies.qwen3_4b_bf16_paired_r
 
 上述两组的原生旧件读出由同一 process 的 `native --help` 查看，要求显式旧 Study/数据根与新输出根；旧来源锁不兼容仍拒绝。norm 的 `reused --data-root <原执行根> --output-root <新根>` 保留只核复用端点的范围。geometry 的独立读件子进程使用该模块入口与独占子输出，不再按旧顶层分析脚本启动。
 
+四个 output_space_4b Study 共用 untimed/CUDA 适配，在 recipe 的原来源门通过后注册，导入 recipe 不再改注册表。计时字段的零值仍是禁用占位。旧 Run 与 source lock 保留原身份；声明移除已迁脚本后，新执行仍须按新 version/Run 冻结当前来源。
+
+容量校准入口为 `python -m studies.qwen3_4b_bf16_bias_norm_scan.flow.execute.capacity --model-root <本地模型> --model-sources <完整模型清单> --prompts <冻结manifest> --prompts-sha256 <SHA> --study <冻结study.yaml> --study-sha256 <SHA> --plan <计划> --plan-sha256 <SHA> --version <新版本> --device cuda:0 --output-root <新外部根>`。入口保持 q295/1500 输入/256 输出/template2，要求非优化 Python、真实 CUDA、完整来源校验与模型关闭后最后发布完成标记，不联网取权重。当前只用 tiny CUDA 验工程，未重新测量真实 4B 容量或旧主机进程树峰值。准入共用 resource_admission 的显式 capacity/observer，保留各协议非抢占及 RAM 政策。
+
 trajectory 真实模型专用入口为 `python -m studies.trajectory_observation.flow.execute.office <qwen8b|tree|traj> --help`、`python -m studies.trajectory_observation.flow.execute.fresh_replace --help`、`python -m studies.trajectory_observation.flow.execute.fair_branch --help` 与 `python -m studies.trajectory_observation.flow.execute.preforward_signal --help`。它们要求显式本地模型目录、目录外完整模型SHA清单、本地JSONL、计划文件及其SHA、新外部输出；fair_branch以 `--split specbench|dolly --input <本地JSONL>` 保留原337–464/前128切片，preforward保留SpecBench 81–208及128条校准模板，不再猜模型目录或联网取数据。共用本地输入准入，只读取已解析绑定路径。preforward的summary/fit可留作partial，只有收尾复核及关闭后写出的protocol_complete标记表示运行完整；旧gate字段不产生新研究授权。
 
 bonus-aligned/output-hidden 两个专用协议使用 `python -m studies.trajectory_observation.flow.execute.hybrid_gain <bonus-aligned|output-hidden> --help`，同样必需本地模型目录、完整模型清单、SpecBench JSONL、计划 SHA、CUDA 设备和新外部输出。前者保留 465–560 切片与四臂，后者保留 209–336 切片、32 条 holdout 与六臂，校准各为 128 条模板。共同收集、落盘与会话编排归同一 flow，structure 保留纯校准与统计。逐臂核完整 qid 与 argmax 审计，收尾核来源并关闭模型后才发布 protocol_complete，旧根不续写。

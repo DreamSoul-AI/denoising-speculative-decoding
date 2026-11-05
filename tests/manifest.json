@@ -460,27 +460,6 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_4b_untimed.py::test_untimed_decoder_preserves_tokens_semantics_and_calls",
-      "target": "spec_mtp",
-      "tags": [
-        "offline_cpu"
-      ]
-    },
-    {
-      "test_id": "tests/spec_mtp/test_4b_untimed.py::test_study_wrapper_restores_clock_on_success_and_failure",
-      "target": "spec_mtp",
-      "tags": [
-        "offline_cpu"
-      ]
-    },
-    {
-      "test_id": "tests/spec_mtp/test_4b_untimed.py::test_direct_cuda_materialization_preserves_dtype_kwargs_and_restores_loader",
-      "target": "spec_mtp",
-      "tags": [
-        "offline_cpu"
-      ]
-    },
-    {
       "test_id": "tests/spec_mtp/structure/algorithm/test_counts.py::test_zero_decode_calls_have_no_tau",
       "target": "spec_mtp.structure.algorithm.counts",
       "tags": [
@@ -670,10 +649,13 @@
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_measured_4b_admission_keeps_reserve_and_gpu_exclusion",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.resource_admission",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "cost_class": "c1"
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_historical_norm_scan_immutable_source_refs",
@@ -1643,10 +1625,13 @@
     },
     {
       "test_id": "tests/spec_mtp/test_nonofficial_revalidation.py::test_host_peak_plus_margin_and_actual_foreign_gpu",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.resource_admission",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "cost_class": "c1"
     },
     {
       "test_id": "tests/spec_mtp/test_nonofficial_revalidation.py::test_copied_untimed_and_argmax_helpers_are_original_bytes",
@@ -7614,6 +7599,216 @@
         "offline_cpu",
         "structure_cleanup"
       ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_direct_cuda_model.py::test_direct_cuda_materialization_preserves_kwargs_and_restores_loader",
+      "target": "studies._shared.structure.model",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_untimed_algorithm.py::test_study_wrapper_restores_clock_on_success_and_failure",
+      "target": "studies._shared.structure.algorithm",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_untimed_algorithm.py::test_untimed_decoder_preserves_complete_argmax_with_ar_as_diagnostic_on_cuda",
+      "target": "studies._shared.structure.algorithm",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_untimed_algorithm.py::test_untimed_eval_refuses_warmup_before_native_delegate",
+      "target": "studies._shared.structure.algorithm",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_untimed_recipe.py::test_untimed_recipe_import_is_inert_and_native_gate_precedes_opt_in",
+      "target": "studies._shared.structure.recipe",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_untimed_recipe.py::test_untimed_registration_rejects_missing_study_root_without_registry_mutation",
+      "target": "studies._shared.structure.recipe",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_untimed_recipe.py::test_untimed_registration_uses_shared_real_handlers_and_explicit_root",
+      "target": "studies._shared.structure.recipe",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_continuation/test_continuation.py::test_continuation_wait_policy_is_injected_without_changing_the_norm_module",
+      "target": "studies.qwen3_4b_bf16_bias_norm_continuation.continuation",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_cli_requires_every_local_identity_and_new_output",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.execute.capacity",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_import_and_help_never_construct_a_model",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.execute.capacity",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_rejects_optimized_python_before_reading_inputs_or_loading_models",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.execute.capacity",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_run_publishes_only_after_close_and_final_input_validation",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.execute.capacity",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_tiny_cuda_uses_the_controlled_policy_and_complete_argmax_chain",
+      "target": "studies.qwen3_4b_bf16_bias_norm_scan.flow.execute.capacity",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/structure/test_resource_admission.py::test_explicit_capacity_observer_wait_does_not_mutate_the_shared_observer",
+      "target": "studies._shared.structure.resource_admission",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/structure/test_resource_admission.py::test_norm_capacity_observes_original_policy_without_the_superseded_8b_initial_budget",
+      "target": "studies._shared.structure.resource_admission",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
     }
   ],
   "plans": {
@@ -7798,6 +7993,14 @@
         },
         {
           "test_id": "tests/studies/output_space_cross_task/flow/process/test_canonical_readout_entry.py::test_canonical_entry_reads_actual_cuda_states_with_separate_historical_source_commit",
+          "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/_shared/structure/test_untimed_algorithm.py::test_untimed_decoder_preserves_complete_argmax_with_ar_as_diagnostic_on_cuda",
+          "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_tiny_cuda_uses_the_controlled_policy_and_complete_argmax_chain",
           "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
         }
       ],
@@ -8033,7 +8236,22 @@
         "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/process/test_norm_saved_readout.py::test_native_output_cannot_enter_the_separate_continuation_input_root",
         "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/process/test_norm_saved_readout.py::test_native_transaction_does_not_publish_complete_after_plot_failure_or_input_drift",
         "tests/studies/qwen3_4b_bf16_paired_revalidation/flow/process/test_paired_saved_readout.py::test_paired_saved_counter_failures_do_not_publish",
-        "tests/studies/qwen3_4b_bf16_paired_revalidation/flow/process/test_paired_saved_readout.py::test_paired_saved_counts_preserve_tau_and_original_identity"
+        "tests/studies/qwen3_4b_bf16_paired_revalidation/flow/process/test_paired_saved_readout.py::test_paired_saved_counts_preserve_tau_and_original_identity",
+        "tests/studies/_shared/structure/test_direct_cuda_model.py::test_direct_cuda_materialization_preserves_kwargs_and_restores_loader",
+        "tests/studies/_shared/structure/test_untimed_algorithm.py::test_study_wrapper_restores_clock_on_success_and_failure",
+        "tests/studies/_shared/structure/test_untimed_algorithm.py::test_untimed_eval_refuses_warmup_before_native_delegate",
+        "tests/studies/_shared/structure/test_untimed_recipe.py::test_untimed_recipe_import_is_inert_and_native_gate_precedes_opt_in",
+        "tests/studies/_shared/structure/test_untimed_recipe.py::test_untimed_registration_rejects_missing_study_root_without_registry_mutation",
+        "tests/studies/_shared/structure/test_untimed_recipe.py::test_untimed_registration_uses_shared_real_handlers_and_explicit_root",
+        "tests/studies/qwen3_4b_bf16_bias_norm_continuation/test_continuation.py::test_continuation_wait_policy_is_injected_without_changing_the_norm_module",
+        "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_cli_requires_every_local_identity_and_new_output",
+        "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_import_and_help_never_construct_a_model",
+        "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_rejects_optimized_python_before_reading_inputs_or_loading_models",
+        "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_run_publishes_only_after_close_and_final_input_validation",
+        "tests/studies/shared/structure/test_resource_admission.py::test_explicit_capacity_observer_wait_does_not_mutate_the_shared_observer",
+        "tests/studies/shared/structure/test_resource_admission.py::test_norm_capacity_observes_original_policy_without_the_superseded_8b_initial_budget",
+        "tests/spec_mtp/test_bias_norm_scan.py::test_measured_4b_admission_keeps_reserve_and_gpu_exclusion",
+        "tests/spec_mtp/test_nonofficial_revalidation.py::test_host_peak_plus_margin_and_actual_foreign_gpu"
       ],
       "exclude": []
     },
@@ -8085,7 +8303,9 @@
         "tests/studies/output_space_cross_task/structure/test_native_readout.py::test_canonical_saved_state_gate_uses_cuda_and_rejects_a_changed_anchor",
         "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_conditional_labels_current_fp64_without_inventing_cpu_reference",
         "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_saved_depth_preserves_legality_and_equal_state_counterexample",
-        "tests/studies/output_space_cross_task/flow/process/test_canonical_readout_entry.py::test_canonical_entry_reads_actual_cuda_states_with_separate_historical_source_commit"
+        "tests/studies/output_space_cross_task/flow/process/test_canonical_readout_entry.py::test_canonical_entry_reads_actual_cuda_states_with_separate_historical_source_commit",
+        "tests/studies/_shared/structure/test_untimed_algorithm.py::test_untimed_decoder_preserves_complete_argmax_with_ar_as_diagnostic_on_cuda",
+        "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_tiny_cuda_uses_the_controlled_policy_and_complete_argmax_chain"
       ],
       "exclude": [],
       "resources": {

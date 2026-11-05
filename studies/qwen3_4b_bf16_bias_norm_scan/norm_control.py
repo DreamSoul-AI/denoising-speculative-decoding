@@ -1,9 +1,11 @@
 """Observe the existing fixed direction at native EMA step_scale; no decoder changes."""
 import hashlib
+from functools import partial
 import json
 from pathlib import Path
 import subprocess
 import sys
+from typing import Any
 from unittest.mock import patch
 
 import torch
@@ -16,7 +18,8 @@ for folder in ('qwen3_4b_bf16_five_methods', 'qwen3_4b_bf16_directions', 'esp_ta
     sys.path.insert(0, str(ROOT / 'studies' / folder))
 from untimed_pairing import PairedUntimedEval, build_cuda  # noqa: E402
 from direction_control import control  # noqa: E402
-from norm_admission import wait_for_admission  # noqa: E402
+from studies._shared.structure.resource_admission import wait_for_admission as resource_wait
+wait_for_admission = partial(resource_wait, capacity=STUDY / 'docs/capacity_calibration_v1.json')
 from studies._shared.structure import evaluate as assembly
 import spec_mtp.structure.algorithm.decode.loop as decoding  # noqa: E402
 from spec_mtp.structure.algorithm.factory import AlgorithmRegistry  # noqa: E402
@@ -59,6 +62,8 @@ def admitted_build(*args, **kwargs):
 
 
 class NormEval(PairedUntimedEval):
+    admission_wait = staticmethod(wait_for_admission)
+
     def run(self, data, model, system, tracker):
         check_refs()
         expected = json.loads((BASE / 'docs/prompts_manifest.json').read_text(encoding='utf-8'))['rendered_prompts']
@@ -67,7 +72,8 @@ class NormEval(PairedUntimedEval):
         assert mode in ('template', 'random0', 'random1', 'random2') and scale in (.5, 2.)
         assert len(expected) == 480
         builder, generate = assembly.build_mask_provider, decoding.SpecDecoder.generate
-        current, progress = {'index': 0, 'bias': {}}, []
+        current: dict[str, Any] = {'index': 0, 'bias': {}}
+        progress = []
         assets = Path(system.assets_dir)
         (assets / 'norm_admission_initial.json').write_text(json.dumps(model.meta['norm_scan_admission']) + '\n')
 
@@ -79,7 +85,7 @@ class NormEval(PairedUntimedEval):
         def observed_generate(decoder, prompt):
             index = current['index']
             assert prompt[0].tolist() == expected[index]['input_ids']
-            admission = wait_for_admission(assets, initial=False)
+            admission = self.admission_wait(assets, initial=False)
             current['bias'] = {}
             output, stats = generate(decoder, prompt)
             audit = stats['verification_argmax_audit']

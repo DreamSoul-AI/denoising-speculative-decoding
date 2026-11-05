@@ -98,6 +98,21 @@ def register_sources() -> None:
     register_algorithms()
 
 
+def register_untimed(study_root) -> None:
+    """Opt this explicitly supplied Study into the native untimed/direct-CUDA adapters."""
+    from pathlib import Path
+    from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+    from spec_mtp.structure.model.factory import ModelRegistry
+    from studies._shared.structure.algorithm import UntimedEval
+    from studies._shared.structure.model import build_cuda
+
+    root = Path(study_root).resolve(strict=True)
+    if not root.is_dir() or not (root/'study.yaml').is_file():
+        raise ValueError('untimed registration requires an explicit Study root containing study.yaml')
+    ModelRegistry.register('hf_causal', SOURCE, build_cuda)
+    AlgorithmRegistry.register('eval', SOURCE, UntimedEval)
+
+
 def register(ctx: RecipeContext) -> None:
     from spec_mtp.structure.make.expand import load_study_yaml
 

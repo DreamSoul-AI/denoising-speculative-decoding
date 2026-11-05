@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def resource_module():
-    path = ROOT / 'studies/esp_table1_nonofficial_revalidation/resource_admission.py'
+    path = ROOT / 'studies/_shared/structure/resource_admission.py'
     spec = importlib.util.spec_from_file_location('sd_resource_policy', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

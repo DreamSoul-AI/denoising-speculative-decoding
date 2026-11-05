@@ -60,6 +60,21 @@ def _build_hf(model_config, assets_dir, data_meta=None):
     )
 
 
+def build_cuda(model_config, assets_dir, data_meta=None):
+    """Place the unchanged HF model directly on CUDA and restore the loader on every exit."""
+    from unittest.mock import patch
+    from transformers import AutoModelForCausalLM
+
+    original = AutoModelForCausalLM.from_pretrained
+    def load(*args, **kwargs):
+        assert 'device_map' not in kwargs
+        kwargs['device_map'] = 'cuda'
+        return original(*args, **kwargs)
+
+    with patch.object(AutoModelForCausalLM, 'from_pretrained', side_effect=load):
+        return _build_hf(model_config, assets_dir, data_meta)
+
+
 def register_models():
     ModelRegistry.register('tiny_llama', 'spec_mtp', _build_tiny)
     ModelRegistry.register('hf_causal', 'spec_mtp', _build_hf)

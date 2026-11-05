@@ -31,7 +31,7 @@ class PublishedReadout(SavedReadout):
         paths += [root/'studies'/name/file for name, file in (
             ('qwen3_4b_bf16_paired_revalidation', 'paired_repeat.py'),
             ('qwen3_4b_bf16_bias_norm_scan', 'norm_control.py'),
-            ('qwen3_4b_bf16_bias_norm_scan', 'norm_admission.py'),
+            ('_shared', 'structure/resource_admission.py'),
             ('qwen3_4b_bf16_five_methods', 'untimed_pairing.py'))]
         return {str(p.resolve()): file_sha256(p) for p in paths}
 

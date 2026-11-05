@@ -8,7 +8,7 @@ from unittest.mock import patch
 import spec_mtp.structure.algorithm.decode.loop as decoding
 from studies._shared.structure import evidence
 from untimed_bf16 import UntimedEval, build_cuda
-from resource_admission import wait_for_admission
+from studies._shared.structure.resource_admission import wait_for_admission
 
 ROOT = Path(__file__).resolve().parents[2]
 STUDY = Path(__file__).resolve().parent

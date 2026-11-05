@@ -118,3 +118,7 @@ continuation 的完整验证必须区分原历史材料与工程夹具。实际�
 paired_revalidation 和 bias_norm_scan 的配对、复用端点及深度计数继续使用五方法 readout 和既有 geometry；参数解析、来源读取和新输出归各自已有 process。norm 专属纯深度/分组聚合确需独立职责时归其一个 `structure/readout.py`，不为 paired 再复制一份统计库。真实调用方直接导入纯模块，旧顶层分析入口删除。保存报告复核与原生 Run 重新验收分别给出范围，缺少原来源链时拒绝受影响路径，不拿当前源码重签。
 
 native/state 的历史验证复用现有角色索引及每成员固定提交，不新建归档执行器。实际保存件、原 tool/plan、EOS 和上下文分别锁定，当前读端只执行本仓实现；数学和原科学判据保持，历史未知与新诊断差异进入独立回执，不用目录迁移改变结果。
+
+四个 output_space_4b Study 共用既有部件：UntimedEval 归 `_shared/structure/algorithm.py`，CUDA 直接物化工厂归既有 model.py，显式适配注册归既有 recipe.py。Study recipe 在 register(ctx) 通过原准入后选择该适配，导入模块不再全局注册。四份相同 untimed_4b 删除，计时零占位、warmup 禁止和完整 token/argmax 语义保持，不新建四份转调文件。
+
+资源观察、纯 capacity 判定和准入服务集中于一个 `_shared/structure/resource_admission.py`，调用方显式提供 capacity 与 observer，区分原 nonofficial/norm/paired 政策，不临时改写模块全局观察器。完整校准生命周期归 norm_scan 的单个 `flow/execute/capacity.py`，显式本地模型/完整清单、冻结输入/计划/配置、CUDA 与新外部根，关闭模型和最终来源复核后才发布完成记录。原 q295、1500 输入、256 输出及 template/scale2 协议保持，工程修复只让当前显式 mask_policy 真正接入原观察钩子，不重签旧 capacity。

@@ -1,5 +1,6 @@
 """Reuse the original five methods; add source checks and resource admission only."""
 import hashlib
+from functools import partial
 import json
 from pathlib import Path
 import subprocess
@@ -15,7 +16,10 @@ sys.path.insert(0, str(STUDY))
 for name in ('qwen3_4b_bf16_five_methods', 'qwen3_4b_bf16_bias_norm_scan', 'esp_table1_nonofficial_revalidation'):
     sys.path.insert(0, str(ROOT / 'studies' / name))
 from untimed_pairing import PairedUntimedEval, build_cuda  # noqa: E402
-from paired_admission import wait_for_admission  # noqa: E402
+from studies._shared.structure.resource_admission import wait_for_admission as resource_wait
+from studies._shared.structure import gpu_admission
+wait_for_admission = partial(resource_wait, capacity=ROOT / 'studies/qwen3_4b_bf16_bias_norm_scan/docs/capacity_calibration_v1.json',
+                             observer=gpu_admission.observe)
 from spec_mtp.structure.algorithm.factory import AlgorithmRegistry  # noqa: E402
 from spec_mtp.structure.model.factory import ModelRegistry  # noqa: E402
 from spec_mtp.structure.control.merge import deep_merge  # noqa: E402

@@ -221,8 +221,7 @@ def test_published_reuse_checkpoint_matches_existing_endpoints(monkeypatch, hist
 
 
 def test_measured_4b_admission_keeps_reserve_and_gpu_exclusion(monkeypatch):
-    module(monkeypatch)
-    path = ROOT / 'studies/qwen3_4b_bf16_bias_norm_scan/norm_admission.py'
+    path = ROOT / 'studies/_shared/structure/resource_admission.py'
     spec = importlib.util.spec_from_file_location('sd_norm_admission_test', path)
     helper = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(helper)

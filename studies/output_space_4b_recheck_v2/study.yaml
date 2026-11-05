@@ -19,7 +19,6 @@ provenance:
   - docs/modelscope_snapshot.json
   - docs/prompts_manifest.json
   - docs/history_inventory.json
-  - untimed_4b.py
 flow:
   study_phases: true
   prepare_shared: false

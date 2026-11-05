@@ -92,6 +92,18 @@ class SpecMtpEvalAlgorithm(Algorithm):
         return {'mode': 'eval', 'task': task}
 
 
+class UntimedEval(SpecMtpEvalAlgorithm):
+    """Use the native verifier and AR diagnostic with zero timing sentinels."""
+    def run(self, data, model, system, tracker):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        import spec_mtp.structure.algorithm.decode.loop as decoding
+
+        assert self.config.setting('eval', {}).get('warmup') is False
+        with patch.object(decoding, 'time', SimpleNamespace(perf_counter=lambda: 0.)):
+            return super().run(data, model, system, tracker)
+
+
 TASKS = tuple(_TASKS)
 
 
