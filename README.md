@@ -97,7 +97,11 @@ epoch预算与早停另有独立进程CUDA对照，固定评估分数只用于�
 
 profile 在 CUDA 工作负载上使用 cProfile，component 是主机侧 self-time，保留的 decoder host-clock token rates 也不是端到端 CUDA 吞吐或 kernel 测量。旧 CPU profile 不按新设备身份重解释。本轮只跑微型单 cell 与 profile 合同，未执行完整 fingerprint 矩阵或性能研究。
 
-本机快速单元执行 `python tests/run.py --plan cpu-quick --output-root <外部新验证目录>`，CUDA 工程正确性执行 `python tests/run.py --plan cuda-validation --output-root <另一外部新验证目录>`。CUDA计划不可用即失败，回执保存实际设备、精度和显存；两计划分开报告。原 cpu-pr 计划保留既有用途，本轮不以其全量CPU结果替代CUDA验证。静态清单先验证必需项和精确排除，逐参数 setup/call/teardown 写独立记录，缺收集、缺终态、失败、跳过和证据写失败均非零。整批预算420秒，在测试边界检查；子进程测试各有有限超时，单个本地计算不支持强制中断。运行产物不进 Git。
+本机快速单元执行 `python tests/run.py --plan cpu-quick --output-root <外部新验证目录>`，CUDA 工程正确性执行 `python tests/run.py --plan cuda-validation --output-root <另一外部新验证目录>`。CUDA计划不可用即失败，回执保存实际设备、精度和显存；两计划分开报告。原 cpu-pr 计划保留既有用途，本轮不以其全量CPU结果替代CUDA验证。静态清单先验证必需项和精确排除，逐参数 setup/call/teardown 写独立记录，缺收集、缺终态、失败、跳过和证据写失败均非零。预算随所选计划：cpu-quick为120秒、cuda-validation为300秒、cpu-pr为420秒，在测试边界检查；子进程测试各有有限超时，单个本地计算不支持强制中断。运行产物不进 Git。
+
+测量类（numeric或metrics/samples粒度）须在声明给出唯一 `metric_specs`（name/unit/statistic），通过 `record_property('metrics', [...])` 提交同名有限实数、样本/暖机规模、数据规模、环境、测量边界及inline raw_samples。记录中的 `metrics` 保留原user_properties映射，测量列表位于 `metrics.metrics`，原设备诊断可并列。空/缺采集、重复属性、阶段不完整或写失败均阻断；采集后的可变对象不能改写已保存call事实。每参数的 `*.result.json` 在完整阶段后定稿，numeric为 `status=measured`、`verdict=null`，不算质量通过；summary分别记录measurement_completed与quality_passed，两者独立，带有效测量的分类用例可同时计入。当前只支持inline样本，不建立附件或基准框架；微型CUDA内容测量不提供性能结论。
+
+Study声明的 `provenance.project_plan.path` 只有在无commit/hash的当前导航角色时跟随唯一中文研究计划；带commit/path/sha的固定组及 `docs/source_refs.json` 仍按原Git身份读取。historical_sections中的anchor按原版本索引解释，不指向当前中文正文锚点。导航维护不修改历史source_path/commit/blob/hash、旧Run或原科学输入；原件缺失仍拒绝。
 
 本轮不调整现有 Actions、CI/CD 或设置。远端结果仅作参考，本地微型CUDA工程验证覆盖既定合成夹具，不覆盖真实权重/数据、吞吐或采样分布保证。已有 CUDA 环境保持原样，不下载模型或覆盖 torch。
 

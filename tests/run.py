@@ -22,6 +22,55 @@ ENUMS = {'level': {'unit', 'integration', 'e2e'}, 'type': {'location', 'content'
          'priority': {'p1', 'p2', 'p3'}, 'result_detail': {'summary', 'metrics', 'samples'}}
 
 
+def _needs_measurement(metadata):
+    return metadata['result_type'] == 'numeric' or metadata['result_detail'] in ('metrics', 'samples')
+
+
+def _metric_specs(metadata):
+    specs = metadata.get('metric_specs')
+    if (not isinstance(specs, list) or not specs
+            or any(not isinstance(spec, dict) or any(not isinstance(spec.get(field), str) or not spec[field].strip()
+                   for field in ('name', 'unit', 'statistic')) for spec in specs)):
+        raise ValueError('measurement requires explicit metric_specs names, units and statistics')
+    if len({spec['name'] for spec in specs}) != len(specs):
+        raise ValueError('metric_specs names must be unique')
+    return {spec['name']: spec for spec in specs}
+
+
+def _measurement_error(metadata, properties):
+    specs = _metric_specs(metadata)
+    metrics = properties.get('metrics')
+    if not isinstance(metrics, list) or not metrics:
+        return 'measurement requires a nonempty metrics list'
+    names = set()
+    for metric in metrics:
+        if not isinstance(metric, dict) or not isinstance(metric.get('name'), str):
+            return 'metric must be an object with a declared name'
+        name = metric['name']
+        if name not in specs or name in names:
+            return 'metric names must match declarations without duplicates'
+        names.add(name)
+        if any(metric.get(field) != specs[name][field] for field in ('unit', 'statistic')):
+            return 'metric unit or statistic differs from its declaration'
+        value = metric.get('value')
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            return 'metric value must be a finite real number, excluding booleans'
+        count, warmup = metric.get('samples'), metric.get('warmup_iterations')
+        if type(count) is not int or count < 1 or type(warmup) is not int or warmup < 0:
+            return 'metric sample and warmup counts are invalid'
+        raw = metric.get('raw_samples')
+        if (not isinstance(raw, list) or len(raw) != count or any(isinstance(sample, bool)
+                or not isinstance(sample, (int, float)) or not math.isfinite(sample) for sample in raw)):
+            return 'metric raw_samples must contain exactly the declared finite observations'
+        context = metric.get('context')
+        if (not isinstance(context, dict) or not isinstance(context.get('data_size'), dict)
+                or not context['data_size'] or any(type(size) is not int or size < 1 for size in context['data_size'].values())
+                or not isinstance(context.get('environment'), dict) or not context['environment']
+                or not isinstance(context.get('measurement_scope'), str) or not context['measurement_scope'].strip()):
+            return 'metric requires data size, actual environment and measurement scope'
+    return None if names == specs.keys() else 'measurement is missing declared metrics'
+
+
 def _resources(value, label):
     if not isinstance(value, dict):
         raise ValueError(label + ' resources must be an object')
@@ -54,11 +103,15 @@ def read_plan(path, name):
         for field, choices in ENUMS.items():
             if not isinstance(metadata.get(field), str) or metadata[field] not in choices:
                 raise ValueError('invalid or missing test metadata: ' + field)
+        if metadata['type'] == 'location' and metadata['level'] != 'unit':
+            raise ValueError('location checks are only valid at unit level')
         if not isinstance(metadata.get('target'), str) or not metadata['target'].strip():
             raise ValueError('test target must be a nonempty string')
         if ((metadata['result_type'] == 'numeric' or metadata['type'] == 'physical')
                 and metadata['result_detail'] == 'summary'):
             raise ValueError('numeric or physical results require metrics or samples detail')
+        if _needs_measurement(metadata):
+            _metric_specs(metadata)
         node = row.get('test_id')
         if not isinstance(node, str) or not node or '\\' in node or '[' in node or ']' in node:
             raise ValueError('test_id must name a canonical unparameterized pytest source node')
@@ -132,6 +185,8 @@ class Recorder:
         self.selected, self.finished = set(), set()
         self.started = time.monotonic()
         self.failed = False
+        self.phases: dict[str, dict[str, dict[str, Any]]] = {}
+        self.evidence_errors: dict[str, list[str]] = {}
 
     def save(self, name, value):
         path = self.output / name
@@ -172,25 +227,73 @@ class Recorder:
         native_status = report.outcome
         if hasattr(report, 'wasxfail'):
             native_status = 'xfail' if report.skipped else 'xpass' if report.passed else report.outcome
-        self.failed |= verdict == 'failed'
+        errors = self.evidence_errors.setdefault(report.nodeid, [])
+        phases = self.phases.setdefault(report.nodeid, {})
+        if report.when not in ('setup', 'call', 'teardown') or report.when in phases:
+            errors.append('unknown or repeated test phase: ' + report.when)
+            self.failed = True
+            return
+        if ((report.when == 'setup' and phases) or (report.when != 'setup' and 'setup' not in phases)
+                or (report.when == 'call' and 'teardown' in phases)):
+            errors.append('test phases arrived out of order')
+        properties = {}
+        for name, value in getattr(report, 'user_properties', []):
+            if not isinstance(name, str) or not name.strip() or name in properties:
+                errors.append('invalid or duplicate result property: ' + str(name))
+            else:
+                properties[name] = value
+        if _needs_measurement(metadata) and report.when == 'call':
+            error = _measurement_error(metadata, properties)
+            if error:
+                errors.append(error)
+        try:
+            properties = json.loads(json.dumps(properties, allow_nan=False))
+        except (TypeError, ValueError):
+            errors.append('result properties are not finite JSON data')
+            properties = {}  # Invalid data cannot be serialized as a successful measurement.
+        self.failed |= verdict == 'failed' or bool(errors)
+        if errors:
+            verdict = 'failed'
         key = hashlib.sha256(report.nodeid.encode()).hexdigest()
-        self.save(key + '.' + report.when + '.json', {
+        event = {
             'run_id': self.environment['run_id'], 'plan_id': self.environment.get('plan_id', 'cpu-pr'),
             'attempt': 1, **metadata, 'test_id': report.nodeid, 'environment': self.environment,
-            'phase': report.when, 'status': report.outcome, 'verdict': verdict,
+            'phase': report.when, 'status': report.outcome,
+            'verdict': None if metadata['result_type'] == 'numeric' else verdict,
             'native_status': native_status,
             **({'wasxfail': report.wasxfail} if hasattr(report, 'wasxfail') else {}),
-            'duration': report.duration, 'metrics': dict(getattr(report, 'user_properties', [])), 'cost': {},
-            'failure': str(report.longrepr) if report.failed or report.skipped else None, 'artifacts': []})
+            'duration': report.duration, 'metrics': properties, 'cost': {}, 'evidence_errors': list(errors),
+            'failure': str(report.longrepr) if report.failed or report.skipped else None, 'artifacts': []}
+        self.save(key + '.' + report.when + '.json', event)
+        phases[report.when] = event
         if report.when == 'teardown':
             self.finished.add(report.nodeid)
 
     def pytest_sessionfinish(self, session, exitstatus):
-        missing = self.selected - self.finished
+        missing = {node for node in self.selected if set(self.phases.get(node, {})) != {'setup', 'call', 'teardown'}}
+        measured = quality_passed = 0
+        for node in sorted(self.selected - missing):
+            phases = self.phases[node]
+            metadata = self.entries[node.partition('[')[0]]
+            complete = not self.evidence_errors[node] and all(event['status'] == 'passed' for event in phases.values())
+            numeric = metadata['result_type'] == 'numeric'
+            status = 'measured' if complete and numeric else 'passed' if complete else 'error'
+            if not complete and phases['call']['status'] == 'failed':
+                status = 'failed'
+            verdict = None if numeric else 'passed' if complete else 'failed'
+            measured += int(complete and _needs_measurement(metadata))
+            quality_passed += int(complete and not numeric)
+            self.save(hashlib.sha256(node.encode()).hexdigest() + '.result.json', {
+                'test_id': node, 'attempt': 1, 'result_type': metadata['result_type'],
+                'status': status, 'verdict': verdict, 'quality_verdict': verdict,
+                'metrics': phases['call']['metrics'], 'evidence_errors': self.evidence_errors[node],
+                'environment': self.environment})
         if missing or not self.selected or self.failed:
             session.exitstatus = 1
         self.save('summary.json', {'exit_code': int(session.exitstatus), 'selected': len(self.selected),
             'finished': len(self.finished), 'missing': sorted(missing), 'failed_or_skipped': self.failed,
+            'measurement_completed': measured, 'quality_passed': quality_passed,
+            'evidence_errors': {node: errors for node, errors in self.evidence_errors.items() if errors},
             'environment': self.environment, 'duration': time.monotonic() - self.started})
 
 

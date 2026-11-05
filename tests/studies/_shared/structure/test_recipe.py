@@ -16,10 +16,11 @@ from spec_mtp.structure.model.factory import ModelRegistry
 from studies._shared.structure import recipe
 from studies._shared.structure import sources
 
+ROOT = Path(__file__).resolve().parents[4]
+
 
 def _config(**algorithm_config):
-    base = yaml.safe_load((Path(__file__).resolve().parents[3]
-                           / 'studies/smoke/experiment_config.yaml').read_text(encoding='utf-8'))
+    base = yaml.safe_load((ROOT / 'studies/smoke/experiment_config.yaml').read_text(encoding='utf-8'))
     base['algorithm']['config'].update(algorithm_config)
     return base
 
@@ -32,7 +33,7 @@ def test_import_registers_nothing():
             'assert not [k for k in DataRegistry.list() if k[1]=="spec_mtp"];'
             'assert not [k for k in ModelRegistry.list() if k[1]=="spec_mtp"];'
             'assert ("eval","spec_mtp") not in AlgorithmRegistry.list()')
-    subprocess.run([sys.executable, '-c', code], check=True)
+    subprocess.run([sys.executable, '-c', code], check=True, timeout=20)
 
 
 def test_register_sources_is_idempotent_and_keeps_rpipe_defaults():
@@ -127,7 +128,7 @@ def test_repository_studies_expand_and_validate(tmp_path, study):
     from spec_mtp.structure.make.write import expand_study
     from spec_mtp.structure.make.expand import load_study_yaml
 
-    src = Path(__file__).resolve().parents[3] / 'studies' / study
+    src = ROOT / 'studies' / study
     dest = tmp_path / study
     shutil.copytree(src, dest, ignore=shutil.ignore_patterns(
         'runs', 'shared', 'scripts', 'index.json', 'process.json', 'provenance.json',
@@ -157,20 +158,6 @@ def test_layer_must_be_a_mapping():
         recipe.validate(config)
 
 
-def test_legacy_cfg_takes_device_from_system_and_seed_from_run():
-    from types import SimpleNamespace
-
-    from spec_mtp.structure.algorithm.config import AlgorithmConfig
-
-    from studies._shared.structure.config import legacy_cfg
-
-    algo = AlgorithmConfig.from_mapping({'mode': 'eval', 'source': 'spec_mtp',
-                                         'config': {'eval': {'device': 'cuda', 'max_new_tokens': 8},
-                                                    'spec': {'impl': 'naive'}}})
-    cfg = legacy_cfg(SimpleNamespace(meta={'data_cfg': {'name': 'x'}}), SimpleNamespace(meta={}),
-                     SimpleNamespace(device='cpu'), algo, '7')
-    assert cfg.eval.device == 'cpu' and cfg.eval.max_new_tokens == 8
-    assert cfg.run.seed == 7 and cfg.spec.impl == 'naive' and cfg.data.name == 'x' and dict(cfg.model) == {}
 
 
 @pytest.mark.parametrize('mutate, message', [

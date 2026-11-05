@@ -142,3 +142,7 @@ extension 的 numerics、kernel、operator 保存张量审计集中到一个 `st
 父包只标识职责边界，普通部件消费者依赖实际leaf模块，不经structure/control及各layer父包间接装配工厂或加载Torch。control.layers不另保四种配置类型的facade，配置直接来自algorithm/data/model/system.config；make的展开并写入Study生命周期归已有make/write.py，包父入口不保实现。保留必要包文件与默认六阶段，不给移除的再导出加lazy wrapper。此取舍减少导入副作用和循环依赖，代价是同步本仓所有真实符号消费者并公开当前导入位置。
 
 旧配置兼容只承接实际decoder输入，不保无生产调用的第二套文件读取或覆盖命令。spec_for每次返回独立的树配置，单次branches覆盖不得改变后续默认；YAML配置入口区分空文档与false/0/空序列等非法非mapping，持久化坏输入不得静默归为空配置。验证使用镜像纯配置/IO用例，数值路径仍由CUDA计划覆盖。
+
+测量结果合同仍由既有tests/run.py及tests/test_run.py承担，不新增生产模块。numeric或明确请求metrics/samples的用例先声明唯一metric_specs（name/unit/statistic），经record_property提交同名测量，核有限实数、单位与口径、正样本数、非负暖机、数据规模/环境/测量边界及本轮支持的inline raw_samples；不建立附件执行器。重复property、空/缺采集、无call或阶段不完整不能覆盖成成功。有效numeric终态为测量完成，质量判定保持未评估，不混入categorical质量通过；categorical原断言合同保持。每个参数结果独立保存，失败测量保留已发生事实，整批仍严格阻断。
+
+当前声明文档入口与冻结历史来源各有职责：只有实际消费者用作当前导航的引用可跟随唯一中文文档入口；历史source_path/member/commit/blob/hash随原协议保留，不能因路径改名重签或根据同名猜原件。新make必须冻结实际声明，旧Run与来源锁不写回。

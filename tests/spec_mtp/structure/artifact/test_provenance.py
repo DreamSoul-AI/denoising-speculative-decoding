@@ -134,3 +134,80 @@ def test_historical_bytes_require_the_explicit_repository_root(tmp_path, histori
     error = ValueError if root_kind == 'subdirectory' else subprocess.CalledProcessError
     with pytest.raises(error):
         read_historical_bytes(candidate, commit, PINNED_MEMBER, PINNED_SHA256)
+
+
+# Historical identity metadata frozen before navigation-only maintenance; no old source is imported.
+NAVIGATION_PLAN_METADATA = {'esp_table1_bf16_full': 'fc0612edc512aebf46c93ceb8daa0a7a04c25c629baf58fdedae38158e047c92',
+ 'esp_table1_bf16_full_argmax': 'f276d6d6c32fc7f12e40bbe74530e47f1913573fdf92e579e0e7318255386521',
+ 'esp_table1_bf16_numerics': 'd4599b703de9e36a9666f2f5706871b362522a4935418bdf848de8140972148c',
+ 'esp_table1_bf16_preflight': '1bbebe8b1fcd4ded7387a090fe1b4e57518191c6019c655e29d10d41f215855b',
+ 'esp_table1_bf16_qwen_protocol': '3bd90a0ecbcc14e9ff468d71212f547fd84ed30081df6e87d8790c7c40bca8a3',
+ 'esp_table1_bf16_reduction_check': '5ecdaff3724846a9c5659412c916ce26df88331f1c4547fdc5b3853f85f6c980',
+ 'esp_table1_bf16_shape_check': '86a6abca92721110f092f35f5105fe02b3e71d4d315044bffc3daa117fb60626',
+ 'input_mask_baseline': '7612a70d2af9d0dcc45169c92202dc6b90c100ba9a485feec43be5689439fe7c',
+ 'output_space_4b_holdout': 'c405e13ce5c3adfb512db83ba86a9bf5187e6baa86535fb763f143a180cdf5c7',
+ 'output_space_4b_input_control': '1525440fc287635a10d3cb2add94cd7beffdc2b3e37733894ddd9327e78897f4',
+ 'output_space_4b_recheck': 'baee587b8b9d79d723f8b558f8bb6af6df2fd6508c9b2d69eb9f8ac91b781972',
+ 'output_space_4b_recheck_v2': '9118b7d3c5eb5874f6ac05c4d69cb41fde05e0e9b1d78d0fd10458c68785472b',
+ 'output_space_cross_task': 'd48104ebb3381a1044dc1b307ab9d95944850abb87c30c04b0341c1ff3758fa8',
+ 'output_space_extension': '2f5635d537121568d4750821ae6c2225c85a495694b54172f2d7c580c60ddc82',
+ 'output_space_followup': '29a914c54b5ce38ff0b873a31be9090814a68fe16a7acdf9d22bb783a88b4ec8',
+ 'output_space_prerequisite': '2fdc9b3637846682f308ef611c5a89f4eb2b5ac57a03897d2903141ffffd0889',
+ 'output_space_small_matrix': 'b7a8a69e19c8e9217e570b966345123a4d993b7bfc261a050f68b45ace712817',
+ 'qwen3_4b_bf16_directions': '4359f52f015d685a8a2e15e70b10e64647ce474e6f06a42fcfd30784234e91cf',
+ 'qwen3_4b_bf16_directions_recovery': 'adb9ceb8853859a62b33bc77b2a20e1f462dd8390eb7cf56b1ea1df555c68c62',
+ 'qwen3_4b_bf16_five_methods': '4ee4ed04ce26b2f37f3104fa3becf335abe7808088f5f8f18b1eab1752304218'}
+PINNED_PLAN_METADATA = {'esp_table1_nonofficial_revalidation': 'd0fc97cd2358d794da3aad4b67e89bb3223a98495fe5f3bf7b3742d195337c1b',
+ 'qwen3_4b_bf16_bias_norm_continuation': '400daa52ff5251bc7f326c9128b80f42296601e534fb24521f3cdd34bcd7143c',
+ 'qwen3_4b_bf16_bias_norm_scan': 'd0fc97cd2358d794da3aad4b67e89bb3223a98495fe5f3bf7b3742d195337c1b',
+ 'qwen3_4b_bf16_paired_revalidation': 'b7ef0c3f2fe73519a228b1da8b46328b6b8de71c52b83584ac7e1f0a78bb2b55'}
+
+
+def _declaration_plan(name):
+    from pathlib import Path
+    from spec_mtp.structure.make.expand import load_study_yaml
+    root=Path(__file__).resolve().parents[4]
+    study=root/'studies'/name
+    return root,study,load_study_yaml(study)['provenance']['project_plan']
+
+
+def _plan_metadata_digest(body):
+    import json
+    return hashlib.sha256(json.dumps(body,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+
+
+@pytest.mark.parametrize('study_name',sorted(NAVIGATION_PLAN_METADATA))
+def test_current_plan_navigation_keeps_all_frozen_historical_members(study_name):
+    root,study,plan=_declaration_plan(study_name)
+    from spec_mtp.structure.artifact.provenance import study_source_paths
+    current='docs/研究计划 Research Plan 去噪推测解码.md'
+    assert plan['path']==current and (root/current).is_file()
+    assert '<'+current+'>' in (root/'README.md').read_text(encoding='utf-8')
+    assert 'commit' not in plan and 'sha256' not in plan and plan['historical_sections']
+    members=study_source_paths(study,{'provenance':{'project_plan':plan}})
+    assert members['study.yaml']==study/'study.yaml'
+    assert (root/current).resolve() not in members.values()
+    assert _plan_metadata_digest({key:value for key,value in plan.items() if key!='path'})==NAVIGATION_PLAN_METADATA[study_name]
+
+
+@pytest.mark.parametrize('study_name',sorted(PINNED_PLAN_METADATA))
+def test_fixed_plan_commit_path_and_digest_never_follow_current_navigation(study_name):
+    _,_,plan=_declaration_plan(study_name)
+    assert plan['path']=='docs/研究计划 Denoising Speculative Decoding.md'
+    assert len(plan['commit'])==40 and len(plan['sha256'])==64
+    assert _plan_metadata_digest(plan)==PINNED_PLAN_METADATA[study_name]
+
+
+@pytest.mark.parametrize('study_name',['output_space_cross_task','qwen3_4b_bf16_bias_norm_scan'])
+def test_navigation_cleanup_cannot_bypass_missing_frozen_study_inputs(tmp_path,study_name):
+    from spec_mtp.structure.make.write import expand_study
+    _,source,_=_declaration_plan(study_name)
+    fixture=tmp_path/'source';fixture.mkdir()
+    for name in ('study.yaml','experiment_config.yaml','recipe.py'):
+        (fixture/name).write_bytes((source/name).read_bytes())
+    before={p.name:p.read_bytes() for p in fixture.iterdir()}
+    output=tmp_path/'external-runtime'
+    with pytest.raises(FileNotFoundError,match='provenance.include matched nothing'):
+        expand_study(fixture,run_root=output)
+    assert not output.exists()
+    assert {p.name:p.read_bytes() for p in fixture.iterdir()}==before

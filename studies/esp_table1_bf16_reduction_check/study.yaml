@@ -7,7 +7,7 @@ recipe: recipe.py
 freeze: true
 provenance:
   project_plan:
-    path: docs/研究计划 Denoising Speculative Decoding.md
+    path: docs/研究计划 Research Plan 去噪推测解码.md
     historical_sections:
     - anchor: legacy-studies-esp-table1-bf16-reduction-check-docs-plan
       source_commit: aed4eee23ea5e6b9772b388eec9aa50a38452089

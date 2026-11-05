@@ -40,6 +40,7 @@ def test_phase_evidence_failure_propagates(tmp_path):
 def test_expected_phase_identity_is_preserved_without_weakening_gate(tmp_path, outcome):
     body, plan = runner.read_plan(ROOT/'tests/manifest.json', 'cpu-pr')
     record = runner.Recorder(body, plan, tmp_path, {'run_id':'expected'})
+    _phase(record, body['tests'][0]['test_id'], 'setup')
     report = SimpleNamespace(nodeid=body['tests'][0]['test_id'], when='call',
         failed=False, skipped=outcome=='skipped', passed=outcome=='passed',
         outcome=outcome, duration=0., wasxfail='expected control', longrepr='expected control')
@@ -67,6 +68,7 @@ def test_explicit_plan_selects_only_required_cases_and_rejects_missing_collectio
 def test_phase_evidence_records_actual_plan_and_device_metrics(tmp_path):
     body, plan = runner.read_plan(ROOT/'tests/manifest.json', 'cpu-pr')
     record = runner.Recorder(body, plan, tmp_path, {'run_id': 'gpu', 'plan_id': 'cuda-validation'})
+    _phase(record, body['tests'][0]['test_id'], 'setup')
     report = SimpleNamespace(nodeid=body['tests'][0]['test_id'], when='call', failed=False,
         skipped=False, passed=True, outcome='passed', duration=0., user_properties=[('cuda_peak_allocated_bytes', 4096)])
     record.pytest_runtest_logreport(report)
@@ -210,6 +212,7 @@ def test_measured_result_detail_preserves_categorical_semantics(tmp_path, kind, 
     row = body['tests'][0]; row.update(type=kind, result_type=result_type)
     with pytest.raises(ValueError, match='metrics or samples'): read()
     row['result_detail'] = 'metrics'
+    row['metric_specs'] = [{'name': 'sum', 'unit': 'dimensionless', 'statistic': 'single'}]
     accepted, _ = read()
     assert accepted['tests'][0]['result_type'] == result_type
 
@@ -232,3 +235,205 @@ def test_cuda_plan_rejects_insufficient_visible_devices_before_pytest(tmp_path, 
     result = json.loads((output / 'summary.json').read_text())
     assert 'GPU count' in result['reason'] and 'no CPU fallback' in result['reason']
     assert result['environment']['requested_resources']['gpu_count'] == 2
+
+
+def _metric():
+    return {'name': 'sum', 'unit': 'dimensionless', 'statistic': 'single', 'value': 28.,
+        'samples': 1, 'warmup_iterations': 0, 'raw_samples': [28.],
+        'context': {'data_size': {'elements': 8}, 'environment': {'device': 'metadata fixture'},
+                    'measurement_scope': 'one saved scalar; no tensor execution'}}
+
+
+def _measurement_recorder(tmp_path, result_type='numeric'):
+    body, read = _manifest(tmp_path)
+    row = body['tests'][0]
+    row.update(result_type=result_type, result_detail='metrics',
+               metric_specs=[{'name': 'sum', 'unit': 'dimensionless', 'statistic': 'single'}])
+    body, plan = read()
+    record = runner.Recorder(body, plan, tmp_path, {'run_id': 'measurement-fixture'})
+    node = row['test_id']; record.selected = {node}
+    assert runner._measurement_error(row, {'metrics': [_metric()]}) is None
+    return record, node
+
+
+def _phase(record, node, when, *, properties=(), outcome='passed'):
+    record.pytest_runtest_logreport(SimpleNamespace(nodeid=node, when=when,
+        outcome=outcome, failed=outcome == 'failed', skipped=outcome == 'skipped', passed=outcome == 'passed',
+        duration=0., user_properties=properties, longrepr='controlled phase failure'))
+
+
+@pytest.mark.parametrize('fault', ['missing', 'empty', 'string', 'name_boolean', 'unit_blank', 'statistic_missing', 'duplicate'])
+def test_measurement_declarations_require_named_units_and_statistics(tmp_path, fault):
+    body, read = _manifest(tmp_path)
+    row = body['tests'][0]
+    row.update(result_type='numeric', result_detail='metrics',
+               metric_specs=[{'name': 'sum', 'unit': 'dimensionless', 'statistic': 'single'}])
+    read()
+    if fault == 'missing': del row['metric_specs']
+    elif fault == 'empty': row['metric_specs'] = []
+    elif fault == 'string': row['metric_specs'] = 'sum'
+    elif fault == 'name_boolean': row['metric_specs'][0]['name'] = False
+    elif fault == 'unit_blank': row['metric_specs'][0]['unit'] = ' '
+    elif fault == 'statistic_missing': del row['metric_specs'][0]['statistic']
+    else: row['metric_specs'] *= 2
+    with pytest.raises(ValueError, match='metric_specs'): read()
+
+
+@pytest.mark.parametrize('level', ['unit', 'integration', 'e2e'])
+def test_location_metadata_is_limited_to_unit_checks(tmp_path, level):
+    body, read = _manifest(tmp_path)
+    body['tests'][0].update(type='location', level=level)
+    if level == 'unit':
+        accepted, _ = read()
+        assert accepted['tests'][0]['level'] == 'unit'
+    else:
+        with pytest.raises(ValueError, match='location.*unit'): read()
+
+
+@pytest.mark.parametrize('fault', ['missing', 'empty', 'boolean_metrics', 'value_boolean', 'value_none', 'value_nan',
+    'value_infinite', 'value_string', 'count_boolean', 'count_zero', 'raw_count', 'raw_boolean', 'raw_nan',
+    'context_missing', 'environment_empty', 'scope_blank', 'unit', 'statistic', 'duplicate_metric', 'undeclared_metric'])
+def test_invalid_measurements_cannot_complete_as_measured(tmp_path, fault):
+    record, node = _measurement_recorder(tmp_path)
+    metric = _metric(); properties = [('metrics', [metric])]
+    if fault == 'missing': properties = []
+    elif fault == 'empty': properties = [('metrics', [])]
+    elif fault == 'boolean_metrics': properties = [('metrics', False)]
+    elif fault == 'value_boolean': metric['value'] = False
+    elif fault == 'value_none': metric['value'] = None
+    elif fault == 'value_nan': metric['value'] = float('nan')
+    elif fault == 'value_infinite': metric['value'] = float('inf')
+    elif fault == 'value_string': metric['value'] = '28'
+    elif fault == 'count_boolean': metric['samples'] = True
+    elif fault == 'count_zero': metric['samples'] = 0
+    elif fault == 'raw_count': metric['raw_samples'] = []
+    elif fault == 'raw_boolean': metric['raw_samples'] = [False]
+    elif fault == 'raw_nan': metric['raw_samples'] = [float('nan')]
+    elif fault == 'context_missing': del metric['context']
+    elif fault == 'environment_empty': metric['context']['environment'] = {}
+    elif fault == 'scope_blank': metric['context']['measurement_scope'] = ' '
+    elif fault == 'unit': metric['unit'] = 'ms'
+    elif fault == 'statistic': metric['statistic'] = 'median'
+    elif fault == 'duplicate_metric': properties[0][1].append(dict(metric))
+    else: metric['name'] = 'not-declared'
+    _phase(record, node, 'setup')
+    _phase(record, node, 'call', properties=properties)
+    _phase(record, node, 'teardown', properties=properties)
+    session = SimpleNamespace(exitstatus=0); record.pytest_sessionfinish(session, 0)
+    saved = json.loads(next(tmp_path.glob('*.result.json')).read_text())
+    assert session.exitstatus == 1 and saved['status'] == 'error' and saved['verdict'] is None
+    assert json.loads((tmp_path/'summary.json').read_text())['measurement_completed'] == 0
+
+
+@pytest.mark.parametrize('result_type', ['numeric', 'categorical'])
+def test_measurement_completion_and_quality_verdict_are_independent(tmp_path, result_type):
+    record, node = _measurement_recorder(tmp_path, result_type)
+    _phase(record, node, 'setup')
+    _phase(record, node, 'call', properties=[('metrics', [_metric()])])
+    assert not list(tmp_path.glob('*.result.json'))
+    _phase(record, node, 'teardown')
+    assert not list(tmp_path.glob('*.result.json'))
+    session = SimpleNamespace(exitstatus=0); record.pytest_sessionfinish(session, 0)
+    saved = json.loads(next(tmp_path.glob('*.result.json')).read_text())
+    summary = json.loads((tmp_path/'summary.json').read_text())
+    assert session.exitstatus == 0
+    assert saved['status'] == ('measured' if result_type == 'numeric' else 'passed')
+    assert saved['quality_verdict'] == (None if result_type == 'numeric' else 'passed')
+    assert summary['measurement_completed'] == 1
+    assert summary['quality_passed'] == int(result_type == 'categorical')
+
+
+@pytest.mark.parametrize('fault', ['setup_failed', 'call_failed', 'teardown_failed', 'missing_call', 'missing_teardown',
+                                 'repeat_call', 'repeat_teardown', 'out_of_order'])
+def test_measurement_requires_every_successful_phase_before_terminal_publication(tmp_path, fault):
+    record, node = _measurement_recorder(tmp_path)
+    for when in (('call', 'setup', 'teardown') if fault == 'out_of_order' else ('setup', 'call', 'teardown')):
+        if fault == 'missing_' + when: continue
+        _phase(record, node, when, properties=[('metrics', [_metric()])] if when == 'call' else [],
+               outcome='failed' if fault == when + '_failed' else 'passed')
+        if fault == 'repeat_' + when:
+            _phase(record, node, when, properties=[('metrics', [_metric()])])
+    session = SimpleNamespace(exitstatus=0); record.pytest_sessionfinish(session, 0)
+    summary = json.loads((tmp_path/'summary.json').read_text())
+    assert session.exitstatus == 1 and summary['measurement_completed'] == 0 and summary['quality_passed'] == 0
+    assert all(json.loads(path.read_text())['status'] != 'measured' for path in tmp_path.glob('*.result.json'))
+
+
+@pytest.mark.parametrize('name', ['metrics', 'cuda_device'])
+@pytest.mark.parametrize('result_type', ['numeric', 'categorical'])
+def test_duplicate_properties_are_rejected_without_overwriting_first_evidence(tmp_path, name, result_type):
+    record, node = _measurement_recorder(tmp_path, result_type)
+    first = [_metric()] if name == 'metrics' else 'first actual device'
+    properties = [('metrics', [_metric()])] if name != 'metrics' else []
+    properties += [(name, first), (name, 'replacement')]
+    _phase(record, node, 'setup')
+    _phase(record, node, 'call', properties=properties)
+    _phase(record, node, 'teardown')
+    session = SimpleNamespace(exitstatus=0); record.pytest_sessionfinish(session, 0)
+    call = json.loads(next(tmp_path.glob('*.call.json')).read_text())
+    assert call['metrics'][name] == first and session.exitstatus == 1
+    assert call['status'] == 'passed' and call['native_status'] == 'passed'
+    assert call['verdict'] == (None if result_type == 'numeric' else 'failed')
+    assert any('duplicate' in message for message in call['evidence_errors'])
+
+
+def test_categorical_failure_preserves_collected_measurements(tmp_path):
+    record, node = _measurement_recorder(tmp_path, 'categorical')
+    _phase(record, node, 'setup')
+    _phase(record, node, 'call', properties=[('metrics', [_metric()])], outcome='failed')
+    _phase(record, node, 'teardown')
+    session = SimpleNamespace(exitstatus=0); record.pytest_sessionfinish(session, 0)
+    result = json.loads(next(tmp_path.glob('*.result.json')).read_text())
+    assert session.exitstatus == 1 and result['status'] == result['verdict'] == 'failed'
+    assert result['metrics']['metrics'][0]['value'] == 28.
+
+
+def test_measurement_call_evidence_is_frozen_before_teardown_mutation(tmp_path):
+    record, node = _measurement_recorder(tmp_path)
+    metric = _metric()
+    _phase(record, node, 'setup')
+    _phase(record, node, 'call', properties=[('metrics', [metric])])
+    metric['value'] = False
+    metric['context']['environment'].clear()
+    _phase(record, node, 'teardown')
+    session = SimpleNamespace(exitstatus=0); record.pytest_sessionfinish(session, 0)
+    result = json.loads(next(tmp_path.glob('*.result.json')).read_text())
+    assert session.exitstatus == 0 and result['status'] == 'measured'
+    assert result['metrics']['metrics'][0]['value'] == 28.
+    assert result['metrics']['metrics'][0]['context']['environment']
+
+
+def test_measurement_evidence_write_failure_cannot_publish_success(tmp_path, monkeypatch):
+    record, node = _measurement_recorder(tmp_path)
+    _phase(record, node, 'setup')
+    save = record.save
+    def broken_save(name, value):
+        if name.endswith('.call.json'):
+            raise OSError('controlled evidence write failure')
+        return save(name, value)
+    monkeypatch.setattr(record, 'save', broken_save)
+    with pytest.raises(OSError, match='evidence write failure'):
+        _phase(record, node, 'call', properties=[('metrics', [_metric()])])
+    _phase(record, node, 'teardown')
+    session = SimpleNamespace(exitstatus=0); record.pytest_sessionfinish(session, 0)
+    assert session.exitstatus == 1 and not list(tmp_path.glob('*.result.json'))
+    assert json.loads((tmp_path/'summary.json').read_text())['measurement_completed'] == 0
+
+
+def test_cuda_scalar_measurement_records_actual_samples_and_environment(record_property):
+    import torch
+    assert torch.cuda.is_available(), 'actual CUDA is required; no CPU fallback'
+    device = torch.device('cuda:0')
+    values = torch.arange(8, device=device, dtype=torch.float32)
+    total = values.sum()
+    torch.cuda.synchronize(device)
+    observed = total.item()
+    metric = _metric()
+    metric.update(value=observed, raw_samples=[observed])
+    metric['context'] = {'data_size': {'elements': values.numel()},
+        'environment': {'device': str(total.device), 'gpu': torch.cuda.get_device_name(device), 'torch': torch.__version__},
+        'measurement_scope': 'single FP32 CUDA sum of eight elements; no performance measurement'}
+    record_property('metrics', [metric])
+    record_property('cuda_device', torch.cuda.get_device_name(device))
+    print('actual_measurement_device=', total.device, 'gpu=', torch.cuda.get_device_name(device))
+    assert total.device.type == 'cuda' and observed == 28.
