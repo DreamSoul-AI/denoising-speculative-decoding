@@ -247,3 +247,87 @@ def analyze_small_matrix_cross_prompt(report, tensors):
                 'accepted': case['replay']['stats']['accepted'], 'decode_calls': case['replay']['stats']['decode_calls'],
                 'propagation_edges': edges, 'terminal_after_first_shared_hit': actual_trace[start + 1]['stopped']})
     return findings
+
+
+def diagnose_small_matrix_trajectories(data):
+    """Compare saved common AR prefixes by absolute root, without new forwards."""
+    if not __debug__:
+        raise RuntimeError("saved trajectory audit requires Python assertions enabled")
+    import itertools
+    assert data["study_quality_passed"] and data["question_ids"] == [172, 173, 174]
+    bycase = {r['case']: r for r in data['runs']}
+    methods = ['frozen_mean_chain', 'output_order0', 'output_order1']
+    pairs = []
+    for i, qid in enumerate(data['question_ids']):
+        ar = bycase['AR']['raw']['evidence'][i]
+        for case in methods:
+            assert bycase[case]['raw']['evidence'][i]['output_ids'] == ar['output_ids']
+        for first, second in itertools.combinations(methods, 2):
+            first_ev = bycase[first]['raw']['evidence'][i]
+            second_ev = bycase[second]['raw']['evidence'][i]
+            a = {t['root_position']: t for t in first_ev['stats']['trace']}
+            b = {t['root_position']: t for t in second_ev['stats']['trace']}
+            assert len(a) == len(first_ev['stats']['trace']) and len(b) == len(second_ev['stats']['trace'])
+            common = sorted(set(a) & set(b))
+            changed, same, mask_changed = [], 0, 0
+            for position in common:
+                x, y = a[position], b[position]
+                assert x['cache_before'] == y['cache_before'] == position
+                assert first_ev['input_ids'] == second_ev['input_ids'] == ar['input_ids']
+                assert first_ev['output_ids'][:position + 1] == second_ev['output_ids'][:position + 1]
+                if len(x['accepted_nodes']) == len(y['accepted_nodes']):
+                    same += 1
+                else:
+                    changed.append({'root_position': position, 'generation_root_index': position - len(ar['input_ids']),
+                                    'accepted_first': len(x['accepted_nodes']), 'accepted_second': len(y['accepted_nodes']),
+                                    'first_committed': x['committed_tokens'], 'second_committed': y['committed_tokens'],
+                                    'stopped_first': x['stopped'], 'stopped_second': y['stopped']})
+                if first.startswith('output') and second.startswith('output'):
+                    mask_changed += (x['output_hidden']['last_owner_diff_from_root']
+                                     != y['output_hidden']['last_owner_diff_from_root'])
+            pairs.append({'question_id': qid, 'first': first, 'second': second,
+                          'common_root_positions': common, 'same_acceptance_length_at_common_roots': same,
+                          'changed_acceptance_length_at_common_roots': changed,
+                          'first_only_root_positions': sorted(set(a) - set(b)),
+                          'second_only_root_positions': sorted(set(b) - set(a)),
+                          'output_owner_difference_stat_changed_at_common_roots': (
+                              mask_changed if first.startswith('output') and second.startswith('output') else None),
+                          'observed_prefixes_verified_equal': True})
+    return {'comparison_basis': 'same question and absolute committed root position, verified common AR prefix; no step-number matching',
+            'new_model_forwards_for_analysis': 0, 'pairs': pairs,
+            'limits': 'No draft logits/full masks/exact-proxy hidden pairs saved; observed acceptance differences are not causal attribution.'}
+
+
+
+def analyze_small_matrix_windows(observer, matrix, raw):
+    """Reconstruct the existing owner-zero slot-one formula from saved tensors."""
+    if not __debug__:
+        raise RuntimeError("saved tensor audit requires Python assertions enabled")
+    import torch
+    from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
+    assert observer["quality_passed"] and matrix["study_quality_passed"]
+    assert matrix["question_ids"] == [172, 173, 174]
+    rows = {row['case']: row for row in matrix['runs']}
+    findings = []
+    for case in ['output_order0', 'output_order1']:
+        scale = rows[case]['raw']['evidence'][1]['stats']['output_hidden_prefill']['scale']
+        order = rows[case]['spec']['output']['order']
+        for root in [83, 94, 97]:
+            sample = raw[f'{case}:{root}']
+            state = sample['source_state']
+            assert sample['source_owner'] == 0
+            table = torch.zeros(1, state['anchor'].numel(), device=state['anchor'].device, dtype=torch.float32)
+            table[0, 0] = scale
+            provider = OutputHiddenMaskProvider(2, table, order=order, beta=.9, beta_prime=.99)
+            provider.anchor, provider.velocity = state['anchor'].clone(), state['velocity'].clone()
+            actual = provider.masks_per_owner(state['proxies'])[0, 0]
+            provider.velocity = torch.zeros_like(provider.velocity)
+            zero = provider.masks_per_owner(state['proxies'])[0, 0]
+            assert torch.equal(actual, zero)
+            saved = sample['seed_mask_inputs'][0]
+            assert torch.allclose(actual, saved, rtol=1e-6, atol=1e-7)
+            findings.append({'case': case, 'root_position': root, 'source_block_root': sample['source_root'],
+                             'source_owner': 0, 'source_velocity_norm': float(state['velocity'].norm()),
+                             'slot1_identical_with_source_velocity_zeroed': True,
+                             'saved_seed_reconstruction_max_abs_error': float((actual - saved).abs().max())})
+    return findings

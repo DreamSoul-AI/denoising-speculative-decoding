@@ -89,4 +89,6 @@ native训练恢复沿现有职责实现，不新建恢复框架：`algorithm/bas
 
 pilot与preforward_signal的CLI、输出发布及会话生命周期同样归各自 `flow/execute/`。pilot显式冻结本地config、计划SHA、源码和CUDA设备；structure保留合成数据、训练及各既有模式的数学。preforward复用本地模型/输入准入，固定81–208与128条校准模板，structure只接显式rows和设备，不猜模型目录。宿主mask拟合的辅助张量与输入device一致，不依赖默认CPU；不以搬目录改变公式。
 
-small_matrix的transfer/cross-prompt旧入口归并至现有 `flow/process/run.py`，仅新增离线命令协调；纯状态/槽位比较复用已有 `studies/_shared/structure/extension_diagnostics.py`。固定Git报告、实际报告和张量独立绑定，不执行归档源码或按当前manifest替换历史身份；新的工具来源另记。其余trajectory/window/plot消费者按各自真实输入继续整理，不复制整套历史脚本。
+small_matrix 的 transfer/cross-prompt/trajectory/window 分析由现有 `flow/process/run.py` 编排，纯状态、槽位比较与诊断复用已有 `studies/_shared/structure/extension_diagnostics.py`。两套绘图由现有 `flow/write/run.py` 编排，一个 `structure/plots.py` 容纳纯 Figure 构造，避免保留两份入口、路径与输入读取。固定 Git 原件、实际报告与张量独立绑定，不执行归档源码或按当前 manifest 替换历史身份，新工具来源另记。新外部输出完整后才发布完成记录，JSON 读件不伪称 CUDA 计算，保存张量的数值检查显式使用 CUDA。
+
+trajectory 的 bonus-aligned/output-hidden 专用命令共用一个 `flow/execute/hybrid_gain.py`，沿既有本地模型、输入与计划准入机制组织生命周期及共同收集/落盘。两份 structure 保留各自既有协议、纯校准与统计公式，共同模板和统计复用已有纯函数，不另建助手文件。原切片、arm 与预算各自冻结，收尾核来源、完整 qid 集及关闭模型后才发布新运行的完整标记，旧根不续写。测试按上述两柱职责镜像。

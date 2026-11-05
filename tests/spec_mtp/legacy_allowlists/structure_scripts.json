@@ -2,9 +2,5 @@
   "studies/_shared/structure/decode_fingerprint.py [argparse]",
   "studies/_shared/structure/decode_fingerprint.py [main]",
   "studies/_shared/structure/profile_cpu.py [argparse]",
-  "studies/_shared/structure/profile_cpu.py [main]",
-  "studies/trajectory_observation/structure/bonus_aligned_gain.py [argparse]",
-  "studies/trajectory_observation/structure/bonus_aligned_gain.py [main]",
-  "studies/trajectory_observation/structure/output_hidden_kalman.py [argparse]",
-  "studies/trajectory_observation/structure/output_hidden_kalman.py [main]"
+  "studies/_shared/structure/profile_cpu.py [main]"
 ]

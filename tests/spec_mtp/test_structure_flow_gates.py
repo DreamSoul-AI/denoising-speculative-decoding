@@ -222,10 +222,7 @@ def _has_argparse(tree: ast.AST) -> bool:
 
 
 def structure_scripts() -> list[str]:
-    """``structure/`` must not be a script bin: no main guard and no argparse.
-
-    The four folded trajectory_observation commands are a closed exception.
-    """
+    """``structure/`` must not be a script bin: no main guard and no argparse."""
     found: list[str] = []
     for path in _py_files(ROOT / 'src' / 'spec_mtp', ROOT / 'studies'):
         rel = _posix(path)

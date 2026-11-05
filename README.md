@@ -24,7 +24,7 @@
 
 `python -m spec_mtp` / `spec-mtp` 由 `flow/cli.py` 提供 `decode/audit/compare`。Study 使用 `python -m studies._shared.flow.cli`，接入宿主 `flow/study_cli.py` 与默认六阶段。包初始化不加载模型或整套调度器。流程由本仓实现，不再内嵌 `src/rpipe/`。旧流程 API facade 已删除，构建直接使用所属层工厂。九个共用诊断再导出已清理，消费者直接导入真实模块。Study 顶层脚本仍有遗留，见代码结构设计与开发计划。
 
-算法由 Enmao 重新设计，当前进行结构整理与有界 CPU 验证。新算法方向由 Enmao 确定，旧协议作为历史证据。正确性、优化和性能验证优先 CUDA，运行前确认可用并记录实际设备；CPU只做快速单元测试。GPU满载时等待或缩小规模，模型下载仍不在当前范围。每轮从 dev 工作分支经 PR 集成，不直接修改 main。
+算法由 Enmao 重新设计，当前进行结构整理与有界工程验证。新算法方向由 Enmao 确定，旧协议作为历史证据。正确性、优化和性能验证优先 CUDA，运行前确认可用并记录实际设备，CPU 只做快速单元测试。GPU 满载时等待或缩小规模，模型下载仍不在当前范围。每轮从 dev 工作分支经 PR 集成，不直接修改 main。
 
 第三方 ESP 来源树及 `ORIGIN.json` 保留，不能把它称为作者官方实现。原始 SpecBench 数据保留于 `datasets/spec_bench/question.jsonl`。
 
@@ -36,11 +36,15 @@
 
 离线报告使用 `python -m studies._shared.flow.cli report <Study> --out <外部新文件.md>`，输出路径必填，拒绝已有文件、输入目录和源码 checkout；报告检查不回写旧 process 或 gate。`output_space_extension` 的已保存槽位诊断迁入 `python -m studies.output_space_extension.flow.process.run --raw <保存张量目录> --execution <原运行矩阵.json> --repository <本地仓库> --commit <完整提交> --execution-git-sha256 <Git原件SHA256> --output-root <新外部目录>`。它只读原件并加载 CPU 张量，不载入模型；实际运行矩阵须匹配旧报告哈希，与固定 Git 原件分别记录字节身份并核对 JSON 内容。缺失或漂移直接失败，不自动修换行或重签旧来源。历史读件需要支持 `--no-lazy-fetch` 的本地 Git，当前验证版本为 `2.55.0.windows.3`，不支持时直接失败，不降级联网。followup 读端同样迁入 `studies.output_space_followup.flow.process.run`，参数与槽位读端一致，保存张量实际在 CUDA 分析并登记设备。
 
-small_matrix的transfer/cross-prompt分析统一使用 `python -m studies.output_space_small_matrix.flow.process.run <transfers|cross-prompt> --raw <原报告与张量目录> --repository <本地Git仓库> --commit <完整提交> --report-git-sha256 <固定报告SHA> --device cuda:0 --output-root <新外部目录>`；transfers另需 `--original <原observer目录> --observer-git-sha256 <固定observer报告SHA>`。实际报告、固定Git报告与张量分别绑定，新工具来源另记；只读CUDA分析，不运行归档源码或模型。优化模式 `python -O` 会明确拒绝，不能跳过科学断言。原helper身份缺失保持未知，不补成当前helper。其余trajectory/window/plot入口仍待逐项迁移。
+small_matrix 的分析统一使用 `python -m studies.output_space_small_matrix.flow.process.run <transfers|cross-prompt|trajectories|windows> --raw <原输入> --repository <本地Git仓库> --commit <完整提交> --report-git-sha256 <固定报告SHA> --output-root <新外部目录>`。trajectories 的原输入为原运行 execution JSON，只读 JSON，不接受设备参数。其余三种的原输入为原报告与张量目录，必需 `--device cuda:0`。transfers 另需 `--original <原observer目录> --observer-git-sha256 <固定observer报告SHA>`，windows 另需 `--execution <原运行矩阵JSON> --execution-git-sha256 <固定矩阵SHA>`。实际运行原件、固定 Git 原件与张量分别绑定，新工具来源另记，不运行归档源码或模型。优化模式 `python -O` 会明确拒绝，不能跳过科学断言。原 helper 身份缺失保持未知，不补成当前 helper。
+
+两套历史图使用 `python -m studies.output_space_small_matrix.flow.write.run <acceptance|windows> --input <原报告JSON> --repository <本地Git仓库> --commit <完整提交> --input-git-sha256 <固定报告SHA> --output-root <新外部目录>`，windows 另需 `--scale <原scale报告JSON> --scale-git-sha256 <固定scale报告SHA>`。只渲染已保存的标量，不重算模型或统计。图片保留原数值、颜色、坐标与标题，完成记录绑定实际输入、固定 Git 来源、当前绘图源码和 PNG 摘要，失败只保留 partial，不回写 Study/docs 或旧 Run。
 
 trajectory 真实模型专用入口为 `python -m studies.trajectory_observation.flow.execute.office <qwen8b|tree|traj> --help`、`python -m studies.trajectory_observation.flow.execute.fresh_replace --help`、`python -m studies.trajectory_observation.flow.execute.fair_branch --help` 与 `python -m studies.trajectory_observation.flow.execute.preforward_signal --help`。它们要求显式本地模型目录、目录外完整模型SHA清单、本地JSONL、计划文件及其SHA、新外部输出；fair_branch以 `--split specbench|dolly --input <本地JSONL>` 保留原337–464/前128切片，preforward保留SpecBench 81–208及128条校准模板，不再猜模型目录或联网取数据。共用本地输入准入，只读取已解析绑定路径。preforward的summary/fit可留作partial，只有收尾复核及关闭后写出的protocol_complete标记表示运行完整；旧gate字段不产生新研究授权。
 
-合成pilot使用 `python -m studies.trajectory_observation.flow.execute.pilot --config <完整本地JSON> --plan <研究计划> --plan-sha256 <计划SHA> --device cuda:0 --output <新外部目录>`，模式、seeds及预算由显式冻结config给出，互斥模式拒绝；不因DEFAULT存在就自动启动1500步旧训练。训练、模型前向及拟合在CUDA，CPU只承担离散样本准备和序列化。七个旧structure命令已归flow，不留反向wrapper；旧研究root只读，命令存在不表示获准重跑。此轮只验证1–3步微型模型、oracle和拟合合同，没有运行默认训练、真实权重或旧研究矩阵。
+bonus-aligned/output-hidden 两个专用协议使用 `python -m studies.trajectory_observation.flow.execute.hybrid_gain <bonus-aligned|output-hidden> --help`，同样必需本地模型目录、完整模型清单、SpecBench JSONL、计划 SHA、CUDA 设备和新外部输出。前者保留 465–560 切片与四臂，后者保留 209–336 切片、32 条 holdout 与六臂，校准各为 128 条模板。共同收集、落盘与会话编排归同一 flow，structure 保留纯校准与统计。逐臂核完整 qid 与 argmax 审计，收尾核来源并关闭模型后才发布 protocol_complete，旧根不续写。
+
+合成 pilot 使用 `python -m studies.trajectory_observation.flow.execute.pilot --config <完整本地JSON> --plan <研究计划> --plan-sha256 <计划SHA> --device cuda:0 --output <新外部目录>`，模式、seeds 及预算由显式冻结 config 给出，互斥模式拒绝，不因 DEFAULT 存在就自动启动 1500 步旧训练。训练、模型前向及拟合在 CUDA，CPU 只承担离散样本准备和序列化。九个旧 structure 命令已归 flow，不留反向 wrapper。当前工程验证使用微型模型、oracle、拟合与入口合同，没有运行默认训练、真实权重或旧研究矩阵。
 
 checkpoint/RNG的独立合同见架构设计CR0–CR5。native `TrainAlgorithm` 将读取、准入与应用分开：先核合同、模型状态、数据游标和RNG，再改活跃训练状态；实际bundle载入前后核SHA，来源进入恢复摘要。`algorithm.config.resume_from` 显式指定文件时，缺失即失败；默认latest不存在仍可新建训练。Data子状态使用v2，冻结sampler/loader generator及其共享关系；旧v1不能自动当exact恢复，原件保留。无完整training_state的旧checkpoint继续明确警告partial。
 
