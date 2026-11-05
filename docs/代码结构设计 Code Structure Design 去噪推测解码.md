@@ -104,3 +104,7 @@ small_matrix 窗口重绘区分原运行件与后补归档附注。固定 Git wi
 ESP 四格汇总、图与独立复验消费者的计算归各 Study 必要的 structure readout/plots，编排与输出归现有 process/write。相同统计复用共同实现，BC10 的 primary/auxiliary 身份、argmax/AR 边界、四格顺序与原阈值分别保持。固定保存证据读件与原生 Run 校验分开，不运行旧矩阵或改第三方原树。
 
 input_mask_baseline 的历史 q171 图采用既有 write 编排与一个纯 plots 模块，保留 accepted 柱、保存的 cosine sums/counts 相除及零计数不画线的语义。固定来源为其原报告身份，不套用 output-space 摘要或窗口归档附注例外；输出仍为外部新根、来源复核后的 PNG 与完成记录。
+
+4B recheck、recheck_v2、holdout 与 input_control 的配对统计归同一 `studies/_shared/structure/paired_4b.py`，原生输入和各 Study 的质量、来源与计数合同分别保留。共同读件协调归 recheck_v2 既有 process，复用保存读件会话，仅覆盖本组源码范围；另外三条 process 选择对应协议并保留六阶段导出。holdout 与 recheck_v2 的中文报告、Figure 共用 `studies/_shared/structure/paired_report.py`，既有 shared write 负责固定报告身份、真实输入链接与外部输出，并为两类图共用完成记录失败清理。三个相同统计模块及两份相同报告不各自继续演进；不能因合并统计而混同主批次、留出批次或 EMA 对照。不另建转调文件。
+
+cross_task 的 first-delta、sampling-expansion 和 continuation 按同一采样路径问题归入 `structure/sampling_readout.py`，保留原 trace、净差分解、逐单位汇总与判读公式，命令由既有 process 调度。历史 acceptance 图由既有 write 与一个纯 plots 模块承接，保留原 q241–244 与单独 q241 计数口径。固定 Git 原件、实际输入及当前工具身份分开，读件前后复核，新完成标记最后发布；其余张量/模型协议不借此次入口收束重启。

@@ -50,8 +50,8 @@ def test_second_slot_ar_path_requires_correct_first_and_available_target(first_c
 
 
 @pytest.mark.parametrize('entry', [
-    'studies/output_space_4b_holdout/analyze_results.py',
-    'studies/output_space_cross_task/analyze_results.py',
+    ['-m', 'studies.output_space_4b_holdout.flow.process.run'],
+    ['studies/output_space_cross_task/analyze_results.py'],
 ])
 def test_legacy_analysis_help_uses_canonical_helpers_without_editable_paths(tmp_path, entry):
     import os
@@ -61,10 +61,11 @@ def test_legacy_analysis_help_uses_canonical_helpers_without_editable_paths(tmp_
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2]
-    env = {**os.environ, 'PYTHONPATH': os.pathsep.join((str(root / 'src'), sysconfig.get_path('purelib'))),
+    env = {**os.environ, 'PYTHONPATH': os.pathsep.join((str(root), str(root / 'src'), sysconfig.get_path('purelib'))),
            'PYTHONDONTWRITEBYTECODE': '1', 'HF_HUB_OFFLINE': '1', 'HF_DATASETS_OFFLINE': '1',
            'CUDA_VISIBLE_DEVICES': ''}
-    result = subprocess.run([sys.executable, '-S', str(root / entry), '--help'],
+    command = entry if entry[0] == '-m' else [str(root / entry[0])]
+    result = subprocess.run([sys.executable, '-S', *command, '--help'],
                             cwd=tmp_path, env=env, capture_output=True, text=True, timeout=20)
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'usage:' in result.stdout.lower()

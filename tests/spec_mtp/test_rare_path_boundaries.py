@@ -49,7 +49,7 @@ def frame(root, count):
 
 def accounting(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT))
-    from studies.output_space_cross_task.analyze_first_delta import path_accounting
+    from studies.output_space_cross_task.structure.sampling_readout import path_accounting
     return path_accounting
 
 

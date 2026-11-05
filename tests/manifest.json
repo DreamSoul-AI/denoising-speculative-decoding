@@ -438,17 +438,19 @@
     },
     {
       "test_id": "tests/spec_mtp/test_4b_pairs.py::test_4b_pairing_retains_gains_losses_ties_and_main_calls",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.paired_4b",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_4b_pairs.py::test_missing_pair_is_rejected_not_imputed_zero",
-      "target": "spec_mtp",
+      "target": "studies._shared.structure.paired_4b",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_4b_phases.py::test_4b_native_phase_entry_is_function_not_module",
@@ -1984,31 +1986,35 @@
     },
     {
       "test_id": "tests/spec_mtp/test_rare_path_boundaries.py::test_first_gain_can_end_in_loss_with_real_root_accounting",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.sampling_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_rare_path_boundaries.py::test_first_gain_can_cancel_to_zero",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.sampling_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_rare_path_boundaries.py::test_preserved_direction_and_diagnostic_metadata_scope",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.sampling_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_rare_path_boundaries.py::test_bad_counts_or_unshared_prefix_are_rejected",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.sampling_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_readout_report.py::test_report_refuses_stale_or_invalid_identity_without_losing_numbers",
@@ -2145,10 +2151,11 @@
     },
     {
       "test_id": "tests/spec_mtp/test_sampling_continuation.py::test_prompt_sign_prediction_includes_zero_and_infeasible",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.sampling_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_state_rounding_factors.py::test_phi_native_endpoint_and_scope",
@@ -4050,7 +4057,7 @@
     },
     {
       "test_id": "tests/spec_mtp/test_extension_windows.py::test_legacy_analysis_help_uses_canonical_helpers_without_editable_paths",
-      "target": "studies._shared.structure",
+      "target": "studies.output_space_4b_holdout.flow.process.run / output_space_cross_task.analyze_results",
       "level": "integration",
       "type": "content",
       "cost_class": "c2",
@@ -6981,6 +6988,328 @@
         "offline_cpu",
         "structure_cleanup"
       ]
+    },
+    {
+      "test_id": "tests/studies/output_space_4b_recheck_v2/flow/process/test_four_saved_readouts.py::test_saved_input_control_binds_both_original_execution_groups",
+      "target": "studies.output_space_4b_recheck_v2.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_4b_recheck_v2/flow/process/test_four_saved_readouts.py::test_saved_readout_rejects_changed_native_inputs_without_output",
+      "target": "studies.output_space_4b_recheck_v2.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_4b_recheck_v2/flow/process/test_four_saved_readouts.py::test_saved_readout_rejects_drift_before_publication",
+      "target": "studies.output_space_4b_recheck_v2.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_4b_recheck_v2/flow/process/test_four_saved_readouts.py::test_saved_three_arm_readout_uses_original_bytes_and_separate_output",
+      "target": "studies.output_space_4b_recheck_v2.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_sampling_readout_entry.py::test_first_delta_reads_pinned_producer_bytes_and_preserves_infeasible_units",
+      "target": "studies.output_space_cross_task.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_sampling_readout_entry.py::test_first_delta_rejects_unbound_history_before_output",
+      "target": "studies.output_space_cross_task.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_sampling_readout_entry.py::test_first_delta_uses_initial_resolved_report_when_original_alias_changes",
+      "target": "studies.output_space_cross_task.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_sampling_readout_entry.py::test_saved_sampling_cli_requires_explicit_binding",
+      "target": "studies.output_space_cross_task.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/write/test_cross_task_plot.py::test_cross_task_plot_binds_both_inputs_and_preserves_separate_count_bars",
+      "target": "studies.output_space_cross_task.flow.write.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/write/test_cross_task_plot.py::test_cross_task_plot_cli_requires_every_explicit_history_argument",
+      "target": "studies.output_space_cross_task.flow.write.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/write/test_cross_task_plot.py::test_cross_task_plot_drift_during_save_prevents_completion",
+      "target": "studies.output_space_cross_task.flow.write.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/write/test_cross_task_plot.py::test_cross_task_plot_refuses_unbound_reports_or_unsafe_output",
+      "target": "studies.output_space_cross_task.flow.write.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/structure/test_cross_task_figures.py::test_cross_task_figure_keeps_native_and_canonical_values_axes_and_colors",
+      "target": "studies.output_space_cross_task.structure.plots",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/structure/test_sampling_readout_cuda.py::test_saved_expansion_audits_grafted_masks_and_rare_probabilities_on_cuda",
+      "target": "studies.output_space_cross_task.structure.sampling_readout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/flow/write/test_paired_report_output.py::test_completion_publication_failure_never_deletes_prior_receipts_or_keeps_a_new_partial",
+      "target": "studies._shared.flow.write.run / structure.paired_report",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_cli_requires_all_explicit_bindings",
+      "target": "studies._shared.flow.write.run / structure.paired_report",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_drift_after_save_leaves_partial_without_completion",
+      "target": "studies._shared.flow.write.run / structure.paired_report",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_links_actual_input_and_preserves_unknown_references",
+      "target": "studies._shared.flow.write.run / structure.paired_report",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_refuses_output_overlap_and_prior_outputs",
+      "target": "studies._shared.flow.write.run / structure.paired_report",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_rejects_unbound_inputs_before_output",
+      "target": "studies._shared.flow.write.run / structure.paired_report",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_study_commands_delegate_their_actual_identity",
+      "target": "studies._shared.flow.write.run / structure.paired_report",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/structure/test_paired_report.py::test_paired_count_figure_preserves_signed_differences_and_no_timing_label",
+      "target": "studies._shared.structure.paired_report",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_4b_recheck_v2/flow/process/test_four_saved_readouts.py::test_saved_run_requires_actual_producer_settings_schema",
+      "target": "studies.output_space_4b_recheck_v2.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
     }
   ],
   "plans": {
@@ -7134,6 +7463,10 @@
         {
           "test_id": "tests/studies/_shared/flow/test_diagnostics_cuda.py::test_single_fingerprint_cell_runs_on_cuda_with_fixed_seed",
           "reason": "Requires actual CUDA numerical/host-profile validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_cross_task/structure/test_sampling_readout_cuda.py::test_saved_expansion_audits_grafted_masks_and_rare_probabilities_on_cuda",
+          "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -7332,7 +7665,29 @@
         "tests/studies/qwen3_4b_bf16_five_methods/flow/process/test_five_methods_readout.py::test_saved_counter_admission_rejects_drift_without_output",
         "tests/studies/qwen3_4b_bf16_five_methods/flow/process/test_five_methods_readout.py::test_saved_counter_readout_preserves_original_identity_and_refuses_overwrite",
         "tests/studies/qwen3_4b_bf16_five_methods/flow/write/test_five_methods_plot.py::test_bound_saved_counter_plot_records_identity_without_overwrite",
-        "tests/studies/qwen3_4b_bf16_five_methods/flow/write/test_five_methods_plot.py::test_plot_source_changed_during_readout_is_rejected_before_figure"
+        "tests/studies/qwen3_4b_bf16_five_methods/flow/write/test_five_methods_plot.py::test_plot_source_changed_during_readout_is_rejected_before_figure",
+        "tests/studies/output_space_4b_recheck_v2/flow/process/test_four_saved_readouts.py::test_saved_input_control_binds_both_original_execution_groups",
+        "tests/studies/output_space_4b_recheck_v2/flow/process/test_four_saved_readouts.py::test_saved_readout_rejects_changed_native_inputs_without_output",
+        "tests/studies/output_space_4b_recheck_v2/flow/process/test_four_saved_readouts.py::test_saved_readout_rejects_drift_before_publication",
+        "tests/studies/output_space_4b_recheck_v2/flow/process/test_four_saved_readouts.py::test_saved_three_arm_readout_uses_original_bytes_and_separate_output",
+        "tests/studies/output_space_cross_task/flow/process/test_sampling_readout_entry.py::test_first_delta_reads_pinned_producer_bytes_and_preserves_infeasible_units",
+        "tests/studies/output_space_cross_task/flow/process/test_sampling_readout_entry.py::test_first_delta_rejects_unbound_history_before_output",
+        "tests/studies/output_space_cross_task/flow/process/test_sampling_readout_entry.py::test_first_delta_uses_initial_resolved_report_when_original_alias_changes",
+        "tests/studies/output_space_cross_task/flow/process/test_sampling_readout_entry.py::test_saved_sampling_cli_requires_explicit_binding",
+        "tests/studies/output_space_cross_task/flow/write/test_cross_task_plot.py::test_cross_task_plot_binds_both_inputs_and_preserves_separate_count_bars",
+        "tests/studies/output_space_cross_task/flow/write/test_cross_task_plot.py::test_cross_task_plot_cli_requires_every_explicit_history_argument",
+        "tests/studies/output_space_cross_task/flow/write/test_cross_task_plot.py::test_cross_task_plot_drift_during_save_prevents_completion",
+        "tests/studies/output_space_cross_task/flow/write/test_cross_task_plot.py::test_cross_task_plot_refuses_unbound_reports_or_unsafe_output",
+        "tests/studies/output_space_cross_task/structure/test_cross_task_figures.py::test_cross_task_figure_keeps_native_and_canonical_values_axes_and_colors",
+        "tests/studies/shared/flow/write/test_paired_report_output.py::test_completion_publication_failure_never_deletes_prior_receipts_or_keeps_a_new_partial",
+        "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_cli_requires_all_explicit_bindings",
+        "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_drift_after_save_leaves_partial_without_completion",
+        "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_links_actual_input_and_preserves_unknown_references",
+        "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_refuses_output_overlap_and_prior_outputs",
+        "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_rejects_unbound_inputs_before_output",
+        "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_study_commands_delegate_their_actual_identity",
+        "tests/studies/shared/structure/test_paired_report.py::test_paired_count_figure_preserves_signed_differences_and_no_timing_label",
+        "tests/studies/output_space_4b_recheck_v2/flow/process/test_four_saved_readouts.py::test_saved_run_requires_actual_producer_settings_schema"
       ],
       "exclude": []
     },
@@ -7376,7 +7731,8 @@
         "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_window_trajectory.py::test_saved_window_tensor_file_runs_on_cuda_with_original_matrix_binding",
         "tests/studies/trajectory_observation/structure/test_hybrid_gain_calibration.py::test_hybrid_calibration_computes_gain_and_diagnostics_on_cuda",
         "tests/studies/_shared/flow/test_diagnostics_cuda.py::test_profile_small_cuda_preserves_host_self_time_attribution_and_exact_match",
-        "tests/studies/_shared/flow/test_diagnostics_cuda.py::test_single_fingerprint_cell_runs_on_cuda_with_fixed_seed"
+        "tests/studies/_shared/flow/test_diagnostics_cuda.py::test_single_fingerprint_cell_runs_on_cuda_with_fixed_seed",
+        "tests/studies/output_space_cross_task/structure/test_sampling_readout_cuda.py::test_saved_expansion_audits_grafted_masks_and_rare_probabilities_on_cuda"
       ],
       "exclude": [],
       "resources": {

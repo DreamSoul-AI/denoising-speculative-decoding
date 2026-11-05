@@ -44,7 +44,7 @@ def test_stress_detection_does_not_raise_original_condition_power(monkeypatch):
 def test_prompt_sign_prediction_includes_zero_and_infeasible(monkeypatch, delta, expected):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     monkeypatch.syspath_prepend(str(ROOT))
-    from studies.output_space_cross_task.analyze_continuation import bounded_sign_prediction
+    from studies.output_space_cross_task.structure.sampling_readout import bounded_sign_prediction
     a = {'qid':242,'seed':126}
     if delta is not None:
         a['accepted_delta'] = delta
