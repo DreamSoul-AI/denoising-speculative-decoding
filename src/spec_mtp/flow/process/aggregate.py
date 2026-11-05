@@ -11,7 +11,7 @@ from typing import Any
 from spec_mtp.structure.artifact.asset import kinds
 from spec_mtp.structure.artifact.paths import PROCESS_NAME, RESULT_NAME, RUNS_DIRNAME
 from spec_mtp.structure.artifact.result.format import STATUS_SUCCEEDED
-from spec_mtp.structure.artifact.result.io import load_result
+from spec_mtp.structure.artifact.result.io import load_optional_result
 
 
 def process_path(study_dir: Path | str) -> Path:
@@ -235,16 +235,6 @@ def _numeric_metrics(metrics: dict[str, Any]) -> dict[str, float]:
     return out
 
 
-def _load_result(study_dir: Path, run_dir: str) -> dict[str, Any] | None:
-    path = study_dir / RUNS_DIRNAME / run_dir / RESULT_NAME
-    if not path.is_file():
-        return None
-    try:
-        return load_result(path)
-    except (OSError, TypeError, ValueError):
-        return None
-
-
 def collect_from_index(study_dir: Path, index: dict[str, Any]) -> list[dict[str, Any]]:
     groups: list[dict[str, Any]] = []
     for exp in index.get('experiments') or []:
@@ -252,7 +242,7 @@ def collect_from_index(study_dir: Path, index: dict[str, Any]) -> list[dict[str,
         rows: list[dict[str, Any]] = []
         for run in planned:
             run_dir = str(run.get('run_dir') or run.get('id') or '')
-            result = _load_result(study_dir, run_dir) if run_dir else None
+            result = load_optional_result(study_dir / RUNS_DIRNAME / run_dir / RESULT_NAME) if run_dir else None
             row: dict[str, Any] = {
                 'id': run.get('id'),
                 'run_dir': run_dir,

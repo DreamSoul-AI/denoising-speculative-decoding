@@ -26,10 +26,21 @@ def load_result(path: Path | str) -> dict[str, Any]:
     return decode_result(Path(path).read_text(encoding='utf-8'))
 
 
+def load_optional_result(path: Path | str) -> dict[str, Any] | None:
+    target = Path(path)
+    if not target.is_file():
+        return None
+    try:
+        return load_result(target)
+    except (OSError, TypeError, ValueError):
+        return None
+
+
 __all__ = [
     'STATUS_FAILED',
     'STATUS_SUCCEEDED',
     'load_result',
+    'load_optional_result',
     'validate_result',
     'write_result',
 ]

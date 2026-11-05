@@ -12,20 +12,10 @@ from spec_mtp.structure.artifact.asset import kinds
 from spec_mtp.structure.artifact.index import index_path, load_index
 from spec_mtp.structure.artifact.paths import RESULT_NAME, RUNS_DIRNAME
 from spec_mtp.structure.artifact.result.format import STATUS_SUCCEEDED
-from spec_mtp.structure.artifact.result.io import load_result
+from spec_mtp.structure.artifact.result.io import load_optional_result
 
 STATUS_PENDING = 'pending'
 _EVENT = re.compile(r'\[(epoch|error|flow)\]\s*(.*)$')
-
-
-def _load_result(study_dir: Path, run_dir: str) -> dict[str, Any] | None:
-    path = study_dir / RUNS_DIRNAME / run_dir / RESULT_NAME
-    if not path.is_file():
-        return None
-    try:
-        return load_result(path)
-    except (OSError, TypeError, ValueError):
-        return None
 
 
 def _mode(factors: dict[str, Any], result: dict[str, Any] | None) -> str:
@@ -158,7 +148,7 @@ def list_runs(
         factors = dict(exp.get('factors') or {})
         for run in exp.get('runs') or []:
             run_dir = str(run.get('run_dir') or run.get('id') or '')
-            result = _load_result(study_dir, run_dir) if run_dir else None
+            result = load_optional_result(study_dir / RUNS_DIRNAME / run_dir / RESULT_NAME) if run_dir else None
             mode = _mode(factors, result)
             if wanted and mode not in wanted:
                 continue

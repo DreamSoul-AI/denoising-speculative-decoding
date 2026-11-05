@@ -43,6 +43,8 @@ trajectory_observation 的 fresh_replace 选句、配对统计留在 structure/f
 科学 CLI 与 Study CLI 的实现分开，产品入口分别为 `python -m spec_mtp` 与 `python -m studies._shared.flow.cli`。flow 的包初始化只标记命名空间，调用方直接导入其使用的模块，避免通过包入口加载整个阶段链。
 
 # 三、源码依赖与测试镜像
+结果读取的严格入口仍由artifact/result/io.py维护；状态列表与聚合器的可选读取共用同一load_optional_result，不各自复制文件存在性与异常边界。缺文件、非文件及原有OSError/TypeError/ValueError返回None，非mapping的CorruptArtifactError和其它异常继续传播，严格load_result不降级。Control合同只校RunConfig/Control，不维护无消费者的第二套Result草稿门；实际写入仍使用result.format.validate_result。相应读写合同在CPU根的artifact/result镜像验证，不新增生产模块或运行器。
+
 宿主测试按执行资源设两个明确根：`tests/spec_mtp/` 只承载CPU安全合同，`tests/cuda/spec_mtp/` 承载真实CUDA合同，两者都在根之后完整镜像同一源码相对路径。现有CPU工作流仍运行 `python -m pytest tests/spec_mtp`；GPU运行 `python -m pytest tests/cuda/spec_mtp`，资源声明与已有cuda-validation计划随实际函数路径同步。默认 `python -m pytest tests` 仍收集两个根，不通过skip、排除、收集钩子或配置过滤选择设备。
 
 混合测试文件按函数职责拆到对应根，保留函数名、参数、断言和实际设备前提；共用输入工厂放已有tests/conftest，不复制科学实现或新增微型助手包。未知方法等只验证拒绝的guard留CPU根，以无张量对象证明拒绝发生在张量处理前；模型、CUDA RNG、张量持久化、解码数值合同保留真实GPU。迁移前后按参数节点核对一一对应和完整执行，manifest的target继续指实际生产职责，不因资源目录改变。后文本章的structure/flow相对测试镜像在相应资源根下解释，混合职责可在两根各有同名镜像文件。

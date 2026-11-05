@@ -130,6 +130,6 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 宿主CPU安全合同运行 `python -m pytest tests/spec_mtp`，真实CUDA合同运行 `python -m pytest tests/cuda/spec_mtp`；两根分别完整镜像源码相对路径，`python -m pytest tests` 仍收集两者。GPU入口先核CUDA可用并记录实际设备，保留设备、RNG、模型与张量断言，不提供无GPU回退。未知方法拒绝等纯结构guard留在CPU根，现有workflow命令不变，也不通过收集过滤或skip选择资源。
 
-登记仍为952函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别807/446/133/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主原1103参数拆为835个CPU安全合同和268个CUDA合同；运行及结果绑定本次提交，历史参数规模与设备结论从原运行记录定位。Study侧独立CUDA计划及旧72项观测模型矩阵的暂停状态不变，不因测试迁移重启研究或产生新的性能结论。
+登记953函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别808/447/133/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根845参数、CUDA根268参数；原1103参数保全，另有10个结果读取边界参数，严格读取与可选读取的异常语义分开。运行及结果绑定实际提交，历史规模与设备结论从原运行记录定位。Study侧独立CUDA计划及旧72项观测模型矩阵的暂停状态不变，不因工程整理重启研究或产生新的性能结论。
 
 已有Kalman/EMA的P0 CUDA核验按独立参考区分递推、状态时序与研究收益：EMA闭式历史、标量Joseph、逐维/残差与对角增益各自验证；Online/Aligned每轮首commit，Hybrid last为实际末commit（截断时不保证bonus）。已修非有限噪声参数准入与forget=1除零，端点关闭Q/R自适应而P/F仍更新。局部正确性不证明Kalman建模最优或真实模型加速，成果与来源缺口见唯一研究计划。

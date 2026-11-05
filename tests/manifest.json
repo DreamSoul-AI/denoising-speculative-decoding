@@ -11204,6 +11204,25 @@
         "network": false,
         "model_download": false
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/result/test_io.py::test_optional_result_preserves_read_failures_and_never_writes",
+      "target": "spec_mtp.structure.artifact.result.io.load_optional_result",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
     }
   ],
   "plans": {
@@ -12242,7 +12261,8 @@
         "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_empty_tree_helpers",
         "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_node_budget_rejects_too_small_block_complexity",
         "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_max_entries_must_be_at_least_one",
-        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_rejects_unknown_method"
+        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_rejects_unknown_method",
+        "tests/spec_mtp/structure/artifact/result/test_io.py::test_optional_result_preserves_read_failures_and_never_writes"
       ],
       "exclude": []
     },
