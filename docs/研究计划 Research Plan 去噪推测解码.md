@@ -20,7 +20,7 @@
 | 同8条256-token CUDA比较，模型/输入/参数与32-token回合相同 | 16项来源/T0、4096实际提交及8项EMA末状态门通过。原口径accepted ESP543、EMA509，均差−4.25；同步墙钟均值6.748489612/7.001628888秒，EMA−ESP为+0.253139275秒，接受与更快胜负均2:6 | **256预算联合假设仍不获支持**。EMA原accepted含1个未提交尾接受（实际提交中508），不事后改主指标。仅1对256输出相同，故这是同输入/预算下各自轨迹的实测比较，不是严格同输出加速证明；不自动续512或扫β。[本次运行](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>) |
 | 合成 EMA 与 observation 联合，确认seed21/22/23，192 prompt对 | 相对较弱EMA trajectory为102:71，p=.022；相对更强ESP为88:94，p=.71 | 已在合成预定主比较中确认优于EMA自身，但未优于更强ESP，不作为超越强单侧的成功方案。[联合检查](<运行记录 Run Record/2026-11-01 联合mask检查.md>) |
 | 标量trajectory-only Kalman，合成发现与确认分离 | 发现117:59:16，p=1.5e-5；确认101:83:8，p=.210 | **收益未获独立确认**，该配方停止扩展；不推广为所有Kalman模型无效。[联合检查](<运行记录 Run Record/2026-11-01 联合mask检查.md>) |
-| OnlineVerifyKalman，合成及真实模型CUDA BF16/eager | 合成确认97:86:9，p=.460；真实Qwen3-4B/0.6B各32条、16 token、k1[4]，argmax通过，但accepted胜:负:平2:24:6 / 1:28:3，τ从1.361→1.218 / 1.452→1.216 | **该协议内明确负结果**，不以同配方扩大实验；执行正确性与收益失败分列。[联合检查](<运行记录 Run Record/2026-11-01 联合mask检查.md>) |
+| OnlineVerifyKalman，合成及真实模型CUDA BF16（旧比较backend/EOS未核） | 合成确认97:86:9，p=.460；真实Qwen3-4B/0.6B各32条、16 token、k1[4]，argmax通过，但accepted胜:负:平2:24:6 / 1:28:3，τ从1.361→1.218 / 1.452→1.216 | **该协议内明确负结果**，不以同配方扩大实验；执行正确性与收益失败分列。[联合检查](<运行记录 Run Record/2026-11-01 联合mask检查.md>) |
 | AlignedResidualKalman，真实4B/0.6B小规模比较 | 两模型均5:9:18，p=.424；τ分别1.306→1.294、1.335→1.327 | 未超过ESP，作为有价值负证据收束，残差对齐未证明收益。[联合检查](<运行记录 Run Record/2026-11-01 联合mask检查.md>) |
 | Kalman observation-only工程合同，OnlineVerify/Aligned × forget=.8/1 | 四场景CUDA通过：FP32实际状态匹配独立FP64参考，观测自有状态与动态ESP基底区分，首commit更新、后续commit不重复更新及reset符合受测合同 | **所测合同已完成**，不再列为待验任务。该Run无真实模型收益/计时对照，不能从四项通过推出Kalman有效或BF16全域正确。[运行证据](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>) |
 | 8B历史命名frozen-Kalman（实际冻结对角K残差修正），office-qwen3-8b-v1，128条Dolly、64 token、T0/noEOS、k1[4] | 对ESP为51:41:36，p=.348141；accepted配对均差+.1953125，CI[-.0546875,.4453125]；pooled τ 1.343552→1.350754，argmax通过，未测速度 | **冻结校正收益未获确认**。固定原源码为hybrid_gain、mode=frozen、observe=last；校准后无在线K/P更新，不能支持真正在线滤波有效。只作为既有静态校正对照收束。[原记录](<运行记录 Run Record/2026-11-03 Qwen3-8B同预算与冻结卡尔曼.md>) |
@@ -95,11 +95,14 @@ EMA五方法原件固定于Git b8b20b5ada7fd860894114cbf224ce749af430cf的 studi
 # 五、历史Run收束与判读合同
 | **材料** | **当前状态与收束** |
 | --- | --- |
-| 五方法11 Run与ESP完整复验 | 五方法固定H02原件保存11个Run ID、终态、配置、source/model/validator摘要与六类文件SHA；本次已核原位置未找到这11个Run目录。保历史完成事实，不冒充当前原生重验。ESP仍按各自原记录定位 |
-| OnlineVerify / Aligned旧比较 | 指定旧输出根当前不在，32条真实模型负结果目前属运行记录级证据，原终态、逐token与模型/输入摘要未重新核得；eager按历史记载而非本拍新核身份解释。保负结果及缺口，不为补通过重跑同配方 |
-| 8B冻结K旧比较 | 原header/summary、三臂各128条JSONL、fit/slice与日志可读，原source HEAD、prompt摘要和qid序列吻合；stored argmax布尔不等于完整token链重验。固定原源码有校准/eval文本去交集门，但fit自身缺model/source/校准文本哈希，不能事后补签；收益仍未确认 |
+| EMA五方法11 Run | 固定H02报告字节与已登记SHA吻合，11条身份元数据可核。已登记的checkout候选路径及固定归档同路径未取得66个Run成员，H02本体没有执行根字段，外部原件位置仍unknown。validator原字节已从H01明确原运行根取得且匹配同一SHA，但不据此补齐H02实际调用环境、其余源码/配置或模型链；保历史完成事实，不冒充原生重验 |
+| ESP完整复验H01 | 沿报告明确execution_root取得3个原Run，18个Run声明成员、59个宿主成员及16个Study声明成员（不含RPipe）均匹配保存SHA。实际source_refs及其3个引用原件均命中运行摘要，关闭其与上游protocol的原字节绑定；固定Git报告仍保独立归档身份。报告生成器原字节绑定仍未闭合；权重/tokenizer、内嵌RPipe源码及重新执行原生质量门未核 |
+| OnlineVerify / Aligned旧比较 | 指定旧输出根当前不在，32条真实模型负结果目前属运行记录级证据，原终态、逐token与模型/输入摘要未重新核得。原记录段未写明backend或EOS停止设置，两者保持unknown，不据当前默认值反推。保负结果及缺口，不为补通过重跑同配方 |
+| 8B冻结K旧比较 | 指定10份原制品与3个固定Git源码对象字节均与已登记SHA吻合，原source HEAD、prompt摘要和qid序列可核。stored argmax布尔不等于完整token链重验；fit可被旧流程复用，header/source HEAD不构成每份fit的绑定。fit自身model/source/校准文本哈希仍缺，不能事后补签；收益仍未确认 |
 | 未完成范数/配对/续跑 | 登记原计划、实际完成/未完成和退出当前队列理由；排程取消不等于旧Run成功 |
 | 历史来源缺口 | 四项cross-task原tool/plan/runtime精确字节仍缺，受影响读端严格拒绝、保unknown，不回填、不用当前helper替代；不阻塞不依赖这些文件的EMA/Kalman核验 |
+
+固定Git对象与实际运行原件按各自已登记摘要核对，不以归档字节替代运行字节。实际原件命中时只关闭对应来源边，缺失或不匹配继续保留unknown，不转换换行或用语义相同的JSON补齐。来源审计不改变第二章的方案处置。
 
 逐Run核源码/声明、输入/模型/tokenizer、配置/seed、设备/dtype/backend、计划与实收样本、终态、质量门、指标及来源回执。只生成新收束摘要，不覆盖旧Run。原执行与失败从 [运行记录](<运行记录 Run Record/INDEX.md>) 定位，开发决定归日期开发记录。
 
