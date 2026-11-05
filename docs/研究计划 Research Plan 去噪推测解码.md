@@ -104,6 +104,19 @@ EMA五方法原件固定于Git b8b20b5ada7fd860894114cbf224ce749af430cf的 studi
 
 固定Git对象与实际运行原件按各自已登记摘要核对，不以归档字节替代运行字节。实际原件命中时只关闭对应来源边，缺失或不匹配继续保留unknown，不转换换行或用语义相同的JSON补齐。来源审计不改变第二章的方案处置。
 
+以下命名缺口全部保持 **unknown / still-refuse**，只约束依赖这些来源的操作。H02定位与H01两项生成器绑定分别登记，不混为四项cross-task原件，也不影响第二章已冻结的研究处置。
+
+| **缺口** | **所需原身份** | **已知定位边界** | **关闭条件** |
+| --- | --- | --- | --- |
+| H02执行根与运行链 | 实际根值未登记 | H02报告及固定旧PLAN均不提供实际根。11个checkout候选根未命中只限已查位置，不从H01推根 | 取得真实旧运行头、派发回执或来源清单，明确实际根并对应11 Run及66成员保存摘要 |
+| H01生成器与复用汇总器 | analyzer `cbb00e6edd5418a033f41e3472c0979803849af8fd5cdba422ad9b8de0c55363`；aggregation `5db751c8d9973ffc5d29ef28120bef5e9addea11c383e5f473ea9da3aa8af519` | 已知phase入口为56字节再导出，SHA为8e5e1829…且不匹配analyzer。两个原成员/producer提交均未定位 | 分别取得匹配两摘要的原始源码及真实成员/版本关联。阶段入口、validator或当前readout不替代生成器 |
+| 运行矩阵 `studies/output_space_cross_task/docs/execution_v1.json` | `708bf37bc5160ab6cc2c0787dd89e773b0fd60e518fdd9b272a6b114756dc254` | diagnosis.source_binding.matrix_sha256只声明原身份。已取固定归档be50f497…与目标708bf37…不同 | 保留原矩阵未改字节并命中预期SHA，连同其真实producer/原成员绑定 |
+| 原生导出器 `studies/output_space_cross_task/check_hypotheses.py` | `0f8d644e049eb6f9a7cf2e80b6d43de96ec9731023bd61bc55421363c659ccf5` | 原Run source packet声明该SHA，保存export索引的producer_sources为空 | 原导出器字节命中SHA，并具备正式读端要求的原Git/member身份 |
+| 跨任务工具 `tools/diagnose_study_windows.py` | `ba72f70420e6309a412f1deaf1f2fd28b9c02767ccc71b4cc1248b6235710948` | diagnosis.source_binding.tool_sha256有声明，cross索引没有绑定原工具 | 原工具字节命中SHA，并有独立支持的原成员/版本关联 |
+| 原计划 `studies/output_space_cross_task/docs/PLAN.md` | `07abd854854816d51c4770939e14e095e6f9931dbe62698528f6e58d19475df9` | 旧Run与diagnosis的声明一致，实际原计划字节未取得 | 原计划未改字节命中SHA及原成员/版本。不重建换行或拿当前中文计划补签 |
+
+原报告中的声明字段、可读的归档和已命中的其他来源边均不能替缺失原件。cross原路径报告也与保存索引绑定的固定报告字节不同，声明可读不代表报告身份已闭合。只在出现明确原定位或匹配原件时核对应边，不按文件名猜源、重扫既查位置或为缺失来源补跑GPU。正式拒绝证据保原提交身份，本拍未重跑拒绝driver。
+
 逐Run核源码/声明、输入/模型/tokenizer、配置/seed、设备/dtype/backend、计划与实收样本、终态、质量门、指标及来源回执。只生成新收束摘要，不覆盖旧Run。原执行与失败从 [运行记录](<运行记录 Run Record/INDEX.md>) 定位，开发决定归日期开发记录。
 
 T0门是每个实际提交token对应验证前向argmax，覆盖prefill、bonus、EOS及预算裁剪后完整链。独立AR一致率只作诊断，T0不推广为T>0分布保证。旧full/argmax协议保各自判据，不替换失败门。BF16相对独立AR的算子机理排查仍永久停止。
