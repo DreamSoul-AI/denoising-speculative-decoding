@@ -447,3 +447,33 @@ def test_main_forwards_to_rpipe(monkeypatch, tmp_path, capsys):
     assert calls == [['status', str(tmp_path)], ['make', str(study)]]
     assert 'spec_mtp sources:' in capsys.readouterr().out
     assert (study/shared_sources.LOCK_NAME).is_file()
+
+
+def test_cli_lock_only_for_make_run_launch(tmp_path):
+    study = tmp_path / 's'
+    study.mkdir()
+    (study / 'study.yaml').write_text('study: s\n')
+    assert shared_cli.write_lock_for(['status', str(study)]) is None
+    assert shared_cli.write_lock_for(['make', str(study)]) == study / shared_sources.LOCK_NAME
+    first = json.loads((study / shared_sources.LOCK_NAME).read_text())['created_at']
+    (study / 'scripts').mkdir()
+    (study / 'scripts' / 'jobs.json').write_text('{}')
+    assert shared_cli.write_lock_for(['launch', str(study)]) is None  # keep the make-time lock
+    assert json.loads((study / shared_sources.LOCK_NAME).read_text())['created_at'] == first
+    assert shared_cli.write_lock_for(['launch', str(study), '--remake']) is not None
+    assert shared_cli.write_lock_for(['study', 'run', str(study)]) is None  # run must not refresh freeze lock
+
+
+def test_run_does_not_create_lock_when_freeze(tmp_path):
+    study = tmp_path / 'frozen'
+    study.mkdir()
+    (study / 'study.yaml').write_text('study: s\nfreeze: true\n', encoding='utf-8')
+    assert shared_cli.write_lock_for(['run', str(study)]) is None
+    assert not (study / shared_sources.LOCK_NAME).exists()
+
+
+def test_run_writes_lock_when_missing_and_unfrozen(tmp_path):
+    study = tmp_path / 'open'
+    study.mkdir()
+    (study / 'study.yaml').write_text('study: s\n', encoding='utf-8')
+    assert shared_cli.write_lock_for(['run', str(study)]) == study / shared_sources.LOCK_NAME

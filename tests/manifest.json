@@ -1515,25 +1515,46 @@
       "level": "unit"
     },
     {
-      "test_id": "tests/spec_mtp/test_gpu_admission.py::test_recognized_display_process_is_not_a_blocker",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/structure/test_gpu_admission.py::test_recognized_display_process_is_not_a_blocker",
+      "target": "studies._shared.structure.gpu_admission.classify",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_gpu_admission.py::test_only_confirmed_cuda_or_known_runtime_context_blocks",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/structure/test_gpu_admission.py::test_only_confirmed_cuda_or_known_runtime_context_blocks",
+      "target": "studies._shared.structure.gpu_admission.classify",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_gpu_admission.py::test_mixed_display_context_is_not_assigned_fake_cuda_bytes",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/structure/test_gpu_admission.py::test_mixed_display_context_is_not_assigned_fake_cuda_bytes",
+      "target": "studies._shared.structure.gpu_admission.parse_xml",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/spec_mtp/test_kernel_controls.py::test_norm_graph_native_replication_and_unchanged_state",
@@ -1677,25 +1698,46 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_mask_settings.py::test_frozen_mean_does_not_update",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/structure/test_config.py::test_frozen_mean_does_not_update",
+      "target": "studies._shared.structure.config.spec_for",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_mask_settings.py::test_mean_plus_gamma_uses_study_overrides",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/structure/test_config.py::test_mean_plus_gamma_uses_study_overrides",
+      "target": "studies._shared.structure.config.spec_for",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_mask_settings.py::test_unknown_mask_is_rejected",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/structure/test_config.py::test_unknown_mask_is_rejected",
+      "target": "studies._shared.structure.config.spec_for",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
@@ -1855,53 +1897,102 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_package.py::test_manifest_covers_package_sources",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/structure/test_sources.py::test_manifest_covers_package_sources",
+      "target": "studies._shared.structure.sources.manifest",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_package.py::test_cli_lock_only_for_make_run_launch",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_cli_lock_only_for_make_run_launch",
+      "target": "studies._shared.flow.cli.write_lock_for",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_package.py::test_run_does_not_create_lock_when_freeze",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_run_does_not_create_lock_when_freeze",
+      "target": "studies._shared.flow.cli.write_lock_for",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_package.py::test_run_writes_lock_when_missing_and_unfrozen",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_run_writes_lock_when_missing_and_unfrozen",
+      "target": "studies._shared.flow.cli.write_lock_for",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_package.py::test_load_lock_absent_is_none",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/structure/test_sources.py::test_load_lock_absent_is_none",
+      "target": "studies._shared.structure.sources.load_lock",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_package.py::test_load_lock_rejects_corrupt_and_non_object",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/structure/test_sources.py::test_load_lock_rejects_corrupt_and_non_object",
+      "target": "studies._shared.structure.sources.load_lock",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_package.py::test_package_initializers_do_not_define_business_functions",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/test_parent_imports.py::test_package_initializers_do_not_define_business_functions",
+      "target": "spec_mtp.__init__",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "location",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_all_eleven_effective_configs_match_native_expansion",
@@ -10654,7 +10745,20 @@
         "tests/studies/_shared/structure/test_csv_logger.py::test_csv_io_errors_propagate",
         "tests/studies/_shared/structure/test_resource_admission.py::test_optimized_python_keeps_resource_rejection_and_valid_controls",
         "tests/studies/_shared/flow/write/test_run.py::test_paired_report_receipt_stage_drift_prevents_completion",
-        "tests/studies/_shared/flow/write/test_run.py::test_paired_report_cleanup_preserves_primary_and_blocks_completion"
+        "tests/studies/_shared/flow/write/test_run.py::test_paired_report_cleanup_preserves_primary_and_blocks_completion",
+        "tests/studies/_shared/structure/test_gpu_admission.py::test_recognized_display_process_is_not_a_blocker",
+        "tests/studies/_shared/structure/test_gpu_admission.py::test_only_confirmed_cuda_or_known_runtime_context_blocks",
+        "tests/studies/_shared/structure/test_gpu_admission.py::test_mixed_display_context_is_not_assigned_fake_cuda_bytes",
+        "tests/studies/_shared/structure/test_config.py::test_frozen_mean_does_not_update",
+        "tests/studies/_shared/structure/test_config.py::test_mean_plus_gamma_uses_study_overrides",
+        "tests/studies/_shared/structure/test_config.py::test_unknown_mask_is_rejected",
+        "tests/studies/_shared/structure/test_sources.py::test_manifest_covers_package_sources",
+        "tests/studies/_shared/structure/test_sources.py::test_load_lock_absent_is_none",
+        "tests/studies/_shared/structure/test_sources.py::test_load_lock_rejects_corrupt_and_non_object",
+        "tests/studies/_shared/flow/test_cli.py::test_cli_lock_only_for_make_run_launch",
+        "tests/studies/_shared/flow/test_cli.py::test_run_does_not_create_lock_when_freeze",
+        "tests/studies/_shared/flow/test_cli.py::test_run_writes_lock_when_missing_and_unfrozen",
+        "tests/spec_mtp/structure/test_parent_imports.py::test_package_initializers_do_not_define_business_functions"
       ],
       "exclude": []
     },

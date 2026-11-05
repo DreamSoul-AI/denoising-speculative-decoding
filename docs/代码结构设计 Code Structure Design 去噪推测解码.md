@@ -164,3 +164,5 @@ alignment保存计数测试以最终门为主信号，collect构造有效基线�
 CSV指标仍由既有 `structure/csv_logger.py` 的Logger维护，其真实镜像为 `tests/studies/_shared/structure/test_csv_logger.py`。文件固定首个有效header的有序列，逐次核header及末LF追加边界（含CRLF）；同schema重排列值正确，schema/header/目标状态变化写前拒绝。已有零字节文件仅首次可建header，已有行不清洗或重写；无文件stdout保原动态格式。该模块不承担诊断JSONL、Tracker、科学gate或并发/原子提交职责，不新增持久化框架。
 
 配对报告的纯文本与Figure归 `structure/paired_report.py`，镜像归 `_shared/structure/test_paired_report.py`；文件、固定原件绑定、绘图及完成发布链归 `flow/write/run.py`，镜像为 `_shared/flow/write/test_run.py`。真实Agg渲染和轻量解析/发布spy分开定成本，两个Study wrapper到共同入口的身份契约保一个参数化用例，不添微型转调文件。writer取得Figure后负责错误与清理：主体失败保原异常，清理次错附其figure_cleanup_error；正常释放成功后构造receipt，再复核输入和来源，最后独占发布。纯渲染公式、原SHA、实际字节与Git字节身份及publish_new_completion接口保持，不增加发布框架或回签旧source catalog。
+
+来源manifest及load_lock镜像归 `_shared/structure/test_sources.py`，写锁命令路径归 `_shared/flow/test_cli.py`；GPU进程名/上下文分类与XML解析归 `_shared/structure/test_gpu_admission.py`，mask设置归已有config镜像。它们按真实unit/integration与成本登记，GPU字段的标量检查仍是CPU内容验证，不触发硬件观察。宿主初始化AST合同合现有parent_imports镜像；仓库级安装/console配置合同仍由test_package承担，不为其建无职责科学leaf。tomllib导入和打包前置条件只约束实际依赖它的测试，不能连带阻断独立来源/CLI合同收集。

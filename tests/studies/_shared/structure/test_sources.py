@@ -58,3 +58,28 @@ def test_source_git_identity_trusts_checkout_and_rejects_unknown_status(tmp_path
         assert all(command[:5] == ['git', '-c', 'safe.directory=' + str(tmp_path), '-C', str(nested)] for command in calls)
         if fault != 'head':
             assert calls[-1][-4:] == ['status', '--porcelain', '--', '.']
+
+
+def test_manifest_covers_package_sources():
+    body = sources.manifest()
+    assert {'studies/_shared/structure/recipe.py', 'studies/_shared/flow/collect/run.py',
+            'studies/_shared/structure/validation.py',
+            'spec_mtp/structure/algorithm/decode/loop.py'} <= set(body['files'])
+    assert not any(name.startswith('rpipe/') for name in body['files'])
+    assert body['digest'] == sources.files_digest(body['files'])
+
+
+def test_load_lock_absent_is_none(tmp_path):
+    assert sources.load_lock(tmp_path) is None
+
+
+def test_load_lock_rejects_corrupt_and_non_object(tmp_path):
+    path = tmp_path / sources.LOCK_NAME
+    path.write_text('{not json', encoding='utf-8')
+    with pytest.raises(sources.SpecMtpSourceChangedError, match='not valid JSON'):
+        sources.load_lock(tmp_path)
+    path.write_text('[1, 2]', encoding='utf-8')
+    with pytest.raises(sources.SpecMtpSourceChangedError, match='JSON object'):
+        sources.load_lock(tmp_path)
+    path.write_text('{"digest": "abc"}\n', encoding='utf-8')
+    assert sources.load_lock(tmp_path) == {'digest': 'abc'}

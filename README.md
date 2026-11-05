@@ -22,7 +22,7 @@
 # 二、当前实现与使用边界
 当前安装包为 `denoise-spec-mtp`，研究宿主 `spec_mtp` 按 [RPipe](https://github.com/DreamSoul-AI/RPipe) 的 `structure/` 与 `flow/` 两柱组织。宿主顶层保留包标记、模块入口和稳定控制台薄入口 `cli.py`。合同在 `structure/api/decode_api.py`，数据在 `structure/data/prompts.py`，模型在 `structure/model/hf_causal.py`，解码与 mask 在 `structure/algorithm/`，统计在 `structure/algorithm/counts.py`，观测与审计在 `structure/artifact/observation.py`。原数据、模型、审计和分析顶层模块已删除，调用方直接导入真实路径。
 
-`python -m spec_mtp` / `spec-mtp` 由 `flow/cli.py` 提供 `decode/audit/compare`。Study 使用 `python -m studies._shared.flow.cli`，接入宿主 `flow/study_cli.py` 与默认六阶段。包初始化不加载模型或整套调度器。流程由本仓实现，不再内嵌 `src/rpipe/`。旧流程 API facade 已删除，构建直接使用所属层工厂。九个共用诊断再导出已清理，消费者直接导入真实模块。Study 顶层脚本仍有遗留，见代码结构设计与开发计划。
+`python -m spec_mtp` / `spec-mtp` 由 `flow/cli.py` 提供 `decode/audit/compare`。Study 使用 `python -m studies._shared.flow.cli`，接入宿主 `flow/study_cli.py` 与默认六阶段。包初始化不加载模型或整套调度器。流程由本仓实现，不再内嵌 `src/rpipe/`。旧流程 API facade 已删除，构建直接使用所属层工厂。九个共用诊断再导出已清理，消费者直接导入真实模块。已登记的 Study 顶层遗留入口清单为空，其余结构与测试镜像差距见代码结构设计与开发计划。
 
 算法由 Enmao 重新设计，当前进行结构整理与有界工程验证。新算法方向由 Enmao 确定，旧协议作为历史证据。正确性、优化和性能验证优先 CUDA，运行前确认可用并记录实际设备，CPU 只做快速单元测试。GPU 满载时等待或缩小规模，模型下载仍不在当前范围。每轮从 dev 工作分支经 PR 集成，不直接修改 main。
 

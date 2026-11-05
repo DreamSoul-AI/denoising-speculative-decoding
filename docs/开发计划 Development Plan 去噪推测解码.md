@@ -2,52 +2,33 @@
 更新日期：2026年11月5日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-继续 `codex/structure-cleanup-20261105`，更新Draft PR106到dev；比较基线为 `890cce5`。本轮不访问或修改dayan、RPipe，不合并、强推或绕过必需检查。结构原则只复用此前已读的远端固定414ccb7，不重新核实分支现状。算法、科学阈值、原件SHA、旧Run和研究暂停状态保持。
+继续 `codex/structure-cleanup-20261105`，基线 `5ef5ec9`，更新Draft PR106到dev。本轮约30分钟：核对6分钟、归位10分钟、验证10分钟、交付4分钟。目标是测试按真实职责镜像并细化元数据，不改变生产模块、算法、科学阈值、来源身份或旧Run。
 
-先用约30分钟规划，再进入目标模式实施。规划窗口为2026年11月5日18:08:08至约18:38:08（Asia/Shanghai），期间只读取、收集参数与做任务临时根内的受控IO取证，不改生产或测试源码，不运行模型/GPU。实施与验证预计再15–20分钟，实际结果从日期记录和PR定位。
+远端RPipe main本轮只读核为 `414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6`，已读其README和代码结构设计测试章节。采用实际实现职责镜像、importlib完整路径收集、工程/GPU/研究证据分开；不复制模板源码，不访问本机RPipe或dayan。
 
-## 本轮目标、步骤与验收
-| **阶段与预计时长** | **具体工作** | **验收** |
+## 本轮目标、实施与验收
+| **步骤与预估** | **具体改动** | **验收** |
 | --- | --- | --- |
-| 规划1，8分钟 | 核剩余resource/paired三个旧镜像、实际调用者、历史来源与当前配置 | 区分真实owner、纯IO/Agg、资源政策与GPU数值；不把torch导入当CUDA证据 |
-| 规划2，10分钟 | 枚举14个旧ID/29参数、失败合同、成本和最小修复 | 资源四处原条件拒绝不因优化模式消失；配对Figure清理与receipt阶段复核形成明确终态顺序 |
-| 规划3，7分钟 | 独立审查原义、导入依赖、source catalog及20份旧锁 | 不改阈值/公式，不丢保留用例的importlib依赖，不回签原件或旧完成标记 |
-| 规划4，5分钟 | 冻结目标文件、参数/元数据、回归范围与交付判据 | 14旧ID迁移加3新函数，预期945唯一登记；未执行与实际验证分开 |
-| 实施1，6分钟 | 并行归位资源与paired镜像，先失败回归再做原模块最小修复 | 无新生产模块/助手文件，原29参数后缀保持，3新函数13参数有真实红绿证据 |
-| 实施2，2分钟 | 同步清单、README/设计/日期记录，完成独立差异审查和静态检查 | 目标/层级/成本按实际调用分类，纯IO不冒称GPU；全部受影响用例可定位 |
-| 验证，6–8分钟 | 净HEAD CPU快测、确认CUDA可用后顺序执行已有CUDA和native计划，复核原件缺失拒绝 | 同HEAD/设备/预算/终态有效，报告只读重建与全部链接/SHA有效，20旧锁字节保持 |
-| 交付，2分钟 | 普通推送原分支，更新并回读Draft PR106 | 目标dev、Draft保持，main/dev未改，制品不入Git，不绕过检查 |
+| 核对，6分钟 | 读取最新约定、代码/测试规范、现有测试和真实被测模块，核基线计划与参数 | 13个旧函数48参数、945总函数；区分包级打包合同、共享部件、CLI局部链路和结构检查 |
+| 归位，10分钟 | gpu_admission三函数迁_shared/structure镜像并删除动态loader；mask_settings三函数合已有config镜像；package中的manifest/load_lock三函数合sources、write_lock三函数合CLI、initializer检查合parent_imports | 参数、异常、断言与路径原义保持；两个真实仓库打包用例留原文件；不建生产文件，不复制fixture |
+| 合同与验证，10分钟 | 精确更新13个ID及其所有计划引用，显式target/level/type/cost/结果/优先级；快速CPU合同与顺序CUDA/native计划，记录设备 | 迁前后参数后缀一致，所有迁移参数有净HEAD结果；GPU集合不增，945声明与AST相等；20旧锁及生产字节保持，报告可只读重建 |
+| 交付，4分钟 | 同步README必要状态、代码结构设计、日期记录，审查并普通推原分支、更新PR | 两checkout干净，PR仍Draft→dev；main/dev不改，必需检查不绕过，制品不入Git |
 
-## 资源准入与镜像合同
-`studies/_shared/structure/resource_admission.py` 保留三种政策：原nonofficial测量host峰值加reserve及初始VRAM/util门；norm/paired读取原capacity替换预算、保各自observer；direction普通拒绝不等待，recovery按原5秒周期等待和记当前Run资产。不统一政策，不改数值、分类、路径或等待策略。
+真实owner分别为 `studies._shared.structure.gpu_admission.classify/parse_xml`、`structure.config.spec_for`、`structure.sources.manifest/load_lock`、`flow.cli.write_lock_for` 和宿主包初始化结构。XML与分类、纯配置、load_lock为快速CPU单元；CLI写锁跨来源/布局的局部IO路径按integration登记，来源扫描和Git观察成本与轻量解析分开，不因字段名包含GPU就伪称CUDA执行。保留包级位置与打包检查的原根定位，不把它们硬塞入无关科学leaf。
 
-原两个资源测试及分散在nonofficial、norm、full_directions、paired_controls中的四个资源合同，共六函数八参数，归 `tests/studies/_shared/structure/test_resource_admission.py`。删除仅为它们存在的动态模块loader；保留用例仍需importlib时改为正常import，其他历史/CUDA测试不动。纯观察器、容量标量、JSON与sleep spy按实际unit/C1分类，不因字段名含CUDA升为GPU。
+原test_package对tomllib的模块级importorskip只随剩余打包用例保留；被移出的六个共享IO和初始化检查不再因无tomllib漏收。Python3.10实机未验，本轮不因此宣称解决全部版本兼容。
 
-在原生产文件中将apply_capacity三处assert和普通direction一处assert改为相同条件的显式AssertionError；原方向消息保持，peak使用 `not (peak > 0)`，不换成可能改变NaN语义的反条件。仅保证这些已有拒绝条件不会被Python -O删去，不声明整个科学宿主支持优化模式，也不扩JSON schema或更改阈值。
-
-新增一个优化子进程回归、七独立参数：direction接受/拒绝、capacity有效/未完成/argmax数量不符/dtype不符/零peak，含两个正控制。child用显式try/except/exit作oracle，不用assert；显式observer与fake geometry隔离，禁止默认观察、NVIDIA查询、sleep、模型或Torch计算。该跨进程内容检查为integration/C2，CPU适用；计时仅为测试成本。
-
-## 配对报告与发布合同
-纯文本/Figure继续归 `studies/_shared/structure/paired_report.py`，其镜像从旧shared移到 `_shared/structure/test_paired_report.py`；写端镜像归 `_shared/flow/write/test_run.py`。原八函数21参数后缀、固定Git成员/SHA、实际运行字节SHA、JSON等义及非JSON原字节比较保持，未提供引用继续明确未知。Figure保原有符号差值、样式和无timing含义；Agg和保存标量绘图是CPU工作，torch导入只维持Windows DLL顺序。
-
-仅调整 `studies/_shared/flow/write/run.py::write_paired_report` 生命周期：保存及原保存后verify若失败，先clear已取得Figure；次清理错误附于primary.figure_cleanup_error并原样抛主错。正常clear成功后再构造outputs SHA/JSON receipt，最后复核输入与来源，才publish/return。clear失败或receipt/clear期间漂移都不得留完成标记，允许保留实际partial PNG/Markdown。`publish_new_completion` 的API和body不改，不新建发布框架；共享文件改变会自然改变smoke/capacity等新source catalog，不改旧hash掩盖变化。
-
-只新增两个参数化函数、共六参数：receipt构造期间input/source漂移及clear期间input漂移；clear单错、save主错加clear次错、verify主错加clear次错。用tiny Figure stub检验IO生命周期，不把stub称真实绘图或GPU验证；原signed bars用例保真实Agg。真实读件/绘图路径为integration，纯Figure为unit；CLI缺参、两个Study wrapper到共同callee的spy合同及completion helper为unit，不为两个wrapper再造微文件。成本区分真实Agg/多阶段IO与轻量spy，并保实际耗时及未知内存，不能凭字段存在宣称合规。
-
-## 净提交验收与停止条件
-14个旧ID迁移不增函数，新增三函数13参数，登记预期942→945；受影响17函数42参数全部为CPU内容/IO，既有CUDA集合不增。原用例已在上一净提交CPU计划覆盖，规划不重复当新结果；新负例必须真实红绿，之后所有受影响用例在本轮净HEAD重跑。
+本轮只迁移既有合同，不新增测试函数或行为。验证应证明位置、元数据和行为保持，不为改名制造无关红绿用例。独立审查核原函数AST（允许canonical alias、ROOT等义定位）、参数后缀、保留断言与原计划选择；未知、未执行、跳过及漏项不能记通过。
 
 ```text
 python -m ruff check src studies tests
 python -m mypy
-python -m mypy --namespace-packages --explicit-package-bases --follow-imports=silent studies/_shared/structure/resource_admission.py studies/_shared/flow/write/run.py
 python tests/run.py --plan cpu-quick --output-root <新CPU根>
-python tests/run.py --plan cuda-validation --output-root <新CUDA根>
 python tests/run.py --plan cuda-native-smoke --output-root <新native-CUDA根>
+python tests/run.py --plan cuda-validation --output-root <新CUDA根>
 ```
 
-三验证根各自全新，缓存、日志与临时材料只在本任务授权D根；CPU保120秒，两GPU各300秒并顺序运行。实际GPU运行先确认torch.cuda.is_available并保存真实设备，忙时等待，不CPU回退或虚构性能结论。四原运行字节缺失继续严格拒绝，不加载张量、不输出新分析，不执行归档代码或拿当前helper补签。全部终态、报告/证据SHA、只读重建、链接、20原锁和独立审查闭环后才推送；失败、跳过、漏项、源漂移或缺CUDA均不能记完成。
-
+CPU预算120秒、两CUDA各300秒不扩大；GPU计划顺序执行，运行前确认torch.cuda.is_available并记录实际设备和负载，忙时等待或缩小规模，不CPU回退。生产数值与模型验证仍用CUDA，纯保存标量/配置/观察stub/来源IO不冒称GPU。四项历史原字节缺失继续严格拒绝，无新候选只核已知375字节日志、manifest及两索引，不重扫refs/ACL/全盘，不重建或补签原件。来源拒绝在净HEAD执行一次，必须无输出且未进入张量加载。
 
 # 二、六类核对与落实
 | **类别** | **已有实现条件** | **仍需完成的具体差距** |
@@ -69,6 +50,6 @@ python tests/run.py --plan cuda-native-smoke --output-root <新native-CUDA根>
 5. 其它入口与分析器：cross-task 顶层分析命令已归两柱，norm/paired/continuation 及 ESP 执行/读端已归并，smoke与extension六入口收束后，继续复核其余科学子包、旧声明路径与来源合同的可读性，并补未实际重读的native/state全套历史材料；旧CPU证据仍保设备身份，extension已停止机理保持拒绝。配对 published 复核与保存张量分析均不是 native 重验；原 Run/ESP 来源锁不匹配仍拒绝，后续若需跨源码历史重验必须独立完成来源合同，不以新 helper 重签。其他读端遇归档附注也须按真实字段与 binding 定义，不推广窗口特例。默认完整矩阵与旧 profiling 不因入口迁移获得执行授权。
 
 # 四、交付边界
-通常每轮20–30分钟；本次按最新要求先约30分钟规划，再实施到合同和验证完成。以当前HEAD的快速单元与有界CUDA验证、静态检查和审查证据更新同一PR。保留平台实际分支保护，不尝试合并，不启用autoMerge、Actions，不修改workflow、设置或规则。
+本轮按约30分钟的计划连续实施到合同、验证与交付完成。以当前HEAD的快速单元与有界CUDA验证、静态检查和审查证据更新同一PR。保留平台实际分支保护，不尝试合并，不启用autoMerge、Actions，不修改workflow、设置或规则。
 
 临时材料仅放用户指定 DreamSoul/tmp 下的任务目录，不写 C 盘。不另开新算法，CUDA验证按实际设备与负载安排，不下载、升级依赖或修改main。固定 ESP 来源树、ORIGIN.json、SpecBench 与旧 Run 保持原身份，研究恢复另按唯一计划与当前授权执行。

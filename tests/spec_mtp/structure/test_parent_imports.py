@@ -51,3 +51,18 @@ def test_scientific_help_does_not_import_runtime_after_parent_cleanup():
     child('BLOCK_FLOW=False\nimport runpy\nsys.argv=["spec_mtp","--help"]\n'
           'try: runpy.run_module("spec_mtp",run_name="__main__")\n'
           'except SystemExit as error: assert error.code==0\n')
+
+
+def test_package_initializers_do_not_define_business_functions():
+    import ast
+
+    package = ROOT / 'src/spec_mtp'
+    violations = []
+    for path in package.rglob('__init__.py'):
+        rel = path.relative_to(package).as_posix()
+        if rel.startswith(('flow/', 'structure/')):
+            continue
+        body = ast.parse(path.read_text(encoding='utf-8'))
+        if any(isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) for node in body.body):
+            violations.append(path.relative_to(package).as_posix())
+    assert not violations, violations
