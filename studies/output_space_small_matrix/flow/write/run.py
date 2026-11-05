@@ -35,13 +35,21 @@ def write_plots(kind, input_path, repository, commit, input_git_sha256, output_r
         raise FileExistsError('plots require a new external output directory')
     inputs: dict[Path, str] = {}
     historical: list[dict[str, str]] = []
+    archival_annotations: dict[str, dict] = {}
 
     def read(path, member, expected):
         inputs[path] = file_sha256(path)
-        archived = read_historical_bytes(repository, commit, member, expected)
+        archived = json.loads(read_historical_bytes(repository, commit, member, expected))
         data = json.loads(path.read_bytes())
-        if data != json.loads(archived):
+        allowed = ({'resources', 'cross_order_first_seed_masks'} if member == MEMBERS['windows']
+                   else {'resources'} if member == SCALE_MEMBER else set())
+        if (not isinstance(data, dict) or not isinstance(archived, dict)
+                or set(data) - set(archived) or (set(archived) - set(data)) - allowed
+                or any(archived[key] != value for key, value in data.items())):
             raise ValueError('runtime plot report differs from the pinned Git report')
+        additions = {key: archived[key] for key in sorted(set(archived) - set(data))}
+        if additions:
+            archival_annotations[member] = additions
         historical.append({'commit': commit, 'path': member, 'sha256': expected})
         return data
 
@@ -85,6 +93,7 @@ def write_plots(kind, input_path, repository, commit, input_git_sha256, output_r
         result = {
             'schema': 1, 'kind': kind, 'scope': 'saved scalar rendering; no model forwards or numerical recomputation',
             'source_digest': SOURCE_DIGEST, 'historical_inputs': historical,
+            'archival_annotations': archival_annotations,
             'runtime_inputs': {str(path): digest for path, digest in inputs.items()},
             'original_source_bindings': {str(path): report['source_binding']
                 for path, report in ((primary, data), (scale, companion))

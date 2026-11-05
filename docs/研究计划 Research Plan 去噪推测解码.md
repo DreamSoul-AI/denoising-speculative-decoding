@@ -79,6 +79,8 @@ pilot与preforward入口的配置/计划/输入绑定、CUDA设备传播和历�
 
 small_matrix 的 trajectory/window 读端与 acceptance/window 绘图继续只解释固定历史观测。读件可追溯、图形重绘或保存张量数值检查通过，都不等于原模型重跑、T0 之外的采样保证或速度收益。bonus-aligned/output-hidden 的入口迁移保留各自校准、评价切片、arm 和 token 预算，既有 hybrid/Kalman 名称按原协议解释，不承接 Enmao 尚未确定的新算法。微型 CUDA 与入口桩只验工程合同，真实模型研究须另按本计划恢复条件冻结版本与独立单位。
 
+共用 fingerprint 的采样 cell 只核保存输出与统计的一致性，独立 AR 的布尔诊断不扩大 T0 argmax 门或采样分布保证。CUDA 工作负载的主机侧 cProfile、未同步 decoder host-clock token rate 与同步端到端吞吐分别解释，前两者不作为速度收益证据。归档附注与原运行件各自保留来源，重绘成功也不补造原测量或恢复研究授权。
+
 # 四、停止与恢复
 当前执行包括快速单元与有界CUDA工程验证。需要验证既有实现的正确性或性能时直接使用CUDA并记录实际资源与设备；GPU忙时等待或缩小规模。新算法方案由Enmao确定，模型下载仍不在当前范围，旧命令、计划和登录态不扩大研究范围。
 

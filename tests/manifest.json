@@ -1444,13 +1444,6 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_fingerprint_tool.py::test_compare_reports_field_level_differences",
-      "target": "spec_mtp",
-      "tags": [
-        "offline_cpu"
-      ]
-    },
-    {
       "test_id": "tests/spec_mtp/test_gpu_admission.py::test_recognized_display_process_is_not_a_blocker",
       "target": "spec_mtp",
       "tags": [
@@ -1879,20 +1872,6 @@
     },
     {
       "test_id": "tests/spec_mtp/test_prepared_methods_argmax.py::test_every_prepared_spec_method_has_full_argmax_coverage_and_rejects_corruption",
-      "target": "spec_mtp",
-      "tags": [
-        "offline_cpu"
-      ]
-    },
-    {
-      "test_id": "tests/spec_mtp/test_profile_tool.py::test_component_buckets",
-      "target": "spec_mtp",
-      "tags": [
-        "offline_cpu"
-      ]
-    },
-    {
-      "test_id": "tests/spec_mtp/test_profile_tool.py::test_profile_small",
       "target": "spec_mtp",
       "tags": [
         "offline_cpu"
@@ -6379,6 +6358,342 @@
         "offline_cpu",
         "structure_cleanup"
       ]
+    },
+    {
+      "test_id": "tests/studies/_shared/flow/test_diagnostics_cuda.py::test_profile_small_cuda_preserves_host_self_time_attribution_and_exact_match",
+      "target": "studies._shared.flow.diagnostics",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/flow/test_diagnostics_cuda.py::test_single_fingerprint_cell_runs_on_cuda_with_fixed_seed",
+      "target": "studies._shared.flow.diagnostics",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostic_partial_failures_preserve_primary_and_never_publish_completion",
+      "target": "studies._shared.flow.diagnostics",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostics_bind_inputs_and_publish_only_after_models_close",
+      "target": "studies._shared.flow.diagnostics",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostics_cli_requires_explicit_execution_bindings",
+      "target": "studies._shared.flow.diagnostics",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostics_invalid_binding_fails_before_model_or_output",
+      "target": "studies._shared.flow.diagnostics",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/flow/test_diagnostics_entry.py::test_fingerprint_comparison_binds_baseline_bytes_and_keeps_field_diff_formula",
+      "target": "studies._shared.flow.diagnostics",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/flow/test_diagnostics_entry.py::test_fingerprint_comparison_rejects_unknown_or_incomparable_report_identity",
+      "target": "studies._shared.flow.diagnostics",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_decode_fingerprint.py::test_compare_reports_field_level_differences",
+      "target": "studies._shared.structure.decode_fingerprint",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_decode_fingerprint.py::test_fingerprint_default_matrix_and_seeds_are_unchanged_without_execution",
+      "target": "studies._shared.structure.decode_fingerprint",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_profile_cpu.py::test_component_buckets",
+      "target": "studies._shared.structure.profile_cpu",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_profile_cpu.py::test_profile_statistics_use_self_time_instead_of_cumulative_time",
+      "target": "studies._shared.structure.profile_cpu",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_profile_cpu.py::test_saved_profile_without_device_identity_retains_unknown_execution_scope",
+      "target": "studies._shared.structure.profile_cpu",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_sources.py::test_source_git_identity_trusts_checkout_and_rejects_unknown_status",
+      "target": "studies._shared.structure.sources",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_cli_requires_all_history_and_external_output_arguments",
+      "target": "studies.output_space_prerequisite.flow.write.run.write_plot",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_drift_during_save_keeps_partial_without_completion",
+      "target": "studies.output_space_prerequisite.flow.write.run.write_plot",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_keeps_the_resolved_input_when_the_argument_alias_changes",
+      "target": "studies.output_space_prerequisite.flow.write.run.write_plot",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_preserves_original_sources_and_records_actual_png_and_agg_environment",
+      "target": "studies.output_space_prerequisite.flow.write.run.write_plot",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_rejects_output_overlap_or_reuse_without_changing_prior_evidence",
+      "target": "studies.output_space_prerequisite.flow.write.run.write_plot",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_rejects_unbound_or_invalid_saved_evidence_before_output",
+      "target": "studies.output_space_prerequisite.flow.write.run.write_plot",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_save_failure_clears_owned_figure_without_publishing_completion",
+      "target": "studies.output_space_prerequisite.flow.write.run.write_plot",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_prerequisite/structure/test_prerequisite_figures.py::test_q171_acceptance_figure_keeps_original_counts_color_order_and_axis_rule",
+      "target": "studies.output_space_prerequisite.structure.plots",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p2",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/write/test_small_matrix_plots.py::test_original_window_plot_keeps_verified_archive_annotations_separate",
+      "target": "studies.output_space_small_matrix.flow.write.run.write_plots",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/write/test_small_matrix_plots.py::test_window_archive_annotations_do_not_relax_shared_content_or_schema",
+      "target": "studies.output_space_small_matrix.flow.write.run.write_plots",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
     }
   ],
   "plans": {
@@ -6524,6 +6839,14 @@
         {
           "test_id": "tests/studies/trajectory_observation/structure/test_hybrid_gain_calibration.py::test_hybrid_calibration_computes_gain_and_diagnostics_on_cuda",
           "reason": "Requires actual CUDA numerical validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_diagnostics_cuda.py::test_profile_small_cuda_preserves_host_self_time_attribution_and_exact_match",
+          "reason": "Requires actual CUDA numerical/host-profile validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_diagnostics_cuda.py::test_single_fingerprint_cell_runs_on_cuda_with_fixed_seed",
+          "reason": "Requires actual CUDA numerical/host-profile validation; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -6679,7 +7002,29 @@
         "tests/studies/trajectory_observation/flow/execute/test_hybrid_gain_entry.py::test_hybrid_entry_rejects_invalid_binding_before_output_or_model",
         "tests/studies/trajectory_observation/flow/execute/test_hybrid_gain_entry.py::test_hybrid_entry_uses_bound_resolved_data_after_argument_changes",
         "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_window_trajectory.py::test_fixed_execution_history_reproduces_original_trajectory_diagnosis",
-        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_window_trajectory.py::test_window_cli_requires_matrix_and_cuda_identity"
+        "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_window_trajectory.py::test_window_cli_requires_matrix_and_cuda_identity",
+        "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostic_partial_failures_preserve_primary_and_never_publish_completion",
+        "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostics_bind_inputs_and_publish_only_after_models_close",
+        "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostics_cli_requires_explicit_execution_bindings",
+        "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostics_invalid_binding_fails_before_model_or_output",
+        "tests/studies/_shared/flow/test_diagnostics_entry.py::test_fingerprint_comparison_binds_baseline_bytes_and_keeps_field_diff_formula",
+        "tests/studies/_shared/flow/test_diagnostics_entry.py::test_fingerprint_comparison_rejects_unknown_or_incomparable_report_identity",
+        "tests/studies/_shared/structure/test_decode_fingerprint.py::test_compare_reports_field_level_differences",
+        "tests/studies/_shared/structure/test_decode_fingerprint.py::test_fingerprint_default_matrix_and_seeds_are_unchanged_without_execution",
+        "tests/studies/_shared/structure/test_profile_cpu.py::test_component_buckets",
+        "tests/studies/_shared/structure/test_profile_cpu.py::test_profile_statistics_use_self_time_instead_of_cumulative_time",
+        "tests/studies/_shared/structure/test_profile_cpu.py::test_saved_profile_without_device_identity_retains_unknown_execution_scope",
+        "tests/studies/_shared/structure/test_sources.py::test_source_git_identity_trusts_checkout_and_rejects_unknown_status",
+        "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_cli_requires_all_history_and_external_output_arguments",
+        "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_drift_during_save_keeps_partial_without_completion",
+        "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_keeps_the_resolved_input_when_the_argument_alias_changes",
+        "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_preserves_original_sources_and_records_actual_png_and_agg_environment",
+        "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_rejects_output_overlap_or_reuse_without_changing_prior_evidence",
+        "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_rejects_unbound_or_invalid_saved_evidence_before_output",
+        "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_save_failure_clears_owned_figure_without_publishing_completion",
+        "tests/studies/output_space_prerequisite/structure/test_prerequisite_figures.py::test_q171_acceptance_figure_keeps_original_counts_color_order_and_axis_rule",
+        "tests/studies/output_space_small_matrix/flow/write/test_small_matrix_plots.py::test_original_window_plot_keeps_verified_archive_annotations_separate",
+        "tests/studies/output_space_small_matrix/flow/write/test_small_matrix_plots.py::test_window_archive_annotations_do_not_relax_shared_content_or_schema"
       ],
       "exclude": []
     },
@@ -6721,7 +7066,9 @@
         "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_correction_protocols_keep_fits_and_argmax_on_cuda",
         "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_window_trajectory.py::test_saved_window_cuda_reconstruction_preserves_owner_and_tolerance_checks",
         "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_window_trajectory.py::test_saved_window_tensor_file_runs_on_cuda_with_original_matrix_binding",
-        "tests/studies/trajectory_observation/structure/test_hybrid_gain_calibration.py::test_hybrid_calibration_computes_gain_and_diagnostics_on_cuda"
+        "tests/studies/trajectory_observation/structure/test_hybrid_gain_calibration.py::test_hybrid_calibration_computes_gain_and_diagnostics_on_cuda",
+        "tests/studies/_shared/flow/test_diagnostics_cuda.py::test_profile_small_cuda_preserves_host_self_time_attribution_and_exact_match",
+        "tests/studies/_shared/flow/test_diagnostics_cuda.py::test_single_fingerprint_cell_runs_on_cuda_with_fixed_seed"
       ],
       "exclude": [],
       "resources": {

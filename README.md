@@ -38,7 +38,9 @@
 
 small_matrix 的分析统一使用 `python -m studies.output_space_small_matrix.flow.process.run <transfers|cross-prompt|trajectories|windows> --raw <原输入> --repository <本地Git仓库> --commit <完整提交> --report-git-sha256 <固定报告SHA> --output-root <新外部目录>`。trajectories 的原输入为原运行 execution JSON，只读 JSON，不接受设备参数。其余三种的原输入为原报告与张量目录，必需 `--device cuda:0`。transfers 另需 `--original <原observer目录> --observer-git-sha256 <固定observer报告SHA>`，windows 另需 `--execution <原运行矩阵JSON> --execution-git-sha256 <固定矩阵SHA>`。实际运行原件、固定 Git 原件与张量分别绑定，新工具来源另记，不运行归档源码或模型。优化模式 `python -O` 会明确拒绝，不能跳过科学断言。原 helper 身份缺失保持未知，不补成当前 helper。
 
-两套历史图使用 `python -m studies.output_space_small_matrix.flow.write.run <acceptance|windows> --input <原报告JSON> --repository <本地Git仓库> --commit <完整提交> --input-git-sha256 <固定报告SHA> --output-root <新外部目录>`，windows 另需 `--scale <原scale报告JSON> --scale-git-sha256 <固定scale报告SHA>`。只渲染已保存的标量，不重算模型或统计。图片保留原数值、颜色、坐标与标题，完成记录绑定实际输入、固定 Git 来源、当前绘图源码和 PNG 摘要，失败只保留 partial，不回写 Study/docs 或旧 Run。
+两套历史图使用 `python -m studies.output_space_small_matrix.flow.write.run <acceptance|windows> --input <原报告JSON> --repository <本地Git仓库> --commit <完整提交> --input-git-sha256 <固定报告SHA> --output-root <新外部目录>`，windows 另需 `--scale <原scale报告JSON> --scale-git-sha256 <固定scale报告SHA>`。只渲染已保存的标量，不重算模型或统计。归档 window/scale 的已知后补附注单独登记，共有字段仍须全部相等，原 observer 字节必须匹配原 scale binding，不把归档附注混进原运行件。图片保留原数值、颜色、坐标与标题，完成记录绑定实际输入、固定 Git 来源、当前绘图源码和 PNG 摘要，失败只保留 partial，不回写 Study/docs 或旧 Run。
+
+prerequisite 的 q171 图使用 `python -m studies.output_space_prerequisite.flow.write.run --input <原executionJSON> --repository <本地Git仓库> --commit <完整提交> --input-git-sha256 <固定报告SHA> --output-root <新外部目录>`，同样只读固定历史标量，保留三臂与原轴范围规则，独占新输出并核 PNG 与来源。
 
 trajectory 真实模型专用入口为 `python -m studies.trajectory_observation.flow.execute.office <qwen8b|tree|traj> --help`、`python -m studies.trajectory_observation.flow.execute.fresh_replace --help`、`python -m studies.trajectory_observation.flow.execute.fair_branch --help` 与 `python -m studies.trajectory_observation.flow.execute.preforward_signal --help`。它们要求显式本地模型目录、目录外完整模型SHA清单、本地JSONL、计划文件及其SHA、新外部输出；fair_branch以 `--split specbench|dolly --input <本地JSONL>` 保留原337–464/前128切片，preforward保留SpecBench 81–208及128条校准模板，不再猜模型目录或联网取数据。共用本地输入准入，只读取已解析绑定路径。preforward的summary/fit可留作partial，只有收尾复核及关闭后写出的protocol_complete标记表示运行完整；旧gate字段不产生新研究授权。
 
@@ -56,6 +58,10 @@ epoch预算与早停另有独立进程CUDA对照，固定评估分数只用于�
 
 # 三、开发与验证
 工作分支经 PR 面向 `dev`，完成检查并按当次明确授权集成，不自动发布。当前 HEAD 的本地结果、历史红项和未覆盖范围记在 PR 正文，不用旧提交结果代替。
+
+共用解码诊断使用 `python -m studies._shared.flow.diagnostics <fingerprint|profile> --config <完整本地JSON> --plan <当前计划> --plan-sha256 <计划SHA> --device cuda:0 --output <新外部目录>`。fingerprint 配置为 `{"variants": null}` 时保留原完整预设矩阵，也可显式给预设列表；profile 要求完整模型、prompt、token、线程、重复与 variant 配置，字段及默认值由该入口的 PROFILE_DEFAULTS 定义。来源、配置、计划与设备绑定到新输出，模型关闭及收尾验证后才写完整标记。fingerprint 的 `--compare <已有报告>` 必须具有匹配工作负载/设备身份及完整内容摘要，旧缺身份报告不当作已验证基线。T0 审计与采样诊断分开，不推广采样保证。
+
+profile 在 CUDA 工作负载上使用 cProfile，component 是主机侧 self-time，保留的 decoder host-clock token rates 也不是端到端 CUDA 吞吐或 kernel 测量。旧 CPU profile 不按新设备身份重解释。本轮只跑微型单 cell 与 profile 合同，未执行完整 fingerprint 矩阵或性能研究。
 
 本机快速单元执行 `python tests/run.py --plan cpu-quick --output-root <外部新验证目录>`，CUDA 工程正确性执行 `python tests/run.py --plan cuda-validation --output-root <另一外部新验证目录>`。CUDA计划不可用即失败，回执保存实际设备、精度和显存；两计划分开报告。原 cpu-pr 计划保留既有用途，本轮不以其全量CPU结果替代CUDA验证。静态清单先验证必需项和精确排除，逐参数 setup/call/teardown 写独立记录，缺收集、缺终态、失败、跳过和证据写失败均非零。整批预算420秒，在测试边界检查；子进程测试各有有限超时，单个本地计算不支持强制中断。运行产物不进 Git。
 

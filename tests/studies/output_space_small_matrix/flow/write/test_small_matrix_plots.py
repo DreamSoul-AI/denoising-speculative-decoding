@@ -88,6 +88,46 @@ def test_saved_plot_writes_png_and_completion_with_separate_runtime_git_and_tool
     assert before == {path: path.read_bytes() for path in before}
 
 
+@pytest.mark.parametrize('fields', [('resources',), ('cross_order_first_seed_masks',),
+                                   ('resources', 'cross_order_first_seed_masks')])
+def test_original_window_plot_keeps_verified_archive_annotations_separate(plot_inputs, fields):
+    case = plot_inputs
+    additions = {name: {'archival_only': True} for name in fields}
+    case.archives[command.MEMBERS['windows']] = json.dumps(case.reports['windows'] | additions).encode()
+    case.archives[command.SCALE_MEMBER] = json.dumps(case.reports['scale'] | {'resources': {'archival_only': True}}).encode()
+    before = {path: path.read_bytes() for path in case.paths.values()}
+    _render(case, 'windows')
+    result = json.loads((case.output / 'plot_complete.json').read_text())
+    assert result['archival_annotations'] == {command.MEMBERS['windows']: additions,
+                                             command.SCALE_MEMBER: {'resources': {'archival_only': True}}}
+    assert result['original_source_bindings'][str(case.paths['windows'])] == case.reports['windows']['source_binding']
+    assert result['runtime_inputs'][str(case.paths['windows'])] == _sha(before[case.paths['windows']])
+    assert before == {path: path.read_bytes() for path in before}
+
+
+@pytest.mark.parametrize('fault', ['unknown_archive_field', 'missing_scientific_field', 'changed_common_field',
+                                  'runtime_extra_field', 'changed_common_annotation'])
+def test_window_archive_annotations_do_not_relax_shared_content_or_schema(plot_inputs, fault):
+    case = plot_inputs
+    actual, archived = deepcopy(case.reports['windows']), deepcopy(case.reports['windows'])
+    archived['resources'] = {'value': 1}
+    if fault == 'unknown_archive_field':
+        archived['not_an_annotation'] = True
+    elif fault == 'missing_scientific_field':
+        del actual['cases']
+    elif fault == 'changed_common_field':
+        actual['question_id'] = 174
+    elif fault == 'runtime_extra_field':
+        actual['runtime_extra'] = True
+    else:
+        actual['resources'] = {'value': 2}
+    case.paths['windows'].write_text(json.dumps(actual))
+    case.archives[command.MEMBERS['windows']] = json.dumps(archived).encode()
+    with pytest.raises(ValueError, match='runtime plot report differs'):
+        _render(case, 'windows')
+    assert not case.output.exists()
+
+
 @pytest.mark.parametrize('fault', ['missing', 'git_sha', 'git_content', 'quality', 'scale_quality', 'source', 'observer', 'tensor', 'model'])
 def test_saved_plot_rejects_missing_unverified_or_unpaired_reports_before_output(plot_inputs, fault):
     case, options = plot_inputs, {}

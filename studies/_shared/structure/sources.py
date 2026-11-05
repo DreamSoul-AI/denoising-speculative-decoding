@@ -3,8 +3,8 @@
 RPipe's ``provenance.json`` hashes the installed ``rpipe`` package and the Study
 two columns only. ``spec_mtp`` is an external project package, so its sources
 are not covered by Study auto-discovery. This module hashes ``spec_mtp/**/*.py``,
-records the git head / dirty flag of the checkout and the installed RPipe
-commit, and gives the freeze check for those files.
+records the package checkout Git identity and the external template reference,
+and gives the freeze check for those files. Failed Git reads remain unknown.
 
 - make writes the Study lock ``spec_mtp_sources.json`` (gitignored);
 - every Run copies the live manifest into ``assets/spec_mtp_sources.json``;
@@ -50,13 +50,20 @@ def files_digest(files: dict[str, str]) -> str:
 
 
 def _git(root: Path) -> dict[str, Any]:
+    root = root.resolve()
+    checkout = next((path for path in (root, *root.parents) if (path / '.git').exists()), None)
+    if checkout is None:
+        return {}
+    command = ['git', '-c', 'safe.directory=' + str(checkout), '-C', str(root)]
     try:
-        head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, capture_output=True, text=True, timeout=10)
-        if head.returncode != 0:
+        head = subprocess.run([*command, 'rev-parse', 'HEAD'], capture_output=True, text=True, timeout=10)
+        if head.returncode != 0 or not head.stdout.strip():
             return {}
         dirty = subprocess.run(
-            ['git', 'status', '--porcelain', '--', '.'], cwd=root, capture_output=True, text=True, timeout=30,
+            [*command, 'status', '--porcelain', '--', '.'], capture_output=True, text=True, timeout=30,
         )
+        if dirty.returncode != 0:
+            return {}
         return {'head': head.stdout.strip(), 'package_dirty': bool(dirty.stdout.strip())}
     except (OSError, subprocess.SubprocessError):
         return {}

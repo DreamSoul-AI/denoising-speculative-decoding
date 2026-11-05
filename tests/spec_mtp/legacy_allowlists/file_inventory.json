@@ -46,7 +46,6 @@
   "studies/output_space_extension/analyze_numerics.py",
   "studies/output_space_extension/analyze_operators.py",
   "studies/output_space_extension/kernel_common.py",
-  "studies/output_space_prerequisite/plot_results.py",
   "studies/qwen3_4b_bf16_bias_norm_continuation/continuation.py",
   "studies/qwen3_4b_bf16_bias_norm_scan/analyze_results.py",
   "studies/qwen3_4b_bf16_bias_norm_scan/calibrate_capacity.py",
