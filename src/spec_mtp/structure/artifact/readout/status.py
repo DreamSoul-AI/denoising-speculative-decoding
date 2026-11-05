@@ -11,7 +11,8 @@ from typing import Any
 from spec_mtp.structure.artifact.asset import kinds
 from spec_mtp.structure.artifact.index import index_path, load_index
 from spec_mtp.structure.artifact.paths import RESULT_NAME, RUNS_DIRNAME
-from spec_mtp.structure.artifact.result import STATUS_SUCCEEDED, load_result
+from spec_mtp.structure.artifact.result.format import STATUS_SUCCEEDED
+from spec_mtp.structure.artifact.result.io import load_result
 
 STATUS_PENDING = 'pending'
 _EVENT = re.compile(r'\[(epoch|error|flow)\]\s*(.*)$')

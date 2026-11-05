@@ -6,7 +6,8 @@ import os
 from importlib import import_module
 from pathlib import Path
 
-from spec_mtp.structure.artifact.result import STATUS_FAILED, STATUS_SUCCEEDED, write_result
+from spec_mtp.structure.artifact.result.format import STATUS_FAILED, STATUS_SUCCEEDED
+from spec_mtp.structure.artifact.result.io import write_result
 from spec_mtp.flow.context import FlowContext
 from spec_mtp.flow.study import run_study_phase
 from spec_mtp.structure.artifact.provenance import check_frozen
@@ -82,7 +83,7 @@ class FlowRunner:
         process failure must not overwrite an already-written succeeded result.
         """
         try:
-            from spec_mtp.structure.artifact.result import load_result
+            from spec_mtp.structure.artifact.result.io import load_result
 
             if preserve_success and ctx.layout.result_path.is_file():
                 existing = load_result(ctx.layout.result_path)

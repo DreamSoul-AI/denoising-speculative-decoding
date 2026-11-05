@@ -10,7 +10,8 @@ from typing import Any
 
 from spec_mtp.structure.artifact.asset import kinds
 from spec_mtp.structure.artifact.paths import PROCESS_NAME, RESULT_NAME, RUNS_DIRNAME
-from spec_mtp.structure.artifact.result import STATUS_SUCCEEDED, load_result
+from spec_mtp.structure.artifact.result.format import STATUS_SUCCEEDED
+from spec_mtp.structure.artifact.result.io import load_result
 
 
 def process_path(study_dir: Path | str) -> Path:
@@ -112,8 +113,8 @@ def load_curve_series(study_dir: Path | str, run_dir: str) -> dict[str, dict[str
                 x = sorted(points)
                 values = [points[point] for point in x]
             out.setdefault(split, {})[name] = {'unit': unit, 'x': x, 'values': values}
-    for split, names in _state_history(study_dir, run_dir).items():
-        for name, values in names.items():
+    for split, histories in _state_history(study_dir, run_dir).items():
+        for name, values in histories.items():
             if name not in out.get(split, {}):
                 out.setdefault(split, {})[name] = {
                     'unit': 'observation', 'x': list(range(1, len(values) + 1)), 'values': values,
@@ -132,9 +133,13 @@ def summarize_curve_series(series: list[dict[str, Any]]) -> dict[str, Any] | Non
     units = sorted({row['unit'] for row in series if row['values']})
     summaries = {}
     for unit in units:
+        summary: dict[str, Any]
         rows = [row for row in series if row['unit'] == unit and row['values']]
         if unit == 'observation':
-            summary = summarize_histories([row['values'] for row in rows])
+            observed = summarize_histories([row['values'] for row in rows])
+            if observed is None:
+                raise ValueError('nonempty observation series is required')
+            summary = observed
             summary.update(unit=unit, x=list(range(1, summary['length'] + 1)),
                            n_at_point=[summary['n']] * summary['length'])
         else:
@@ -168,10 +173,10 @@ def attach_histories(
                 for name, series in names.items():
                     split_map.setdefault(name, []).append(series)
         history: dict[str, dict[str, Any]] = {}
-        for split, names in buckets.items():
+        for split, grouped in buckets.items():
             packed = {}
-            for name, series in names.items():
-                summary = summarize_curve_series(series)
+            for name, trajectories in grouped.items():
+                summary = summarize_curve_series(trajectories)
                 if summary is not None:
                     packed[name] = summary
             if packed:

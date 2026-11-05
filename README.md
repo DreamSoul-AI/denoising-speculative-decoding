@@ -101,6 +101,8 @@ profile 在 CUDA 工作负载上使用 cProfile，component 是主机侧 self-ti
 
 本轮不调整现有 Actions、CI/CD 或设置。远端结果仅作参考，本地微型CUDA工程验证覆盖既定合成夹具，不覆盖真实权重/数据、吞吐或采样分布保证。已有 CUDA 环境保持原样，不下载模型或覆盖 torch。
 
+Python配置对象直接从 `spec_mtp.structure.<algorithm|data|model|system>.config` 导入；`RunConfig`/`ExperimentConfig`从 `spec_mtp.structure.control.run_config` 导入，Study构建 `expand_study` 从 `spec_mtp.structure.make.write` 导入。宿主普通父包只标识职责，不再通过再导出加载工厂或运行层；实际符号入口见代码结构设计。YAML空文档仍为空配置，非mapping的false/0/序列等无效输入明确拒绝；写入前失败保留旧配置。
+
 ## 研发维护与文档现状
 
 Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproject.toml)，当前研究宿主为 `spec_mtp`。目录入口：[产品或库源码](src/spec_mtp/)、[研究声明与适配](studies/)、[测试](tests/)、[当前文档](docs/)。运行与测试按本 README、相关设计和实际配置选择，不把历史命令视为新的实验授权。

@@ -39,8 +39,6 @@ def apply_variant(spec_cfg: dict[str, Any] | None, variant: str | None) -> Any:
     merged.update(presets[key])
     return _convert(merged)
 
-import yaml
-
 class NamedDict(dict):
     """Dict subclass with attribute-style access."""
 
@@ -66,25 +64,6 @@ def _convert(obj):
     if isinstance(obj, list):
         return [_convert(v) for v in obj]
     return obj
-
-
-def get_config(path):
-    with open(path, 'r') as f:
-        raw = yaml.safe_load(f)
-    cfg = _convert(raw)
-    cfg['cfg_file'] = path
-    return cfg
-
-
-def apply_override(cfg, dotted_key, raw_value):
-    """Apply a `--set a.b.c=value` style override with YAML-typed value."""
-    keys = dotted_key.split('.')
-    node = cfg
-    for key in keys[:-1]:
-        if key not in node or not isinstance(node[key], dict):
-            node[key] = NamedDict()
-        node = node[key]
-    node[keys[-1]] = _convert(yaml.safe_load(raw_value))
 
 
 _TREE = {
@@ -135,7 +114,7 @@ def spec_for(name: str, beta: float | None = None, lam: float | None = None,
     else:
         raise ValueError(f'unknown mask setting: {name!r}')
     if branches is not None:
-        body['tree']['branches'] = [int(x) for x in branches]
+        body['tree'] = {**body['tree'], 'branches': [int(x) for x in branches]}
     if num_masks is not None:
         body['num_masks'] = int(num_masks)
     return _convert(body)

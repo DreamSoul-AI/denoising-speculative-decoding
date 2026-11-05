@@ -124,7 +124,7 @@ def test_repository_studies_expand_and_validate(tmp_path, study):
     """make-level expansion through RPipe, then the recipe checks on every Run config (no weights)."""
     import shutil
 
-    from spec_mtp.structure.make import expand_study
+    from spec_mtp.structure.make.write import expand_study
     from spec_mtp.structure.make.expand import load_study_yaml
 
     src = Path(__file__).resolve().parents[3] / 'studies' / study
@@ -160,7 +160,7 @@ def test_layer_must_be_a_mapping():
 def test_legacy_cfg_takes_device_from_system_and_seed_from_run():
     from types import SimpleNamespace
 
-    from spec_mtp.structure.control.layers import AlgorithmConfig
+    from spec_mtp.structure.algorithm.config import AlgorithmConfig
 
     from studies._shared.structure.config import legacy_cfg
 
@@ -220,7 +220,7 @@ def test_source_lock_covers_all_file_changes(study_copy, kind):
 
 
 def test_remake_requires_new_version_after_source_change(study_copy):
-    from spec_mtp.structure.make import expand_study
+    from spec_mtp.structure.make.write import expand_study
     study = study_copy()
     sources.write_lock(study)
     expanded = expand_study(study)

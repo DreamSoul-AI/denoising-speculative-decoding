@@ -207,7 +207,7 @@ def _has_checkpoint_material(path: Path) -> bool:
 
 def sibling_train_dependency(study_dir: Path, run_id: str) -> str | None:
     """Identify the train that launch must finish before this eval can run."""
-    from spec_mtp.structure.artifact import load_config
+    from spec_mtp.structure.artifact.config.io import load_config
 
     root = Path(study_dir) / 'runs' / run_id
     try:

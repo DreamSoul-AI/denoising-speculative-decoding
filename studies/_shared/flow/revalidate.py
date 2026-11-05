@@ -30,7 +30,7 @@ def _checked_study(study):
 
 def revalidate_run(study, run_id, validator_path):
     from spec_mtp.flow.context import FlowContext
-    from spec_mtp.structure.artifact.config import load_config
+    from spec_mtp.structure.artifact.config.io import load_config
     from spec_mtp.structure.artifact.layout import artifact_layout
     from spec_mtp.flow.write.run import run as write
     summarize = import_module('studies._shared.flow.summarize.run')

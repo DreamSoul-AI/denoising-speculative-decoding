@@ -216,6 +216,7 @@
       "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_published_counts_reaggregate_without_rewriting_original",
       "target": "studies.qwen3_4b_bf16_five_methods.structure.readout",
       "tags": [
+        "offline_cpu",
         "external_evidence"
       ]
     },
@@ -333,6 +334,7 @@
       "test_id": "tests/spec_mtp/test_4b_geometry.py::test_published_saved_audit_preserves_full_coverage_and_old_accounting",
       "target": "spec_mtp",
       "tags": [
+        "offline_cpu",
         "external_evidence"
       ]
     },
@@ -347,6 +349,7 @@
       "test_id": "tests/spec_mtp/test_4b_input_control.py::test_4b_control_reuses_fixed_original_manifests",
       "target": "spec_mtp",
       "tags": [
+        "offline_cpu",
         "external_evidence"
       ]
     },
@@ -1454,6 +1457,7 @@
       "test_id": "tests/spec_mtp/test_esp_third_party.py::test_recorded_preflight_cannot_be_reported_as_valid_tau",
       "target": "spec_mtp",
       "tags": [
+        "offline_cpu",
         "external_evidence"
       ]
     },
@@ -1576,6 +1580,7 @@
       "test_id": "tests/spec_mtp/test_local_state_proxy.py::test_recorded_first_divergence_uses_previous_owner_seeds",
       "target": "spec_mtp",
       "tags": [
+        "offline_cpu",
         "external_evidence"
       ]
     },
@@ -2154,6 +2159,7 @@
       "test_id": "tests/spec_mtp/test_repeat_readout.py::test_completed_checkpoint_reconciles_all480_pairs",
       "target": "spec_mtp",
       "tags": [
+        "offline_cpu",
         "external_evidence"
       ]
     },
@@ -2168,6 +2174,7 @@
       "test_id": "tests/spec_mtp/test_repeat_readout.py::test_cpu_acceptance_checkpoint_matches_completed_cells_and_published_pairs",
       "target": "spec_mtp",
       "tags": [
+        "offline_cpu",
         "external_evidence"
       ]
     },
@@ -2757,18 +2764,14 @@
       ]
     },
     {
-      "test_id": "tests/studies/shared/test_named.py::test_convert_nests_attribute_access",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_config.py::test_convert_nests_attribute_access",
+      "target": "studies._shared.structure.config._convert",
       "tags": [
-        "offline_cpu"
-      ]
-    },
-    {
-      "test_id": "tests/studies/shared/test_named.py::test_override_types_the_value",
-      "target": "studies/shared",
-      "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "cost_class": "c1"
     },
     {
       "test_id": "tests/studies/shared/test_properties.py::test_digest_ignores_insertion_order",
@@ -3110,6 +3113,7 @@
       "test_id": "tests/studies/shared/test_study_phase_exports.py::test_historical_continuation_original_source_refs",
       "target": "studies/shared",
       "tags": [
+        "offline_cpu",
         "external_evidence"
       ]
     },
@@ -3121,22 +3125,22 @@
       ]
     },
     {
-      "test_id": "tests/tools/test_run_tests.py::test_manifest_covers_all_declared_sources",
-      "target": "tools",
+      "test_id": "tests/test_run.py::test_manifest_covers_all_declared_sources",
+      "target": "tests.run",
       "tags": [
         "offline_cpu"
       ]
     },
     {
-      "test_id": "tests/tools/test_run_tests.py::test_missing_outcomes_block_completion",
-      "target": "tools",
+      "test_id": "tests/test_run.py::test_missing_outcomes_block_completion",
+      "target": "tests.run",
       "tags": [
         "offline_cpu"
       ]
     },
     {
-      "test_id": "tests/tools/test_run_tests.py::test_phase_evidence_failure_propagates",
-      "target": "tools",
+      "test_id": "tests/test_run.py::test_phase_evidence_failure_propagates",
+      "target": "tests.run",
       "tags": [
         "offline_cpu"
       ]
@@ -3362,8 +3366,8 @@
       ]
     },
     {
-      "test_id": "tests/tools/test_run_tests.py::test_expected_phase_identity_is_preserved_without_weakening_gate",
-      "target": "tools.run_tests.Recorder",
+      "test_id": "tests/test_run.py::test_expected_phase_identity_is_preserved_without_weakening_gate",
+      "target": "tests.run",
       "tags": [
         "offline_cpu"
       ]
@@ -4517,7 +4521,7 @@
       ]
     },
     {
-      "test_id": "tests/tools/test_run_tests.py::test_explicit_plan_selects_only_required_cases_and_rejects_missing_collection",
+      "test_id": "tests/test_run.py::test_explicit_plan_selects_only_required_cases_and_rejects_missing_collection",
       "target": "tests.run",
       "level": "unit",
       "type": "content",
@@ -4529,7 +4533,7 @@
       ]
     },
     {
-      "test_id": "tests/tools/test_run_tests.py::test_phase_evidence_records_actual_plan_and_device_metrics",
+      "test_id": "tests/test_run.py::test_phase_evidence_records_actual_plan_and_device_metrics",
       "target": "tests.run",
       "level": "unit",
       "type": "content",
@@ -4541,7 +4545,7 @@
       ]
     },
     {
-      "test_id": "tests/tools/test_run_tests.py::test_manifest_rejects_invalid_plan_selection",
+      "test_id": "tests/test_run.py::test_manifest_rejects_invalid_plan_selection",
       "target": "tests.run",
       "level": "unit",
       "type": "content",
@@ -4553,7 +4557,7 @@
       ]
     },
     {
-      "test_id": "tests/tools/test_run_tests.py::test_cuda_plan_records_unavailable_device_without_cpu_fallback",
+      "test_id": "tests/test_run.py::test_cuda_plan_records_unavailable_device_without_cpu_fallback",
       "target": "tests.run",
       "level": "unit",
       "type": "content",
@@ -8632,6 +8636,230 @@
         "offline_cpu",
         "structure_cleanup"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/config/test_format.py::test_yaml_non_mapping_is_never_an_empty_config",
+      "target": "spec_mtp.structure.artifact.config.format.decode_config",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/config/test_format.py::test_empty_documents_and_explicit_mappings_keep_the_existing_contract",
+      "target": "spec_mtp.structure.artifact.config.format.decode_config",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/config/test_format.py::test_invalid_config_write_preserves_existing_file_and_creates_no_directory",
+      "target": "spec_mtp.structure.artifact.config.io.write_config",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/_shared/structure/test_config.py::test_branch_override_and_returned_mutation_do_not_change_later_defaults",
+      "target": "studies._shared.structure.config.spec_for",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_metadata_dimensions_reject_missing_or_unknown_values",
+      "target": "tests.run.read_plan",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_metadata_source_and_device_requirements_are_explicit",
+      "target": "tests.run.read_plan",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_plan_budget_must_be_a_finite_positive_number",
+      "target": "tests.run.read_plan",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_plan_selection_and_exclusion_reasons_are_structural_contracts",
+      "target": "tests.run.read_plan",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_plan_resources_and_cuda_cost_cannot_be_bypassed",
+      "target": "tests.run.read_plan",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_measured_result_detail_preserves_categorical_semantics",
+      "target": "tests.run.read_plan",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/test_run.py::test_cuda_plan_rejects_insufficient_visible_devices_before_pytest",
+      "target": "tests.run.main",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/test_parent_imports.py::test_responsibility_parent_imports_do_not_assemble_or_export_runtime",
+      "target": "spec_mtp.structure",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/test_parent_imports.py::test_configuration_and_artifact_leaf_imports_remain_framework_free",
+      "target": "spec_mtp.structure (explicit module parameter)",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/test_parent_imports.py::test_scientific_help_does_not_import_runtime_after_parent_cleanup",
+      "target": "spec_mtp.__main__ -> spec_mtp.flow.cli:help",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_write.py::test_expand_writer_preserves_content_ids_factors_and_fixed_source_inputs",
+      "target": "spec_mtp.structure.make.write.expand_study",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_write.py::test_expand_writer_refuses_changed_snapshot_before_rewriting_existing_artifacts",
+      "target": "spec_mtp.structure.make.write.expand_study",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
     }
   ],
   "plans": {
@@ -8895,18 +9123,18 @@
       "include": [
         "tests/spec_mtp/test_readout_report.py::test_report_refuses_stale_or_invalid_identity_without_losing_numbers",
         "tests/spec_mtp/test_readout_report.py::test_upstream_allows_identity_complete_partial_aggregate",
-        "tests/tools/test_run_tests.py::test_manifest_covers_all_declared_sources",
-        "tests/tools/test_run_tests.py::test_missing_outcomes_block_completion",
-        "tests/tools/test_run_tests.py::test_phase_evidence_failure_propagates",
-        "tests/tools/test_run_tests.py::test_expected_phase_identity_is_preserved_without_weakening_gate",
+        "tests/test_run.py::test_manifest_covers_all_declared_sources",
+        "tests/test_run.py::test_missing_outcomes_block_completion",
+        "tests/test_run.py::test_phase_evidence_failure_propagates",
+        "tests/test_run.py::test_expected_phase_identity_is_preserved_without_weakening_gate",
         "tests/spec_mtp/test_readout_report.py::test_existing_output_preserves_prior_numbers_and_process",
         "tests/spec_mtp/test_readout_report.py::test_report_write_failure_does_not_modify_saved_inputs",
         "tests/spec_mtp/test_readout_report.py::test_report_rejects_output_that_overlaps_inputs_or_source",
         "tests/spec_mtp/test_readout_report.py::test_report_quality_failure_does_not_rewrite_process_or_gate",
-        "tests/tools/test_run_tests.py::test_explicit_plan_selects_only_required_cases_and_rejects_missing_collection",
-        "tests/tools/test_run_tests.py::test_phase_evidence_records_actual_plan_and_device_metrics",
-        "tests/tools/test_run_tests.py::test_manifest_rejects_invalid_plan_selection",
-        "tests/tools/test_run_tests.py::test_cuda_plan_records_unavailable_device_without_cpu_fallback",
+        "tests/test_run.py::test_explicit_plan_selects_only_required_cases_and_rejects_missing_collection",
+        "tests/test_run.py::test_phase_evidence_records_actual_plan_and_device_metrics",
+        "tests/test_run.py::test_manifest_rejects_invalid_plan_selection",
+        "tests/test_run.py::test_cuda_plan_records_unavailable_device_without_cpu_fallback",
         "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_distinguishes_git_blob_and_runtime_execution_bytes",
         "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_rejects_computation_source_drift_before_output",
         "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_rejects_missing_or_unbound_inputs_without_output",
@@ -9209,7 +9437,23 @@
         "tests/studies/smoke/structure/test_validation.py::test_comparison_requires_frozen_cuda_identity_before_any_bitwise_claim",
         "tests/studies/smoke/structure/test_validation.py::test_historical_cpu_figure_keeps_original_934dac3_saved_identity",
         "tests/studies/smoke/structure/test_validation.py::test_t0_cell_rejects_trace_or_argmax_contract_damage",
-        "tests/studies/output_space_extension/flow/process/test_run.py::test_transfer_analysis_pins_resolved_input_leaves_before_loading"
+        "tests/studies/output_space_extension/flow/process/test_run.py::test_transfer_analysis_pins_resolved_input_leaves_before_loading",
+        "tests/spec_mtp/structure/artifact/config/test_format.py::test_yaml_non_mapping_is_never_an_empty_config",
+        "tests/spec_mtp/structure/artifact/config/test_format.py::test_empty_documents_and_explicit_mappings_keep_the_existing_contract",
+        "tests/spec_mtp/structure/artifact/config/test_format.py::test_invalid_config_write_preserves_existing_file_and_creates_no_directory",
+        "tests/studies/_shared/structure/test_config.py::test_branch_override_and_returned_mutation_do_not_change_later_defaults",
+        "tests/test_run.py::test_metadata_dimensions_reject_missing_or_unknown_values",
+        "tests/test_run.py::test_metadata_source_and_device_requirements_are_explicit",
+        "tests/test_run.py::test_plan_budget_must_be_a_finite_positive_number",
+        "tests/test_run.py::test_plan_selection_and_exclusion_reasons_are_structural_contracts",
+        "tests/test_run.py::test_plan_resources_and_cuda_cost_cannot_be_bypassed",
+        "tests/test_run.py::test_measured_result_detail_preserves_categorical_semantics",
+        "tests/test_run.py::test_cuda_plan_rejects_insufficient_visible_devices_before_pytest",
+        "tests/spec_mtp/structure/test_parent_imports.py::test_responsibility_parent_imports_do_not_assemble_or_export_runtime",
+        "tests/spec_mtp/structure/test_parent_imports.py::test_configuration_and_artifact_leaf_imports_remain_framework_free",
+        "tests/spec_mtp/structure/test_parent_imports.py::test_scientific_help_does_not_import_runtime_after_parent_cleanup",
+        "tests/spec_mtp/structure/make/test_write.py::test_expand_writer_preserves_content_ids_factors_and_fixed_source_inputs",
+        "tests/spec_mtp/structure/make/test_write.py::test_expand_writer_refuses_changed_snapshot_before_rewriting_existing_artifacts"
       ],
       "exclude": []
     },
@@ -9284,7 +9528,7 @@
       "resources": {
         "gpu_count": 1,
         "estimated_device_seconds": 120,
-        "estimate_basis": "previous 147-case CUDA plan: 103.48 seconds; adds a bounded tiny 36-cell smoke matrix and saved-tensor extension fixtures",
+        "estimate_basis": "previous 155-case CUDA plan: 113.99 seconds on RTX 5090 D v2; same bounded numerical workload, current import wiring and admission checks",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false

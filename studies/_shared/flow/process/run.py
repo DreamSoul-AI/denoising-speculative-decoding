@@ -33,7 +33,7 @@ def study_gate(ctx: StudyProcessContext | FlowContext, expected_factors: list[di
             result = json.loads(result_path.read_text(encoding='utf-8'))
             gate = dict(result.get(GATE_KEY) or {})
             try:
-                from spec_mtp.structure.artifact.config import load_config
+                from spec_mtp.structure.artifact.config.io import load_config
                 verify_evidence(load_config(root / 'config.yaml'), root / 'assets')
                 saved_sources = json.loads((root / 'assets' / 'spec_mtp_sources.json').read_text(encoding='utf-8'))
                 if gate.get('sources_digest') != saved_sources.get('digest'):
@@ -57,7 +57,7 @@ def study_gate(ctx: StudyProcessContext | FlowContext, expected_factors: list[di
     if expected_factors is None and (study_dir / 'study.yaml').is_file():
         from spec_mtp.structure.make.expand import load_study_yaml
 
-        from spec_mtp.structure.artifact.config import load_config
+        from spec_mtp.structure.artifact.config.io import load_config
 
         expected_factors = declared_factors(load_study_yaml(study_dir),
                                             load_config(study_dir / 'experiment_config.yaml'))

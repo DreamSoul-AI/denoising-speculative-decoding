@@ -18,20 +18,16 @@ from spec_mtp.structure.artifact.readout import format_logs, format_status, list
 from spec_mtp.structure.artifact.readout.compare import compare_runs, format_compare, write_compare
 from spec_mtp.flow.context import FlowContext
 from spec_mtp.flow.runner import FlowRunner
-from spec_mtp.structure.artifact import artifact_layout, load_config
+from spec_mtp.structure.artifact.layout import artifact_layout
+from spec_mtp.structure.artifact.config.io import load_config
 from spec_mtp.structure.artifact.layout import ensure_study_layout, materialize_study
 from spec_mtp.structure.artifact.activity import announce, clear_activity, read_activity
-from spec_mtp.structure.make import (
-    expand_study,
-    filter_batches_by_mode,
-    filter_jobs_by_mode,
-    launch_jobs,
-    load_launch_plan,
-    load_study_yaml,
-    plan_jobs,
-    run_succeeded,
-    write_launch_scripts,
+from spec_mtp.structure.make.write import expand_study
+from spec_mtp.structure.make.schedule import (
+    filter_batches_by_mode, filter_jobs_by_mode, launch_jobs, load_launch_plan,
+    plan_jobs, run_succeeded, write_launch_scripts,
 )
+from spec_mtp.structure.make.expand import load_study_yaml
 from spec_mtp.structure.origin import apply_model_origin, normalize_origin
 from spec_mtp.structure.data.prepare import prepare_shared_data
 from spec_mtp.structure.make.capacity import (

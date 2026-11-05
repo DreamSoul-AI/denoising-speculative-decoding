@@ -43,7 +43,7 @@ trajectory_observation 的 fresh_replace 选句、配对统计留在 structure/f
 科学 CLI 与 Study CLI 的实现分开，产品入口分别为 `python -m spec_mtp` 与 `python -m studies._shared.flow.cli`。flow 的包初始化只标记命名空间，调用方直接导入其使用的模块，避免通过包入口加载整个阶段链。
 
 # 三、源码依赖与测试镜像
-flow 可以导入 structure，structure 不导入 flow。宿主不导入 rpipe 或 studies。科学合同不导入其它 structure 子层。算法核心、输入、观测和统计不导入具体模型或 CLI。api 只维护科学合同，构建由所属层工厂提供，make_tracker 放在 algorithm/tracker.py。四个旧流程 API facade 已移除，直接反向导入例外为零。父包 structure/control 的间接初始化链仍需单独复核，不能把直接静态边为零解释为完全轻量导入。
+flow 可以导入 structure，structure 不导入 flow。宿主不导入 rpipe 或 studies。科学合同不导入其它 structure 子层。算法核心、输入、观测和统计不导入具体模型或 CLI。api 只维护科学合同，构建由所属层工厂提供，make_tracker 放在 algorithm/tracker.py。四个旧流程 API facade 已移除，直接反向导入例外为零。宿主structure/control及普通layer父包只标包身份，真实消费者直接导入职责模块；科学状态子包另按实际公开合同审查，不能把直接静态边为零推广为全仓轻量导入。
 
 ```mermaid
 flowchart TB
@@ -137,4 +137,8 @@ full 的完整 AR 读件及中文报告由一个必要的 `structure/readout.py`
 
 smoke 的 cell/trace/比较合同及历史 CPU Figure 共用一个 `structure/validation.py`，当前 tiny CUDA 的模型、36 格流程和发布归 `flow/execute/run.py`，历史图的显式输入/输出归既有 `flow/write/run.py`。删除两个旧顶层入口，不保归档布局 fallback 或依源码行号的 sys.settrace。原 CPU 报告按原身份只读；新 CUDA 版本冻结输入、模型、矩阵、RNG、dtype/backend 与设备，比较先校可比身份，不能把跨设备结果当原 CPU bitwise 迁移证明。T0 完整 argmax 为门，采样 AR 一致仅诊断，保原三 variant、四 prompt、三温度与种子/预算。
 
-extension 的 numerics、kernel、operator 保存张量审计集中到一个 `structure/saved_diagnostics.py`，命令及读件生命周期归既有 process。复用既有角色索引准入，只通过可选 session 类型切换实际读端来源范围，默认 cross-task 行为不变；原 tool/plan/common 与报告按各自旧字段精确绑定，不执行归档源码。共同 slot/margin 仅新增显式 device 参数，默认旧 CPU 语义不变，当前保存张量计算显式 CUDA，当前CUDA FP32 margin与旧CPU参考分身份记录。删除四个旧入口；已停止的真实模型加载/profiler 不提供当前派发 API，必要纯检查与事件归纳保留，原 common 路径只作固定 Git 历史成员。
+extension 的 numerics、kernel、operator 保存张量审计集中到一个 `structure/saved_diagnostics.py`，命令及读件生命周期归既有 process。复用既有角色索引准入，只通过可选 session 类型切换实际读端来源范围，默认 cross-task 行为不变；原 tool/plan/common 与报告按各自旧字段精确绑定，不执行归档源码。共同 slot/margin 仅新增显式 device 参数，默认旧 CPU 语义不变，当前保存张量计算显式 CUDA，当前CUDA FP32 margin与旧CPU参考分身份记录。删除四个旧入口；已停止的真实模型加载/profiler 不提供当前派发 API，必要保存张量检查保留，未使用的live专属助手删除，原 common 路径只作固定 Git 历史成员。
+
+父包只标识职责边界，普通部件消费者依赖实际leaf模块，不经structure/control及各layer父包间接装配工厂或加载Torch。control.layers不另保四种配置类型的facade，配置直接来自algorithm/data/model/system.config；make的展开并写入Study生命周期归已有make/write.py，包父入口不保实现。保留必要包文件与默认六阶段，不给移除的再导出加lazy wrapper。此取舍减少导入副作用和循环依赖，代价是同步本仓所有真实符号消费者并公开当前导入位置。
+
+旧配置兼容只承接实际decoder输入，不保无生产调用的第二套文件读取或覆盖命令。spec_for每次返回独立的树配置，单次branches覆盖不得改变后续默认；YAML配置入口区分空文档与false/0/空序列等非法非mapping，持久化坏输入不得静默归为空配置。验证使用镜像纯配置/IO用例，数值路径仍由CUDA计划覆盖。

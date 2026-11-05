@@ -100,8 +100,8 @@ def write_lock(study_dir: Path | str) -> Path:
     path = lock_path(study_dir)
     old = load_lock(study_dir)
     if old is not None and (changed_files(old, body) or old.get('rpipe') != body.get('rpipe') or old.get('inputs') != body.get('inputs')):
-        from spec_mtp.structure.artifact.config import load_config
-        from spec_mtp.structure.control import experiment_config_from_mapping, run_config_from_merge
+        from spec_mtp.structure.artifact.config.io import load_config
+        from spec_mtp.structure.control.run_config import experiment_config_from_mapping, run_config_from_merge
         from spec_mtp.structure.make.expand import expand_patches, load_study_yaml
 
         study = load_study_yaml(Path(study_dir))
@@ -166,8 +166,8 @@ def check_frozen(study_dir: Path | str, study: dict[str, Any], current: dict[str
 
 def declared_inputs(study_dir: Path) -> dict[str, str]:
     """Freeze local prompt/model files already available at make, without downloading."""
-    from spec_mtp.structure.artifact.config import load_config
-    from spec_mtp.structure.control import experiment_config_from_mapping, run_config_from_merge
+    from spec_mtp.structure.artifact.config.io import load_config
+    from spec_mtp.structure.control.run_config import experiment_config_from_mapping, run_config_from_merge
     from spec_mtp.structure.make.expand import expand_patches, load_study_yaml
     from studies._shared.structure.evidence import file_hash
 

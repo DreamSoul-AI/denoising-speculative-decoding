@@ -10,7 +10,7 @@ from typing import Any
 from spec_mtp.structure.artifact.errors import CorruptArtifactError
 from spec_mtp.structure.artifact.index import index_path, load_index
 from spec_mtp.structure.artifact.paths import PROCESS_NAME, validate_output_root
-from spec_mtp.structure.artifact.result import load_result
+from spec_mtp.structure.artifact.result.io import load_result
 from spec_mtp.structure.artifact.readout.status import log_path
 
 

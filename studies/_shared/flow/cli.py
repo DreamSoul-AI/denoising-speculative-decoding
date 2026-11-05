@@ -102,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
             if _command(argv) == 'report':
                 from spec_mtp.flow.context import StudyProcessContext
                 from spec_mtp.structure.artifact.readout.report import render_numbers
-                from spec_mtp.structure.artifact.result import load_result
+                from spec_mtp.structure.artifact.result.io import load_result
                 from studies._shared.flow.process.run import study_gate
 
                 # Validate saved identity before reading the scientific evidence.

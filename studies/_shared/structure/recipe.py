@@ -48,7 +48,7 @@ def validate(config: dict[str, Any]) -> dict[str, Any]:
     Returns a small description of the checked Run. Only conditions the
     decoder already requires are checked here; nothing is relaxed or added.
     """
-    from spec_mtp.structure.control.layers import AlgorithmConfig
+    from spec_mtp.structure.algorithm.config import AlgorithmConfig
 
     from studies._shared.structure.algorithm import TASKS, effective_spec, task_name
     from studies._shared.structure.config import _convert

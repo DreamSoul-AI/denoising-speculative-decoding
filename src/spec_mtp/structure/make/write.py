@@ -5,16 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from spec_mtp.structure.artifact import (
-    artifact_layout,
-    build_index,
-    experiment_entries,
-    load_config,
-    write_config,
-    write_index,
-)
-from spec_mtp.structure.control import experiment_config_from_mapping, run_config_from_merge
-from spec_mtp.structure.make.expand import axis_keys_from_study
+from spec_mtp.structure.artifact.layout import artifact_layout
+from spec_mtp.structure.artifact.index import build_index, experiment_entries, write_index
+from spec_mtp.structure.artifact.config.io import load_config, write_config
+from spec_mtp.structure.control.run_config import experiment_config_from_mapping, run_config_from_merge
+from spec_mtp.structure.make.expand import axis_keys_from_study, expand_patches, load_study_yaml
+from spec_mtp.structure.artifact.layout import ensure_study_layout, materialize_study
+from spec_mtp.structure.artifact.provenance import write_provenance
+from spec_mtp.structure.make.recipe import load_recipe
 
 
 def write_run_configs(study_dir: Path, patches: list[dict[str, Any]]) -> list[Path]:
@@ -51,3 +49,23 @@ def write_study_index(
         experiments=experiments,
     )
     return write_index(study_dir, index)
+
+
+def expand_study(study_dir: Path | str, *, run_root: Path | str | None = None) -> dict[str, Any]:
+    """Write Run configs and index from ``study.yaml``."""
+    if run_root is not None:
+        study_dir = materialize_study(study_dir, run_root)
+    resolved = ensure_study_layout(Path(study_dir).resolve())
+    study = load_study_yaml(resolved)
+    load_recipe(resolved, study)
+    patches = expand_patches(study)
+    configs = write_run_configs(resolved, patches)
+    index_file = write_study_index(resolved, study, configs)
+    provenance_file = write_provenance(resolved, study)
+    return {
+        'study_dir': resolved,
+        'index': index_file,
+        'configs': configs,
+        'provenance': provenance_file,
+        'study': study,
+    }

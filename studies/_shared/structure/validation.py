@@ -105,7 +105,7 @@ def declared_factors(study: dict[str, Any], base_config: dict[str, Any] | None =
     if base_config is None:
         return cartesian(axes)
     from spec_mtp.structure.artifact.index import experiment_entries
-    from spec_mtp.structure.control import experiment_config_from_mapping, run_config_from_merge
+    from spec_mtp.structure.control.run_config import experiment_config_from_mapping, run_config_from_merge
     from spec_mtp.structure.make.expand import axis_keys_from_study, expand_patches
 
     base = experiment_config_from_mapping(base_config)
@@ -142,7 +142,7 @@ def verify_evidence(config: dict[str, Any], assets: Path) -> None:
     if str(settings['run']['seed']) != str(config.get('seed', settings['run']['seed'])):
         raise SpecMtpGateError('decode seed changed')
     algorithm = config.get('algorithm') or {}
-    from spec_mtp.structure.control.layers import AlgorithmConfig
+    from spec_mtp.structure.algorithm.config import AlgorithmConfig
     from studies._shared.structure.algorithm import effective_spec, task_name
     from studies._shared.structure.algorithm import legacy_cfg
     from types import SimpleNamespace
