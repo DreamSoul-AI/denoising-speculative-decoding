@@ -1,79 +1,17 @@
 
-from spec_mtp.structure.algorithm.mask import build_mask_provider
 import json
+
 from pathlib import Path
+
 import pytest
-import torch
-import spec_mtp.structure.algorithm.decode.loop as decoding
-from studies._shared.structure.config import _convert
-from spec_mtp.structure.model.hf_causal import HFCausalLM
+
+
+
+
 
 ROOT = Path(__file__).resolve().parents[2]
+
 from studies._shared.structure import esp_controls as audit
-
-
-def decoder():
-    assert torch.cuda.is_available(), "CUDA required; no CPU fallback"
-    print("ESP audit device=cuda:0 name="+torch.cuda.get_device_name(0), flush=True)
-    torch.manual_seed(7)
-    model = HFCausalLM(tiny_config={'vocab_size':32, 'hidden_size':16, 'intermediate_size':32,
-        'num_layers':1, 'num_heads':2, 'num_kv_heads':1, 'max_position_embeddings':64}).to(device="cuda:0", dtype=torch.bfloat16)
-    config = _convert({'method':'esp', 'num_masks':1, 'block_complexity':10, 'impl':'naive',
-        'tree':{'mode':'dynamic','pruning':True}, 'mask':{'init':'mean_prompt','lam':.1,'update':True}})
-    return decoding.SpecDecoder(model, config, {'temperature':0, 'max_new_tokens':7, 'stop_on_eos':False}, mask_policy=build_mask_provider(config, model.embedding_table))
-
-
-@pytest.mark.parametrize('prefill_only', [False, True])
-def test_observer_preserves_bf16_outputs_calls_and_restores(tmp_path, prefill_only):
-    dec = decoder()
-    if prefill_only:
-        dec.max_new_tokens = 1
-    prompt = torch.tensor([[1,2,3]], device="cuda:0")
-    expected, base = dec.generate(prompt)
-    generate, select = decoding.SpecDecoder.generate, decoding.select_token
-    with audit.observe_argmax(tmp_path):
-        actual, stats = dec.generate(prompt)
-        # Independent AR remains outside the observer.
-        decoding.ar_generate(dec.model, prompt, {'temperature':0,'max_new_tokens':1})
-    assert torch.equal(actual, expected)
-    assert stats['decode_calls'] == base['decode_calls']
-    assert stats['trace'] == base['trace']
-    assert decoding.SpecDecoder.generate is generate and decoding.select_token is select
-    assert not dec.model._forward_hooks
-    recorded = json.loads((tmp_path/'argmax_audit.jsonl').read_text())
-    assert recorded == stats['verification_argmax_audit']
-    assert recorded['passed'] and recorded['checked_committed_tokens'] == stats['new_tokens']
-    with pytest.raises(AssertionError, match='old audit'):
-        with audit.observe_argmax(tmp_path):
-            pass
-
-
-@pytest.mark.parametrize('cleanup_failure', [False, True])
-def test_wrong_selection_is_rejected_and_restored(tmp_path, monkeypatch, cleanup_failure):
-    dec = decoder()
-    if cleanup_failure:
-        register = dec.model.register_forward_hook
-        def broken_cleanup(*args):
-            handle = register(*args)
-            remove = handle.remove
-            def cleanup():
-                remove()
-                raise RuntimeError('secondary hook cleanup failed')
-            handle.remove = cleanup
-            return handle
-        monkeypatch.setattr(dec.model, 'register_forward_hook', broken_cleanup)
-    wrong = lambda row, temperature, generator: (int(row.argmax().item()) + 1) % row.numel()
-    monkeypatch.setattr(decoding, 'select_token', wrong)
-    generate = decoding.SpecDecoder.generate
-    with pytest.raises(AssertionError, match='forward argmax') as raised:
-        with audit.observe_argmax(tmp_path):
-            dec.generate(torch.tensor([[1,2,3]], device="cuda:0"))
-    assert decoding.select_token is wrong and decoding.SpecDecoder.generate is generate
-    assert not dec.model._forward_hooks and not (tmp_path/'argmax_audit.jsonl').read_text()
-    errors = getattr(raised.value, 'cleanup_errors', ())
-    assert len(errors) == int(cleanup_failure)
-    if errors: assert str(errors[0]) == 'secondary hook cleanup failed'
-
 
 def test_eos_or_budget_trim_is_not_counted_as_committed_and_wrong_owner_fails():
     selections = [{'forward':0,'row':1,'chosen':7,'argmax':7},
@@ -86,7 +24,6 @@ def test_eos_or_budget_trim_is_not_counted_as_committed_and_wrong_owner_fails():
     selections[2]['row']=4
     with pytest.raises(AssertionError):
         audit.bind_committed([1,2],[1,2,7,8],stats,selections)
-
 
 def test_tau_aggregation_does_not_gate_on_ar_and_keeps_all_weights(monkeypatch):
     from studies.esp_table1_bf16_full_argmax.structure import readout as report
@@ -103,7 +40,6 @@ def test_tau_aggregation_does_not_gate_on_ar_and_keeps_all_weights(monkeypatch):
     cells = report.ordered_cells({(60,1):summary,(60,2):{'pooled_tau':3}})
     assert [c['role'] for c in cells]==['primary','primary','primary','control']
     assert cells[0]['target'] is None
-
 
 def test_new_full_contract_keeps_original_settings_and_480_inputs():
     import yaml
@@ -122,13 +58,11 @@ def test_new_full_contract_keeps_original_settings_and_480_inputs():
     assert not (current/'argmax_audit.py').exists()
     assert audit.__name__ == 'studies._shared.structure.esp_controls'
 
-
 def test_historical_full_argmax_original_inputs(historical_file):
     previous = historical_file('studies/esp_table1_bf16_full/docs/prompts_manifest.json').parents[1]
     current = historical_file('studies/esp_table1_bf16_full_argmax/docs/prompts_manifest.json').parents[1]
     assert (previous/'docs/prompts_manifest.json').read_bytes()==(current/'docs/prompts_manifest.json').read_bytes()
     assert len(json.loads((current/'docs/prompts_manifest.json').read_text())['rendered_prompts'])==480
-
 
 def test_pending_report_does_not_link_unpublished_local_evidence(tmp_path, monkeypatch):
     import importlib
@@ -153,7 +87,6 @@ def test_pending_report_does_not_link_unpublished_local_evidence(tmp_path, monke
     text = (output / 'STUDY_REPORT.md').read_text(encoding='utf-8')
     assert 'completed=1/4; 全四格验收=pending' in text
     assert '| 10/1 | primary | valid | pending | 0/1 (0.00%) | 3/True |' in text
-
 
 def test_tau_plot_requires_full_argmax_pass_but_not_ar_exact(tmp_path,monkeypatch):
     from studies.esp_table1_bf16_full_argmax.flow.write.run import write_plot, main

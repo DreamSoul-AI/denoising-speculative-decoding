@@ -180,7 +180,7 @@ def _checkpoint_bytes(root):
 def _invoke_worker(root, output, mode, *, checkpoint=None, scenario='step', rebind=False):
     from tests.conftest import _process_tree
 
-    repository = Path(__file__).resolve().parents[5]
+    repository = Path(__file__).resolve().parents[6]
     environment = {**os.environ, 'PYTHONPATH': os.pathsep.join((str(repository / 'src'), str(repository),
         sysconfig.get_path('purelib'))), 'PYTHONNOUSERSITE': '1', 'PYTHONDONTWRITEBYTECODE': '1',
         'PYTHONUTF8': '1', 'HF_HUB_OFFLINE': '1', 'HF_DATASETS_OFFLINE': '1',

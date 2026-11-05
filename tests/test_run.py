@@ -16,6 +16,14 @@ def test_manifest_covers_all_declared_sources():
     body, plan=runner.read_plan(ROOT/'tests/manifest.json','cpu-pr')
     assert body['tests'] and all(row['reason'] for row in plan['exclude'])
     with pytest.raises(ValueError): runner.read_plan(ROOT/'tests/manifest.json','missing')
+    for row in body['tests']:
+        metadata = {**body['defaults'], **row}
+        source = row['test_id'].partition('::')[0]
+        gpu_count = metadata.get('resources', {}).get('gpu_count', 0)
+        if source.startswith('tests/spec_mtp/'):
+            assert 'offline_cuda' not in metadata['tags'] and gpu_count == 0, row['test_id']
+        elif source.startswith('tests/cuda/spec_mtp/'):
+            assert 'offline_cuda' in metadata['tags'] and gpu_count >= 1, row['test_id']
 
 
 def test_missing_outcomes_block_completion(tmp_path):

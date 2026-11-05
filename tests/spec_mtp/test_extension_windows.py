@@ -1,16 +1,14 @@
 """Fixed window fallback must retain null prompts and both baseline paths."""
 
 import pytest
-import torch
+
 
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-
 def row(root, accepted=(), stopped=False):
     return {'root_position': root, 'accepted_nodes': list(accepted), 'stopped': stopped}
-
 
 def test_earliest_eligible_hit_and_full_union_including_trailing_roots(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
@@ -20,14 +18,12 @@ def test_earliest_eligible_hit_and_full_union_including_trailing_roots(monkeypat
     assert choose_window(zero, one) == {'intervention_root': 3,
         'selection_reason': 'before earliest eligible shared hit', 'targets': [3, 4, 6, 7]}
 
-
 def test_no_shared_hit_uses_predeclared_rejection_control(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
     from studies._shared.structure.extension_diagnostics import choose_window
     selected = choose_window([row(3), row(4, stopped=True)], [row(3), row(4, stopped=True)])
     assert selected['intervention_root'] == 3
     assert selected['selection_reason'] == 'earliest continuing common rejection'
-
 
 def test_unused_owner_and_no_continuing_window_are_explicit(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
@@ -36,22 +32,6 @@ def test_unused_owner_and_no_continuing_window_are_explicit(monkeypatch):
     assert selected['intervention_root'] == 3 and selected['selection_reason'] == 'unused-owner control'
     selected = choose_window([row(3, stopped=True)], [row(3, stopped=True)])
     assert selected['intervention_root'] is None and selected['targets'] == []
-
-
-@pytest.mark.parametrize('first_correct,has_second', [(True, True), (False, True), (True, False)])
-def test_second_slot_ar_path_requires_correct_first_and_available_target(first_correct, has_second, record_property):
-    from studies._shared.structure import extension_diagnostics as analysis
-    assert torch.cuda.is_available(), 'second-slot correctness requires actual CUDA'
-    device = torch.device('cuda:0')
-    print(f'second-slot tensor.device={device} name={torch.cuda.get_device_name(device)}', flush=True)
-    record_property('cuda_device', torch.cuda.get_device_name(device))
-    tokens = [0, 1, 2, 0] if has_second else [0, 1, 2]
-    first = [0., 1., 3.] if first_correct else [3., 1., 0.]
-    sample = {'seed_logits': torch.tensor([first, [3., 1., 0.]], device=device)}
-    result = analysis.slots(sample, tokens, 1, device=device)
-    assert result['second_AR_path_valid'] == (first_correct and has_second)
-    assert (result['second'] is not None) == has_second
-
 
 @pytest.mark.parametrize('entry', [
     ['-m', 'studies.output_space_4b_holdout.flow.process.run'],

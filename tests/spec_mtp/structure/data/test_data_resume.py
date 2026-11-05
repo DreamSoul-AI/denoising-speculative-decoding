@@ -1,52 +1,13 @@
 """Data v2 cursor admission and exact sampler replay, without model execution."""
 
+from tests.conftest import cursor_data as _data, cursor_values_equal as _equal
+
 from copy import deepcopy
 
 import pytest
 
-from spec_mtp.structure.data.factory import Data
+
 from spec_mtp.structure.data.resume import generator_states, restore_generators
-
-
-def _data(kind='random', *, workers=0, seed=7, explicit_loader=True, device=None, size=13):
-    import torch
-    from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
-
-    reads = []
-
-    class Samples:
-        def __len__(self):
-            return size
-
-        def __getitem__(self, index):
-            reads.append(index)
-            if device is None:
-                return index
-            return torch.stack((torch.tensor(index, device=device), torch.rand((), device=device)))
-
-    dataset = Samples()
-    sampler_generator = torch.Generator().manual_seed(seed)
-    sampler = (SequentialSampler(dataset) if kind == 'sequential' else
-               RandomSampler(dataset, generator=sampler_generator))
-    loader_generator = (sampler_generator if kind == 'shared' else
-                        torch.Generator().manual_seed(seed + 1) if explicit_loader else None)
-    options = {} if device is not None else {'collate_fn': lambda values: values}
-    loader = DataLoader(dataset, batch_size=3, sampler=sampler, generator=loader_generator,
-                        num_workers=workers, **options)
-    data = Data(name='cursor-fixture', source='local', loaders={'train': loader},
-                meta={'seed': seed, 'batch_size': 3, 'config': {'fixture': 'fixed-id-order'}})
-    return data, dataset, reads
-
-
-def _equal(left, right):
-    import torch
-
-    if isinstance(left, torch.Tensor):
-        return isinstance(right, torch.Tensor) and torch.equal(left, right)
-    if isinstance(left, dict):
-        return isinstance(right, dict) and left.keys() == right.keys() and all(_equal(left[key], right[key]) for key in left)
-    return left == right
-
 
 @pytest.mark.parametrize('kind', ['random', 'shared', 'sequential'])
 @pytest.mark.parametrize('exhausted', [False, True])
@@ -76,7 +37,6 @@ def test_epoch_boundary_preserves_last_yield_and_next_epoch_order(kind, exhauste
         assert torch.equal(before, torch.get_rng_state()) and reads == []
     actual_next = list(restored.iter_batches('train'))
     assert actual_next == expected_next
-
 
 @pytest.mark.parametrize('fault', ['legacy_version', 'boolean_version', 'extra_field', 'missing_after',
     'seed', 'identity', 'spec', 'negative_cursor', 'boolean_cursor', 'large_cursor', 'early_exhausted',
@@ -119,7 +79,6 @@ def test_invalid_data_state_leaves_live_and_pending_state_unchanged(fault):
     assert torch.equal(global_rng, torch.get_rng_state())
     assert _equal(saved, pending)
 
-
 def test_restored_state_is_owned_and_generator_alias_mismatch_is_rejected():
     data, _, _ = _data('shared')
     next(data.iter_batches('train'))
@@ -136,7 +95,6 @@ def test_restored_state_is_owned_and_generator_alias_mismatch_is_rejected():
     with pytest.raises(ValueError, match='sampler/batch/seed'):
         separate.restore_training_state(target._resume_data)
 
-
 @pytest.mark.parametrize('workers', [1, 2])
 def test_unsupported_worker_loader_rejects_exact_cursor_without_starting_workers(workers):
     data, _, _ = _data()
@@ -147,7 +105,6 @@ def test_unsupported_worker_loader_rejects_exact_cursor_without_starting_workers
     with pytest.raises(ValueError, match='unsupported'):
         unsupported.restore_training_state(state)
     assert unsupported._resume_data is None and reads == []
-
 
 def test_budget_admission_is_pure_before_full_budget_rebind():
     data, dataset, _ = _data(explicit_loader=False)
@@ -169,7 +126,6 @@ def test_budget_admission_is_pure_before_full_budget_rebind():
     actual = [batch.tolist() for batch in target.iter_batches('train')]
     assert actual == [batch.tolist() for batch in expected]
 
-
 def test_generator_restore_prevalidates_both_domains_before_mutation():
     import torch
 
@@ -182,7 +138,6 @@ def test_generator_restore_prevalidates_both_domains_before_mutation():
     with pytest.raises(ValueError):
         restore_generators(loader, bad)
     assert _equal(original, generator_states(loader))
-
 
 def test_pending_restore_is_rechecked_before_loader_wrapping_or_rng_mutation():
     import torch
@@ -198,32 +153,3 @@ def test_pending_restore_is_rechecked_before_loader_wrapping_or_rng_mutation():
         target.iter_batches('train')
     assert target._resume_data is pending and target._loaders['train'] is loader and reads == []
     assert torch.equal(rng, torch.get_rng_state()) and _equal(generators, generator_states(loader))
-
-
-@pytest.mark.parametrize('kind,explicit_loader', [('random', False), ('random', True), ('shared', True),
-                                                ('sequential', False), ('sequential', True)])
-def test_mid_epoch_cuda_batches_preserve_suffix_and_do_not_replay_transforms(kind, explicit_loader):
-    import torch
-
-    assert torch.cuda.is_available(), 'CUDA cursor integration requires an available device'
-    device = torch.device('cuda', torch.cuda.current_device())
-    print(f'data cursor device={device} name={torch.cuda.get_device_name(device)}')
-    data, _, _ = _data(kind, explicit_loader=explicit_loader, device=device)
-    iterator = data.iter_batches('train')
-    prefix = [next(iterator), next(iterator)]
-    saved = data.training_state()
-    cuda_rng = torch.cuda.get_rng_state(device)
-    expected = list(iterator)
-    expected_generators = generator_states(data._loaders['train'])
-    restored, _, reads = _data(kind, explicit_loader=explicit_loader, device=device)
-    restored.restore_training_state(saved)
-    cpu_rng = torch.get_rng_state().clone()
-    torch.cuda.set_rng_state(cuda_rng, device)
-    actual = list(restored.iter_batches('train'))
-    assert torch.equal(cpu_rng, torch.get_rng_state())
-    assert len(actual) == len(expected) == 3
-    assert all(batch.device == device and torch.equal(batch, reference) for batch, reference in zip(actual, expected))
-    ids = [int(value) for batch in prefix + actual for value in batch[:, 0].tolist()]
-    assert sorted(ids) == list(range(13)) and len(reads) == 7
-    assert reads == [int(value) for batch in actual for value in batch[:, 0].tolist()]
-    assert _equal(expected_generators, generator_states(restored._loaders['train']))

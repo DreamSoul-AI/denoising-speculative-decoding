@@ -1,17 +1,21 @@
 """Fast IO/spies and explicit CUDA argmax contracts for the independent paired repeat."""
 
-from spec_mtp.structure.algorithm.mask import build_mask_provider
+
 import importlib.util
+
 from pathlib import Path
+
 from types import SimpleNamespace
+
 import copy
 
 import pytest
+
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-STUDY = ROOT / 'studies/qwen3_4b_bf16_paired_revalidation'
 
+STUDY = ROOT / 'studies/qwen3_4b_bf16_paired_revalidation'
 
 @pytest.fixture
 def modules(monkeypatch):
@@ -20,7 +24,6 @@ def modules(monkeypatch):
     protocol = SimpleNamespace(matrix_settings=partial(paired_matrix_settings, STUDY,
         ROOT/'studies/qwen3_4b_bf16_five_methods'))
     return protocol, importlib.import_module('studies.qwen3_4b_bf16_paired_revalidation.flow.process.run')
-
 
 def test_all_eleven_effective_configs_match_native_expansion(modules):
     from studies._shared.structure.validation import declared_factors
@@ -38,7 +41,6 @@ def test_all_eleven_effective_configs_match_native_expansion(modules):
         assert setting['eval']['temperature'] == 0 and setting['eval']['max_new_tokens'] == 256
         assert not setting['eval']['warmup']
 
-
 @pytest.mark.parametrize('damage', ['missing', 'duplicate', 'order', 'lambda', 'eval', 'extra_run', 'duplicate_id'])
 def test_changed_or_incomplete_repeat_index_is_rejected(modules, damage):
     protocol, reader = modules
@@ -52,7 +54,6 @@ def test_changed_or_incomplete_repeat_index_is_rejected(modules, damage):
     elif damage == 'extra_run': entries[1]['runs'].append({'id': 'extra'})
     else: entries[1]['runs'][0]['id'] = entries[0]['runs'][0]['id']
     with pytest.raises(AssertionError): reader.check_index(entries, expected=expected)
-
 
 def test_resource_guard_precedes_model_and_both_decode_paths(modules, monkeypatch, tmp_path):
     from studies._shared.structure import algorithm as m, recipe, validation, model
@@ -79,7 +80,6 @@ def test_resource_guard_precedes_model_and_both_decode_paths(modules, monkeypatc
     assert instance.run(None, None, SimpleNamespace(assets_dir=assets), None) == 'complete'
     assert events == ['refs', ('admit', False, assets), 'spec', ('admit', False, assets), 'ar', 'refs']
 
-
 def test_unmade_repeat_writes_pending_only(modules, monkeypatch, tmp_path):
     _, reader = modules
     unmade = tmp_path / 'unmade'
@@ -90,25 +90,3 @@ def test_unmade_repeat_writes_pending_only(modules, monkeypatch, tmp_path):
         reader.readout(tmp_path / 'out')
     assert not (tmp_path / 'out').exists()
     assert not (tmp_path / 'out/paired_evidence_v1.json').exists()
-
-
-def test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token():
-    import torch
-    from spec_mtp.structure.model.hf_causal import HFCausalLM
-    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
-    from studies._shared.structure.config import _convert
-    from studies._shared.structure.validation import _check_argmax
-    assert torch.cuda.is_available(), "CUDA required; no CPU fallback"
-    print("paired correctness device=cuda:0 name="+torch.cuda.get_device_name(0), flush=True)
-    torch.manual_seed(7)
-    model = HFCausalLM(tiny_config={'vocab_size': 24, 'hidden_size': 16, 'intermediate_size': 32,
-        'num_hidden_layers': 1, 'num_attention_heads': 2, 'num_key_value_heads': 1,
-        'max_position_embeddings': 64}, torch_dtype='bfloat16', attn_implementation='eager').to('cuda:0')
-    spec = _convert({'method': 'esp', 'num_masks': 2, 'block_complexity': 30, 'impl': 'naive',
-                     'mask': {'init': 'mean_prompt', 'lam': 0., 'update': False},
-                     'tree': {'mode': 'dynamic', 'pruning': True}})
-    output, stats = SpecDecoder(model, spec, _convert({'temperature': 0., 'max_new_tokens': 6}), mask_policy=build_mask_provider(spec, model.embedding_table)).generate(torch.tensor([[1, 2, 3]], device="cuda:0"))
-    item = {'input_ids': [1, 2, 3], 'output_ids': output[0].tolist(), 'ar_ids': [1, 2, 3, 999], 'stats': stats}
-    assert _check_argmax(item) == 6
-    item['output_ids'][-1] = (item['output_ids'][-1] + 1) % 24
-    with pytest.raises(RuntimeError): _check_argmax(item)

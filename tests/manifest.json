@@ -31,7 +31,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_top1_form_uses_the_most_likely_allowed_token",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_top1_form_uses_the_most_likely_allowed_token",
       "target": "spec_mtp.structure.algorithm.mask.providers.ObservationBlendMaskProvider.masks_for_tree",
       "tags": [
         "offline_cuda",
@@ -64,7 +64,7 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
       "target": "spec_mtp.structure.algorithm.mask.providers.ObservationBlendMaskProvider.masks_for_tree",
       "tags": [
         "offline_cuda",
@@ -83,7 +83,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_falls_back_when_children_hold_all_mass",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_falls_back_when_children_hold_all_mass",
       "target": "spec_mtp.structure.algorithm.mask.providers.ObservationBlendMaskProvider.masks_for_tree",
       "tags": [
         "offline_cuda",
@@ -144,7 +144,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_masks_follow_the_blend_and_never_write_back",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_masks_follow_the_blend_and_never_write_back",
       "target": "spec_mtp.structure.algorithm.mask.providers.ObservationBlendMaskProvider.masks",
       "tags": [
         "offline_cuda",
@@ -163,7 +163,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_owner_depth_shifts_the_observation_and_falls_back_past_k",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_owner_depth_shifts_the_observation_and_falls_back_past_k",
       "target": "spec_mtp.structure.algorithm.mask.providers.ObservationBlendMaskProvider.masks_by_depth",
       "tags": [
         "offline_cuda",
@@ -189,7 +189,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_invalid_observation_settings_are_rejected",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_factory.py::test_invalid_observation_settings_are_rejected",
       "target": "spec_mtp.structure.algorithm.mask.factory.build_mask_provider",
       "tags": [
         "offline_cuda",
@@ -208,7 +208,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_observation_rejects_hidden_providers_and_bad_logits",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_observation_rejects_hidden_providers_and_bad_logits",
       "target": "spec_mtp.structure.algorithm.mask.providers.ObservationBlendMaskProvider.observe_mask_logits",
       "tags": [
         "offline_cuda",
@@ -312,24 +312,34 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_full_direction_preserves_native_mean_and_declared_velocity",
+      "test_id": "tests/cuda/spec_mtp/test_4b_full_directions.py::test_full_direction_preserves_native_mean_and_declared_velocity",
       "target": "studies._shared.structure.geometry_4b.direction_control",
       "tags": [
         "offline_cuda",
         "structure_cleanup"
       ],
       "cost_class": "c3",
-      "level": "unit"
+      "level": "unit",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_native_tiny_bf16_direction_controls_remain_argmax_safe",
+      "test_id": "tests/cuda/spec_mtp/test_4b_full_directions.py::test_native_tiny_bf16_direction_controls_remain_argmax_safe",
       "target": "studies._shared.structure.geometry_4b.direction_control",
       "tags": [
         "offline_cuda",
         "structure_cleanup"
       ],
       "cost_class": "c3",
-      "level": "integration"
+      "level": "integration",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_tau_pairs_use_ratios_and_category_pooling",
@@ -637,7 +647,7 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_invalid_temperature_is_rejected",
+      "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_invalid_temperature_is_rejected",
       "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
         "offline_cuda",
@@ -656,7 +666,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_boolean_never_impersonates_integer_audit_fields",
+      "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_boolean_never_impersonates_integer_audit_fields",
       "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
         "offline_cuda",
@@ -675,7 +685,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_missing_or_mutated_committed_row_is_rejected",
+      "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_missing_or_mutated_committed_row_is_rejected",
       "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
         "offline_cuda",
@@ -694,7 +704,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_source_mismatch_is_independent_of_correct_argmax",
+      "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_source_mismatch_is_independent_of_correct_argmax",
       "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
         "offline_cuda",
@@ -713,7 +723,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_truncated_jsonl_never_becomes_complete",
+      "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_truncated_jsonl_never_becomes_complete",
       "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
         "offline_cuda",
@@ -732,7 +742,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_duplicate_envelope_is_rejected",
+      "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_duplicate_envelope_is_rejected",
       "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
         "offline_cuda",
@@ -751,7 +761,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_invalid_decode_counts_are_rejected",
+      "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_invalid_decode_counts_are_rejected",
       "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
         "offline_cuda",
@@ -770,7 +780,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_decode_trace_and_counts_must_match_stream",
+      "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_decode_trace_and_counts_must_match_stream",
       "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
         "offline_cuda",
@@ -789,7 +799,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_budget_trimmed_acceptance_may_exceed_committed_count",
+      "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_budget_trimmed_acceptance_may_exceed_committed_count",
       "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
         "offline_cuda",
@@ -808,7 +818,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_empty_decode_still_checks_all_counts",
+      "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_empty_decode_still_checks_all_counts",
       "target": "spec_mtp.structure.artifact.observation.audit_run",
       "tags": [
         "offline_cuda",
@@ -827,14 +837,19 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
+      "test_id": "tests/cuda/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
       "target": "studies._shared.structure.geometry_4b.observe_initial_bias",
       "tags": [
         "offline_cuda",
         "structure_cleanup"
       ],
       "cost_class": "c3",
-      "level": "unit"
+      "level": "unit",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_eight_preregistered_cells_and_immutable_inputs",
@@ -847,14 +862,19 @@
       "level": "unit"
     },
     {
-      "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_native_tiny_bf16_argmax_audit_for_scaled_bias",
+      "test_id": "tests/cuda/spec_mtp/test_bias_norm_scan.py::test_native_tiny_bf16_argmax_audit_for_scaled_bias",
       "target": "studies._shared.structure.geometry_4b.observe_initial_bias",
       "tags": [
         "offline_cuda",
         "structure_cleanup"
       ],
       "cost_class": "c3",
-      "level": "integration"
+      "level": "integration",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_unmade_readout_cannot_claim_completed_scan",
@@ -948,7 +968,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_audit_consumes_existing_rows_only",
+      "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_audit_consumes_existing_rows_only",
       "target": "spec_mtp.flow.cli.main",
       "tags": [
         "offline_cuda",
@@ -995,7 +1015,7 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
+      "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
       "target": "spec_mtp.flow.cli.main",
       "tags": [
         "offline_cuda",
@@ -1189,7 +1209,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_and_native_ar_match_per_token_and_audit",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_and_native_ar_match_per_token_and_audit",
       "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
         "offline_cuda",
@@ -1208,7 +1228,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_one_shot_cancel_signal_is_latched_and_never_reclassified",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_one_shot_cancel_signal_is_latched_and_never_reclassified",
       "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
         "offline_cuda",
@@ -1227,7 +1247,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_first_commit_failure_preserves_committed_fact_and_stops_next_forward",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_first_commit_failure_preserves_committed_fact_and_stops_next_forward",
       "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
         "offline_cuda",
@@ -1246,7 +1266,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_prompt_is_rejected_before_forward",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_prompt_is_rejected_before_forward",
       "target": "spec_mtp.structure.algorithm.decode.loop.SpecDecoder.generate",
       "tags": [
         "offline_cuda",
@@ -1265,7 +1285,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_eos_prefill_is_in_complete_argmax_audit",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_eos_prefill_is_in_complete_argmax_audit",
       "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
         "offline_cuda",
@@ -1284,7 +1304,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_failure_before_first_forward_is_zero_work",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_failure_before_first_forward_is_zero_work",
       "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
         "offline_cuda",
@@ -1303,7 +1323,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_rejects_bad_impl_tree_pairs",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_rejects_bad_impl_tree_pairs",
       "target": "spec_mtp.structure.algorithm.decode.loop.SpecDecoder.__init__",
       "tags": [
         "offline_cuda",
@@ -1322,7 +1342,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_mask_init_errors",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_mask_init_errors",
       "target": "spec_mtp.structure.algorithm.mask.providers.ESPMaskProvider.init_from_prompt",
       "tags": [
         "offline_cuda",
@@ -1341,7 +1361,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_rejects_short_prompt_and_bad_level",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_rejects_short_prompt_and_bad_level",
       "target": "spec_mtp.structure.algorithm.mask.providers.EMAVelocityMaskProvider",
       "tags": [
         "offline_cuda",
@@ -1363,23 +1383,23 @@
       "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_rejects_unknown_method",
       "target": "spec_mtp.structure.algorithm.mask.factory.build_mask_provider",
       "tags": [
-        "offline_cuda",
+        "offline_cpu",
         "structure_cleanup"
       ],
       "level": "unit",
       "type": "content",
-      "cost_class": "c3",
+      "cost_class": "c1",
       "result_type": "categorical",
       "priority": "p1",
       "result_detail": "summary",
       "resources": {
-        "gpu_count": 1,
+        "gpu_count": 0,
         "network": false,
         "model_download": false
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_stop_on_eos_matches_ar_and_stops_early",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_stop_on_eos_matches_ar_and_stops_early",
       "target": "spec_mtp.structure.algorithm.decode.loop.SpecDecoder.generate",
       "tags": [
         "offline_cuda",
@@ -1398,7 +1418,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_context_limit_sets_the_flag_and_matches_budgeted_ar",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_context_limit_sets_the_flag_and_matches_budgeted_ar",
       "target": "spec_mtp.structure.algorithm.decode.loop.SpecDecoder.generate",
       "tags": [
         "offline_cuda",
@@ -1417,7 +1437,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_truncation_without_context_limit",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_truncation_without_context_limit",
       "target": "spec_mtp.structure.algorithm.decode.loop.SpecDecoder.generate",
       "tags": [
         "offline_cuda",
@@ -1436,7 +1456,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_fork_generator_copies_state_and_leaves_source",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_fork_generator_copies_state_and_leaves_source",
       "target": "spec_mtp.structure.algorithm.decode.loop._fork_generator",
       "tags": [
         "offline_cuda",
@@ -1455,7 +1475,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_kv_crop_and_keep_block_positions",
+      "test_id": "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_kv_crop_and_keep_block_positions",
       "target": "spec_mtp.structure.model.hf_causal.keep_block_positions",
       "tags": [
         "offline_cuda",
@@ -1726,24 +1746,34 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_observer_preserves_bf16_outputs_calls_and_restores",
+      "test_id": "tests/cuda/spec_mtp/test_esp_argmax_audit.py::test_observer_preserves_bf16_outputs_calls_and_restores",
       "target": "studies._shared.structure.esp_controls.observe_argmax",
       "tags": [
         "offline_cuda",
         "structure_cleanup"
       ],
       "cost_class": "c3",
-      "level": "integration"
+      "level": "integration",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_wrong_selection_is_rejected_and_restored",
+      "test_id": "tests/cuda/spec_mtp/test_esp_argmax_audit.py::test_wrong_selection_is_rejected_and_restored",
       "target": "studies._shared.structure.esp_controls.observe_argmax",
       "tags": [
         "offline_cuda",
         "structure_cleanup"
       ],
       "cost_class": "c3",
-      "level": "integration"
+      "level": "integration",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_eos_or_budget_trim_is_not_counted_as_committed_and_wrong_owner_fails",
@@ -1962,14 +1992,19 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_extension_windows.py::test_second_slot_ar_path_requires_correct_first_and_available_target",
+      "test_id": "tests/cuda/spec_mtp/test_extension_windows.py::test_second_slot_ar_path_requires_correct_first_and_available_target",
       "target": "studies._shared.structure.extension_diagnostics",
       "tags": [
         "offline_cuda",
         "structure_cleanup"
       ],
       "cost_class": "c3",
-      "level": "unit"
+      "level": "unit",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/studies/_shared/structure/test_gpu_admission.py::test_recognized_display_process_is_not_a_blocker",
@@ -2120,7 +2155,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_update_false_leaves_masks_unchanged",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_update_false_leaves_masks_unchanged",
       "target": "spec_mtp.structure.algorithm.mask.providers.ESPMaskProvider.on_token_committed",
       "tags": [
         "offline_cuda",
@@ -2139,7 +2174,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_offset_and_sample_inits",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_offset_and_sample_inits",
       "target": "spec_mtp.structure.algorithm.mask.providers.ESPMaskProvider.init_from_prompt",
       "tags": [
         "offline_cuda",
@@ -2158,7 +2193,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_update_false_freezes_velocity_but_moves_anchor",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_update_false_freezes_velocity_but_moves_anchor",
       "target": "spec_mtp.structure.algorithm.mask.providers.EMAVelocityMaskProvider.on_token_committed",
       "tags": [
         "offline_cuda",
@@ -2177,7 +2212,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_extrapolate_ema_rebuilds_masks_after_commit",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_extrapolate_ema_rebuilds_masks_after_commit",
       "target": "spec_mtp.structure.algorithm.mask.providers.EMAVelocityMaskProvider.on_token_committed",
       "tags": [
         "offline_cuda",
@@ -2196,7 +2231,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema",
       "target": "spec_mtp.structure.algorithm.mask.factory.build_mask_provider",
       "tags": [
         "offline_cuda",
@@ -2257,7 +2292,7 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
+      "test_id": "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
       "target": "spec_mtp.structure.model.hf_causal.HFCausalLM.close",
       "tags": [
         "offline_cuda",
@@ -2276,7 +2311,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path",
+      "test_id": "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path",
       "target": "spec_mtp.structure.model.hf_causal.keep_block_positions",
       "tags": [
         "offline_cuda",
@@ -2576,14 +2611,19 @@
       "level": "unit"
     },
     {
-      "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token",
+      "test_id": "tests/cuda/spec_mtp/test_paired_revalidation.py::test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token",
       "target": "studies._shared.structure.validation._check_argmax",
       "tags": [
         "offline_cuda",
         "structure_cleanup"
       ],
       "cost_class": "c3",
-      "level": "integration"
+      "level": "integration",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/test_phi_rms.py::test_phi64_uses_native_slot_and_scale_without_state_mutation",
@@ -2972,7 +3012,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_matches_naive_builder",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_matches_naive_builder",
       "target": "spec_mtp.structure.algorithm.decode.tree_attention.DynamicTreeAttentionCache.get",
       "tags": [
         "offline_cuda",
@@ -2991,7 +3031,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_returned_tensors_do_not_alias_the_cache",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_returned_tensors_do_not_alias_the_cache",
       "target": "spec_mtp.structure.algorithm.decode.tree_attention.DynamicTreeAttentionCache.get",
       "tags": [
         "offline_cuda",
@@ -3010,7 +3050,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_uses_it_only_for_dynamic_trees",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_uses_it_only_for_dynamic_trees",
       "target": "spec_mtp.structure.algorithm.decode.loop.SpecDecoder.__init__",
       "tags": [
         "offline_cuda",
@@ -3043,7 +3083,7 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_efficient_cache_matches_naive_builder",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_efficient_cache_matches_naive_builder",
       "target": "spec_mtp.structure.algorithm.decode.tree_attention.TreeAttentionCache.get",
       "tags": [
         "offline_cuda",
@@ -3062,7 +3102,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
       "target": "spec_mtp.structure.algorithm.decode.tree_attention.TreeAttentionCache.get",
       "tags": [
         "offline_cuda",
@@ -3109,7 +3149,7 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_rejects_more_branches_than_masks",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_rejects_more_branches_than_masks",
       "target": "spec_mtp.structure.algorithm.decode.tree.build_static_tree",
       "tags": [
         "offline_cuda",
@@ -3128,7 +3168,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_zero_width_stops_deeper_levels",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_zero_width_stops_deeper_levels",
       "target": "spec_mtp.structure.algorithm.decode.tree.build_static_tree",
       "tags": [
         "offline_cuda",
@@ -3147,7 +3187,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_topk_skips_banned_and_taken_tokens",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_topk_skips_banned_and_taken_tokens",
       "target": "spec_mtp.structure.algorithm.decode.tree._topk_with_pruning",
       "tags": [
         "offline_cuda",
@@ -3166,7 +3206,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_dynamic_stops_when_pruning_exhausts_tiny_vocab",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_dynamic_stops_when_pruning_exhausts_tiny_vocab",
       "target": "spec_mtp.structure.algorithm.decode.tree.build_dynamic_tree",
       "tags": [
         "offline_cuda",
@@ -3185,7 +3225,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_build_tree_dispatch_and_unknown_mode",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_build_tree_dispatch_and_unknown_mode",
       "target": "spec_mtp.structure.algorithm.decode.tree.build_tree",
       "tags": [
         "offline_cuda",
@@ -3204,7 +3244,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_children_of_and_block_layout_indices",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_children_of_and_block_layout_indices",
       "target": "spec_mtp.structure.algorithm.decode.tree.DraftTree.children_of",
       "tags": [
         "offline_cuda",
@@ -4574,7 +4614,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_logits_rejected_in_token_and_tree_selection",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_logits_rejected_in_token_and_tree_selection",
       "target": "spec_mtp.structure.algorithm.decode.loop.select_token",
       "tags": [
         "offline_cuda",
@@ -4593,7 +4633,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_negative_infinity_bans_tokens_without_invalidating_distribution",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_negative_infinity_bans_tokens_without_invalidating_distribution",
       "target": "spec_mtp.structure.algorithm.decode.loop.select_token",
       "tags": [
         "offline_cuda",
@@ -4612,7 +4652,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_temperature_scaling_overflow_rejected_before_sampling_or_tree",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_temperature_scaling_overflow_rejected_before_sampling_or_tree",
       "target": "spec_mtp.structure.algorithm.decode.loop.select_token",
       "tags": [
         "offline_cuda",
@@ -4631,7 +4671,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_model_logits_stop_without_losing_prior_commits",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_model_logits_stop_without_losing_prior_commits",
       "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
         "offline_cuda",
@@ -4650,7 +4690,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
       "target": "spec_mtp.structure.algorithm.decode.loop.ar_generate",
       "tags": [
         "offline_cuda",
@@ -4669,7 +4709,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
       "target": "spec_mtp.structure.algorithm.decode.loop.ar_generate",
       "tags": [
         "offline_cuda",
@@ -4718,7 +4758,7 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_later_token_failure_preserves_successful_commits_within_block",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_later_token_failure_preserves_successful_commits_within_block",
       "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
         "offline_cuda",
@@ -4737,7 +4777,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
       "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
         "offline_cuda",
@@ -4864,7 +4904,7 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
+      "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
       "target": "spec_mtp.flow.cli._decode",
       "tags": [
         "offline_cuda",
@@ -4897,7 +4937,7 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
+      "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
       "target": "spec_mtp.flow.cli._decode",
       "tags": [
         "offline_cuda",
@@ -4916,7 +4956,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
+      "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
       "target": "spec_mtp.flow.cli.main",
       "tags": [
         "offline_cuda",
@@ -6181,7 +6221,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_tiny_cuda_decode_preserves_committed_argmax_and_releases_memory",
+      "test_id": "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_tiny_cuda_decode_preserves_committed_argmax_and_releases_memory",
       "target": "spec_mtp.structure.model.hf_causal",
       "level": "integration",
       "type": "content",
@@ -6190,7 +6230,12 @@
       "priority": "p1",
       "tags": [
         "offline_cuda"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/studies/output_space_followup/flow/process/test_run.py::test_analysis_distinguishes_git_blob_and_runtime_execution_bytes",
@@ -6397,7 +6442,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd",
+      "test_id": "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd",
       "target": "spec_mtp.flow.study_cli",
       "level": "integration",
       "type": "content",
@@ -6406,7 +6451,12 @@
       "priority": "p1",
       "tags": [
         "offline_cuda"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_runtime_root_cannot_use_another_checkout_even_with_a_binding",
@@ -6457,7 +6507,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_skips_completed_runs_without_recomputation",
+      "test_id": "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_skips_completed_runs_without_recomputation",
       "target": "spec_mtp.structure.make.schedule",
       "level": "integration",
       "type": "content",
@@ -6466,10 +6516,15 @@
       "priority": "p1",
       "tags": [
         "offline_cuda"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_resumes_only_pending_runs",
+      "test_id": "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_resumes_only_pending_runs",
       "target": "spec_mtp.structure.make.schedule",
       "level": "integration",
       "type": "content",
@@ -6478,7 +6533,12 @@
       "priority": "p1",
       "tags": [
         "offline_cuda"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/structure/artifact/test_layout.py::test_runtime_artifact_links_cannot_escape_the_admitted_root",
@@ -6654,7 +6714,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_rejects_source_drift_without_touching_completed_runs",
+      "test_id": "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_rejects_source_drift_without_touching_completed_runs",
       "target": "spec_mtp.structure.make.schedule",
       "level": "integration",
       "type": "content",
@@ -6663,7 +6723,12 @@
       "priority": "p1",
       "tags": [
         "offline_cuda"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_worker_admission_failure_does_not_rewrite_a_previous_scientific_success",
@@ -6691,7 +6756,7 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_roundtrip_restores_all_globals_but_not_explicit_generator",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_roundtrip_restores_all_globals_but_not_explicit_generator",
       "target": "spec_mtp.structure.algorithm.resume",
       "level": "unit",
       "type": "content",
@@ -6700,10 +6765,15 @@
       "priority": "p1",
       "tags": [
         "offline_cuda"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_device_mismatch_rejects_before_any_global_state_change",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_device_mismatch_rejects_before_any_global_state_change",
       "target": "spec_mtp.structure.algorithm.resume",
       "level": "unit",
       "type": "content",
@@ -6712,10 +6782,15 @@
       "priority": "p1",
       "tags": [
         "offline_cuda"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_checkpoint_bundle_restores_one_controlled_optimizer_step",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/test_resume.py::test_cuda_checkpoint_bundle_restores_one_controlled_optimizer_step",
       "target": "spec_mtp.structure.system.factory",
       "level": "integration",
       "type": "content",
@@ -6724,10 +6799,15 @@
       "priority": "p1",
       "tags": [
         "offline_cuda"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_malformed_domain_rejects_before_any_global_state_change",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_malformed_domain_rejects_before_any_global_state_change",
       "target": "spec_mtp.structure.algorithm.resume",
       "level": "unit",
       "type": "content",
@@ -6736,7 +6816,12 @@
       "priority": "p1",
       "tags": [
         "offline_cuda"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/structure/algorithm/test_resume.py::test_unfrozen_cuda_rng_state_does_not_query_or_initialize_cuda",
@@ -7035,7 +7120,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/data/test_data_resume.py::test_mid_epoch_cuda_batches_preserve_suffix_and_do_not_replay_transforms",
+      "test_id": "tests/cuda/spec_mtp/structure/data/test_data_resume.py::test_mid_epoch_cuda_batches_preserve_suffix_and_do_not_replay_transforms",
       "target": "spec_mtp.structure.data.factory.Data.iter_batches",
       "level": "integration",
       "type": "content",
@@ -7046,7 +7131,12 @@
       "tags": [
         "offline_cuda",
         "checkpoint_resume"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/structure/algorithm/train/test_admission.py::test_training_admission_precedes_all_live_state_changes",
@@ -7091,7 +7181,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run",
       "target": "spec_mtp.structure.algorithm.train",
       "level": "integration",
       "type": "content",
@@ -7102,7 +7192,12 @@
       "tags": [
         "offline_cuda",
         "checkpoint_resume"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/structure/algorithm/train/test_admission.py::test_checkpoint_read_sha_binds_original_bytes_and_rejects_drift",
@@ -7147,7 +7242,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_precommit_failure_preserves_committed_cuda_bundle",
+      "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_checkpoint_precommit_failure_preserves_committed_cuda_bundle",
       "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
       "level": "integration",
       "type": "content",
@@ -7158,10 +7253,15 @@
       "tags": [
         "offline_cuda",
         "recovery_boundary"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_first_write_partial_mirror_cannot_be_selected_as_committed_checkpoint",
+      "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_first_write_partial_mirror_cannot_be_selected_as_committed_checkpoint",
       "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
       "level": "integration",
       "type": "content",
@@ -7172,10 +7272,15 @@
       "tags": [
         "offline_cuda",
         "recovery_boundary"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_failed_write_never_promotes_unknown_legacy_mirror_to_bundle",
+      "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_failed_write_never_promotes_unknown_legacy_mirror_to_bundle",
       "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
       "level": "integration",
       "type": "content",
@@ -7186,10 +7291,15 @@
       "tags": [
         "offline_cuda",
         "recovery_boundary"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_committed_cuda_checkpoint_survives_diagnostic_cleanup_failure",
+      "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_committed_cuda_checkpoint_survives_diagnostic_cleanup_failure",
       "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
       "level": "integration",
       "type": "content",
@@ -7200,10 +7310,15 @@
       "tags": [
         "offline_cuda",
         "recovery_boundary"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_bundle_is_fsynced_before_publication_and_tensor_meta_roundtrips",
+      "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_checkpoint_bundle_is_fsynced_before_publication_and_tensor_meta_roundtrips",
       "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
       "level": "integration",
       "type": "content",
@@ -7214,10 +7329,15 @@
       "tags": [
         "offline_cuda",
         "recovery_boundary"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_failed_checkpoint_cleanup_keeps_primary_error_and_previous_cuda_bundle",
+      "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_failed_checkpoint_cleanup_keeps_primary_error_and_previous_cuda_bundle",
       "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
       "level": "integration",
       "type": "content",
@@ -7228,10 +7348,15 @@
       "tags": [
         "offline_cuda",
         "recovery_boundary"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_complete_but_unpublished_cuda_temporary_never_becomes_resume_source",
+      "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_complete_but_unpublished_cuda_temporary_never_becomes_resume_source",
       "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
       "level": "integration",
       "type": "content",
@@ -7242,10 +7367,15 @@
       "tags": [
         "offline_cuda",
         "recovery_boundary"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_resume_preserves_stall_and_terminal_checkpoints_do_no_work",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_resume_preserves_stall_and_terminal_checkpoints_do_no_work",
       "target": "spec_mtp.structure.algorithm.train.TrainAlgorithm.run",
       "level": "integration",
       "type": "content",
@@ -7256,10 +7386,15 @@
       "tags": [
         "offline_cuda",
         "recovery_boundary"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_checkpoint_failure_keeps_primary_error_when_tracker_cleanup_also_fails",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_checkpoint_failure_keeps_primary_error_when_tracker_cleanup_also_fails",
       "target": "spec_mtp.structure.algorithm.train.TrainAlgorithm.run",
       "level": "integration",
       "type": "content",
@@ -7270,7 +7405,12 @@
       "tags": [
         "offline_cuda",
         "recovery_boundary"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_entry_preserves_protocol_and_local_slice_and_closes_model",
@@ -7385,7 +7525,7 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch",
       "target": "spec_mtp.structure.algorithm.train.TrainAlgorithm.run",
       "level": "integration",
       "type": "content",
@@ -7396,10 +7536,15 @@
       "tags": [
         "offline_cuda",
         "recovery_boundary"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_serialization_error_survives_a_second_stream_close_failure",
+      "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_checkpoint_serialization_error_survives_a_second_stream_close_failure",
       "target": "spec_mtp.structure.system.factory.System.save_checkpoint",
       "level": "integration",
       "type": "content",
@@ -7410,10 +7555,15 @@
       "tags": [
         "offline_cuda",
         "recovery_boundary"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_fit_recovers_known_map_and_residual_without_host_solve",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_fit_recovers_known_map_and_residual_without_host_solve",
       "target": "spec_mtp.structure.algorithm.mask.fit",
       "level": "unit",
       "type": "content",
@@ -7424,10 +7574,15 @@
       "tags": [
         "offline_cuda",
         "structure_cleanup"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_ridge_selection_scores_prompt_folds_on_device",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_ridge_selection_scores_prompt_folds_on_device",
       "target": "spec_mtp.structure.algorithm.mask.fit",
       "level": "unit",
       "type": "content",
@@ -7438,7 +7593,12 @@
       "tags": [
         "offline_cuda",
         "structure_cleanup"
-      ]
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_analysis_keeps_runtime_git_and_current_source_identities_separate",
@@ -10913,7 +11073,7 @@
       "test_id": "tests/studies/_shared/flow/write/test_run.py::test_paired_report_cleanup_preserves_primary_and_blocks_completion"
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_scalar_kalman_cuda_matches_independent_joseph_and_reset",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_scalar_kalman_cuda_matches_independent_joseph_and_reset",
       "target": "spec_mtp.structure.algorithm.mask.providers.KalmanMaskProvider",
       "tags": [
         "offline_cuda",
@@ -10932,7 +11092,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_hybrid_gain_cuda_matches_independent_first_last_and_frozen",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_hybrid_gain_cuda_matches_independent_first_last_and_frozen",
       "target": "spec_mtp.structure.algorithm.mask.providers.HybridGainKalman",
       "tags": [
         "offline_cuda",
@@ -10951,7 +11111,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_cuda_matches_independent_weighted_history",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_cuda_matches_independent_weighted_history",
       "target": "spec_mtp.structure.algorithm.mask.providers.EMAVelocityMaskProvider",
       "tags": [
         "offline_cuda",
@@ -10970,7 +11130,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_aligned_residual_cuda_matches_independent_scalar_filter",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_aligned_residual_cuda_matches_independent_scalar_filter",
       "target": "spec_mtp.structure.algorithm.mask.providers.AlignedResidualKalman",
       "tags": [
         "offline_cuda",
@@ -10989,7 +11149,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_online_verify_cuda_matches_independent_coordinate_filter",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_online_verify_cuda_matches_independent_coordinate_filter",
       "target": "spec_mtp.structure.algorithm.mask.providers.OnlineVerifyKalman",
       "tags": [
         "offline_cuda",
@@ -11008,7 +11168,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_kalman_factory_rejects_nonfinite_variances",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_factory.py::test_kalman_factory_rejects_nonfinite_variances",
       "target": "spec_mtp.structure.algorithm.mask.factory.build_mask_provider",
       "tags": [
         "offline_cuda",
@@ -11027,7 +11187,7 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round",
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round",
       "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
         "offline_cuda",
@@ -11051,7 +11211,7 @@
       "budget_seconds": 420,
       "exclude": [
         {
-          "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_tiny_cuda_decode_preserves_committed_argmax_and_releases_memory",
+          "test_id": "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_tiny_cuda_decode_preserves_committed_argmax_and_releases_memory",
           "reason": "Requires a real CUDA device; covered by cuda-validation."
         },
         {
@@ -11059,95 +11219,95 @@
           "reason": "Requires a real CUDA device; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd",
+          "test_id": "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd",
           "reason": "Requires a real CUDA device; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_skips_completed_runs_without_recomputation",
+          "test_id": "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_skips_completed_runs_without_recomputation",
           "reason": "Requires a real CUDA device and independent scheduler worker; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_resumes_only_pending_runs",
+          "test_id": "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_resumes_only_pending_runs",
           "reason": "Requires a real CUDA device and independent scheduler worker; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_rejects_source_drift_without_touching_completed_runs",
+          "test_id": "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_rejects_source_drift_without_touching_completed_runs",
           "reason": "Requires a real CUDA worker before the source admission rejection; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_roundtrip_restores_all_globals_but_not_explicit_generator",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_roundtrip_restores_all_globals_but_not_explicit_generator",
           "reason": "Requires real CUDA RNG/checkpoint tensors; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_device_mismatch_rejects_before_any_global_state_change",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_device_mismatch_rejects_before_any_global_state_change",
           "reason": "Requires real CUDA RNG/checkpoint tensors; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_checkpoint_bundle_restores_one_controlled_optimizer_step",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/test_resume.py::test_cuda_checkpoint_bundle_restores_one_controlled_optimizer_step",
           "reason": "Requires real CUDA RNG/checkpoint tensors; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_malformed_domain_rejects_before_any_global_state_change",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_malformed_domain_rejects_before_any_global_state_change",
           "reason": "Requires real CUDA RNG state admission; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/data/test_data_resume.py::test_mid_epoch_cuda_batches_preserve_suffix_and_do_not_replay_transforms",
+          "test_id": "tests/cuda/spec_mtp/structure/data/test_data_resume.py::test_mid_epoch_cuda_batches_preserve_suffix_and_do_not_replay_transforms",
           "reason": "Requires real CUDA training or batches; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run",
           "reason": "Requires real CUDA training or batches; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_precommit_failure_preserves_committed_cuda_bundle",
+          "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_checkpoint_precommit_failure_preserves_committed_cuda_bundle",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_first_write_partial_mirror_cannot_be_selected_as_committed_checkpoint",
+          "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_first_write_partial_mirror_cannot_be_selected_as_committed_checkpoint",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_failed_write_never_promotes_unknown_legacy_mirror_to_bundle",
+          "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_failed_write_never_promotes_unknown_legacy_mirror_to_bundle",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_committed_cuda_checkpoint_survives_diagnostic_cleanup_failure",
+          "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_committed_cuda_checkpoint_survives_diagnostic_cleanup_failure",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_bundle_is_fsynced_before_publication_and_tensor_meta_roundtrips",
+          "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_checkpoint_bundle_is_fsynced_before_publication_and_tensor_meta_roundtrips",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_failed_checkpoint_cleanup_keeps_primary_error_and_previous_cuda_bundle",
+          "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_failed_checkpoint_cleanup_keeps_primary_error_and_previous_cuda_bundle",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_complete_but_unpublished_cuda_temporary_never_becomes_resume_source",
+          "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_complete_but_unpublished_cuda_temporary_never_becomes_resume_source",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_resume_preserves_stall_and_terminal_checkpoints_do_no_work",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_resume_preserves_stall_and_terminal_checkpoints_do_no_work",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_checkpoint_failure_keeps_primary_error_when_tracker_cleanup_also_fails",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_checkpoint_failure_keeps_primary_error_when_tracker_cleanup_also_fails",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_serialization_error_survives_a_second_stream_close_failure",
+          "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_checkpoint_serialization_error_survives_a_second_stream_close_failure",
           "reason": "Requires real CUDA recovery or checkpoint tensor I/O; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_fit_recovers_known_map_and_residual_without_host_solve",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_fit_recovers_known_map_and_residual_without_host_solve",
           "reason": "Requires actual CUDA training, fitting or saved tensor analysis; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_ridge_selection_scores_prompt_folds_on_device",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_ridge_selection_scores_prompt_folds_on_device",
           "reason": "Requires actual CUDA training, fitting or saved tensor analysis; covered by cuda-validation."
         },
         {
@@ -11239,23 +11399,23 @@
           "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_full_direction_preserves_native_mean_and_declared_velocity",
+          "test_id": "tests/cuda/spec_mtp/test_4b_full_directions.py::test_full_direction_preserves_native_mean_and_declared_velocity",
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/test_4b_full_directions.py::test_native_tiny_bf16_direction_controls_remain_argmax_safe",
+          "test_id": "tests/cuda/spec_mtp/test_4b_full_directions.py::test_native_tiny_bf16_direction_controls_remain_argmax_safe",
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
+          "test_id": "tests/cuda/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/test_bias_norm_scan.py::test_native_tiny_bf16_argmax_audit_for_scaled_bias",
+          "test_id": "tests/cuda/spec_mtp/test_bias_norm_scan.py::test_native_tiny_bf16_argmax_audit_for_scaled_bias",
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/test_paired_revalidation.py::test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token",
+          "test_id": "tests/cuda/spec_mtp/test_paired_revalidation.py::test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token",
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         },
         {
@@ -11271,11 +11431,11 @@
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_observer_preserves_bf16_outputs_calls_and_restores",
+          "test_id": "tests/cuda/spec_mtp/test_esp_argmax_audit.py::test_observer_preserves_bf16_outputs_calls_and_restores",
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/test_esp_argmax_audit.py::test_wrong_selection_is_rejected_and_restored",
+          "test_id": "tests/cuda/spec_mtp/test_esp_argmax_audit.py::test_wrong_selection_is_rejected_and_restored",
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         },
         {
@@ -11283,7 +11443,7 @@
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/test_extension_windows.py::test_second_slot_ar_path_requires_correct_first_and_available_target",
+          "test_id": "tests/cuda/spec_mtp/test_extension_windows.py::test_second_slot_ar_path_requires_correct_first_and_available_target",
           "reason": "Requires real CUDA engineering validation; covered by cuda-validation."
         },
         {
@@ -11351,207 +11511,203 @@
           "reason": "Seven saved alignment count cases execute real CUDA tensor math; use cuda-validation, no CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_invalid_temperature_is_rejected",
+          "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_invalid_temperature_is_rejected",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_boolean_never_impersonates_integer_audit_fields",
+          "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_boolean_never_impersonates_integer_audit_fields",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_missing_or_mutated_committed_row_is_rejected",
+          "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_missing_or_mutated_committed_row_is_rejected",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_source_mismatch_is_independent_of_correct_argmax",
+          "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_source_mismatch_is_independent_of_correct_argmax",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_truncated_jsonl_never_becomes_complete",
+          "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_truncated_jsonl_never_becomes_complete",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_duplicate_envelope_is_rejected",
+          "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_duplicate_envelope_is_rejected",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_invalid_decode_counts_are_rejected",
+          "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_invalid_decode_counts_are_rejected",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_decode_trace_and_counts_must_match_stream",
+          "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_decode_trace_and_counts_must_match_stream",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_budget_trimmed_acceptance_may_exceed_committed_count",
+          "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_budget_trimmed_acceptance_may_exceed_committed_count",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/structure/artifact/test_observation.py::test_empty_decode_still_checks_all_counts",
+          "test_id": "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_empty_decode_still_checks_all_counts",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_audit_consumes_existing_rows_only",
+          "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_audit_consumes_existing_rows_only",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
+          "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
+          "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
+          "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
+          "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_and_native_ar_match_per_token_and_audit",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_and_native_ar_match_per_token_and_audit",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_one_shot_cancel_signal_is_latched_and_never_reclassified",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_one_shot_cancel_signal_is_latched_and_never_reclassified",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_first_commit_failure_preserves_committed_fact_and_stops_next_forward",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_first_commit_failure_preserves_committed_fact_and_stops_next_forward",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_prompt_is_rejected_before_forward",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_prompt_is_rejected_before_forward",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_eos_prefill_is_in_complete_argmax_audit",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_eos_prefill_is_in_complete_argmax_audit",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_failure_before_first_forward_is_zero_work",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_failure_before_first_forward_is_zero_work",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_logits_rejected_in_token_and_tree_selection",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_logits_rejected_in_token_and_tree_selection",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_negative_infinity_bans_tokens_without_invalidating_distribution",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_negative_infinity_bans_tokens_without_invalidating_distribution",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_temperature_scaling_overflow_rejected_before_sampling_or_tree",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_temperature_scaling_overflow_rejected_before_sampling_or_tree",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_model_logits_stop_without_losing_prior_commits",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_model_logits_stop_without_losing_prior_commits",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_later_token_failure_preserves_successful_commits_within_block",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_later_token_failure_preserves_successful_commits_within_block",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_rejects_bad_impl_tree_pairs",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_rejects_bad_impl_tree_pairs",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_mask_init_errors",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_mask_init_errors",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_rejects_short_prompt_and_bad_level",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_rejects_short_prompt_and_bad_level",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_rejects_unknown_method",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_stop_on_eos_matches_ar_and_stops_early",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_stop_on_eos_matches_ar_and_stops_early",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_context_limit_sets_the_flag_and_matches_budgeted_ar",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_context_limit_sets_the_flag_and_matches_budgeted_ar",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_truncation_without_context_limit",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_truncation_without_context_limit",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_fork_generator_copies_state_and_leaves_source",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_fork_generator_copies_state_and_leaves_source",
+          "test_id": "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_kv_crop_and_keep_block_positions",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_kv_crop_and_keep_block_positions",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_rejects_more_branches_than_masks",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_rejects_more_branches_than_masks",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_zero_width_stops_deeper_levels",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_zero_width_stops_deeper_levels",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_topk_skips_banned_and_taken_tokens",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_topk_skips_banned_and_taken_tokens",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_dynamic_stops_when_pruning_exhausts_tiny_vocab",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_dynamic_stops_when_pruning_exhausts_tiny_vocab",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_build_tree_dispatch_and_unknown_mode",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_build_tree_dispatch_and_unknown_mode",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_children_of_and_block_layout_indices",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_children_of_and_block_layout_indices",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_matches_naive_builder",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_matches_naive_builder",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_returned_tensors_do_not_alias_the_cache",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_returned_tensors_do_not_alias_the_cache",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_uses_it_only_for_dynamic_trees",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_uses_it_only_for_dynamic_trees",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_efficient_cache_matches_naive_builder",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_efficient_cache_matches_naive_builder",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
           "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
-          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
-        },
-        {
-          "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
+          "test_id": "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
           "reason": "Real CUDA borrowed-model ownership and independent KV-value preservation contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path",
+          "test_id": "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path",
           "reason": "Real CUDA borrowed-model ownership and independent KV-value preservation contract; no CPU replacement."
         },
         {
@@ -11559,79 +11715,79 @@
           "reason": "Real CUDA native report/launch or observation-provider tensor contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_masks_follow_the_blend_and_never_write_back",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_masks_follow_the_blend_and_never_write_back",
           "reason": "Real CUDA native report/launch or observation-provider tensor contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_owner_depth_shifts_the_observation_and_falls_back_past_k",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_owner_depth_shifts_the_observation_and_falls_back_past_k",
           "reason": "Real CUDA native report/launch or observation-provider tensor contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
           "reason": "Real CUDA native report/launch or observation-provider tensor contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_falls_back_when_children_hold_all_mass",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_falls_back_when_children_hold_all_mass",
           "reason": "Real CUDA native report/launch or observation-provider tensor contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_update_false_leaves_masks_unchanged",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_update_false_leaves_masks_unchanged",
           "reason": "Real CUDA ESP/EMA provider initialization, state-update or factory tensor-input contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_offset_and_sample_inits",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_offset_and_sample_inits",
           "reason": "Real CUDA ESP/EMA provider initialization, state-update or factory tensor-input contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_update_false_freezes_velocity_but_moves_anchor",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_update_false_freezes_velocity_but_moves_anchor",
           "reason": "Real CUDA ESP/EMA provider initialization, state-update or factory tensor-input contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_extrapolate_ema_rebuilds_masks_after_commit",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_extrapolate_ema_rebuilds_masks_after_commit",
           "reason": "Real CUDA ESP/EMA provider initialization, state-update or factory tensor-input contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema",
           "reason": "Real CUDA ESP/EMA provider initialization, state-update or factory tensor-input contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_top1_form_uses_the_most_likely_allowed_token",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_top1_form_uses_the_most_likely_allowed_token",
           "reason": "Real CUDA observation top1, invalid-setting or bad-logit tensor contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_invalid_observation_settings_are_rejected",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_factory.py::test_invalid_observation_settings_are_rejected",
           "reason": "Real CUDA observation top1, invalid-setting or bad-logit tensor contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_observation_rejects_hidden_providers_and_bad_logits",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_observation_rejects_hidden_providers_and_bad_logits",
           "reason": "Real CUDA observation top1, invalid-setting or bad-logit tensor contract; no CPU replacement."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_scalar_kalman_cuda_matches_independent_joseph_and_reset",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_scalar_kalman_cuda_matches_independent_joseph_and_reset",
           "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_hybrid_gain_cuda_matches_independent_first_last_and_frozen",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_hybrid_gain_cuda_matches_independent_first_last_and_frozen",
           "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_cuda_matches_independent_weighted_history",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_cuda_matches_independent_weighted_history",
           "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_aligned_residual_cuda_matches_independent_scalar_filter",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_aligned_residual_cuda_matches_independent_scalar_filter",
           "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_online_verify_cuda_matches_independent_coordinate_filter",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_online_verify_cuda_matches_independent_coordinate_filter",
           "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_kalman_factory_rejects_nonfinite_variances",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/mask/test_factory.py::test_kalman_factory_rejects_nonfinite_variances",
           "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
         },
         {
-          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round",
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round",
           "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
         }
       ],
@@ -12085,7 +12241,8 @@
         "tests/spec_mtp/structure/model/test_hf_causal.py::test_kv_rejects_unsupported_cache_type",
         "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_empty_tree_helpers",
         "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_node_budget_rejects_too_small_block_complexity",
-        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_max_entries_must_be_at_least_one"
+        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_max_entries_must_be_at_least_one",
+        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_rejects_unknown_method"
       ],
       "exclude": []
     },
@@ -12093,31 +12250,31 @@
       "budget_seconds": 300,
       "cpu_only": false,
       "include": [
-        "tests/spec_mtp/structure/model/test_cuda_validation.py::test_tiny_cuda_decode_preserves_committed_argmax_and_releases_memory",
+        "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_tiny_cuda_decode_preserves_committed_argmax_and_releases_memory",
         "tests/studies/output_space_followup/flow/process/test_run.py::test_followup_saved_scope_and_state_checks_on_cuda",
-        "tests/spec_mtp/structure/model/test_cuda_validation.py::test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd",
-        "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_skips_completed_runs_without_recomputation",
-        "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_resumes_only_pending_runs",
-        "tests/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_rejects_source_drift_without_touching_completed_runs",
-        "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_roundtrip_restores_all_globals_but_not_explicit_generator",
-        "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_device_mismatch_rejects_before_any_global_state_change",
-        "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_checkpoint_bundle_restores_one_controlled_optimizer_step",
-        "tests/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_malformed_domain_rejects_before_any_global_state_change",
-        "tests/spec_mtp/structure/data/test_data_resume.py::test_mid_epoch_cuda_batches_preserve_suffix_and_do_not_replay_transforms",
-        "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run",
-        "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_precommit_failure_preserves_committed_cuda_bundle",
-        "tests/spec_mtp/structure/system/test_factory.py::test_first_write_partial_mirror_cannot_be_selected_as_committed_checkpoint",
-        "tests/spec_mtp/structure/system/test_factory.py::test_failed_write_never_promotes_unknown_legacy_mirror_to_bundle",
-        "tests/spec_mtp/structure/system/test_factory.py::test_committed_cuda_checkpoint_survives_diagnostic_cleanup_failure",
-        "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_bundle_is_fsynced_before_publication_and_tensor_meta_roundtrips",
-        "tests/spec_mtp/structure/system/test_factory.py::test_failed_checkpoint_cleanup_keeps_primary_error_and_previous_cuda_bundle",
-        "tests/spec_mtp/structure/system/test_factory.py::test_complete_but_unpublished_cuda_temporary_never_becomes_resume_source",
-        "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_resume_preserves_stall_and_terminal_checkpoints_do_no_work",
-        "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_checkpoint_failure_keeps_primary_error_when_tracker_cleanup_also_fails",
-        "tests/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch",
-        "tests/spec_mtp/structure/system/test_factory.py::test_checkpoint_serialization_error_survives_a_second_stream_close_failure",
-        "tests/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_fit_recovers_known_map_and_residual_without_host_solve",
-        "tests/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_ridge_selection_scores_prompt_folds_on_device",
+        "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd",
+        "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_skips_completed_runs_without_recomputation",
+        "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_resumes_only_pending_runs",
+        "tests/cuda/spec_mtp/structure/model/test_cuda_validation.py::test_independent_cuda_launch_rejects_source_drift_without_touching_completed_runs",
+        "tests/cuda/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_roundtrip_restores_all_globals_but_not_explicit_generator",
+        "tests/cuda/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_device_mismatch_rejects_before_any_global_state_change",
+        "tests/cuda/spec_mtp/structure/algorithm/test_resume.py::test_cuda_checkpoint_bundle_restores_one_controlled_optimizer_step",
+        "tests/cuda/spec_mtp/structure/algorithm/test_resume.py::test_cuda_rng_malformed_domain_rejects_before_any_global_state_change",
+        "tests/cuda/spec_mtp/structure/data/test_data_resume.py::test_mid_epoch_cuda_batches_preserve_suffix_and_do_not_replay_transforms",
+        "tests/cuda/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_train_resume_in_new_process_matches_uninterrupted_six_step_run",
+        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_checkpoint_precommit_failure_preserves_committed_cuda_bundle",
+        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_first_write_partial_mirror_cannot_be_selected_as_committed_checkpoint",
+        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_failed_write_never_promotes_unknown_legacy_mirror_to_bundle",
+        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_committed_cuda_checkpoint_survives_diagnostic_cleanup_failure",
+        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_checkpoint_bundle_is_fsynced_before_publication_and_tensor_meta_roundtrips",
+        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_failed_checkpoint_cleanup_keeps_primary_error_and_previous_cuda_bundle",
+        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_complete_but_unpublished_cuda_temporary_never_becomes_resume_source",
+        "tests/cuda/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_resume_preserves_stall_and_terminal_checkpoints_do_no_work",
+        "tests/cuda/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_checkpoint_failure_keeps_primary_error_when_tracker_cleanup_also_fails",
+        "tests/cuda/spec_mtp/structure/algorithm/train/test_resume_process.py::test_cuda_epoch_step_cap_terminal_recovery_does_not_consume_another_batch",
+        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_checkpoint_serialization_error_survives_a_second_stream_close_failure",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_fit_recovers_known_map_and_residual_without_host_solve",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_fit.py::test_cuda_affine_ridge_selection_scores_prompt_folds_on_device",
         "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_transfer_cuda_audit_preserves_propagation_and_committed_state_guards",
         "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_cross_prompt_cuda_audit_preserves_trace_state_and_margin_guards",
         "tests/studies/output_space_small_matrix/flow/process/test_small_matrix_analysis.py::test_saved_tensor_files_run_on_cuda_with_pinned_report_bindings",
@@ -12140,93 +12297,92 @@
         "tests/studies/output_space_cross_task/flow/process/test_canonical_readout_entry.py::test_canonical_entry_reads_actual_cuda_states_with_separate_historical_source_commit",
         "tests/studies/_shared/structure/test_untimed_algorithm.py::test_untimed_decoder_preserves_complete_argmax_with_ar_as_diagnostic_on_cuda",
         "tests/studies/qwen3_4b_bf16_bias_norm_scan/flow/execute/test_capacity.py::test_capacity_tiny_cuda_uses_the_controlled_policy_and_complete_argmax_chain",
-        "tests/spec_mtp/test_4b_full_directions.py::test_full_direction_preserves_native_mean_and_declared_velocity",
-        "tests/spec_mtp/test_4b_full_directions.py::test_native_tiny_bf16_direction_controls_remain_argmax_safe",
-        "tests/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
-        "tests/spec_mtp/test_bias_norm_scan.py::test_native_tiny_bf16_argmax_audit_for_scaled_bias",
-        "tests/spec_mtp/test_paired_revalidation.py::test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token",
+        "tests/cuda/spec_mtp/test_4b_full_directions.py::test_full_direction_preserves_native_mean_and_declared_velocity",
+        "tests/cuda/spec_mtp/test_4b_full_directions.py::test_native_tiny_bf16_direction_controls_remain_argmax_safe",
+        "tests/cuda/spec_mtp/test_bias_norm_scan.py::test_native_scale_retains_mean_and_seed_direction",
+        "tests/cuda/spec_mtp/test_bias_norm_scan.py::test_native_tiny_bf16_argmax_audit_for_scaled_bias",
+        "tests/cuda/spec_mtp/test_paired_revalidation.py::test_native_argmax_gate_ignores_ar_diagnostic_but_rejects_changed_token",
         "tests/studies/_shared/structure/test_norm_controls.py::test_content_direction_reuses_one_cuda_provider_with_distinct_prompt_offsets",
-        "tests/spec_mtp/test_esp_argmax_audit.py::test_observer_preserves_bf16_outputs_calls_and_restores",
-        "tests/spec_mtp/test_esp_argmax_audit.py::test_wrong_selection_is_rejected_and_restored",
+        "tests/cuda/spec_mtp/test_esp_argmax_audit.py::test_observer_preserves_bf16_outputs_calls_and_restores",
+        "tests/cuda/spec_mtp/test_esp_argmax_audit.py::test_wrong_selection_is_rejected_and_restored",
         "tests/studies/_shared/structure/test_esp_controls.py::test_full_esp_adapter_combines_untimed_cuda_decode_and_optional_external_audit",
         "tests/studies/_shared/structure/test_esp_controls.py::test_rowwise_bf16_is_partition_and_permutation_invariant",
         "tests/studies/_shared/structure/test_esp_controls.py::test_shape_patch_is_local_and_restores_on_failure",
-        "tests/spec_mtp/test_extension_windows.py::test_second_slot_ar_path_requires_correct_first_and_available_target",
+        "tests/cuda/spec_mtp/test_extension_windows.py::test_second_slot_ar_path_requires_correct_first_and_available_target",
         "tests/studies/output_space_extension/flow/process/test_run.py::test_saved_transfer_analysis_preserves_skipped_prompts_and_second_slot_validity",
         "tests/studies/output_space_extension/structure/test_saved_q178_diagnostics.py::test_saved_q178_audits_use_real_cuda_state_and_reject_corrupt_captures",
         "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_current_cuda_smoke_matrix_records_full_t0_and_sampling_scope",
         "tests/test_run.py::test_cuda_scalar_measurement_records_actual_samples_and_environment",
         "tests/studies/_shared/flow/summarize/test_run.py::test_alignment_gate_rejects_inconsistent_persisted_counts",
-        "tests/spec_mtp/structure/artifact/test_observation.py::test_invalid_temperature_is_rejected",
-        "tests/spec_mtp/structure/artifact/test_observation.py::test_boolean_never_impersonates_integer_audit_fields",
-        "tests/spec_mtp/structure/artifact/test_observation.py::test_missing_or_mutated_committed_row_is_rejected",
-        "tests/spec_mtp/structure/artifact/test_observation.py::test_source_mismatch_is_independent_of_correct_argmax",
-        "tests/spec_mtp/structure/artifact/test_observation.py::test_truncated_jsonl_never_becomes_complete",
-        "tests/spec_mtp/structure/artifact/test_observation.py::test_duplicate_envelope_is_rejected",
-        "tests/spec_mtp/structure/artifact/test_observation.py::test_invalid_decode_counts_are_rejected",
-        "tests/spec_mtp/structure/artifact/test_observation.py::test_decode_trace_and_counts_must_match_stream",
-        "tests/spec_mtp/structure/artifact/test_observation.py::test_budget_trimmed_acceptance_may_exceed_committed_count",
-        "tests/spec_mtp/structure/artifact/test_observation.py::test_empty_decode_still_checks_all_counts",
-        "tests/spec_mtp/flow/test_cli.py::test_cli_audit_consumes_existing_rows_only",
-        "tests/spec_mtp/flow/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
-        "tests/spec_mtp/flow/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
-        "tests/spec_mtp/flow/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
-        "tests/spec_mtp/flow/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_and_native_ar_match_per_token_and_audit",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_one_shot_cancel_signal_is_latched_and_never_reclassified",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_first_commit_failure_preserves_committed_fact_and_stops_next_forward",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_prompt_is_rejected_before_forward",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_eos_prefill_is_in_complete_argmax_audit",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_failure_before_first_forward_is_zero_work",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_logits_rejected_in_token_and_tree_selection",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_negative_infinity_bans_tokens_without_invalidating_distribution",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_temperature_scaling_overflow_rejected_before_sampling_or_tree",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_model_logits_stop_without_losing_prior_commits",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_later_token_failure_preserves_successful_commits_within_block",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_rejects_bad_impl_tree_pairs",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_mask_init_errors",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_rejects_short_prompt_and_bad_level",
-        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_rejects_unknown_method",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_stop_on_eos_matches_ar_and_stops_early",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_context_limit_sets_the_flag_and_matches_budgeted_ar",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_truncation_without_context_limit",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_fork_generator_copies_state_and_leaves_source",
-        "tests/spec_mtp/structure/model/test_hf_causal.py::test_kv_crop_and_keep_block_positions",
-        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_rejects_more_branches_than_masks",
-        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_zero_width_stops_deeper_levels",
-        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_topk_skips_banned_and_taken_tokens",
-        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_dynamic_stops_when_pruning_exhausts_tiny_vocab",
-        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_build_tree_dispatch_and_unknown_mode",
-        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_children_of_and_block_layout_indices",
-        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_matches_naive_builder",
-        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_returned_tensors_do_not_alias_the_cache",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_uses_it_only_for_dynamic_trees",
-        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_efficient_cache_matches_naive_builder",
-        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
-        "tests/spec_mtp/structure/model/test_hf_causal.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
-        "tests/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_masks_follow_the_blend_and_never_write_back",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_owner_depth_shifts_the_observation_and_falls_back_past_k",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_falls_back_when_children_hold_all_mass",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_update_false_leaves_masks_unchanged",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_offset_and_sample_inits",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_update_false_freezes_velocity_but_moves_anchor",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_extrapolate_ema_rebuilds_masks_after_commit",
-        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_top1_form_uses_the_most_likely_allowed_token",
-        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_invalid_observation_settings_are_rejected",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_observation_rejects_hidden_providers_and_bad_logits",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_scalar_kalman_cuda_matches_independent_joseph_and_reset",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_hybrid_gain_cuda_matches_independent_first_last_and_frozen",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_cuda_matches_independent_weighted_history",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_aligned_residual_cuda_matches_independent_scalar_filter",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_online_verify_cuda_matches_independent_coordinate_filter",
-        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_kalman_factory_rejects_nonfinite_variances",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round"
+        "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_invalid_temperature_is_rejected",
+        "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_boolean_never_impersonates_integer_audit_fields",
+        "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_missing_or_mutated_committed_row_is_rejected",
+        "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_source_mismatch_is_independent_of_correct_argmax",
+        "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_truncated_jsonl_never_becomes_complete",
+        "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_duplicate_envelope_is_rejected",
+        "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_invalid_decode_counts_are_rejected",
+        "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_decode_trace_and_counts_must_match_stream",
+        "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_budget_trimmed_acceptance_may_exceed_committed_count",
+        "tests/cuda/spec_mtp/structure/artifact/test_observation.py::test_empty_decode_still_checks_all_counts",
+        "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_audit_consumes_existing_rows_only",
+        "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
+        "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
+        "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
+        "tests/cuda/spec_mtp/flow/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_and_native_ar_match_per_token_and_audit",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_one_shot_cancel_signal_is_latched_and_never_reclassified",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_first_commit_failure_preserves_committed_fact_and_stops_next_forward",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_prompt_is_rejected_before_forward",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_eos_prefill_is_in_complete_argmax_audit",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_failure_before_first_forward_is_zero_work",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_logits_rejected_in_token_and_tree_selection",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_negative_infinity_bans_tokens_without_invalidating_distribution",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_temperature_scaling_overflow_rejected_before_sampling_or_tree",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_model_logits_stop_without_losing_prior_commits",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_later_token_failure_preserves_successful_commits_within_block",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_rejects_bad_impl_tree_pairs",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_mask_init_errors",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_rejects_short_prompt_and_bad_level",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_stop_on_eos_matches_ar_and_stops_early",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_context_limit_sets_the_flag_and_matches_budgeted_ar",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_truncation_without_context_limit",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_fork_generator_copies_state_and_leaves_source",
+        "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_kv_crop_and_keep_block_positions",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_rejects_more_branches_than_masks",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_zero_width_stops_deeper_levels",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_topk_skips_banned_and_taken_tokens",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_dynamic_stops_when_pruning_exhausts_tiny_vocab",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_build_tree_dispatch_and_unknown_mode",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree.py::test_children_of_and_block_layout_indices",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_matches_naive_builder",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_returned_tensors_do_not_alias_the_cache",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_uses_it_only_for_dynamic_trees",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_efficient_cache_matches_naive_builder",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
+        "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
+        "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_masks_follow_the_blend_and_never_write_back",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_owner_depth_shifts_the_observation_and_falls_back_past_k",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_falls_back_when_children_hold_all_mass",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_update_false_leaves_masks_unchanged",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_offset_and_sample_inits",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_update_false_freezes_velocity_but_moves_anchor",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_extrapolate_ema_rebuilds_masks_after_commit",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_top1_form_uses_the_most_likely_allowed_token",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_factory.py::test_invalid_observation_settings_are_rejected",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_observation_rejects_hidden_providers_and_bad_logits",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_scalar_kalman_cuda_matches_independent_joseph_and_reset",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_hybrid_gain_cuda_matches_independent_first_last_and_frozen",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_cuda_matches_independent_weighted_history",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_aligned_residual_cuda_matches_independent_scalar_filter",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_online_verify_cuda_matches_independent_coordinate_filter",
+        "tests/cuda/spec_mtp/structure/algorithm/mask/test_factory.py::test_kalman_factory_rejects_nonfinite_variances",
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round"
       ],
       "exclude": [],
       "resources": {

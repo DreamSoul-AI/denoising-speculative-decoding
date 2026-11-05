@@ -329,3 +329,66 @@ def cuda_tiny_model(cuda_decode, record_property):
     finally:
         for model in reversed(owned):
             model.close()
+
+
+def cli_model_args(tmp_path):
+    from dataclasses import asdict
+    import json
+    import hashlib
+    from types import SimpleNamespace
+    model = tmp_path / 'model'
+    model.mkdir()
+    (model / 'config.json').write_text('{}', encoding='utf-8')
+    manifest = tmp_path / 'model-sources.json'
+    manifest.write_text(json.dumps({'config.json': hashlib.sha256(b'{}').hexdigest()}), encoding='utf-8')
+    path = tmp_path / 'request.json'
+    path.write_text(json.dumps(asdict(decode_request())), encoding='utf-8')
+    return SimpleNamespace(request=path, model=model, model_sources=manifest, output=tmp_path / 'raw.jsonl')
+
+
+def cursor_data(kind='random', *, workers=0, seed=7, explicit_loader=True, device=None, size=13):
+    from spec_mtp.structure.data.factory import Data
+    import torch
+    from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
+
+    reads = []
+
+    class Samples:
+        def __len__(self):
+            return size
+
+        def __getitem__(self, index):
+            reads.append(index)
+            if device is None:
+                return index
+            return torch.stack((torch.tensor(index, device=device), torch.rand((), device=device)))
+
+    dataset = Samples()
+    sampler_generator = torch.Generator().manual_seed(seed)
+    sampler = (SequentialSampler(dataset) if kind == 'sequential' else
+               RandomSampler(dataset, generator=sampler_generator))
+    loader_generator = (sampler_generator if kind == 'shared' else
+                        torch.Generator().manual_seed(seed + 1) if explicit_loader else None)
+    options = {} if device is not None else {'collate_fn': lambda values: values}
+    loader = DataLoader(dataset, batch_size=3, sampler=sampler, generator=loader_generator,
+                        num_workers=workers, **options)
+    data = Data(name='cursor-fixture', source='local', loaders={'train': loader},
+                meta={'seed': seed, 'batch_size': 3, 'config': {'fixture': 'fixed-id-order'}})
+    return data, dataset, reads
+
+
+def cursor_values_equal(left, right):
+    import torch
+
+    if isinstance(left, torch.Tensor):
+        return isinstance(right, torch.Tensor) and torch.equal(left, right)
+    if isinstance(left, dict):
+        return isinstance(right, dict) and left.keys() == right.keys() and all(cursor_values_equal(left[key], right[key]) for key in left)
+    return left == right
+
+
+def norm_control_module(monkeypatch):
+    from types import SimpleNamespace
+    from studies._shared.structure.geometry_4b import observe_initial_bias
+    return SimpleNamespace(STUDY=ROOT/'studies/qwen3_4b_bf16_bias_norm_scan',
+                           observe_initial_bias=observe_initial_bias)

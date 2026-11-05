@@ -20,7 +20,7 @@ from spec_mtp.structure.model.hf_causal import HFCausalLM
 def _tiny_cuda_source(root, *, version='round4-cuda-engineering', seeds=(123,), frozen=False):
     import yaml
 
-    repository = Path(__file__).resolve().parents[4]
+    repository = Path(__file__).resolve().parents[5]
     template = repository / 'studies/smoke'
     source = root / 'source-study'
     for member in template.rglob('*'):
@@ -158,7 +158,7 @@ def test_cuda_study_pipeline_keeps_source_read_only_from_an_arbitrary_cwd(tmp_pa
 def _independent_cli(root, *args, expected_success=True):
     from tests.conftest import _process_tree
 
-    repository = Path(__file__).resolve().parents[4]
+    repository = Path(__file__).resolve().parents[5]
     cwd = root / 'independent-cwd'
     cwd.mkdir(exist_ok=True)
     receipts = root / 'subprocess-evidence'

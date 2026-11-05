@@ -43,6 +43,10 @@ trajectory_observation 的 fresh_replace 选句、配对统计留在 structure/f
 科学 CLI 与 Study CLI 的实现分开，产品入口分别为 `python -m spec_mtp` 与 `python -m studies._shared.flow.cli`。flow 的包初始化只标记命名空间，调用方直接导入其使用的模块，避免通过包入口加载整个阶段链。
 
 # 三、源码依赖与测试镜像
+宿主测试按执行资源设两个明确根：`tests/spec_mtp/` 只承载CPU安全合同，`tests/cuda/spec_mtp/` 承载真实CUDA合同，两者都在根之后完整镜像同一源码相对路径。现有CPU工作流仍运行 `python -m pytest tests/spec_mtp`；GPU运行 `python -m pytest tests/cuda/spec_mtp`，资源声明与已有cuda-validation计划随实际函数路径同步。默认 `python -m pytest tests` 仍收集两个根，不通过skip、排除、收集钩子或配置过滤选择设备。
+
+混合测试文件按函数职责拆到对应根，保留函数名、参数、断言和实际设备前提；共用输入工厂放已有tests/conftest，不复制科学实现或新增微型助手包。未知方法等只验证拒绝的guard留CPU根，以无张量对象证明拒绝发生在张量处理前；模型、CUDA RNG、张量持久化、解码数值合同保留真实GPU。迁移前后按参数节点核对一一对应和完整执行，manifest的target继续指实际生产职责，不因资源目录改变。后文本章的structure/flow相对测试镜像在相应资源根下解释，混合职责可在两根各有同名镜像文件。
+
 flow 可以导入 structure，structure 不导入 flow。宿主不导入 rpipe 或 studies。科学合同不导入其它 structure 子层。算法核心、输入、观测和统计不导入具体模型或 CLI。api 只维护科学合同，构建由所属层工厂提供，make_tracker 放在 algorithm/tracker.py。四个旧流程 API facade 已移除，直接反向导入例外为零。宿主structure/control及普通layer父包只标包身份，真实消费者直接导入职责模块；科学状态子包另按实际公开合同审查，不能把直接静态边为零推广为全仓轻量导入。
 
 ```mermaid
@@ -83,7 +87,7 @@ flowchart TB
 
 trajectory的office三类命令集中于flow/execute/office.py，structure保留协议、纯统计与已有测量实现。新专用协议运行须显式本地模型目录/完整来源清单、Dolly JSONL、固定计划SHA和新外部输出，载模前完成来源与正式dirty检查，输入与代码读后复核；不续写历史root。它没有study.yaml，故不称通用Study快照，原协议旧prefix保留，运行绑定另记实际源码/输入/模型/设备。永久停止的BF16/独立AR机理入口拒绝新派发。
 
-native训练恢复沿现有职责实现，不新建恢复框架：`algorithm/base.py` 分离只读 `load_resume` 与 `apply_resume`，`algorithm/resume.py` 负责持久化状态准入与RNG校验，`algorithm/train/` 先构造合同并准入、再应用；`system/factory.py` 的 `checkpoint_path` 与读取共用只读路径规则，保存仍由原System维护。`data/factory.py` 的 `validate_training_state` 纯校验v2数据状态，`data/resume.py` 维护游标及sampler/loader generator关系。测试在 `tests/spec_mtp/structure/{algorithm/train,data,system}/` 镜像，独立进程夹具只在测试内，不成为生产入口。当前分工对照远端RPipe main固定414ccb7的读取、准入、应用与原子快照机制，未复制其整套库或更改本仓旧编码。
+native训练恢复沿现有职责实现，不新建恢复框架：`algorithm/base.py` 分离只读 `load_resume` 与 `apply_resume`，`algorithm/resume.py` 负责持久化状态准入与RNG校验，`algorithm/train/` 先构造合同并准入、再应用；`system/factory.py` 的 `checkpoint_path` 与读取共用只读路径规则，保存仍由原System维护。`data/factory.py` 的 `validate_training_state` 纯校验v2数据状态，`data/resume.py` 维护游标及sampler/loader generator关系。CPU准入在 `tests/spec_mtp/structure/{algorithm,data,system}/`，真实CUDA恢复在 `tests/cuda/spec_mtp/structure/{algorithm/train,data,system}/` 镜像，独立进程夹具只在测试内，不成为生产入口。当前分工对照远端RPipe main固定414ccb7的读取、准入、应用与原子快照机制，未复制其整套库或更改本仓旧编码。
 
 `flow/execute/fair_branch.py` 拥有原fair协议CLI与会话生命周期，`fresh_replace.py` 内的 `prepare_local_inputs` 供两条replacement flow共用本地输入预检，返回已解析的输入路径和绑定复核，不让各入口重新跟随原路径别名。`structure/fair_branch.py` 保留纯参数化的选择、校准和统计，移除main、固定模型路径与联网读件。pytest按当前pyproject使用importlib模式，入口镜像测试以 `test_fair_branch_entry.py`、`test_fresh_replace_entry.py` 区分同名结构测试。
 
@@ -167,7 +171,7 @@ CSV指标仍由既有 `structure/csv_logger.py` 的Logger维护，其真实镜�
 
 来源manifest及load_lock镜像归 `_shared/structure/test_sources.py`，写锁命令路径归 `_shared/flow/test_cli.py`；GPU进程名/上下文分类与XML解析归 `_shared/structure/test_gpu_admission.py`，mask设置归已有config镜像。它们按真实unit/integration与成本登记，GPU字段的标量检查仍是CPU内容验证，不触发硬件观察。宿主初始化AST合同合现有parent_imports镜像；仓库级安装/console配置合同仍由test_package承担，不为其建无职责科学leaf。tomllib导入和打包前置条件只约束实际依赖它的测试，不能连带阻断独立来源/CLI合同收集。
 
-typed request镜像为 `tests/spec_mtp/structure/api/test_decode_api.py`，审计归 `structure/artifact/test_observation.py`，科学CLI归 `flow/test_cli.py`，生成/AR/选择器归 `structure/algorithm/decode/test_loop.py`。共用输入构造和注入session/sink/run复用已有tests/conftest：decode_request只创建标准库API值，decode_fixture(device)惰性加载数值实现；不从测试文件导入另一测试，也不为每个对象新建助手模块。CUDA fixture只为实际数值用例启用，显式核tensor/model设备、只登记一次诊断属性并在call结束前定稿，teardown不改已验事实。真实本地loader委托及模型forward在测试内核CUDA，生产CLI能力和默认接口保持。
+typed request镜像为 `tests/spec_mtp/structure/api/test_decode_api.py`，审计归 `structure/artifact/test_observation.py`，科学CLI归 `flow/test_cli.py`，生成/AR/选择器归CUDA根的 `structure/algorithm/decode/test_loop.py`。共用输入构造和注入session/sink/run复用已有tests/conftest：decode_request只创建标准库API值，decode_fixture(device)惰性加载数值实现；不从测试文件导入另一测试，也不为每个对象新建助手模块。CUDA fixture只为实际数值用例启用，显式核tensor/model设备、只登记一次诊断属性并在call结束前定稿，teardown不改已验事实。真实本地loader委托及模型forward在测试内核CUDA，生产CLI能力和默认接口保持。
 
 loop镜像不保模块级CPU session或张量。无效prompt通过纯device工厂在用例内构造，保形状、dtype、值和独立参数身份；tensor/full/Generator与期望张量均显式设备。生成、AR、SpecDecoder输入准入及选择器分别定位实际target，unit与integration按真实调用边界声明，实际GPU一律C3/GPU1。选择器记录实际logits设备，零forward只记录已有CUDA输入/embedding，不生成假forward；显式Generator的状态合同核全局CPU/CUDA RNG字节和defaultdevice未变，不用恢复掩盖意外变更。
 
@@ -175,10 +179,10 @@ tree与attention各有真实leaf镜像 `decode/test_tree.py`、`decode/test_tree
 
 Hypothesis attention属性保原max_examples、策略、dtype/BC/seed范围及每example新建cache。device fixture不可变，设备证据仅append，function-scoped healthcheck的局部豁免须与该生命周期一起解释；不豁免真实数据失败或缩例掩盖成本。空树、整数预算、缓存容量与不支持类型为CPU纯合同，真实概率/掩码/模型/Generator用CUDA并核设备。naive/cache等值只比较同次输入，CPU和CUDA随机初始化不当作相同模型或树的字节复现。
 
-模型镜像 `tests/spec_mtp/structure/model/test_hf_causal.py` 中借用所有权和具体KV选槽沿用原文件/ID，数值接入已有cuda_decode，未增加生产模块或共享夹具。借用模型保原LlamaConfig全部实参与默认配置，在CUDA上下文创建并验证CPU/selected CUDA RNG及默认设备恢复；不借用会改变原配置的tiny工厂。关闭后保native对象、embedding Parameter与完整state_dict 12项持久化张量的值/存储身份，原closed异常仍在native forward之前拒绝；不扩大为training模式或非持久buffer不变。KV在cache.update前保存独立CUDA克隆，核两层prefix2与block[0,2]保留原位置[0,1,2,4]，防别名掩盖原值破坏。两项按真实target的unit/content/C3/GPU1登记，后两项既有函数、conftest和生产源码保持。
+CUDA模型镜像 `tests/cuda/spec_mtp/structure/model/test_hf_causal.py` 中借用所有权和具体KV选槽沿用原函数与参数ID，数值接入已有cuda_decode，未增加生产模块或共享夹具。借用模型保原LlamaConfig全部实参与默认配置，在CUDA上下文创建并验证CPU/selected CUDA RNG及默认设备恢复；不借用会改变原配置的tiny工厂。关闭后保native对象、embedding Parameter与完整state_dict 12项持久化张量的值/存储身份，原closed异常仍在native forward之前拒绝；不扩大为training模式或非持久buffer不变。KV在cache.update前保存独立CUDA克隆，核两层prefix2与block[0,2]保留原位置[0,1,2,4]，防别名掩盖原值破坏。两项按真实target的unit/content/C3/GPU1登记，后两项既有函数、conftest和生产源码保持。
 
 保存数字导出的5函数15参数归 `tests/spec_mtp/structure/artifact/readout/test_report.py`，只读Study质量门1参数合既有 `_shared/flow/process/test_run.py`，真实make/launch/report链1参数合既有 `_shared/flow/test_cli.py`；原混合test_readout_report删除。一个必要artifact镜像承载同一write_numbers职责，不按断言拆文件；process用例内联原最小三文件输入，避免测试间导入或改变失败刺激。CLI复用原CUDA Study工厂，在本用例临时recipe挂真实forward设备观察，不改共享recipe常量、原smoke或conftest。声明/源码与外部运行根分开，make后来源绑定新CUDAversion/Run，报告仍只读。
 
-mask provider行为和factory选择/准入分别由 `tests/spec_mtp/structure/algorithm/mask/test_providers.py` 与 `test_factory.py` 镜像。providers核ESP/EMA初始化、冻结与提交状态，以及observation的blend/depth/rejection/top1和logits准入；factory核配置选择、非法字段及构造后的真实对象。非法配置保完整有效基底，避免删字段改变拒绝原因。两类职责各保一份镜像，不按单个函数增文件，不从旧混合测试导入helper或模块级CPU PROMPTS。已有Kalman/EMA的独立CUDA参考也归providers镜像：EMA闭式历史、标量/逐维/残差Joseph与增益回归、first/last/frozen和reset；factory核非有限噪声准入，loop镜像核真实裁剪后commit/finish顺序。参考在GPU以独立FP64计算，期望不调用生产私有更新助手；工程正确性与研究效益分开。
+mask provider行为和factory真实张量选择/准入分别由 `tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py` 与同根的 `test_factory.py` 镜像；未知方法纯拒绝归CPU根的同名factory镜像。providers核ESP/EMA初始化、冻结与提交状态，以及observation的blend/depth/rejection/top1和logits准入；factory核配置选择、非法字段及构造后的真实对象。非法配置保完整有效基底，避免删字段改变拒绝原因。两类职责按实际资源保留完整源码镜像，不按单个函数增文件，不从旧混合测试导入helper或模块级CPU PROMPTS。已有Kalman/EMA的独立CUDA参考也归providers镜像：EMA闭式历史、标量/逐维/残差Joseph与增益回归、first/last/frozen和reset；factory核非有限噪声准入，loop镜像核真实裁剪后commit/finish顺序。参考在GPU以独立FP64计算，期望不调用生产私有更新助手；工程正确性与研究效益分开。
 
 参与数值的表、prompt、logits及预期/输出显式使用CUDA；固定seed用局部Generator，原未指定seed的输入通过selected CUDA fork_rng隔离，不额外指定seed。全局CPU/CUDA RNG与默认设备恢复通过状态断言取证，属性只记录实际参与张量。拒绝用例记录真实输入与异常，factory未生成mask时只记输入/对象归属，不补成功输出或模型forward。文件内fixture只服务实际消费者，简单构造就地表达，不增加共享转发层。镜像按真实方法的unit/content/C3/GPU1登记；纯I/O与配置合同及完整CLI旅程分别按其成本/层级选择，未授权的模型矩阵不随测试归位派发。
