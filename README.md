@@ -3,7 +3,7 @@
 
 截至2026年10月21日的 8B 非官方 Table 1 独立复验已经完成，论文目标未复现。数字和原件在 [历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>)。提交 token 的验证前向 argmax 自检与独立 AR 一致率分别报告，τ 是提交数与解码调用数之比，不能据此认定实际速度收益。
 
-当前优先核验并收束已有 EMA 与具体 Kalman 方案。EMA 已有局部接受收益证据；多个 Kalman 配方为负或未确认，不能混为统一成功结论。当前成果、对照与结案顺序见唯一 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)。`k_affine_residual` 的 `postcommit-final-norm-v1` 仅为静态 K 合成工程夹具，不代表已有 Kalman 变体；160 对协议和真实模型收益未执行。
+当前收束已有 EMA 与具体 Kalman 方案：同8条 writing 的32/256预算均未支持EMA相对ESP的联合收益，256扩展候选已关闭，不自动续512或扫β；旧480条局部接受正证据保留。Kalman observation-only四场景受测合同已通过，多个旧配方收益为负或未确认。当前成果、范围与处置见唯一 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)。`k_affine_residual` 的 `postcommit-final-norm-v1` 仅为静态 K 合成工程夹具，不代表已有 Kalman 变体；160 对协议和真实模型收益未执行。
 
 # 一、文档入口
 | **文档** | **维护内容** |
@@ -25,7 +25,7 @@
 
 `python -m spec_mtp` / `spec-mtp` 由 `flow/cli.py` 提供 `decode/audit/compare`。Study 使用 `python -m studies._shared.flow.cli`，接入宿主 `flow/study_cli.py` 与默认六阶段。包初始化不加载模型或整套调度器。流程由本仓实现，不再内嵌 `src/rpipe/`。旧流程 API facade 已删除，构建直接使用所属层工厂。九个共用诊断再导出已清理，消费者直接导入真实模块。已登记的 Study 顶层遗留入口清单为空，其余结构与测试镜像差距见代码结构设计与开发计划。
 
-当前主线是验证已有 Kalman/EMA 正确且可用，尽快完成方案与旧 Run 结案；工程整理优先解决直接阻塞这些工作的缺口，不等待新算法。正确性、优化和性能验证使用 CUDA，先确认可用并记录实际设备；CPU 只做快速纯合同单元测试。GPU 满载时等待或缩小规模，模型下载不在范围。本任务普通推送现有工作分支，经 Draft PR106 面向 dev 评审，不修改 main/dev 或绕过检查。
+当前主线是按已验证范围完成 Kalman/EMA 方案与旧 Run 结案；工程只处理直接阻塞这些结论或来源保全的具体缺口，不重复派发已完成合同，不等待新算法。正确性、优化和性能验证使用 CUDA，先确认可用并记录实际设备；CPU 只做快速纯合同单元测试。GPU 满载时等待或缩小规模，模型下载不在范围。本任务普通推送现有工作分支，经 Draft PR106 面向 dev 评审，不修改 main/dev 或绕过检查。
 
 第三方 ESP 来源树及 `ORIGIN.json` 保留，不能把它称为作者官方实现。原始 SpecBench 数据保留于 `datasets/spec_bench/question.jsonl`。
 
@@ -116,7 +116,7 @@ Run和Study质量门分别从 `studies._shared.flow.summarize.run`、`studies._s
 
 Study声明的 `provenance.project_plan.path` 只有在无commit/hash的当前导航角色时跟随唯一中文研究计划；带commit/path/sha的固定组及 `docs/source_refs.json` 仍按原Git身份读取。historical_sections中的anchor按原版本索引解释，不指向当前中文正文锚点。导航维护不修改历史source_path/commit/blob/hash、旧Run或原科学输入；原件缺失仍拒绝。
 
-本轮不调整现有 Actions、CI/CD 或设置。远端结果仅作参考，本地微型CUDA工程验证覆盖既定合成夹具，不覆盖真实权重/数据、吞吐或采样分布保证。已有 CUDA 环境保持原样，不下载模型或覆盖 torch。
+本任务不调整现有 Actions、CI/CD 或设置。微型CUDA工程验证只覆盖既定合成夹具，不能替代真实模型研究或采样分布保证；已有真实权重EMA比较另从研究计划与对应运行记录定位。已有 CUDA 环境保持原样，不下载模型或覆盖 torch。
 
 Python配置对象直接从 `spec_mtp.structure.<algorithm|data|model|system>.config` 导入；`RunConfig`/`ExperimentConfig`从 `spec_mtp.structure.control.run_config` 导入，Study构建 `expand_study` 从 `spec_mtp.structure.make.write` 导入。宿主普通父包只标识职责，不再通过再导出加载工厂或运行层；实际符号入口见代码结构设计。YAML空文档仍为空配置，非mapping的false/0/序列等无效输入明确拒绝；写入前失败保留旧配置。
 
@@ -128,6 +128,6 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 文档职责按 AGENTS.md 维护。通用调研不代替文献调研，研究计划不代替开发计划。历史测量在运行记录，结构调整在开发记录。
 
-模型所有权、KV值保全、报告真实launch及provider数值合同使用CUDA。ESP/EMA状态、observation top1/拒绝与factory准入按真实职责归现有providers/factory镜像，报告纯I/O门保CPU；缺证据与非法输入仍严格拒绝。登记952函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别806/445/134/12函数；快速CPU仍1359参数，CUDA计划新增56个Kalman/EMA独立参考、非有限准入及提交时序参数，实际执行终态与提交身份见运行记录。native计划仍12项，本拍未因其未受影响而重跑。旧72项观测模型矩阵保持暂停，工程验证不代表真实权重研究或性能收益。
+模型所有权、KV值保全、报告真实launch及provider数值合同使用CUDA。ESP/EMA状态、observation top1/拒绝与factory准入按真实职责归现有providers/factory镜像，报告纯I/O门保CPU；缺证据与非法输入仍严格拒绝。登记952函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别806/445/134/12函数；快速CPU仍1359参数，CUDA计划新增56个Kalman/EMA独立参考、非有限准入及提交时序参数，实际执行终态与提交身份见运行记录。native计划仍12项，其实际运行身份由日期记录定位。旧72项观测模型矩阵保持暂停，工程验证不代表真实权重研究或性能收益。
 
 已有Kalman/EMA的P0 CUDA核验按独立参考区分递推、状态时序与研究收益：EMA闭式历史、标量Joseph、逐维/残差与对角增益各自验证；Online/Aligned每轮首commit，Hybrid last为实际末commit（截断时不保证bonus）。已修非有限噪声参数准入与forget=1除零，端点关闭Q/R自适应而P/F仍更新。局部正确性不证明Kalman建模最优或真实模型加速，成果与来源缺口见唯一研究计划。
