@@ -8,15 +8,8 @@ from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
 from spec_mtp.structure.algorithm.mask import (BonusSlotMaskProvider, ESPMaskProvider,
                             PreforwardSignalCollector, apply_lowrank_delta,
                             build_mask_provider, centered_r2, fit_lowrank_delta)
-from spec_mtp.structure.model.hf_causal import HFCausalLM
+from tests.conftest import fixed_tiny_model as _model
 from spec_mtp.structure.algorithm.decode.tree import DraftTree
-
-
-def _model():
-    torch.manual_seed(7)
-    return HFCausalLM(tiny_config={'vocab_size': 199, 'hidden_size': 64, 'intermediate_size': 128,
-                                   'num_layers': 2, 'num_heads': 4, 'num_kv_heads': 2,
-                                   'max_position_embeddings': 1024})
 
 
 def _spec(method, k, mode, gain=None, condition='none', form='mean'):

@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src'))
 import torch
 
 from studies._shared.structure.config import _convert
-from spec_mtp.structure.model.hf_causal import HFCausalLM
+from tests.conftest import fixed_tiny_model as _tiny_model
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
 from spec_mtp.structure.algorithm.mask import EMAVelocityMaskProvider, ESPMaskProvider
 from spec_mtp.structure.algorithm.decode.tree import build_static_tree
@@ -118,15 +118,6 @@ def test_synthetic_trajectories():
 
 
 # ------------------------------------------------------------ live decode
-def _tiny_model():
-    torch.manual_seed(7)
-    return HFCausalLM(tiny_config={
-        'vocab_size': 199, 'hidden_size': 64, 'intermediate_size': 128,
-        'num_layers': 2, 'num_heads': 4, 'num_kv_heads': 2,
-        'max_position_embeddings': 1024,
-    })
-
-
 def _spec_cfg(num_masks, branches, update=True):
     return _convert({
         'method': 'ema_velocity',

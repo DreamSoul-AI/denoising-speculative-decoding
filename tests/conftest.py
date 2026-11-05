@@ -1,4 +1,4 @@
-"""Shared helpers: copy the smoke Study into a temp dir and run it through RPipe."""
+"""Shared fixtures for this repository's FlowRunner and scientific contracts."""
 
 import os
 import shutil
@@ -19,6 +19,17 @@ os.environ['PYTHONPATH'] = os.pathsep.join((
     str(ROOT / 'src'), str(ROOT), str(ROOT / 'studies' / '_shared' / 'structure')))
 if str(ROOT / 'studies' / '_shared' / 'structure') not in sys.path:
     sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
+
+
+def fixed_tiny_model():
+    import torch
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
+
+    torch.manual_seed(7)
+    return HFCausalLM(tiny_config={'vocab_size': 199, 'hidden_size': 64,
+                                   'intermediate_size': 128, 'num_layers': 2,
+                                   'num_heads': 4, 'num_kv_heads': 2,
+                                   'max_position_embeddings': 1024})
 
 
 def copy_study(tmp_path, patch=None, name='smoke_copy'):

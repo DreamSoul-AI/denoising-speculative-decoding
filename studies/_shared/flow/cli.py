@@ -90,8 +90,8 @@ def main(argv: list[str] | None = None) -> int:
 
     argv = prepare_study_argv(argv)
     if any(item in ('-h', '--help') for item in argv):
-        from spec_mtp.flow.study_cli import main as rpipe_main
-        return int(rpipe_main(argv) or 0)
+        from spec_mtp.flow.study_cli import main as study_main
+        return int(study_main(argv) or 0)
     lock = write_lock_for(argv)
     if lock is not None:
         print(f'spec_mtp sources: {lock}', flush=True)
@@ -109,9 +109,9 @@ def main(argv: list[str] | None = None) -> int:
                 render_numbers(study)
                 context = StudyProcessContext(study, state={'process': load_result(study / 'process.json')})
                 study_gate(context, persist=False)
-    from spec_mtp.flow.study_cli import main as rpipe_main
+    from spec_mtp.flow.study_cli import main as study_main
 
-    return int(rpipe_main(argv) or 0)
+    return int(study_main(argv) or 0)
 
 
 if __name__ == '__main__':

@@ -487,7 +487,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     study_p = sub.add_parser('study', help='alias for run')
     study_sub = study_p.add_subparsers(dest='study_cmd', required=True)
-    study_run = study_sub.add_parser('run', help='same as rpipe run')
+    study_run = study_sub.add_parser('run', help='same as run')
     _add_run_flags(study_run)
 
     make_p = sub.add_parser('make', help='write configs, index, and launch scripts')

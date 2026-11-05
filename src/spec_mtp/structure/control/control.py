@@ -47,20 +47,7 @@ class Control:
         return run_config_to_mapping(self.run)
 
 
-def control_from_config(cfg: dict[str, Any], run_dir: str | None = None) -> Control:
-    """Build Control from Artifact Config mapping (prepare reads Config).
-
-    ``run_dir`` is accepted for call-site compatibility (Artifact directory name)
-    but does not override content-hash ``id``.
-    """
-    del run_dir  # directory name ≠ content id
+def control_from_config(cfg: dict[str, Any]) -> Control:
+    """Build Control from Artifact Config mapping with its content-hash id."""
     run = RunConfig.from_mapping(cfg, assign_id=True)
     return Control(run=run, raw=dict(cfg))
-
-
-def control_from_run_config(run: RunConfig) -> Control:
-    return Control(run=run, raw=run.to_mapping())
-
-
-def control_to_config(control: Control) -> dict[str, Any]:
-    return control.to_dict()

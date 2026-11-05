@@ -45,6 +45,10 @@ trajectory_observation 的 fresh_replace 选句、配对统计留在 structure/f
 # 三、源码依赖与测试镜像
 结果读取的严格入口仍由artifact/result/io.py维护；状态列表与聚合器的可选读取共用同一load_optional_result，不各自复制文件存在性与异常边界。缺文件、非文件及原有OSError/TypeError/ValueError返回None，非mapping的CorruptArtifactError和其它异常继续传播，严格load_result不降级。Control合同只校RunConfig/Control，不维护无消费者的第二套Result草稿门；实际写入仍使用result.format.validate_result。相应读写合同在CPU根的artifact/result镜像验证，不新增生产模块或运行器。
 
+FlowContext只以study_dir标识Study根，移除无消费者的experiment_dir旧别名。Control由prepare使用control_from_config(cfg)构造；不保未使用的run_dir参数、control_from_run_config/control_to_config转调，实际Control.to_dict仍服务summarize和失败Result。typed配置、Registry及稳定CLI薄入口保留其职责，不为减少文件数抽泛型或抹平不同合同。
+
+三个现有CPU参考测试的同配置tiny模型输入归已有conftest的fixed_tiny_model，每次调用在原位置manual_seed(7)并创建新实例；原全部模型字段和测试断言保留，不缓存模型。它与CUDA工厂的配置/状态合同不同，不强行合成可配置工厂。shared CLI直接委托本仓study_cli/FlowRunner，RPipe只保结构模板与历史来源身份，不以旧变量名或帮助文案冒充当前执行依赖。
+
 宿主测试按执行资源设两个明确根：`tests/spec_mtp/` 只承载CPU安全合同，`tests/cuda/spec_mtp/` 承载真实CUDA合同，两者都在根之后完整镜像同一源码相对路径。现有CPU工作流仍运行 `python -m pytest tests/spec_mtp`；GPU运行 `python -m pytest tests/cuda/spec_mtp`，资源声明与已有cuda-validation计划随实际函数路径同步。默认 `python -m pytest tests` 仍收集两个根，不通过skip、排除、收集钩子或配置过滤选择设备。
 
 混合测试文件按函数职责拆到对应根，保留函数名、参数、断言和实际设备前提；共用输入工厂放已有tests/conftest，不复制科学实现或新增微型助手包。未知方法等只验证拒绝的guard留CPU根，以无张量对象证明拒绝发生在张量处理前；模型、CUDA RNG、张量持久化、解码数值合同保留真实GPU。迁移前后按参数节点核对一一对应和完整执行，manifest的target继续指实际生产职责，不因资源目录改变。后文本章的structure/flow相对测试镜像在相应资源根下解释，混合职责可在两根各有同名镜像文件。
