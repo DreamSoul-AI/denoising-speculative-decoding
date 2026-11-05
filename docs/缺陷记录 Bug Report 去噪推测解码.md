@@ -17,7 +17,9 @@
 # 四、静态校正跨prompt状态重置待核
 只读审查发现VerifyCorrectionMaskProvider在线scalar的init重置轮次标记，但未见还原拟合的k/num/den；跨prompt复用与每prompt新实例可能不同。该项尚未CUDA复现，不能据此判定旧Run失效；若必要诊断对照用到它，先按真实调用方式验证并明确状态作用域。当前Kalman/EMA独立参考不覆盖该静态校正类。
 
-# 五、PR106的测试收集阻塞待独立复现
-2026年11月5日20:08 UTC收到的状态为：Draft PR106的cpu-checks因既有spec_mtp收集ModuleNotFoundError阻塞，涉及test_window_observer与test_proxy_transfer。状态来源为Owner报告，本拍未读取Actions日志或独立复现，不能将具体环境原因写成已确认。
+# 五、CPU检查收集已修，整套设备选集仍待处理
+原d79d0ac的远端cpu-checks与本地同命令均复现14个收集错误。实际缺失的是test_window_observer/test_proxy_transfer两个裸测试模块，生产spec_mtp可导入。原因是旧兄弟测试引用依赖prepend目录副作用，而当前pytest采用importlib模式。本次只将14文件17条引用改为tests.spec_mtp完整模块名，符号、fixture、测试体和断言不变。
 
-该项保持BLOCKED，不合并或绕过必需检查。后续工程任务需在正常包/依赖环境下收集并执行所需计划，保原失败与修复证据。本拍不改测试套件、CI/workflow或设置，来源审计和定向文档快检不代表此远端检查通过。
+本地修后1103项完整收集，两个helper各只有一个模块身份。原工作流测试目录全跑的结果仍为831通过、55失败、217错误，不能记为检查通过：269项属于CUDA用例，另3项为归档目录期望及本机旧RPipe目录/安装入口。该本地环境为Windows/Python3.13/CUDA torch且尝试隐藏GPU，与Ubuntu/Python3.12/CPU wheel不相同，不能把全部本地失败直接等同远端。
+
+工作流目前直接执行混合设备的tests/spec_mtp，不使用既有资源计划。后续最小候选是经单独授权把入口接到已有cpu-pr及全新runner临时输出根，并独立处理归档目录契约和环境残留；更换入口本身不证明全部用例通过。本拍不修改workflow、选择策略、skip/ignore或禁区，远端新HEAD状态从PR106定位，仍阻塞时不合并或绕过。

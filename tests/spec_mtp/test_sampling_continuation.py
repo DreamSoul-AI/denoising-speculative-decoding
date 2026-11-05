@@ -1,7 +1,7 @@
 """Changed-temperature rare hits never establish original-condition reachability."""
 
 import pytest
-from test_window_observer import ROOT
+from tests.spec_mtp.test_window_observer import ROOT
 
 
 def summary(monkeypatch):

@@ -3,7 +3,7 @@
 import math
 import pytest
 
-from test_window_observer import ROOT
+from tests.spec_mtp.test_window_observer import ROOT
 
 
 def test_detectability_preserves_tiny_nonzero_mass(monkeypatch):

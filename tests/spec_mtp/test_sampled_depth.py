@@ -1,5 +1,5 @@
 import pytest
-from test_window_observer import ROOT
+from tests.spec_mtp.test_window_observer import ROOT
 
 
 @pytest.mark.parametrize('first_a,first_b,target,second,eos,nodes_a,nodes_b,expected', [

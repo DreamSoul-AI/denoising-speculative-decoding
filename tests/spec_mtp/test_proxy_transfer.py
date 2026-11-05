@@ -7,7 +7,7 @@ import torch
 
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
 from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
-from test_window_observer import ROOT, model as model, observer, spec
+from tests.spec_mtp.test_window_observer import ROOT, model as model, observer, spec
 
 
 def baseline(model):

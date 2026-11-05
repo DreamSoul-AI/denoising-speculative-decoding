@@ -5,7 +5,7 @@ from spec_mtp.structure.algorithm.mask import build_mask_provider
 import torch
 import pytest
 
-from test_window_observer import ROOT, model as model, spec
+from tests.spec_mtp.test_window_observer import ROOT, model as model, spec
 from studies._shared.structure.config import _convert
 
 

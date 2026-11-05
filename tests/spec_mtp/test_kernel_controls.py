@@ -2,7 +2,7 @@
 
 import copy
 import torch
-from test_window_observer import ROOT, model as model
+from tests.spec_mtp.test_window_observer import ROOT, model as model
 from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
 from spec_mtp.structure.model import hf_causal as kv_cache
 

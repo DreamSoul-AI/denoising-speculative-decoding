@@ -2,7 +2,7 @@
 
 import torch
 
-from test_window_observer import ROOT
+from tests.spec_mtp.test_window_observer import ROOT
 
 
 def test_window_selection_uses_common_root_not_forward_index(monkeypatch):
