@@ -1,4 +1,7 @@
-"""Bound decode fingerprints and host cProfile analysis of CUDA workloads."""
+"""Bound decode fingerprints and host cProfile analysis of CUDA workloads.
+
+Usage: python -m studies._shared.flow.diagnostics --help
+"""
 
 import argparse
 import hashlib

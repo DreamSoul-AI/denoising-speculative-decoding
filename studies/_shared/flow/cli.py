@@ -1,5 +1,7 @@
 """Thin entry over ``spec_mtp.flow.study_cli``.
 
+Usage: python -m studies._shared.flow.cli --help
+
 ``make`` and ``launch --remake`` write the SpecMTP source lock. ``run`` and a
 plain ``launch`` keep an existing lock so ``freeze: true`` can see source drift
 after make. A first ``run`` without a lock still writes one, unless the Study
