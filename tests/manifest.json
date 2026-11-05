@@ -1105,46 +1105,118 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_budget_and_native_ar_match_per_token_and_audit",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_and_native_ar_match_per_token_and_audit",
+      "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_one_shot_cancel_signal_is_latched_and_never_reclassified",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_one_shot_cancel_signal_is_latched_and_never_reclassified",
+      "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_sink_first_commit_failure_preserves_committed_fact_and_stops_next_forward",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_first_commit_failure_preserves_committed_fact_and_stops_next_forward",
+      "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_invalid_prompt_is_rejected_before_forward",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_prompt_is_rejected_before_forward",
+      "target": "spec_mtp.structure.algorithm.decode.loop.SpecDecoder.generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_eos_prefill_is_in_complete_argmax_audit",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_eos_prefill_is_in_complete_argmax_audit",
+      "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_sink_failure_before_first_forward_is_zero_work",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_failure_before_first_forward_is_zero_work",
+      "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_decoder_rejects_bad_impl_tree_pairs",
@@ -4040,46 +4112,118 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_invalid_logits_rejected_in_token_and_tree_selection",
-      "target": "spec_mtp.structure.algorithm.decode.loop",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_logits_rejected_in_token_and_tree_selection",
+      "target": "spec_mtp.structure.algorithm.decode.loop.select_token",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_negative_infinity_bans_tokens_without_invalidating_distribution",
-      "target": "spec_mtp.structure.algorithm.decode.loop",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_negative_infinity_bans_tokens_without_invalidating_distribution",
+      "target": "spec_mtp.structure.algorithm.decode.loop.select_token",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_temperature_scaling_overflow_rejected_before_sampling_or_tree",
-      "target": "spec_mtp.structure.algorithm.decode.loop",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_temperature_scaling_overflow_rejected_before_sampling_or_tree",
+      "target": "spec_mtp.structure.algorithm.decode.loop.select_token",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_invalid_model_logits_stop_without_losing_prior_commits",
-      "target": "spec_mtp.structure.algorithm.decode.loop",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_model_logits_stop_without_losing_prior_commits",
+      "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
-      "target": "spec_mtp.structure.algorithm.decode.loop",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
+      "target": "spec_mtp.structure.algorithm.decode.loop.ar_generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
-      "target": "spec_mtp.structure.algorithm.decode.loop",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
+      "target": "spec_mtp.structure.algorithm.decode.loop.ar_generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/structure/algorithm/test_counts.py::test_custom_pairing_cannot_remove_required_identity_checks",
@@ -4112,18 +4256,42 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_later_token_failure_preserves_successful_commits_within_block",
-      "target": "spec_mtp.structure.algorithm.decode.loop",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_later_token_failure_preserves_successful_commits_within_block",
+      "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decode.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
-      "target": "spec_mtp.structure.algorithm.decode.loop",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
+      "target": "spec_mtp.structure.algorithm.decode.loop.generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/studies/k_affine_residual/structure/test_evaluation.py::test_negative_mse_cannot_finalize_or_pass_persisted_matrix",
@@ -10638,6 +10806,62 @@
         {
           "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
           "reason": "CUDA numerical fixture; validate actual tensor/model device in cuda-validation, no CPU substitute."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_and_native_ar_match_per_token_and_audit",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_one_shot_cancel_signal_is_latched_and_never_reclassified",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_first_commit_failure_preserves_committed_fact_and_stops_next_forward",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_prompt_is_rejected_before_forward",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_eos_prefill_is_in_complete_argmax_audit",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_failure_before_first_forward_is_zero_work",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_logits_rejected_in_token_and_tree_selection",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_negative_infinity_bans_tokens_without_invalidating_distribution",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_temperature_scaling_overflow_rejected_before_sampling_or_tree",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_model_logits_stop_without_losing_prior_commits",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_later_token_failure_preserves_successful_commits_within_block",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
+          "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
         }
       ],
       "cpu_only": true
@@ -11172,13 +11396,27 @@
         "tests/spec_mtp/flow/test_cli.py::test_cli_audit_rejects_corrupt_trace_without_model_calls",
         "tests/spec_mtp/flow/test_cli.py::test_cli_success_closes_its_model_and_keeps_auditable_output",
         "tests/spec_mtp/flow/test_cli.py::test_cli_model_drift_cannot_write_completed_end",
-        "tests/spec_mtp/flow/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit"
+        "tests/spec_mtp/flow/test_cli.py::test_cli_real_local_model_sources_and_read_only_audit",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_and_native_ar_match_per_token_and_audit",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_one_shot_cancel_signal_is_latched_and_never_reclassified",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_first_commit_failure_preserves_committed_fact_and_stops_next_forward",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_prompt_is_rejected_before_forward",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_eos_prefill_is_in_complete_argmax_audit",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_sink_failure_before_first_forward_is_zero_work",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_logits_rejected_in_token_and_tree_selection",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_negative_infinity_bans_tokens_without_invalidating_distribution",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_temperature_scaling_overflow_rejected_before_sampling_or_tree",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_invalid_model_logits_stop_without_losing_prior_commits",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_later_token_failure_preserves_successful_commits_within_block",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_normal_accepted_bonus_block_preserves_budget_and_eos"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
-        "estimated_device_seconds": 155,
-        "estimate_basis": "Prior clean CUDA plan163 parameters took106.23s; adds63 bounded synthetic audit/CLI parameters including728-parameter local CUDA model. Confirm actual duration in this clean-HEAD run; no performance claim.",
+        "estimated_device_seconds": 160,
+        "estimate_basis": "Clean prior CUDA226 parameters took110.22s; adds35 bounded injected decode/selector CUDA parameters.160s is an estimate, not a benchmark; budget remains300s.",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false

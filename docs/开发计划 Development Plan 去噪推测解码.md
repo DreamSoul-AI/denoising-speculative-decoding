@@ -2,25 +2,23 @@
 更新日期：2026年11月5日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-基线 `ce37fee`，继续 `codex/structure-cleanup-20261105` 更新Draft PR106到dev。本轮约30分钟，先制定计划立即实施：核依赖6分钟、归位及CUDA适配10分钟、净提交验证10分钟、文档与交付4分钟。算法、生产协议、科学阈值及旧Run身份不改。
+基线 `76c0f91`，继续 `codex/structure-cleanup-20261105` 更新Draft PR106到dev。本轮约30分钟：核合同6分钟、归位与CUDA适配10分钟、净提交验证/独审10分钟、交付4分钟。目标是旧decode十四函数35参数归实际loop镜像，保原协议、参数、异常和断言，不改生产算法或接口。
 
-本轮只读核远端RPipe main=`414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6`，读取代码结构设计的实际职责镜像、轻量API和独立验证章节；不访问本机RPipe/dayan，不同步模板实现。
+只读核远端RPipe main=`414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6`，读取代码结构设计的实际职责镜像与独立验证章节。typed request/audit/CLI共享fixture保现有canonical接口，不访问本机RPipe/dayan，不同步模板源码。
 
 ## 目标、步骤与验收
-| **步骤与预估** | **文件及实际工作** | **验收** |
+| **步骤与预估** | **实际工作** | **验收** |
 | --- | --- | --- |
-| 核对，6分钟 | 固定基线逐函数读取typed request、audit、CLI和test_decode夹具消费者，核真实模型loader与设备能力 | 26旧函数101参数：CPU11函数38参数、CUDA15函数63参数；旧decode14函数35参数另列未执行范围 |
-| 实施，10分钟 | typed3函数归structure/api/test_decode_api；audit12归artifact/test_observation，CLI11归flow/test_cli。原request和session/sink/run合已有tests/conftest中的纯request与惰性bundle工厂，清除test-to-test imports | 原参数、异常、断言与数值协议保留；没有新生产模块/算法或重复夹具。纯request路径不导入科学栈；保留decode仅复用原CPU语义，不静默接卡 |
-| 合同与验证，10分钟 | 真实数值15函数移出CPU计划、入既有CUDA计划，纯合同11函数入CPU快速计划；实际session/model/embedding/forward记录CUDA并核状态恢复 | 945登记不增；预计CPU快速1355参数，CUDA226项执行，native11项。单卡、CPU120秒/两CUDA各300秒预算不扩；63新CUDA参数和38纯合同参数在净HEAD有独立结果 |
-| 交付，4分钟 | 同步设计、研究执行边界及日期记录，独立审查AST/设备/元数据/原件，再普通推送 | 两checkout干净，PR保持Draft→dev，main/dev不改、保护不绕过、制品不入Git |
+| 核对，6分钟 | 按固定HEAD读取原14函数、loop、共享fixture及调用方，区分生成/AR、输入拒绝、选择器及随机数 | 35参数中15模型forward、10刻意无模型forward、10选择器数值；CPU ByteTensor只作RNG状态合同，不作数值替代 |
+| 实施，10分钟 | 归 `tests/spec_mtp/structure/algorithm/decode/test_loop.py`，删除module级CPU bundle；每例显式cuda_decode，tensor/full/Generator/expectedtensor显式设备 | 原34条断言及35后缀保留，五badprompt惰性构造并固定tokens0..4身份；无CPU模块级张量、无新生产或助手文件 |
+| 合同与验证，10分钟 | 14项移出CPU计划并入原CUDA计划，细分target/level/C3/GPU1；补原neginf两参数的RNG/defaultdevice守卫，净HEAD回归和独审 | 登记945不增，四计划841/441/93/11函数；CPU快速1355参数、CUDA261项执行、native11项，预算120/300/300秒不扩。63个既有审计CUDA参数和35新参数分别核设备角色 |
+| 交付，4分钟 | 同步README、代码结构/研究边界/日期记录，核报告只读重建、来源拒绝、20锁后普通推送 | 两checkout干净、Draft→dev，main/dev保持；不绕过检查、不提交制品 |
 
-轻量typed request只经标准库API和纯decode_request构造，不为参数校验加载FakeSession、Torch或Transformers。共享数值fixture的torch、generate、mask等在惰性factory内装配，显式指定device；CUDA分支必须先确认可用，embedding、forward输入/输出均核实际设备并写回执，不以默认设备标签代替执行。诊断property只登记一次且在call结束前完成，不在teardown改写冻结事实。
+选择器三函数十参数不执行模型forward，记录实际logits设备及原分布边界结果；生成和AR路径十一函数25参数记录真实model embedding，故意零工作项保零调用，不补假forward。负无穷用例的显式CUDA Generator保seed0；比较调用前后的CPU/CUDA RNG状态字节及defaultdevice，证明局部随机数不污染全局。不用fork_rng恢复掩盖意外状态修改，不将T>0边界单元测试外推为采样分布证明。
 
-audit的non-object envelope与模型路径逃逸，以及CLI的参数、比较、输出准入和构造失败属于纯IO/合同；其余audit10函数56参数、CLI5函数7参数实际创建/执行数值，作为CUDA工程验证。真实728参数CLI用例仍调用原本地loader，测试级委托装配将会话放CUDA并核forward；生产CLI未新增device选项，不把测试注入能力写成用户默认能力。只保存CUDA权重不能证明loader/forward在GPU。
+invalidprompt原五Tensor参数不在模块收集时创建CPU张量，按同形状/dtype/值的惰性device工厂在CUDA构造，显式保持原参数后缀。基线后缀复用已保存的原35收集记录并核固定Git声明，不重新执行旧CPU decorator或数值。typed request的纯构造、audit/CLI共享fixture及生产loader接口保持当前职责，原运行设备身份不回签。
 
-本轮不扩大旧decode14函数35参数的执行范围，只迁走其公用helper以清除audit/CLI对测试文件的依赖；其原函数body/参数/显式CPU构造语义须由AST审查保持，既有元数据与后续CUDA迁移单独登记。不能据本轮CUDA通过宣称旧CPU数值集合已执行或跨设备bitwise等价。
-
-验证入口保持Ruff、默认mypy及tests/run.py的cpu-quick、cuda-native-smoke、cuda-validation。两个GPU计划顺序运行，先记录torch.cuda.is_available、实际设备/dtype/backend和负载；忙时等待或缩小规模，不CPU回退。报告从落盘结果只读重建，核逐参数终态、SHA、链接、20旧锁与四项原字节缺失的严格拒绝。来源核对只沿已知375字节日志/manifest/两索引，不重扫refs/ACL/全盘，不重造或补签原件；最终拒绝driver在净HEAD只执行一次，无输出且未进入张量加载才合格。
+验证继续使用Ruff、默认mypy和tests/run.py的cpu-quick、cuda-native-smoke、cuda-validation。两GPU计划按终态顺序运行，先确认CUDA并记录实际设备/dtype/backend和负载；忙时等待或缩小规模，不CPU回退。逐参数结果、SHA、链接、只读报告、20旧锁和四项原字节缺失严格拒绝须在同一净HEAD闭环。来源核对只沿已知375字节日志/manifest/两索引，不扫refs/ACL/全盘，不重造或补签；最终拒绝driver只执行一次，必须无输出、未到张量加载。
 
 # 二、六类核对与落实
 | **类别** | **已有实现条件** | **仍需完成的具体差距** |
