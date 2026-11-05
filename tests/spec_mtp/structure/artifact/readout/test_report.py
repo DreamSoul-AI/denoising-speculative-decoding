@@ -1,11 +1,10 @@
-"""Explicit report exports preserve the saved identity, inputs and prior output."""
+"""Explicit exports preserve saved identity and never rewrite read-only inputs."""
 import copy
 import json
 from pathlib import Path
 
 import pytest
 
-from tests.conftest import cli
 from spec_mtp.structure.artifact.readout.report import write_numbers
 
 
@@ -107,50 +106,7 @@ def test_report_rejects_output_that_overlaps_inputs_or_source(tmp_path, placemen
     study = tmp_path / 'study'
     _study(study)
     targets = {'study': study / 'new.md', 'study_parent': tmp_path / 'new.md',
-               'source': Path(__file__).resolve().parents[2] / 'new.md'}
+               'source': Path(__file__).resolve().parents[5] / 'new.md'}
     with pytest.raises(ValueError, match='separate'):
         write_numbers(study, targets[placement])
     assert not targets[placement].exists()
-
-
-def test_spec_cli_report_keeps_upstream_identity_and_specialized_evidence_gates(study_copy):
-    study = study_copy(lambda s: s.update(axes={'algorithm.config.variant': ['esp_static']}),
-                       name='v031_report')
-    cli('make', study, '--num-gpus', '0', check=True)
-    cli('launch', study, '--num-gpus', '0', '--console', 'shared', check=True)
-    path = study.parent / 'export/numbers.md'
-    process_path = study / 'process.json'
-    initial = process_path.read_bytes()
-    assert cli('report', study).returncode != 0
-    cli('report', study, '--out', path, check=True)
-    assert process_path.read_bytes() == initial
-    previous = path.read_bytes()
-    process = json.loads(process_path.read_text())
-    process['experiments'][0]['runs'][0]['seed'] = -1
-    process_path.write_text(json.dumps(process))
-    stale_process = process_path.read_bytes()
-    result = cli('report', study, '--out', study.parent / 'other/numbers.md')
-    assert process_path.read_bytes() == stale_process
-    assert result.returncode != 0 and 'current index' in result.stdout + result.stderr
-    assert path.read_bytes() == previous
-    cli('process', study, check=True)
-    run_id = json.loads((study / 'index.json').read_text())['experiments'][0]['runs'][0]['id']
-    (study / 'runs' / run_id / 'assets/decode_observations.json').unlink()
-    initial = process_path.read_bytes()
-    result = cli('report', study, '--out', study.parent / 'rejected/numbers.md')
-    assert result.returncode != 0 and process_path.read_bytes() == initial
-    assert path.read_bytes() == previous
-
-
-def test_report_quality_failure_does_not_rewrite_process_or_gate(tmp_path):
-    from spec_mtp.flow.context import StudyProcessContext
-    from studies._shared.flow.process.run import study_gate
-    from studies._shared.structure.validation import SpecMtpGateError
-
-    study = tmp_path / 'study'
-    _study(study)
-    before = {p.relative_to(study): p.read_bytes() for p in study.rglob('*') if p.is_file()}
-    context = StudyProcessContext(study, state={'process': json.loads((study / 'process.json').read_text())})
-    with pytest.raises(SpecMtpGateError, match='read-only'):
-        study_gate(context, persist=False)
-    assert before == {p.relative_to(study): p.read_bytes() for p in study.rglob('*') if p.is_file()}

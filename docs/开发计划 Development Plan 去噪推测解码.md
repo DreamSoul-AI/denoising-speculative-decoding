@@ -2,19 +2,20 @@
 更新日期：2026年11月5日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-基线 `5bacb4d`，在 `codex/structure-cleanup-20261105` 更新Draft PR106到dev。本轮约30分钟，只将模型所有权与KV值保全两项旧CPU数值合同迁到既有CUDA镜像，不改算法、生产接口或科学输入。
+基线 `42508db`，继续 `codex/structure-cleanup-20261105` 更新Draft PR106到dev。约30分钟迁移报告真实launch与四项观测张量合同；不改生产算法、原smoke声明、旧Run或科学来源。
 
 | **步骤与预估** | **目标** | **验收** |
 | --- | --- | --- |
-| 核对，5分钟 | 读取AGENTS、相关规范及远端RPipe main代码结构设计 | 固定远端414ccb7及职责镜像边界，不访问本机RPipe/dayan |
-| 实施，8分钟 | 两项原ID接已有cuda_decode，独立快照防别名，细化元数据 | 原配置、5条断言和raises保留；完整state_dict及对象/存储保全，KV原位置[0,1,2,4]；后两函数及conftest保持 |
-| 文档，4分钟 | 同步唯一计划、README、代码结构、研究边界与日期记录 | 不增加平行计划、生产模块或算法主张 |
-| 验证，10分钟 | 净HEAD快速CPU、顺序native/CUDA、报告重建/来源拒绝及独立审查 | 945登记；四计划819/445/115/11函数；CPU1359、CUDA284质量+1测量、native11，原120/300/300秒预算不扩；实际CUDA设备落盘 |
-| 交付，3分钟 | 普通推当前分支并回读Draft PR106 | 两checkout干净、目标dev、main/dev不改、不绕过必需检查、制品不入Git |
+| 核对，5分钟 | 最新AGENTS、测试/代码/日志规范、远端RPipe main，追实际调用及输入 | 远端414ccb7固定职责镜像/独立验证边界；不访问本机RPipe/dayan |
+| 报告迁移，9分钟 | 六项纯JSON/path/只读合同与一项真实CLI launch分职责；后者以新外部Run和CUDA配置执行 | 保原report只读、upstream identity、stale和缺证据拒绝；实测模型/运行设备与CUDA可用性落盘，不只改标签 |
+| 张量与文档，6分钟 | 四项blend/depth/rejection合同合现有provider镜像，显式CUDA，元数据和研究边界同步 | 原参数、shape、gain、seed、树、断言及raises保留；不导入旧测试模块，不改其余函数/夹具，不造助手模块 |
+| 净HEAD验证及交付，10分钟 | 快速纯CPU、顺序native/CUDA、Ruff/mypy、报告/来源拒绝/20锁及独审 | 登记945不增，原CPU120秒/GPU各300秒预算保持；设备RTX5090Dv2；普通推原分支回读Draft→dev，main/dev不改、不绕过检查 |
 
-借用模型保持原LlamaConfig的16/8/16/1配置及全部未显式默认值（含max_position_embeddings2048），不替换为通用tiny工厂。使用CUDA初始化与embedding计算，比较完整state_dict 12项；native forward预期0。CPU RNG字节只用于状态合同检查，不算CPU数值替代。KV原输入/期望均CUDA，克隆发生在update前。两项从cpu-pr精确排除并进入cuda-validation；cpu-quick整个声明不改。GPU调度估计195秒只作准入参考，不是性能测量。
+CPU仅快速纯合同。GPU先确认torch.cuda.is_available，实际设备入逐项证据；满载等待或缩小规模，不回CPU。报告生成本身是只读I/O，真实launch的模型计算必须CUDA；两者分别记录，不把报告中一个device标签当模型已运行证据。新工程version/Run冻结实际配置、源码和输入，原CPUsmoke及旧结果仍保原身份。
 
-验证先确认torch.cuda.is_available和实际GPU，忙时等待、不CPU回退。正式净HEAD仅一次严格历史export/cross-Phi拒绝；四原件仍未知、20旧锁保持，只核已知日志/manifest/两索引，不扫refs/ACL/全盘、不补签。未执行/缺结果不记通过，完整cpu-pr与远端CI不冒称本地快速计划。
+四项观测合同只验证已有代数与状态不变量，不开展旧72参数模型矩阵、T1分布研究或新算法。四项历史原字节仍缺时严格拒绝，20来源锁不变；最终净HEAD只跑一次来源拒绝driver，不扫refs/ACL/全盘、不补签。实际结果入同日运行记录和round32回执，未运行不记通过。
+
+本轮迁移11函数21参数：纯CPU6函数16参数原已在快速计划，只映射路径，保持445函数/1359参数；四项provider合同进cuda-validation（119函数、288质量+1测量），一项真实CLI链进native（12函数/12参数）。完整cpu-pr移出这5数值函数后为814函数，未据此推算或宣称完整CPU计划通过。945登记与120/300/300秒预算不扩；GPU200/250秒是调度估计，不是性能结论。报告原21条断言与四项观测原17条断言、参数/raises保持，旧共享CLI函数、recipe常量、process旧函数及生产/conftest不改。
 
 # 二、六类核对与落实
 | **类别** | **已有实现条件** | **仍需完成的具体差距** |

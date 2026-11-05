@@ -80,3 +80,28 @@ def test_study_quality_failure_marks_generic_envelope_incomplete(tmp_path, saved
         study_gate(ctx)
     envelope = json.loads((ctx.study_dir / 'process.json').read_text())
     assert not envelope['complete'] and not envelope['spec_mtp']['passed']
+
+
+def test_report_quality_failure_does_not_rewrite_process_or_gate(tmp_path):
+    from spec_mtp.flow.context import StudyProcessContext
+    from studies._shared.flow.process.run import study_gate
+    from studies._shared.structure.validation import SpecMtpGateError
+
+    study = tmp_path / 'study'
+    # Keep the original partial report fixture, not a different evidence failure.
+    import copy
+
+    study.mkdir(exist_ok=True)
+    exp = {'factors': {'case': 'baseline'}, 'runs': [{'id': 'abc123', 'seed': 123}]}
+    index = {'study': 'contract', 'experiments': [exp]}
+    process = copy.deepcopy(index)
+    process.update(complete=False, scope='study')
+    (study / 'index.json').write_text(json.dumps(index), encoding='utf-8')
+    (study / 'process.json').write_text(json.dumps(process), encoding='utf-8')
+    (study / 'docs').mkdir()
+    (study / 'docs/NUMBERS.md').write_bytes(b'previous numbers\n')
+    before = {p.relative_to(study): p.read_bytes() for p in study.rglob('*') if p.is_file()}
+    context = StudyProcessContext(study, state={'process': json.loads((study / 'process.json').read_text())})
+    with pytest.raises(SpecMtpGateError, match='read-only'):
+        study_gate(context, persist=False)
+    assert before == {p.relative_to(study): p.read_bytes() for p in study.rglob('*') if p.is_file()}

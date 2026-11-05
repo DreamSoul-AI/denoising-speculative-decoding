@@ -52,18 +52,42 @@
       "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_observation_blend.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
+      "target": "spec_mtp.structure.algorithm.mask.providers.ObservationBlendMaskProvider.masks_for_tree",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_observation_blend.py::test_rejection_condition_falls_back_when_children_hold_all_mass",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_falls_back_when_children_hold_all_mass",
+      "target": "spec_mtp.structure.algorithm.mask.providers.ObservationBlendMaskProvider.masks_for_tree",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_language_rows_are_distributions_over_branching_successors",
@@ -108,18 +132,42 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_observation_blend.py::test_masks_follow_the_blend_and_never_write_back",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_masks_follow_the_blend_and_never_write_back",
+      "target": "spec_mtp.structure.algorithm.mask.providers.ObservationBlendMaskProvider.masks",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_observation_blend.py::test_owner_depth_shifts_the_observation_and_falls_back_past_k",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_owner_depth_shifts_the_observation_and_falls_back_past_k",
+      "target": "spec_mtp.structure.algorithm.mask.providers.ObservationBlendMaskProvider.masks_by_depth",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/test_observation_blend.py::test_decoder_observes_prefill_and_every_continuing_round",
@@ -2607,25 +2655,51 @@
       "level": "unit"
     },
     {
-      "test_id": "tests/spec_mtp/test_readout_report.py::test_report_refuses_stale_or_invalid_identity_without_losing_numbers",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_report.py::test_report_refuses_stale_or_invalid_identity_without_losing_numbers",
+      "target": "spec_mtp.structure.artifact.readout.report.write_numbers",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_readout_report.py::test_upstream_allows_identity_complete_partial_aggregate",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_report.py::test_upstream_allows_identity_complete_partial_aggregate",
+      "target": "spec_mtp.structure.artifact.readout.report.write_numbers",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_readout_report.py::test_spec_cli_report_keeps_upstream_identity_and_specialized_evidence_gates",
-      "target": "spec_mtp",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_spec_cli_report_keeps_upstream_identity_and_specialized_evidence_gates",
+      "target": "studies._shared.flow.cli.main",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/test_repeat_readout.py::test_ar_mismatch_is_reported_without_invalidating_tau",
@@ -5762,52 +5836,60 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_readout_report.py::test_existing_output_preserves_prior_numbers_and_process",
-      "target": "spec_mtp.structure.artifact.readout.report",
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_report.py::test_existing_output_preserves_prior_numbers_and_process",
+      "target": "spec_mtp.structure.artifact.readout.report.write_numbers",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
       "priority": "p1",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_readout_report.py::test_report_write_failure_does_not_modify_saved_inputs",
-      "target": "spec_mtp.structure.artifact.readout.report",
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_report.py::test_report_write_failure_does_not_modify_saved_inputs",
+      "target": "spec_mtp.structure.artifact.readout.report.write_numbers",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
       "priority": "p1",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_readout_report.py::test_report_rejects_output_that_overlaps_inputs_or_source",
-      "target": "spec_mtp.structure.artifact.readout.report",
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_report.py::test_report_rejects_output_that_overlaps_inputs_or_source",
+      "target": "spec_mtp.structure.artifact.readout.report.write_numbers",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
       "priority": "p1",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_readout_report.py::test_report_quality_failure_does_not_rewrite_process_or_gate",
-      "target": "studies._shared.flow.process.run",
-      "level": "integration",
+      "test_id": "tests/studies/_shared/flow/process/test_run.py::test_report_quality_failure_does_not_rewrite_process_or_gate",
+      "target": "studies._shared.flow.process.run.study_gate",
+      "level": "unit",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
       "priority": "p1",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/spec_mtp/structure/artifact/test_provenance.py::test_historical_bytes_preserve_pinned_git_member_without_worktree_reads",
@@ -11242,6 +11324,26 @@
         {
           "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path",
           "reason": "Real CUDA borrowed-model ownership and independent KV-value preservation contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_cli.py::test_spec_cli_report_keeps_upstream_identity_and_specialized_evidence_gates",
+          "reason": "Real CUDA native report/launch or observation-provider tensor contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_masks_follow_the_blend_and_never_write_back",
+          "reason": "Real CUDA native report/launch or observation-provider tensor contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_owner_depth_shifts_the_observation_and_falls_back_past_k",
+          "reason": "Real CUDA native report/launch or observation-provider tensor contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
+          "reason": "Real CUDA native report/launch or observation-provider tensor contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_falls_back_when_children_hold_all_mass",
+          "reason": "Real CUDA native report/launch or observation-provider tensor contract; no CPU replacement."
         }
       ],
       "cpu_only": true
@@ -11250,16 +11352,16 @@
       "budget_seconds": 120,
       "cpu_only": true,
       "include": [
-        "tests/spec_mtp/test_readout_report.py::test_report_refuses_stale_or_invalid_identity_without_losing_numbers",
-        "tests/spec_mtp/test_readout_report.py::test_upstream_allows_identity_complete_partial_aggregate",
+        "tests/spec_mtp/structure/artifact/readout/test_report.py::test_report_refuses_stale_or_invalid_identity_without_losing_numbers",
+        "tests/spec_mtp/structure/artifact/readout/test_report.py::test_upstream_allows_identity_complete_partial_aggregate",
         "tests/test_run.py::test_manifest_covers_all_declared_sources",
         "tests/test_run.py::test_missing_outcomes_block_completion",
         "tests/test_run.py::test_phase_evidence_failure_propagates",
         "tests/test_run.py::test_expected_phase_identity_is_preserved_without_weakening_gate",
-        "tests/spec_mtp/test_readout_report.py::test_existing_output_preserves_prior_numbers_and_process",
-        "tests/spec_mtp/test_readout_report.py::test_report_write_failure_does_not_modify_saved_inputs",
-        "tests/spec_mtp/test_readout_report.py::test_report_rejects_output_that_overlaps_inputs_or_source",
-        "tests/spec_mtp/test_readout_report.py::test_report_quality_failure_does_not_rewrite_process_or_gate",
+        "tests/spec_mtp/structure/artifact/readout/test_report.py::test_existing_output_preserves_prior_numbers_and_process",
+        "tests/spec_mtp/structure/artifact/readout/test_report.py::test_report_write_failure_does_not_modify_saved_inputs",
+        "tests/spec_mtp/structure/artifact/readout/test_report.py::test_report_rejects_output_that_overlaps_inputs_or_source",
+        "tests/studies/_shared/flow/process/test_run.py::test_report_quality_failure_does_not_rewrite_process_or_gate",
         "tests/test_run.py::test_explicit_plan_selects_only_required_cases_and_rejects_missing_collection",
         "tests/test_run.py::test_phase_evidence_records_actual_plan_and_device_metrics",
         "tests/test_run.py::test_manifest_rejects_invalid_plan_selection",
@@ -11816,13 +11918,17 @@
         "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_efficient_cache_matches_naive_builder",
         "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
         "tests/spec_mtp/structure/model/test_hf_causal.py::test_borrowed_model_survives_close_and_closed_session_rejects_forward",
-        "tests/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path"
+        "tests/spec_mtp/structure/model/test_hf_causal.py::test_cache_retains_each_layers_own_values_and_requested_path",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_masks_follow_the_blend_and_never_write_back",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_owner_depth_shifts_the_observation_and_falls_back_past_k",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_renormalizes_slot_one_without_child_tokens",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_rejection_condition_falls_back_when_children_hold_all_mass"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
-        "estimated_device_seconds": 195,
-        "estimate_basis": "Round31 two targeted CUDA model-ownership and KV-preservation cases passed on RTX 5090 D v2. 195s is a scheduling estimate, not a performance conclusion; the 300s device budget is unchanged.",
+        "estimated_device_seconds": 200,
+        "estimate_basis": "Prior CUDA285 bounded executions took112.22s; four small observation tensor contracts are added without changing their inputs/oracles.200s is a scheduling estimate, not a performance claim;300s budget unchanged.",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false
@@ -11842,13 +11948,14 @@
         "tests/studies/_shared/flow/test_cli.py::test_ar_diagnostic_mismatch_does_not_block_native_success",
         "tests/studies/_shared/flow/test_cli.py::test_nested_config_axis_validates_effective_factors_and_rejects_subsets",
         "tests/studies/_shared/flow/test_cli.py::test_output_hidden_real_cli_and_tampered_owner_evidence",
-        "tests/studies/_shared/flow/test_cli.py::test_bf16_five_methods_and_independent_ar_native_cli"
+        "tests/studies/_shared/flow/test_cli.py::test_bf16_five_methods_and_independent_ar_native_cli",
+        "tests/studies/_shared/flow/test_cli.py::test_spec_cli_report_keeps_upstream_identity_and_specialized_evidence_gates"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
-        "estimated_device_seconds": 190,
-        "estimate_basis": "Eleven bounded random-tiny native CLI paths took 182.394 seconds locally (10 pass, one test-fixture mismatch being corrected); six-cell BF16 case previously took 50.393 seconds. Includes child startup; no performance claim.",
+        "estimated_device_seconds": 250,
+        "estimate_basis": "Prior native11 CUDA CLI cases took195.91s; one original4prompt/32token report/launch acceptance path is added.250s is a scheduling estimate, not a performance claim;300s budget unchanged.",
         "memory_requirement": "Random tiny LLaMA only; peak memory not yet measured for this native subprocess plan.",
         "network": false,
         "model_download": false

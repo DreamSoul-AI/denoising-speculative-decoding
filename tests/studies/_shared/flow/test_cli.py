@@ -477,3 +477,63 @@ def test_run_writes_lock_when_missing_and_unfrozen(tmp_path):
     study.mkdir()
     (study / 'study.yaml').write_text('study: s\n', encoding='utf-8')
     assert shared_cli.write_lock_for(['run', str(study)]) == study / shared_sources.LOCK_NAME
+
+
+def test_spec_cli_report_keeps_upstream_identity_and_specialized_evidence_gates(cuda_study_copy, monkeypatch, record_property):
+    monkeypatch.setenv('PYTHONDONTWRITEBYTECODE', '1')
+    source = cuda_study_copy(lambda s: s.update(axes={'algorithm.config.variant': ['esp_static']}),
+                             name='report_cuda_readonly')
+    recipe = source / 'recipe.py'
+    recipe_text = recipe.read_text(encoding='utf-8')
+    assert recipe_text.count('    return model\n') == 1
+    recipe.write_text(recipe_text.replace('    return model\n', '''    seen_forward = False
+
+    def observe_forward(module, inputs, output):
+        nonlocal seen_forward
+        assert inputs[0].device == inputs[1].device == output.logits.device == torch.device('cuda:0')
+        if not seen_forward:
+            print('report fixture actual forward device=' + str(output.logits.device)
+                  + ' name=' + torch.cuda.get_device_name(output.logits.device), flush=True)
+            seen_forward = True
+
+    model.module.register_forward_hook(observe_forward)
+    return model
+'''), encoding='utf-8')
+    before_source = ({p.relative_to(source).as_posix(): p.read_bytes()
+                      for p in source.rglob('*') if p.is_file()},
+                     {p.relative_to(source).as_posix() for p in source.rglob('*') if p.is_dir()})
+    study = source.parent / 'report-runtime'
+    cli('make', source, '--run-root', study, '--num-gpus', '1', check=True)
+    launched = cli('launch', study, '--num-gpus', '1', '--console', 'shared', check=True)
+    marker = 'report fixture actual forward device=cuda:0 name=' + torch.cuda.get_device_name(0)
+    assert marker in launched.stdout + launched.stderr
+    run_id = json.loads((study / 'index.json').read_text())['experiments'][0]['runs'][0]['id']
+    inputs, completed = _check_run_identity(study, run_id)
+    assert inputs['device'] == 'cuda:0' and completed['spec_mtp']['argmax_all_passed']
+    record_property('report_forward_device', inputs['device'])
+    record_property('report_worker_completed', completed['status'])
+    path = study.parent / 'export/numbers.md'
+    process_path = study / 'process.json'
+    initial = process_path.read_bytes()
+    assert cli('report', study).returncode != 0
+    cli('report', study, '--out', path, check=True)
+    assert process_path.read_bytes() == initial
+    previous = path.read_bytes()
+    process = json.loads(process_path.read_text())
+    process['experiments'][0]['runs'][0]['seed'] = -1
+    process_path.write_text(json.dumps(process))
+    stale_process = process_path.read_bytes()
+    result = cli('report', study, '--out', study.parent / 'other/numbers.md')
+    assert process_path.read_bytes() == stale_process
+    assert result.returncode != 0 and 'current index' in result.stdout + result.stderr
+    assert path.read_bytes() == previous
+    cli('process', study, check=True)
+    run_id = json.loads((study / 'index.json').read_text())['experiments'][0]['runs'][0]['id']
+    (study / 'runs' / run_id / 'assets/decode_observations.json').unlink()
+    initial = process_path.read_bytes()
+    result = cli('report', study, '--out', study.parent / 'rejected/numbers.md')
+    assert result.returncode != 0 and process_path.read_bytes() == initial
+    assert path.read_bytes() == previous
+    assert before_source == ({p.relative_to(source).as_posix(): p.read_bytes()
+                              for p in source.rglob('*') if p.is_file()},
+                             {p.relative_to(source).as_posix() for p in source.rglob('*') if p.is_dir()})
