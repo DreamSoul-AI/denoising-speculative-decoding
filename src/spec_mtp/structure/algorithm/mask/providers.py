@@ -1,5 +1,6 @@
 """Committed mask providers. Block-local prediction does not mutate committed state."""
 
+import math
 from typing import Any
 import torch
 
@@ -494,8 +495,8 @@ class KalmanMaskProvider:
         if isinstance(forget, bool) or not isinstance(forget, (int, float)) or not 0 < float(forget) <= 1:
             raise ValueError('kalman forget must be in (0, 1]')
         for name, value in (('r_min', r_min), ('q_min', q_min), ('q_scale', q_scale)):
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or float(value) <= 0:
-                raise ValueError(f'kalman {name} must be a positive number')
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or float(value) <= 0:
+                raise ValueError(f'kalman {name} must be a finite positive number')
         self.num_masks = int(num_masks)
         self.embedding_table = embedding_table
         self.mode = mode
@@ -738,7 +739,8 @@ class OnlineVerifyKalman:
     """ESP prior plus one verify update per round. Protocol `online-trajectory-kalman-v1`.
 
     Slot 0 becomes m_hat + K(z - m_hat). K, P, Q and R are per-dimension and
-    reset to fixed constants on every prompt. `trajectory` emits ESP.
+    reset to fixed constants on every prompt. `forget=1` keeps Q/R fixed.
+    `trajectory` emits ESP.
     `observation` keeps the verify update but replaces the prior with a random walk.
     """
     needs_hidden = False
@@ -752,8 +754,8 @@ class OnlineVerifyKalman:
         if isinstance(forget, bool) or not isinstance(forget, (int, float)) or not 0 < float(forget) <= 1:
             raise ValueError('online kalman forget must be in (0, 1]')
         for name, value in (('p0', p0), ('q0', q0), ('r0', r0), ('r_min', r_min), ('q_min', q_min)):
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or float(value) <= 0:
-                raise ValueError(f'online kalman {name} must be a positive number')
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or float(value) <= 0:
+                raise ValueError(f'online kalman {name} must be a finite positive number')
         self.base = base
         self.num_masks = base.num_masks
         self.part = part
@@ -814,9 +816,10 @@ class OnlineVerifyKalman:
         assert variance is not None and process is not None and noise is not None
         self._p = (1.0 - gain) ** 2 * p_pred + gain ** 2 * noise
         self._t += 1
-        delta = (1.0 - self.forget) / (1.0 - self.forget ** (self._t + 1))
-        self._r = torch.clamp((1.0 - delta) * noise + delta * (innov2 - p_pred), min=self.r_min)
-        self._q = torch.clamp((1.0 - delta) * process + delta * (gain * gain * innov2), min=self.q_min)
+        if self.forget < 1.0:
+            delta = (1.0 - self.forget) / (1.0 - self.forget ** (self._t + 1))
+            self._r = torch.clamp((1.0 - delta) * noise + delta * (innov2 - p_pred), min=self.r_min)
+            self._q = torch.clamp((1.0 - delta) * process + delta * (gain * gain * innov2), min=self.q_min)
         if self.part == 'full':
             self._z = observed
         else:
@@ -838,6 +841,7 @@ class AlignedResidualKalman:
     The carried state is F, not a per-dimension embedding gain. The innovation is
     y - m_hat at the same round. R is updated from that cosine and does not
     subtract P. Slot 0 is m_hat + F * previous residual.
+    `forget=1` keeps Q/R fixed while F and P continue updating.
     """
     needs_hidden = False
 
@@ -850,8 +854,8 @@ class AlignedResidualKalman:
         if isinstance(forget, bool) or not isinstance(forget, (int, float)) or not 0 < float(forget) <= 1:
             raise ValueError('aligned kalman forget must be in (0, 1]')
         for name, value in (('p0', p0), ('q0', q0), ('r0', r0), ('r_min', r_min), ('q_min', q_min)):
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or float(value) <= 0:
-                raise ValueError(f'aligned kalman {name} must be a positive number')
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or float(value) <= 0:
+                raise ValueError(f'aligned kalman {name} must be a finite positive number')
         self.base = base
         self.num_masks = base.num_masks
         self.part = part
@@ -912,11 +916,12 @@ class AlignedResidualKalman:
             self._f = min(1.0, max(-1.0, updated))
             self._p = (1.0 - gain) ** 2 * predicted + gain ** 2 * self._r
             self._t += 1
-            weight = (1.0 - self.forget) / (1.0 - self.forget ** (self._t + 1))
-            gap = cosine - before
-            self._r = max((1.0 - weight) * self._r + weight * gap * gap, self.r_min)
-            step = self._f - before
-            self._q = max((1.0 - weight) * self._q + weight * step * step, self.q_min)
+            if self.forget < 1.0:
+                weight = (1.0 - self.forget) / (1.0 - self.forget ** (self._t + 1))
+                gap = cosine - before
+                self._r = max((1.0 - weight) * self._r + weight * gap * gap, self.r_min)
+                step = self._f - before
+                self._q = max((1.0 - weight) * self._q + weight * step * step, self.q_min)
         self._nu = residual
         if self.part == 'observation':
             if self._seen:
@@ -945,7 +950,8 @@ class HybridGainKalman:
 
     `observe='first'` updates K on the first committed token of the round
     (`hybrid-gain-kalman-v1`). `observe='last'` waits until the round's last
-    committed token, the bonus the next-tree mask stands in for
+    committed token: the bonus in a full round, or the prefix's end after
+    EOS/budget truncation
     (`hybrid-gain-bonus-aligned-v1`).
     """
     needs_hidden = False
@@ -1079,7 +1085,7 @@ class HybridGainKalman:
             self._z = observed.to(device=gain.device)
 
     def finish_round(self):
-        """Close the round. `observe='last'` learns from the bonus token."""
+        """Close the round using its actual last commit, including a truncated prefix."""
         if self._pending is None:
             return
         if self.mode == 'collect':

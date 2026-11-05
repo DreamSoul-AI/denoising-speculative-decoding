@@ -367,3 +367,91 @@ def test_decoder_uses_it_only_for_dynamic_trees(cuda_tiny_model, cuda_decode, re
     assert dynamic._dynamic_attn is not None
     assert naive_static._dynamic_attn is None and naive_static._attn_cache is None  # Table 4 naive path kept
     assert efficient._dynamic_attn is None and efficient._attn_cache is not None
+
+
+@pytest.mark.parametrize('budget,eos_ids,expected,termination', [
+    (2, (), (4, 5), 'budget'),
+    (3, (), (4, 5, 6), 'budget'),
+    (7, (), (4, 5, 6, 7, 0, 1, 2), 'budget'),
+    (7, (6,), (4, 5, 6), 'eos'),
+], ids=['one_commit_before_bonus', 'two_commits_before_bonus', 'two_full_rounds', 'eos_before_bonus'])
+def test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round(
+        budget, eos_ids, expected, termination, cuda_decode, record_property):
+    """Actual decode callbacks distinguish a truncated last commit from a bonus."""
+    from spec_mtp.structure.algorithm.mask.providers import HybridGainKalman
+
+    device = cuda_decode.device
+    events = []
+
+    class PositionSession(cuda_decode.FakeSession):
+        def __call__(self, embeds, positions, **kwargs):
+            out = super().__call__(embeds, positions, **kwargs)
+            # A single position-only model rule applies to prefill and every owner.
+            tokens = (positions + 2) % self.vocab_size
+            out.logits = torch.nn.functional.one_hot(tokens, self.vocab_size).float() * 20
+            assert out.logits.device == device
+            return out
+
+    model, sink = PositionSession(), cuda_decode.MemorySink()
+
+    class RecordingCollect(HybridGainKalman):
+        def init_from_prompt(self, prompt_embeds, generator=None):
+            events.append(('init', model.calls))
+            super().init_from_prompt(prompt_embeds, generator)
+
+        def masks(self):
+            events.append(('masks', model.calls))
+            return super().masks()
+
+        def on_token_committed(self, new_embed, prev_embed):
+            assert new_embed.device == prev_embed.device == device
+            events.append(('commit', int(new_embed.argmax().item()),
+                           int(prev_embed.argmax().item()), model.calls))
+            super().on_token_committed(new_embed, prev_embed)
+
+        def finish_round(self):
+            events.append(('finish', model.calls))
+            super().finish_round()
+
+    policy = RecordingCollect(ESPMaskProvider(2, model.embedding_table), 'collect', {'observe': 'last'})
+    req = replace(request(), max_new_tokens=budget, eos_ids=eos_ids,
+                  spec={'method': 'esp', 'num_masks': 2, 'impl': 'efficient',
+                        'tree': {'mode': 'static', 'branches': [1, 1], 'pruning': False}})
+    result = generate(req, model, policy, sink)
+    assert result.committed == expected and result.termination_reason == termination
+    assert tuple(row['token'] for row in sink.rows if row['event'] == 'commit') == expected
+    traces = result.stats['trace']
+    expected_events = [('init', 0), ('masks', 0), ('commit', 4, 3, 1)]
+    previous = 4
+    for number, trace in enumerate(traces, start=1):
+        assert trace['accepted_nodes'] == [1, 2]
+        expected_events.append(('masks', number))
+        for token in trace['committed_tokens']:
+            expected_events.append(('commit', token, previous, number + 1))
+            previous = token
+        expected_events.append(('finish', number + 1))
+    assert events == expected_events
+    assert model.calls == 1 + len(traces)
+    assert tuple(token for trace in traces for token in trace['committed_tokens']) == expected[1:]
+
+    first = [trace['committed_tokens'][0] for trace in traces]
+    last = [trace['committed_tokens'][-1] for trace in traces]
+    logical_bonus = [(trace['root_position'] + 4) % model.vocab_size for trace in traces]
+    assert last == logical_bonus if budget == 7 and not eos_ids else last != logical_bonus
+    pairs = policy.calibration_rows()
+    # Collection stores CPU artifacts; perform the numerical reference checks on CUDA.
+    for name, tokens in [('first', first), ('last', last)]:
+        actual = pairs[name].to(device)
+        reference = model.embedding_table[torch.tensor(tokens, device=device)]
+        assert actual.device == reference.device == device
+        assert torch.equal(actual, reference)
+    assert len(first) == len(last) == pairs['m'].shape[0] == len(traces)
+    assert policy._pending is None and policy._first is None
+    audit = audit_run(sink.rows, req.sources)
+    assert result.evidence_complete and audit.argmax_coverage and audit.argmax_correctness
+    record_property('provider_commit_timeline', {
+        'committed': list(expected), 'round_first': first, 'round_last': last,
+        'logical_bonus': logical_bonus, 'finished_rounds': len(traces),
+        'tensor_device': str(model.embedding_table.device),
+        'collected_storage_device': str(pairs['first'].device),
+    })

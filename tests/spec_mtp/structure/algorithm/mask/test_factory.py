@@ -61,3 +61,20 @@ def test_invalid_observation_settings_are_rejected(spec_observation, match, cuda
     assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
     assert torch.get_default_device() == default_device
     record_property('rng_default_device_preserved', True)
+
+
+@pytest.mark.parametrize('section,field', [
+    ('kalman', 'r_min'), ('kalman', 'q_min'), ('kalman', 'q_scale'),
+    ('kalman_merge', 'p0'), ('kalman_merge', 'q0'), ('kalman_merge', 'r0'),
+    ('kalman_merge', 'r_min'), ('kalman_merge', 'q_min'),
+    ('kalman_align', 'p0'), ('kalman_align', 'q0'), ('kalman_align', 'r0'),
+    ('kalman_align', 'r_min'), ('kalman_align', 'q_min'),
+])
+@pytest.mark.parametrize('value', [float('nan'), float('inf'), -float('inf')], ids=['nan', 'inf', 'negative-inf'])
+def test_kalman_factory_rejects_nonfinite_variances(section, field, value, cuda_decode, record_property):
+    table = torch.tensor([[0., 1.], [1., 2.]], device=cuda_decode.device)
+    spec = {'method': 'kalman' if section == 'kalman' else 'esp', 'num_masks': 1,
+            section: {field: value}}
+    with pytest.raises(ValueError, match=field + ' must be a finite positive number'):
+        build_mask_provider(spec, table)
+    record_property('admission_tensor_device', str(table.device))

@@ -10911,6 +10911,139 @@
         "structure_cleanup"
       ],
       "test_id": "tests/studies/_shared/flow/write/test_run.py::test_paired_report_cleanup_preserves_primary_and_blocks_completion"
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_scalar_kalman_cuda_matches_independent_joseph_and_reset",
+      "target": "spec_mtp.structure.algorithm.mask.providers.KalmanMaskProvider",
+      "tags": [
+        "offline_cuda",
+        "research_finalize"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_hybrid_gain_cuda_matches_independent_first_last_and_frozen",
+      "target": "spec_mtp.structure.algorithm.mask.providers.HybridGainKalman",
+      "tags": [
+        "offline_cuda",
+        "research_finalize"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_cuda_matches_independent_weighted_history",
+      "target": "spec_mtp.structure.algorithm.mask.providers.EMAVelocityMaskProvider",
+      "tags": [
+        "offline_cuda",
+        "research_finalize"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_aligned_residual_cuda_matches_independent_scalar_filter",
+      "target": "spec_mtp.structure.algorithm.mask.providers.AlignedResidualKalman",
+      "tags": [
+        "offline_cuda",
+        "research_finalize"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_online_verify_cuda_matches_independent_coordinate_filter",
+      "target": "spec_mtp.structure.algorithm.mask.providers.OnlineVerifyKalman",
+      "tags": [
+        "offline_cuda",
+        "research_finalize"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_kalman_factory_rejects_nonfinite_variances",
+      "target": "spec_mtp.structure.algorithm.mask.factory.build_mask_provider",
+      "tags": [
+        "offline_cuda",
+        "research_finalize"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round",
+      "target": "spec_mtp.structure.algorithm.decode.loop.generate",
+      "tags": [
+        "offline_cuda",
+        "research_finalize"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     }
   ],
   "plans": {
@@ -11472,6 +11605,34 @@
         {
           "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_observation_rejects_hidden_providers_and_bad_logits",
           "reason": "Real CUDA observation top1, invalid-setting or bad-logit tensor contract; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_scalar_kalman_cuda_matches_independent_joseph_and_reset",
+          "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_hybrid_gain_cuda_matches_independent_first_last_and_frozen",
+          "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_cuda_matches_independent_weighted_history",
+          "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_aligned_residual_cuda_matches_independent_scalar_filter",
+          "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_online_verify_cuda_matches_independent_coordinate_filter",
+          "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_kalman_factory_rejects_nonfinite_variances",
+          "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round",
+          "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -12058,13 +12219,20 @@
         "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_wires_esp_and_ema",
         "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_top1_form_uses_the_most_likely_allowed_token",
         "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_invalid_observation_settings_are_rejected",
-        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_observation_rejects_hidden_providers_and_bad_logits"
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_observation_rejects_hidden_providers_and_bad_logits",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_scalar_kalman_cuda_matches_independent_joseph_and_reset",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_hybrid_gain_cuda_matches_independent_first_last_and_frozen",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_cuda_matches_independent_weighted_history",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_aligned_residual_cuda_matches_independent_scalar_filter",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_online_verify_cuda_matches_independent_coordinate_filter",
+        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_kalman_factory_rejects_nonfinite_variances",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
         "estimated_device_seconds": 205,
-        "estimate_basis": "Prior CUDA294 executions took106.79s; five observation top1/admission tensor parameters are added with original stimuli/oracles. Existing205s scheduling estimate and300s budget are unchanged; no performance claim.",
+        "estimate_basis": "Prior CUDA299 executions took107.26s; 56 bounded independent Kalman/EMA reference, nonfinite admission and commit-timeline parameters are added.205s remains a scheduling estimate, not a performance result;300s budget unchanged.",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false

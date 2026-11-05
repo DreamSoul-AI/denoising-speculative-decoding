@@ -42,9 +42,14 @@ EMA五方法原件固定于Git b8b20b5ada7fd860894114cbf224ce749af430cf的 studi
 | HybridGainKalman / OutputHiddenHybridKalman | 对角K参数递推、x/innovation、校准先验、在线/冻结/scratch/bonus与root对齐 | 实际变体与Run逐一对应，不同状态语义不共享收益结论 |
 | 静态scalar/diag/affine/ridge K | 拟合输入/目标、隔离单位、正则与冻结时点 | 只回答回归校正合同，不证明Kalman滤波有效 |
 
-逐方案列状态、观测、F/H（适用时）、P/Q/R/K、更新时点、owner/bonus槽位、重置与冻结条件，以独立参考式核对。未满足线性/噪声等假设时明确模型限制，递推存在不等于最优性成立。构造器Q/R非有限值准入存在静态疑点，尚未复现，列入先验检查，不写成已确认缺陷。
+逐方案列状态、观测、F/H（适用时）、P/Q/R/K、更新时点、owner/bonus槽位、重置与冻结条件，以独立参考式核对。未满足线性/噪声等假设时明确模型限制，递推存在不等于最优性成立。本轮CUDA已复现并修复13个方差/噪声字段接纳NaN/Inf，以及OnlineVerify/Aligned在合法forget=1下除零。该端点沿已有scalar语义关闭Q/R自适应（包括初值低于floor时保持），P与F仍更新；这是显式no-adaptation约定，不是自适应权重在forget→1时的连续极限。旧finite且forget=.95的研究配置不因这次端点修复自动改签或失效。
 
-## （二）按信息价值验证
+## （二）当前P0验证范围
+本轮以CUDA FP64独立参考核EMA闭式加权历史与last/order0 anchor，标量Kalman的Joseph后验、自适应floor/冻结，以及OnlineVerify逐维和Aligned标量递推。forget=1单独检查Q/R保持、P/F继续更新，包含合法below-floor初值；重初始化清除所测状态。Hybrid按独立回归更新式区分first、last与frozen，冻结K/P不冻结观测或输出mask。测试与实际设备、版本从本轮运行记录定位，范围限声明输入与模式，不等于完整状态空间证明。
+
+时序边界：OnlineVerify和Aligned按每轮root prior的**首个提交**更新一次；后续同轮commit不新增该后验，OnlineVerify的z因此保首commit，不是末bonus。Hybrid first/last分别在首commit/finish更新，last使用最后实际提交，EOS或预算截断时不保证它是完整轮bonus。真实CUDA解码回归覆盖prefill、逐commit、截断/EOS、finish与完整T0链。保留这些旧语义，不直接改成另一算法；递推吻合并不证明状态空间/噪声假设成立、滤波最优或研究收益。
+
+## （三）按信息价值验证
 | **优先级** | **行动与预算边界** | **验收与停止** |
 | --- | --- | --- |
 | P0 实现与身份 | 对齐源码、固定配置与Run；CUDA小张量独立参考验证更新、冻结/reset、有限值与因果顺序，复用既有测试层 | 记录实际tensor/device、dtype/backend及来源。差异定位到合同；发现错误先修复并新Run验证，旧结果不重签 |
@@ -75,8 +80,9 @@ EMA五方法原件固定于Git b8b20b5ada7fd860894114cbf224ce749af430cf的 studi
 # 五、历史Run收束与判读合同
 | **材料** | **当前状态与收束** |
 | --- | --- |
-| 五方法11 Run与ESP完整复验 | 保历史完成事实，核来源/计数/终态；本拍读摘要不冒充原生重验，不重签 |
-| 各Kalman/EMA比较 | 执行完成与研究成功分列；负结果按原协议关闭，未确认说明缺口，argmax通过不等于接受或速度有效 |
+| 五方法11 Run与ESP完整复验 | 五方法固定H02原件保存11个Run ID、终态、配置、source/model/validator摘要与六类文件SHA；本次已核原位置未找到这11个Run目录。保历史完成事实，不冒充当前原生重验。ESP仍按各自原记录定位 |
+| OnlineVerify / Aligned旧比较 | 指定旧输出根当前不在，32条真实模型负结果目前属运行记录级证据，原终态、逐token与模型/输入摘要未重新核得；eager按历史记载而非本拍新核身份解释。保负结果及缺口，不为补通过重跑同配方 |
+| 8B冻结K旧比较 | 原header/summary、三臂各128条JSONL、fit/slice与日志可读，原source HEAD、prompt摘要和qid序列吻合；stored argmax布尔不等于完整token链重验。固定原源码有校准/eval文本去交集门，但fit自身缺model/source/校准文本哈希，不能事后补签；收益仍未确认 |
 | 未完成范数/配对/续跑 | 登记原计划、实际完成/未完成和退出当前队列理由；排程取消不等于旧Run成功 |
 | 历史来源缺口 | 四项cross-task原tool/plan/runtime精确字节仍缺，受影响读端严格拒绝、保unknown，不回填、不用当前helper替代；不阻塞不依赖这些文件的EMA/Kalman核验 |
 
@@ -89,6 +95,6 @@ T0门是每个实际提交token对应验证前向argmax，覆盖prefill、bonus�
 实际加速需同质量、同输出条件完整计时，冻结预热、CUDA同步、加载边界、臂顺序与资源。缺计时不填零，host-clock、cProfile及关闭计时占位不是速度证据。工程tiny模型、小张量、重绘与计数复核只证明对应合同，不产生新真实模型收益结论。
 
 # 六、停止与下一步
-先完成P0已有Kalman/EMA状态与时序清单及独立CUDA数值核验，同时按第二章收束高价值Run。正确且收益支持则保留；正确但收益不支持则负结果结案；实现错误先修复后独立验证；缺来源则受影响部分未知并冻结。
+按本轮P0已核范围收束高价值Run；未覆盖的observation-only等模式与真实权重正确性保持未验，不把局部参考通过推广为全部Kalman已正确。下一步优先明确尚缺证据是否会改变EMA可用性/速度与在线Kalman负结果的结案决定，再选择必要的最小验证。正确且收益支持则保留；正确但收益不支持则负结果结案；实现错误先修复后独立验证；缺来源则受影响部分未知并冻结。
 
 研究判断、比较和预算改变时更新本文，不另建平行计划。归档不承接当前工作；新算法方向另行决定，不成为现有核验的等待条件。工程优先修直接阻塞正确性、证据链与结案的缺口，其余结构/测试迁移留开发待办。

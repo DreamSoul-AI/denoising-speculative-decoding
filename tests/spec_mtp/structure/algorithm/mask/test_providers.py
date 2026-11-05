@@ -3,7 +3,10 @@ import pytest
 import torch
 
 from spec_mtp.structure.algorithm.decode.tree import DraftTree
-from spec_mtp.structure.algorithm.mask.providers import ObservationBlendMaskProvider, OutputHiddenMaskProvider
+from spec_mtp.structure.algorithm.mask.providers import (
+    ObservationBlendMaskProvider, OutputHiddenMaskProvider, KalmanMaskProvider,
+    OnlineVerifyKalman, AlignedResidualKalman, HybridGainKalman,
+)
 from spec_mtp.structure.algorithm.mask import ESPMaskProvider, EMAVelocityMaskProvider
 
 @pytest.mark.parametrize('init, prompt_len, match', [
@@ -344,6 +347,298 @@ def test_observation_rejects_hidden_providers_and_bad_logits(cuda_decode, record
                'wrong_row_logits': str(wrong_row_logits.device), 'nan_logits': str(nan_logits.device)}
     assert set(devices.values()) == {str(device)}
     record_property('observation_tensor_devices', devices)
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
+    assert torch.get_default_device() == default_device
+    record_property('rng_default_device_preserved', True)
+
+@pytest.mark.parametrize('level', ['last', 'order0'])
+def test_ema_cuda_matches_independent_weighted_history(level, cuda_decode, record_property):
+    device = cuda_decode.device
+    cpu_rng, cuda_rng = torch.get_rng_state().clone(), torch.cuda.get_rng_state(device).clone()
+    default_device = torch.get_default_device()
+    prompt = torch.tensor([[0., 1.], [2., 0.], [1., 4.], [4., 2.]], device=device)
+    provider = EMAVelocityMaskProvider(2, torch.zeros(3, 2, device=device),
+                                     beta=0.5, lam=0.25, step_scale=1.5, level=level)
+    provider.init_from_prompt(prompt)
+    # Closed-form weights on the three prompt differences are 1/4, 1/4, 1/2.
+    velocities = torch.tensor([[1.75, -0.25], [1.375, 1.875], [-0.3125, 0.4375]],
+                              device=device, dtype=torch.float64)
+    anchors = torch.tensor([[4., 2.], [5., 6.], [3., 5.]], device=device, dtype=torch.float64)
+    means = torch.tensor([[1.75, 1.75], [2.5625, 2.8125], [2.671875, 3.359375]],
+                         device=device, dtype=torch.float64)
+    for index in range(3):
+        if index:
+            provider.on_token_committed(anchors[index].float(), anchors[index - 1].float())
+        origin = anchors[index] if level == 'last' else means[index]
+        expected = origin + torch.tensor([[1.5], [3.]], device=device, dtype=torch.float64) * velocities[index]
+        actual = provider.masks()
+        torch.testing.assert_close(actual.double(), expected, rtol=1e-6, atol=1e-6)
+        torch.testing.assert_close(provider._velocity.double(), velocities[index], rtol=0, atol=0)
+        torch.testing.assert_close(provider._level.double(), means[index] if level == 'order0' else means[0],
+                                   rtol=0, atol=0)
+    provider.init_from_prompt(prompt)
+    origin = anchors[0] if level == 'last' else means[0]
+    reset_expected = origin + torch.tensor([[1.5], [3.]], device=device, dtype=torch.float64) * velocities[0]
+    torch.testing.assert_close(provider.masks().double(), reset_expected, rtol=0, atol=0)
+    record_property('reference_tensor_devices', {'input': str(prompt.device), 'reference': str(expected.device),
+                                                'output': str(actual.device)})
+    record_property('reference_contract', 'EMA beta=.5 closed-form history; last/order0 anchors; two commits; reset')
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
+    assert torch.get_default_device() == default_device
+    record_property('rng_default_device_preserved', True)
+
+
+@pytest.mark.parametrize('mode', ['online', 'frozen'])
+def test_scalar_kalman_cuda_matches_independent_joseph_and_reset(mode, cuda_decode, record_property):
+    device = cuda_decode.device
+    cpu_rng, cuda_rng = torch.get_rng_state().clone(), torch.cuda.get_rng_state(device).clone()
+    default_device = torch.get_default_device()
+    prompt = torch.tensor([[0., 1.], [2., 3.]], device=device)
+    provider = KalmanMaskProvider(2, torch.zeros(3, 2, device=device), mode=mode,
+                                 forget=0.8, r_min=0.05, q_min=0.03, q_scale=0.25)
+    provider.init_from_prompt(prompt)
+    level = prompt.double().mean(0)
+    noise = (prompt.double() - level).square().mean().clamp_min(0.05)
+    variance, process = noise.clone(), (noise * 0.25).clamp_min(0.03)
+    gain = torch.zeros((), device=device, dtype=torch.float64)
+    updates = 0
+
+    # Conditional-Gaussian covariance is an independent oracle for production Joseph updates.
+    def reference_step(observation, locked):
+        nonlocal level, noise, variance, process, gain, updates
+        covariance_prediction = variance + process
+        residual = observation.double() - level
+        selected_gain = gain if locked else covariance_prediction / (covariance_prediction + noise)
+        level = level + selected_gain * residual
+        if not locked:
+            gain = selected_gain
+            variance = covariance_prediction * noise / (covariance_prediction + noise)
+            if mode == 'online':
+                updates += 1
+                weight = 0.2 / (1 - 0.8 ** (updates + 1))
+                innovation_energy = residual.square().mean()
+                noise = ((1 - weight) * noise + weight * (innovation_energy - covariance_prediction)).clamp_min(0.05)
+                process = ((1 - weight) * process + weight * gain.square() * innovation_energy).clamp_min(0.03)
+
+    for observed in prompt:
+        reference_step(observed, False)
+    initial_level = level.clone()
+    initial_covariances = torch.stack((variance, process, noise, gain)).clone()
+    initial_updates = updates
+    observations = torch.tensor([[1., 2.], [5., -1.], [-2., 4.]], device=device)
+    for observed in observations:
+        previous_level = level.clone()
+        reference_step(observed, mode == 'frozen')
+        provider.on_token_committed(observed, torch.zeros(2, device=device))
+        actual = provider.masks()
+        torch.testing.assert_close(actual.double(), level.expand(2, 2), rtol=1e-5, atol=2e-6)
+        diagnostics = provider.diagnostics()
+        actual_covariances = torch.tensor([diagnostics[key] for key in ['p', 'q', 'r', 'k']],
+                                          device=device, dtype=torch.float64)
+        torch.testing.assert_close(actual_covariances, torch.stack((variance, process, noise, gain)),
+                                   rtol=1e-5, atol=2e-6)
+        if mode == 'frozen':
+            torch.testing.assert_close(actual_covariances, initial_covariances, rtol=1e-6, atol=1e-6)
+            assert not torch.equal(previous_level, level)
+    provider.init_from_prompt(prompt)
+    torch.testing.assert_close(provider.masks().double(), initial_level.expand(2, 2), rtol=1e-5, atol=2e-6)
+    reset_state = torch.tensor([provider.diagnostics()[key] for key in ['p', 'q', 'r', 'k']],
+                               device=device, dtype=torch.float64)
+    torch.testing.assert_close(reset_state, initial_covariances, rtol=1e-5, atol=2e-6)
+    assert provider._t == initial_updates and provider._locked == (mode == 'frozen')
+    record_property('reference_tensor_devices', {'input': str(prompt.device), 'reference': str(level.device),
+                                                'output': str(actual.device)})
+    record_property('reference_contract', 'scalar random walk/Joseph; adaptive noise floors or fixed gain/covariance; reset')
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
+    assert torch.get_default_device() == default_device
+    record_property('rng_default_device_preserved', True)
+
+
+@pytest.mark.parametrize('forget,q0,r0', [
+    (0.8, 0.2, 0.4), (1.0, 0.2, 0.4), (1.0, 0.001, 0.002),
+], ids=['adaptive', 'fixed', 'fixed-below-floor'])
+def test_online_verify_cuda_matches_independent_coordinate_filter(forget, q0, r0, cuda_decode, record_property):
+    device = cuda_decode.device
+    cpu_rng, cuda_rng = torch.get_rng_state().clone(), torch.cuda.get_rng_state(device).clone()
+    default_device = torch.get_default_device()
+    prompt = torch.tensor([[0., 1.], [2., 3.]], device=device)
+    base = ESPMaskProvider(2, torch.zeros(3, 2, device=device), update=False)
+    provider = OnlineVerifyKalman(base, part='full', forget=forget, p0=0.7, q0=q0, r0=r0,
+                                 r_min=0.05, q_min=0.03)
+    provider.init_from_prompt(prompt)
+    prior = torch.tensor([1., 2.], device=device, dtype=torch.float64)
+    variance, process, noise = [torch.full((2,), value, device=device, dtype=torch.float64)
+                                for value in [0.7, q0, r0]]
+    observations = torch.tensor([[1.2, 5.], [-1., 2.5], [4., -2.]], device=device)
+    previous_observation = None
+    for index, observed in enumerate(observations):
+        predicted = variance + process
+        gain = predicted / (predicted + noise)
+        corrected = prior if previous_observation is None else prior + gain * (previous_observation - prior)
+        expected = torch.stack((corrected, prior))
+        actual = provider.masks()
+        torch.testing.assert_close(actual.double(), expected, rtol=1e-5, atol=2e-6)
+        torch.testing.assert_close(provider.masks(), actual, rtol=0, atol=0)
+        residual = observed.double() - prior
+        variance = predicted * noise / (predicted + noise)
+        # forget=1 preserves supplied Q/R, including below-floor initial values.
+        if forget < 1:
+            weight = (1 - forget) / (1 - forget ** (index + 2))
+            process = ((1 - weight) * process + weight * gain.square() * residual.square()).clamp_min(0.03)
+            noise = ((1 - weight) * noise + weight * (residual.square() - predicted)).clamp_min(0.05)
+        provider.on_token_committed(observed, prompt[-1])
+        torch.testing.assert_close(provider._p.double(), variance, rtol=1e-5, atol=2e-6)
+        torch.testing.assert_close(provider._q.double(), process, rtol=1e-5, atol=2e-6)
+        torch.testing.assert_close(provider._r.double(), noise, rtol=1e-5, atol=2e-6)
+        assert provider._t == index + 1 and provider._pending is None
+        torch.testing.assert_close(provider._z, observed, rtol=0, atol=0)
+        # A later commit in this round does not create another root-prior update.
+        provider.on_token_committed(observed + 7, observed)
+        assert provider._t == index + 1
+        torch.testing.assert_close(provider._z, observed, rtol=0, atol=0)
+        torch.testing.assert_close(provider._p.double(), variance, rtol=1e-5, atol=2e-6)
+        previous_observation = observed.double()
+    provider.masks()
+    provider.init_from_prompt(prompt + 2)
+    assert provider._pending is None
+    torch.testing.assert_close(provider._q, torch.full((2,), q0, device=device), rtol=0, atol=0)
+    torch.testing.assert_close(provider._r, torch.full((2,), r0, device=device), rtol=0, atol=0)
+    torch.testing.assert_close(provider.masks(), (prior.float() + 2).expand(2, 2), rtol=0, atol=0)
+    assert provider._z is None and provider._t == 0 and not provider._seen
+    torch.testing.assert_close(provider._p, torch.full((2,), 0.7, device=device), rtol=0, atol=0)
+    record_property('reference_tensor_devices', {'input': str(prompt.device), 'reference': str(expected.device),
+                                                'output': str(actual.device), 'covariance': str(provider._p.device)})
+    record_property('reference_contract', 'coordinate Joseph/adaptive floors; one update/first commit per round; reset')
+    record_property('noise_adaptation', forget != 1)
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
+    assert torch.get_default_device() == default_device
+    record_property('rng_default_device_preserved', True)
+
+
+@pytest.mark.parametrize('forget,q0,r0', [
+    (0.8, 0.2, 0.4), (1.0, 0.2, 0.4), (1.0, 0.001, 0.002),
+], ids=['adaptive', 'fixed', 'fixed-below-floor'])
+def test_aligned_residual_cuda_matches_independent_scalar_filter(forget, q0, r0, cuda_decode, record_property):
+    device = cuda_decode.device
+    cpu_rng, cuda_rng = torch.get_rng_state().clone(), torch.cuda.get_rng_state(device).clone()
+    default_device = torch.get_default_device()
+    prompt = torch.tensor([[0., 1.], [2., 3.]], device=device)
+    base = ESPMaskProvider(2, torch.zeros(3, 2, device=device), update=False)
+    provider = AlignedResidualKalman(base, part='full', forget=forget, p0=0.7, q0=q0, r0=r0,
+                                    r_min=0.05, q_min=0.03)
+    provider.init_from_prompt(prompt)
+    prior = torch.tensor([1., 2.], device=device, dtype=torch.float64)
+    coefficient, variance, process, noise = [torch.tensor(value, device=device, dtype=torch.float64)
+                                             for value in [0., 0.7, q0, r0]]
+    previous_residual = None
+    observations = torch.tensor([[3., 2.], [2., 4.], [0., 1.], [1., 2.]], device=device)
+    for index, observed in enumerate(observations):
+        corrected = prior if previous_residual is None else prior + coefficient * previous_residual
+        expected = torch.stack((corrected, prior))
+        actual = provider.masks()
+        torch.testing.assert_close(actual.double(), expected, rtol=1e-5, atol=2e-6)
+        residual = observed.double() - prior
+        if previous_residual is not None:
+            norm_product = torch.linalg.vector_norm(residual) * torch.linalg.vector_norm(previous_residual)
+            cosine = torch.zeros((), device=device, dtype=torch.float64) if norm_product == 0 else (
+                (residual * previous_residual).sum() / norm_product)
+            predicted = variance + process
+            gain = predicted / (predicted + noise)
+            old_coefficient = coefficient
+            coefficient = (old_coefficient + gain * (cosine - old_coefficient)).clamp(-1, 1)
+            variance = predicted * noise / (predicted + noise)
+            if forget < 1:
+                weight = (1 - forget) / (1 - forget ** (index + 1))
+                noise = ((1 - weight) * noise + weight * (cosine - old_coefficient).square()).clamp_min(0.05)
+                process = ((1 - weight) * process + weight * (coefficient - old_coefficient).square()).clamp_min(0.03)
+        provider.on_token_committed(observed, prompt[-1])
+        diagnostics = provider.diagnostics()
+        actual_state = torch.tensor([diagnostics[key] for key in ['f', 'p', 'q', 'r']],
+                                    device=device, dtype=torch.float64)
+        torch.testing.assert_close(actual_state, torch.stack((coefficient, variance, process, noise)),
+                                   rtol=1e-5, atol=2e-6)
+        torch.testing.assert_close(provider._nu.double(), residual, rtol=0, atol=0)
+        assert diagnostics['updates'] == index and provider._pending is None
+        previous_residual = residual
+    provider.masks()
+    provider.init_from_prompt(prompt - 2)
+    assert provider._nu is None and provider._pending is None and not provider._seen
+    assert provider.diagnostics() == {'part': 'full', 'updates': 0, 'f': 0., 'p': 0.7, 'q': q0, 'r': r0}
+    torch.testing.assert_close(provider.masks(), (prior.float() - 2).expand(2, 2), rtol=0, atol=0)
+    record_property('reference_tensor_devices', {'input': str(prompt.device), 'reference': str(expected.device),
+                                                'output': str(actual.device), 'state': str(provider._state.device)})
+    record_property('reference_contract', 'scalar residual cosine/F/Joseph; zero residual; one update per round; reset')
+    record_property('noise_adaptation', forget != 1)
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
+    assert torch.get_default_device() == default_device
+    record_property('rng_default_device_preserved', True)
+
+@pytest.mark.parametrize('variant', ['first', 'last', 'frozen'])
+def test_hybrid_gain_cuda_matches_independent_first_last_and_frozen(variant, cuda_decode, record_property):
+    device = cuda_decode.device
+    cpu_rng, cuda_rng = torch.get_rng_state().clone(), torch.cuda.get_rng_state(device).clone()
+    default_device = torch.get_default_device()
+    prompt = torch.zeros(2, 2, device=device)
+    payload = {'k': [0.25, -0.5], 'p': [0.5, 0.25], 'q': [0.125, 0.0625], 'r': [0.75, 0.5],
+               'observe': 'last' if variant == 'last' else 'first'}
+    base = ESPMaskProvider(2, torch.zeros(3, 2, device=device), update=False)
+    provider = HybridGainKalman(base, mode='frozen' if variant == 'frozen' else 'hybrid', payload=payload)
+    provider.init_from_prompt(prompt)
+    gain0, variance0, process, noise = [torch.tensor(payload[key], device=device, dtype=torch.float64)
+                                       for key in ['k', 'p', 'q', 'r']]
+    prefill = torch.tensor([2., -1.], device=device)
+    first = torch.tensor([1., 3.], device=device)
+    last = torch.tensor([5., 2.], device=device)
+    provider.on_token_committed(prefill, prompt[-1])
+    actual = provider.masks()
+    torch.testing.assert_close(actual[0].double(), gain0 * prefill.double(), rtol=0, atol=0)
+    torch.testing.assert_close(actual[1], torch.zeros(2, device=device), rtol=0, atol=0)
+    # The regression covariate belongs to the pre-round z/prior snapshot.
+    regressor = prefill.double()
+    predicted_variance = variance0 + process
+    update_step = predicted_variance * regressor / (noise + predicted_variance * regressor.square())
+    target = last.double() if variant == 'last' else first.double()
+    expected_gain = gain0 if variant == 'frozen' else gain0 + update_step * (target - gain0 * regressor)
+    expected_variance = variance0 if variant == 'frozen' else (
+        predicted_variance * noise / (noise + predicted_variance * regressor.square()))
+    provider.on_token_committed(first, prefill)
+    torch.testing.assert_close(provider._k.double(), expected_gain if variant == 'first' else gain0,
+                               rtol=1e-6, atol=1e-6)
+    torch.testing.assert_close(provider._p.double(), expected_variance if variant == 'first' else variance0,
+                               rtol=1e-6, atol=1e-6)
+    provider.on_token_committed(last, first)
+    torch.testing.assert_close(provider._z, last, rtol=0, atol=0)
+    torch.testing.assert_close(provider._k.double(), expected_gain if variant == 'first' else gain0,
+                               rtol=1e-6, atol=1e-6)
+    torch.testing.assert_close(provider._p.double(), expected_variance if variant == 'first' else variance0,
+                               rtol=1e-6, atol=1e-6)
+    provider.finish_round()
+    torch.testing.assert_close(provider._k.double(), expected_gain, rtol=1e-6, atol=1e-6)
+    torch.testing.assert_close(provider._p.double(), expected_variance, rtol=1e-6, atol=1e-6)
+    assert provider._pending is None and provider._weight_n == (0 if variant == 'frozen' else 1)
+    provider.finish_round()
+    torch.testing.assert_close(provider._k.double(), expected_gain, rtol=1e-6, atol=1e-6)
+    torch.testing.assert_close(provider._p.double(), expected_variance, rtol=1e-6, atol=1e-6)
+    assert provider._weight_n == (0 if variant == 'frozen' else 1)
+    next_masks = provider.masks()
+    torch.testing.assert_close(next_masks[0].double(), expected_gain * last.double(), rtol=1e-6, atol=1e-6)
+    torch.testing.assert_close(provider._q.double(), process, rtol=0, atol=0)
+    torch.testing.assert_close(provider._r.double(), noise, rtol=0, atol=0)
+    provider.init_from_prompt(prompt)
+    assert provider._z is None and provider._pending is None and provider._first is None
+    assert provider._weight_n == 0
+    torch.testing.assert_close(provider._k.double(), gain0, rtol=0, atol=0)
+    torch.testing.assert_close(provider._p.double(), variance0, rtol=0, atol=0)
+    torch.testing.assert_close(provider.masks(), torch.zeros(2, 2, device=device), rtol=0, atol=0)
+    record_property('reference_tensor_devices', {'input': str(prompt.device), 'reference': str(expected_gain.device),
+                                                'output': str(next_masks.device), 'covariance': str(provider._p.device)})
+    record_property('reference_contract', 'diagonal regression KF; first/last/frozen; multi-commit/finish idempotence/reset')
+    record_property('observation_target', variant)
     assert torch.equal(torch.get_rng_state(), cpu_rng)
     assert torch.equal(torch.cuda.get_rng_state(device), cuda_rng)
     assert torch.get_default_device() == default_device

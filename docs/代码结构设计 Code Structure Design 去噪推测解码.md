@@ -179,6 +179,6 @@ Hypothesis attention属性保原max_examples、策略、dtype/BC/seed范围及�
 
 保存数字导出的5函数15参数归 `tests/spec_mtp/structure/artifact/readout/test_report.py`，只读Study质量门1参数合既有 `_shared/flow/process/test_run.py`，真实make/launch/report链1参数合既有 `_shared/flow/test_cli.py`；原混合test_readout_report删除。一个必要artifact镜像承载同一write_numbers职责，不按断言拆文件；process用例内联原最小三文件输入，避免测试间导入或改变失败刺激。CLI复用原CUDA Study工厂，在本用例临时recipe挂真实forward设备观察，不改共享recipe常量、原smoke或conftest。声明/源码与外部运行根分开，make后来源绑定新CUDAversion/Run，报告仍只读。
 
-mask provider行为和factory选择/准入分别由 `tests/spec_mtp/structure/algorithm/mask/test_providers.py` 与 `test_factory.py` 镜像。providers核ESP/EMA初始化、冻结与提交状态，以及observation的blend/depth/rejection/top1和logits准入；factory核配置选择、非法字段及构造后的真实对象。非法配置保完整有效基底，避免删字段改变拒绝原因。两类职责各保一份镜像，不按单个函数增文件，不从旧混合测试导入helper或模块级CPU PROMPTS。
+mask provider行为和factory选择/准入分别由 `tests/spec_mtp/structure/algorithm/mask/test_providers.py` 与 `test_factory.py` 镜像。providers核ESP/EMA初始化、冻结与提交状态，以及observation的blend/depth/rejection/top1和logits准入；factory核配置选择、非法字段及构造后的真实对象。非法配置保完整有效基底，避免删字段改变拒绝原因。两类职责各保一份镜像，不按单个函数增文件，不从旧混合测试导入helper或模块级CPU PROMPTS。已有Kalman/EMA的独立CUDA参考也归providers镜像：EMA闭式历史、标量/逐维/残差Joseph与增益回归、first/last/frozen和reset；factory核非有限噪声准入，loop镜像核真实裁剪后commit/finish顺序。参考在GPU以独立FP64计算，期望不调用生产私有更新助手；工程正确性与研究效益分开。
 
 参与数值的表、prompt、logits及预期/输出显式使用CUDA；固定seed用局部Generator，原未指定seed的输入通过selected CUDA fork_rng隔离，不额外指定seed。全局CPU/CUDA RNG与默认设备恢复通过状态断言取证，属性只记录实际参与张量。拒绝用例记录真实输入与异常，factory未生成mask时只记输入/对象归属，不补成功输出或模型forward。文件内fixture只服务实际消费者，简单构造就地表达，不增加共享转发层。镜像按真实方法的unit/content/C3/GPU1登记；纯I/O与配置合同及完整CLI旅程分别按其成本/层级选择，未授权的模型矩阵不随测试归位派发。

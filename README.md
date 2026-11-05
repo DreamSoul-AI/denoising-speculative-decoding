@@ -128,4 +128,6 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 文档职责按 AGENTS.md 维护。通用调研不代替文献调研，研究计划不代替开发计划。历史测量在运行记录，结构调整在开发记录。
 
-模型所有权、KV值保全、报告真实launch及provider数值合同使用CUDA。ESP/EMA状态、observation top1/拒绝与factory准入按真实职责归现有providers/factory镜像，报告纯I/O门保CPU；缺证据与非法输入仍严格拒绝。登记945函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别806/445/127/12函数；快速CPU1359参数、CUDA299项执行（298质量项、1测量项）、native12项，实际终态与提交身份见运行记录。旧72项观测模型矩阵保持暂停，工程验证不代表真实权重研究或性能收益。
+模型所有权、KV值保全、报告真实launch及provider数值合同使用CUDA。ESP/EMA状态、observation top1/拒绝与factory准入按真实职责归现有providers/factory镜像，报告纯I/O门保CPU；缺证据与非法输入仍严格拒绝。登记952函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别806/445/134/12函数；快速CPU仍1359参数，CUDA计划新增56个Kalman/EMA独立参考、非有限准入及提交时序参数，实际执行终态与提交身份见运行记录。native计划仍12项，本拍未因其未受影响而重跑。旧72项观测模型矩阵保持暂停，工程验证不代表真实权重研究或性能收益。
+
+已有Kalman/EMA的P0 CUDA核验按独立参考区分递推、状态时序与研究收益：EMA闭式历史、标量Joseph、逐维/残差与对角增益各自验证；Online/Aligned每轮首commit，Hybrid last为实际末commit（截断时不保证bonus）。已修非有限噪声参数准入与forget=1除零，端点关闭Q/R自适应而P/F仍更新。局部正确性不证明Kalman建模最优或真实模型加速，成果与来源缺口见唯一研究计划。
