@@ -170,3 +170,7 @@ CSV指标仍由既有 `structure/csv_logger.py` 的Logger维护，其真实镜�
 typed request镜像为 `tests/spec_mtp/structure/api/test_decode_api.py`，审计归 `structure/artifact/test_observation.py`，科学CLI归 `flow/test_cli.py`，生成/AR/选择器归 `structure/algorithm/decode/test_loop.py`。共用输入构造和注入session/sink/run复用已有tests/conftest：decode_request只创建标准库API值，decode_fixture(device)惰性加载数值实现；不从测试文件导入另一测试，也不为每个对象新建助手模块。CUDA fixture只为实际数值用例启用，显式核tensor/model设备、只登记一次诊断属性并在call结束前定稿，teardown不改已验事实。真实本地loader委托及模型forward在测试内核CUDA，生产CLI能力和默认接口保持。
 
 loop镜像不保模块级CPU session或张量。无效prompt通过纯device工厂在用例内构造，保形状、dtype、值和独立参数身份；tensor/full/Generator与期望张量均显式设备。生成、AR、SpecDecoder输入准入及选择器分别定位实际target，unit与integration按真实调用边界声明，实际GPU一律C3/GPU1。选择器记录实际logits设备，零forward只记录已有CUDA输入/embedding，不生成假forward；显式Generator的状态合同核全局CPU/CUDA RNG字节和defaultdevice未变，不用恢复掩盖意外变更。
+
+tree与attention各有真实leaf镜像 `decode/test_tree.py`、`decode/test_tree_attention.py`；mask的providers与factory分别用 `mask/test_providers.py`、`mask/test_factory.py`，不为少一个测试文件错置实际owner。SpecDecoder cache选择属loop，KV类型/裁剪/选槽归已有model/test_hf_causal，不另造混合边界模块。跨组真实模型只复用conftest的cuda_tiny_model工厂，显式CUDA初始化与配置，fork_rng/设备上下文保持调用者状态，finally关闭所有owned session，teardown不改已验property。原有函数与新验证范围分别声明，不将同文件旧用例自动视为CUDA已验。
+
+Hypothesis attention属性保原max_examples、策略、dtype/BC/seed范围及每example新建cache。device fixture不可变，设备证据仅append，function-scoped healthcheck的局部豁免须与该生命周期一起解释；不豁免真实数据失败或缩例掩盖成本。空树、整数预算、缓存容量与不支持类型为CPU纯合同，真实概率/掩码/模型/Generator用CUDA并核设备。naive/cache等值只比较同次输入，CPU和CUDA随机初始化不当作相同模型或树的字节复现。

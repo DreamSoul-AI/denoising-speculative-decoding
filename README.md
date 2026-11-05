@@ -105,7 +105,7 @@ native shared CLI 的 smoke 测试按架构 NS0–NS4 使用独立 CUDA 验证�
 
 native CLI 验证使用独立测试计划：`python tests/run.py --plan cuda-native-smoke --output-root <另一外部新验证目录>`，单卡、300秒预算，包含11个随机tiny的数值入口路径；不并入原cuda-validation预算。两组GPU验证依次执行，实际设备与来源保存到各自回执，纯配置/来源拒绝仍由cpu-quick选择。该计划不运行真实权重或旧研究矩阵。
 
-typed request的轻量合同归API测试镜像；audit与科学CLI用例依赖的合成解码数值，以及decode生成/AR/选择器合同，使用cuda-validation，纯参数/路径/保存表示检查留CPU快速计划。共享夹具按显式设备创建并核embedding与forward，日志保存实际CUDA身份；选择器张量、刻意零forward与实际forward分别记录，局部CUDA Generator须保持全局RNG及默认设备状态。科学CLI的728参数本地模型验证使用测试内委托loader移到CUDA，不代表生产CLI增加了设备选项；它不替代真实模型研究或跨设备等价验收。
+typed request的轻量合同归API测试镜像；audit与科学CLI用例依赖的合成解码数值，以及decode生成/AR/选择器、mask、KV、tree/attention合同，使用cuda-validation，纯参数/路径/保存表示检查留CPU快速计划。共享夹具按显式设备创建并核embedding与forward，真实tiny模型由同一工厂恢复RNG/设备并关闭owned资源。日志区分选择器张量、刻意零forward与实际forward；局部CUDA Generator须保持全局状态。科学CLI的728参数本地模型验证使用测试内委托loader移到CUDA，不代表生产CLI增加了设备选项；它不替代真实模型研究或跨设备等价验收。Hypothesis保max_examples=80的原属性规模，单个属性仍算一个pytest参数结果，不加计内部示例。
 
 Run和Study质量门分别从 `studies._shared.flow.summarize.run`、`studies._shared.flow.process.run` 使用 `run_gate`、`study_gate`；保存件验证从 `studies._shared.structure.validation` 使用，不再通过旧 `flow.checks` 转导出。删除当前兼容文件会改变新来源摘要，旧来源锁与Run仍按原身份解释，不补签或删成员绕过校验。
 

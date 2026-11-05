@@ -267,3 +267,103 @@ def test_normal_accepted_bonus_block_preserves_budget_and_eos(stop, cuda_decode,
     assert result.committed == ((4, 4, 4) if stop == 'budget' else (4, 5))
     assert result.termination_reason == stop and model.calls == 2
     assert audit_run(sink.rows, req.sources).argmax_coverage
+
+
+
+from studies._shared.structure.config import apply_variant, _convert
+from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, _fork_generator
+from spec_mtp.structure.algorithm.mask import build_mask_provider
+
+def _boundary_eval(**kw):
+    base = {'max_new_tokens': 16, 'temperature': 0.0, 'stop_on_eos': False}
+    base.update(kw)
+    return _convert(base)
+
+@pytest.mark.parametrize('spec, match', [
+    ({'method': 'esp', 'num_masks': 1, 'impl': 'efficient', 'tree': {'mode': 'dynamic'}},
+     'efficient requires spec.tree.mode=static'),
+    ({'method': 'esp', 'num_masks': 1, 'impl': 'turbo', 'tree': {'mode': 'static', 'branches': [2]}},
+     'Unsupported spec.impl'),
+])
+def test_decoder_rejects_bad_impl_tree_pairs(spec, match, cuda_tiny_model, cuda_decode, record_property):
+    tiny = cuda_tiny_model()
+    with pytest.raises(ValueError, match=match):
+        SpecDecoder(tiny, _convert(spec), _boundary_eval(), mask_policy=build_mask_provider(_convert(spec), tiny.embedding_table))
+
+
+def test_stop_on_eos_matches_ar_and_stops_early(cuda_tiny_model, cuda_decode, record_property):
+    """Plant an EOS id; both paths must stop on it and stay token-identical."""
+    tiny = cuda_tiny_model()
+    prompt = torch.randint(0, 64, (1, 8), generator=torch.Generator(device=cuda_decode.device).manual_seed(1), device=cuda_decode.device)
+    # Force a tiny budget so we exercise the stop path without relying on natural EOS.
+    spec = apply_variant({}, 'esp_static')
+    eval_cfg = _boundary_eval(max_new_tokens=12, stop_on_eos=True)
+    # Use a token that the random model will eventually emit; verify equality with AR.
+    eos_id = 3
+    dec = SpecDecoder(tiny, spec, eval_cfg, eos_ids=[eos_id], generator=torch.Generator(device=cuda_decode.device).manual_seed(9), mask_policy=build_mask_provider(spec, tiny.embedding_table))
+    out, stats = dec.generate(prompt)
+    ar, ar_stats = ar_generate(tiny, prompt, eval_cfg, eos_ids=[eos_id],
+                               generator=torch.Generator(device=cuda_decode.device).manual_seed(9))
+    assert torch.equal(out, ar)
+    assert stats['new_tokens'] == ar_stats['ar_calls']
+    # If EOS appeared, it is the last committed token and we did not overshoot the budget.
+    assert out.size(1) <= prompt.size(1) + 12
+    record_property('eos_observed', bool((out[0, prompt.size(1):] == eos_id).any().item()))
+    record_property('termination_reason', stats['termination_reason'])
+
+
+def test_context_limit_sets_the_flag_and_matches_budgeted_ar(cuda_tiny_model, cuda_decode, record_property):
+    short = cuda_tiny_model({
+        'vocab_size': 64, 'hidden_size': 32, 'intermediate_size': 64, 'num_layers': 1,
+        'num_heads': 2, 'num_kv_heads': 1, 'max_position_embeddings': 40,
+    })
+    prompt = torch.randint(0, 64, (1, 24), generator=torch.Generator(device=cuda_decode.device).manual_seed(2), device=cuda_decode.device)
+    spec = apply_variant({}, 'esp_dynamic')
+    eval_cfg = _boundary_eval(max_new_tokens=32)
+    out, stats = SpecDecoder(short, spec, eval_cfg, generator=torch.Generator(device=cuda_decode.device).manual_seed(2), mask_policy=build_mask_provider(spec, short.embedding_table)).generate(prompt)
+    assert stats['hit_context_limit'] == 1
+    assert out.size(1) <= 40
+    budget = dict(eval_cfg)
+    budget['max_new_tokens'] = stats['new_tokens']
+    audited, _ = ar_generate(short, prompt, _convert(budget), generator=torch.Generator(device=cuda_decode.device).manual_seed(2))
+    assert torch.equal(out, audited)
+
+
+def test_budget_truncation_without_context_limit(cuda_tiny_model, cuda_decode, record_property):
+    tiny = cuda_tiny_model()
+    prompt = torch.randint(0, 64, (1, 8), generator=torch.Generator(device=cuda_decode.device).manual_seed(3), device=cuda_decode.device)
+    spec = apply_variant({}, 'esp_static')
+    eval_cfg = _boundary_eval(max_new_tokens=5)
+    out, stats = SpecDecoder(tiny, spec, eval_cfg, generator=torch.Generator(device=cuda_decode.device).manual_seed(3), mask_policy=build_mask_provider(spec, tiny.embedding_table)).generate(prompt)
+    assert stats['hit_context_limit'] == 0
+    assert stats['new_tokens'] == 5
+    assert out.size(1) == prompt.size(1) + 5
+
+
+def test_fork_generator_copies_state_and_leaves_source(cuda_decode, record_property):
+    src = torch.Generator(device=cuda_decode.device).manual_seed(11)
+    before = src.get_state().clone()
+    fork = _fork_generator(src)
+    assert fork is not src
+    draw = torch.randn(4, generator=fork, device=cuda_decode.device)
+    assert draw.device == cuda_decode.device
+    record_property('fork_tensor_device', str(draw.device))
+    assert torch.equal(src.get_state(), before)
+    assert _fork_generator(None) is None
+
+
+def test_decoder_uses_it_only_for_dynamic_trees(cuda_tiny_model, cuda_decode, record_property):
+    from studies._shared.structure.config import apply_variant
+    from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
+    from studies._shared.structure.config import _convert
+
+    model = cuda_tiny_model({'vocab_size': 64, 'hidden_size': 32, 'intermediate_size': 64,
+                                    'num_layers': 1, 'num_heads': 2, 'num_kv_heads': 1,
+                                    'max_position_embeddings': 256})
+    eval_cfg = _convert({'max_new_tokens': 4, 'temperature': 0.0, 'stop_on_eos': False})
+    dynamic = SpecDecoder(model, apply_variant({}, 'esp_dynamic'), eval_cfg, mask_policy=build_mask_provider(apply_variant({}, 'esp_dynamic'), model.embedding_table))
+    naive_static = SpecDecoder(model, apply_variant({}, 'llama3/impl_naive_bc30'), eval_cfg, mask_policy=build_mask_provider(apply_variant({}, 'llama3/impl_naive_bc30'), model.embedding_table))
+    efficient = SpecDecoder(model, apply_variant({}, 'esp_static'), eval_cfg, mask_policy=build_mask_provider(apply_variant({}, 'esp_static'), model.embedding_table))
+    assert dynamic._dynamic_attn is not None
+    assert naive_static._dynamic_attn is None and naive_static._attn_cache is None  # Table 4 naive path kept
+    assert efficient._dynamic_attn is None and efficient._attn_cache is not None

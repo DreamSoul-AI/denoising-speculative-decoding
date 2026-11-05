@@ -290,3 +290,42 @@ def cuda_decode(record_property):
     record_property('cuda_name', torch.cuda.get_device_name(device))
     record_property('decode_forward_devices', bundle.observed_devices)
     return bundle
+
+
+@pytest.fixture
+def cuda_tiny_model(cuda_decode, record_property):
+    """Create owned tiny HF sessions on the explicit device and close all of them."""
+    import torch
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
+
+    owned = []
+    model_devices = []
+    record_property('tiny_model_devices', model_devices)
+
+    def build(config=None, *, seed=0):
+        actual = {'vocab_size': 64, 'hidden_size': 32, 'intermediate_size': 64,
+                  'num_layers': 1, 'num_heads': 2, 'num_kv_heads': 1,
+                  'max_position_embeddings': 128}
+        actual.update(config or {})
+        device = cuda_decode.device
+        with torch.random.fork_rng(devices=[device.index]), torch.device(device):
+            torch.random.default_generator.manual_seed(seed)
+            torch.cuda.default_generators[device.index].manual_seed(seed)
+            model = HFCausalLM(tiny_config=actual)
+        owned.append(model)
+        assert model.embedding_table.device == device
+        model_devices.append(str(model.embedding_table.device))
+
+        def check_forward(module, args, output):
+            assert module.embedding_table.device == args[0].device == output.logits.device == device
+            assert args[1].device == device
+            cuda_decode.observed_devices.append(str(output.logits.device))
+
+        model.register_forward_hook(check_forward)
+        return model
+
+    try:
+        yield build
+    finally:
+        for model in reversed(owned):
+            model.close()

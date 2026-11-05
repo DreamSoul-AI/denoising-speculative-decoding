@@ -1219,74 +1219,189 @@
       }
     },
     {
-      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_decoder_rejects_bad_impl_tree_pairs",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_rejects_bad_impl_tree_pairs",
+      "target": "spec_mtp.structure.algorithm.decode.loop.SpecDecoder.__init__",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_esp_mask_init_errors",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_mask_init_errors",
+      "target": "spec_mtp.structure.algorithm.mask.providers.ESPMaskProvider.init_from_prompt",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_ema_rejects_short_prompt_and_bad_level",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_rejects_short_prompt_and_bad_level",
+      "target": "spec_mtp.structure.algorithm.mask.providers.EMAVelocityMaskProvider",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_build_mask_provider_rejects_unknown_method",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_rejects_unknown_method",
+      "target": "spec_mtp.structure.algorithm.mask.factory.build_mask_provider",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_stop_on_eos_matches_ar_and_stops_early",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_stop_on_eos_matches_ar_and_stops_early",
+      "target": "spec_mtp.structure.algorithm.decode.loop.SpecDecoder.generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_context_limit_sets_the_flag_and_matches_budgeted_ar",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_context_limit_sets_the_flag_and_matches_budgeted_ar",
+      "target": "spec_mtp.structure.algorithm.decode.loop.SpecDecoder.generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_budget_truncation_without_context_limit",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_truncation_without_context_limit",
+      "target": "spec_mtp.structure.algorithm.decode.loop.SpecDecoder.generate",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_fork_generator_copies_state_and_leaves_source",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_fork_generator_copies_state_and_leaves_source",
+      "target": "spec_mtp.structure.algorithm.decode.loop._fork_generator",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_kv_crop_and_keep_block_positions",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_kv_crop_and_keep_block_positions",
+      "target": "spec_mtp.structure.model.hf_causal.keep_block_positions",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_decoder_boundaries.py::test_kv_rejects_unsupported_cache_type",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_kv_rejects_unsupported_cache_type",
+      "target": "spec_mtp.structure.model.hf_causal._layer_tensors",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/spec_mtp/test_decoding_esp_boundaries.py::test_select_token_greedy_and_sample",
@@ -2663,102 +2778,255 @@
       ]
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_attention_cache.py::test_matches_naive_builder",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_matches_naive_builder",
+      "target": "spec_mtp.structure.algorithm.decode.tree_attention.DynamicTreeAttentionCache.get",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_attention_cache.py::test_returned_tensors_do_not_alias_the_cache",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_returned_tensors_do_not_alias_the_cache",
+      "target": "spec_mtp.structure.algorithm.decode.tree_attention.DynamicTreeAttentionCache.get",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_attention_cache.py::test_decoder_uses_it_only_for_dynamic_trees",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_uses_it_only_for_dynamic_trees",
+      "target": "spec_mtp.structure.algorithm.decode.loop.SpecDecoder.__init__",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_attention_cache.py::test_max_entries_must_be_at_least_one",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_max_entries_must_be_at_least_one",
+      "target": "spec_mtp.structure.algorithm.decode.tree_attention.DynamicTreeAttentionCache.__init__",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_attention_cache.py::test_static_efficient_cache_matches_naive_builder",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_efficient_cache_matches_naive_builder",
+      "target": "spec_mtp.structure.algorithm.decode.tree_attention.TreeAttentionCache.get",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_attention_cache.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
+      "target": "spec_mtp.structure.algorithm.decode.tree_attention.TreeAttentionCache.get",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_empty_tree_helpers",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_empty_tree_helpers",
+      "target": "spec_mtp.structure.algorithm.decode.tree.DraftTree",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_node_budget_rejects_too_small_block_complexity",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_node_budget_rejects_too_small_block_complexity",
+      "target": "spec_mtp.structure.algorithm.decode.tree.node_budget_for",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_static_rejects_more_branches_than_masks",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_rejects_more_branches_than_masks",
+      "target": "spec_mtp.structure.algorithm.decode.tree.build_static_tree",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_static_zero_width_stops_deeper_levels",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_zero_width_stops_deeper_levels",
+      "target": "spec_mtp.structure.algorithm.decode.tree.build_static_tree",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_topk_skips_banned_and_taken_tokens",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_topk_skips_banned_and_taken_tokens",
+      "target": "spec_mtp.structure.algorithm.decode.tree._topk_with_pruning",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_dynamic_stops_when_pruning_exhausts_tiny_vocab",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_dynamic_stops_when_pruning_exhausts_tiny_vocab",
+      "target": "spec_mtp.structure.algorithm.decode.tree.build_dynamic_tree",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_build_tree_dispatch_and_unknown_mode",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_build_tree_dispatch_and_unknown_mode",
+      "target": "spec_mtp.structure.algorithm.decode.tree.build_tree",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
-      "test_id": "tests/spec_mtp/test_tree_boundaries.py::test_children_of_and_block_layout_indices",
-      "target": "spec_mtp",
+      "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_children_of_and_block_layout_indices",
+      "target": "spec_mtp.structure.algorithm.decode.tree.DraftTree.children_of",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     },
     {
       "test_id": "tests/spec_mtp/test_window_observer.py::test_observation_preserves_tokens_trace_and_temporal_seed",
@@ -10862,6 +11130,86 @@
         {
           "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
           "reason": "Explicit CUDA decode/selection correctness; includes zero-forward and local GPU RNG contracts. No CPU fallback."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_rejects_bad_impl_tree_pairs",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_mask_init_errors",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_rejects_short_prompt_and_bad_level",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_rejects_unknown_method",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_stop_on_eos_matches_ar_and_stops_early",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_context_limit_sets_the_flag_and_matches_budgeted_ar",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_truncation_without_context_limit",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_fork_generator_copies_state_and_leaves_source",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_kv_crop_and_keep_block_positions",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_rejects_more_branches_than_masks",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_zero_width_stops_deeper_levels",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_topk_skips_banned_and_taken_tokens",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_dynamic_stops_when_pruning_exhausts_tiny_vocab",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_build_tree_dispatch_and_unknown_mode",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_children_of_and_block_layout_indices",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_matches_naive_builder",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_returned_tensors_do_not_alias_the_cache",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_uses_it_only_for_dynamic_trees",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_efficient_cache_matches_naive_builder",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
+        },
+        {
+          "test_id": "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes",
+          "reason": "Real CUDA tensor/model/generator contract; Hypothesis80 preserved where declared; no CPU replacement."
         }
       ],
       "cpu_only": true
@@ -11310,7 +11658,11 @@
         "tests/spec_mtp/flow/test_cli.py::test_cli_compare_keeps_required_and_additional_pairing_checks",
         "tests/spec_mtp/flow/test_cli.py::test_cli_output_admission_precedes_model_construction",
         "tests/spec_mtp/flow/test_cli.py::test_cli_failed_model_construction_closes_reserved_incomplete_output",
-        "tests/spec_mtp/flow/test_cli.py::test_cli_rejects_model_manifest_before_constructing_model"
+        "tests/spec_mtp/flow/test_cli.py::test_cli_rejects_model_manifest_before_constructing_model",
+        "tests/spec_mtp/structure/model/test_hf_causal.py::test_kv_rejects_unsupported_cache_type",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_empty_tree_helpers",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_node_budget_rejects_too_small_block_complexity",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_max_entries_must_be_at_least_one"
       ],
       "exclude": []
     },
@@ -11410,13 +11762,33 @@
         "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_prefill_rejects_context_overflow_before_cache_or_embedding",
         "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_ar_full_context_can_emit_prefill_token_without_next_forward",
         "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_later_token_failure_preserves_successful_commits_within_block",
-        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_normal_accepted_bonus_block_preserves_budget_and_eos"
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_normal_accepted_bonus_block_preserves_budget_and_eos",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_rejects_bad_impl_tree_pairs",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_esp_mask_init_errors",
+        "tests/spec_mtp/structure/algorithm/mask/test_providers.py::test_ema_rejects_short_prompt_and_bad_level",
+        "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_rejects_unknown_method",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_stop_on_eos_matches_ar_and_stops_early",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_context_limit_sets_the_flag_and_matches_budgeted_ar",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_budget_truncation_without_context_limit",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_fork_generator_copies_state_and_leaves_source",
+        "tests/spec_mtp/structure/model/test_hf_causal.py::test_kv_crop_and_keep_block_positions",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_rejects_more_branches_than_masks",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_static_zero_width_stops_deeper_levels",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_topk_skips_banned_and_taken_tokens",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_dynamic_stops_when_pruning_exhausts_tiny_vocab",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_build_tree_dispatch_and_unknown_mode",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_children_of_and_block_layout_indices",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_matches_naive_builder",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_returned_tensors_do_not_alias_the_cache",
+        "tests/spec_mtp/structure/algorithm/decode/test_loop.py::test_decoder_uses_it_only_for_dynamic_trees",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_efficient_cache_matches_naive_builder",
+        "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_static_cache_rebuilds_when_dtype_or_min_value_changes"
       ],
       "exclude": [],
       "resources": {
         "gpu_count": 1,
-        "estimated_device_seconds": 160,
-        "estimate_basis": "Clean prior CUDA226 parameters took110.22s; adds35 bounded injected decode/selector CUDA parameters.160s is an estimate, not a benchmark; budget remains300s.",
+        "estimated_device_seconds": 190,
+        "estimate_basis": "Prior clean CUDA261 parameters took106.95s; new22-CUDA targeted cases took about16s including cold native initialization, Hypothesis80 call1.66s.190s is scheduling estimate;300s budget unchanged.",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
         "network": false,
         "model_download": false
