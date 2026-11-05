@@ -1,7 +1,50 @@
 """Pure legacy decoder config stays independent between calls."""
 import pytest
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
-from studies._shared.structure.config import NamedDict, _convert, spec_for
+from studies._shared.structure.config import NamedDict, _convert, apply_variant, spec_for
+from studies._shared.structure.paper_variants import PAPER_VARIANTS
+from studies._shared.structure.smoke_variants import VARIANTS
+
+_VARIANT_PROPERTY_SETTINGS = settings(max_examples=60, deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture])
+_VARIANT_PROPERTY_PRESETS = {**VARIANTS, **PAPER_VARIANTS}
+_VARIANT_PROPERTY_NAMES = st.sampled_from(sorted(_VARIANT_PROPERTY_PRESETS))
+_VARIANT_UNKNOWN_NAMES = st.text(st.characters(codec='ascii', categories=['L', 'N']), min_size=1, max_size=8)
+
+
+@_VARIANT_PROPERTY_SETTINGS
+@given(_VARIANT_PROPERTY_NAMES,
+       st.dictionaries(st.sampled_from(['impl', 'method', 'extra']), st.text(max_size=4), max_size=3))
+def test_apply_variant_overrides_preset_keys_and_is_idempotent(name, base):
+    preset = _VARIANT_PROPERTY_PRESETS[name]
+    original = dict(base)
+    once = apply_variant(base, name)
+    assert apply_variant(dict(once), name) == once
+    assert base == original
+    for key in preset:
+        assert once[key] == preset[key]
+    for key in set(base) - set(preset):
+        assert once[key] == base[key]
+
+
+@_VARIANT_PROPERTY_SETTINGS
+@given(_VARIANT_PROPERTY_NAMES)
+def test_apply_variant_is_case_insensitive(name):
+    assert apply_variant({}, name.upper()) == apply_variant({}, name)
+
+
+@_VARIANT_PROPERTY_SETTINGS
+@given(_VARIANT_UNKNOWN_NAMES.filter(lambda name: name.lower() not in _VARIANT_PROPERTY_PRESETS))
+def test_unknown_variant_raises(name):
+    with pytest.raises(ValueError, match='unknown spec variant'):
+        apply_variant({}, name)
+
+
+def test_empty_variant_returns_input():
+    base = {'impl': 'naive'}
+    assert apply_variant(base, None) is base and apply_variant(base, '') is base
 
 
 def test_convert_nests_attribute_access():

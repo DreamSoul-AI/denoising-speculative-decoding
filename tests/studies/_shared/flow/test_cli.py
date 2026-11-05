@@ -1,20 +1,68 @@
-"""CPU smoke Study through RPipe: three mask variants, exact match against plain generation.
+"""Native CLI engineering checks: CUDA numeric execution and CPU admission IO.
 
-The pooled accept_d1 numbers are the pre-refactor baseline (b1f6191, copied
-framework). They guard the migration; they are not a research result.
+The old CPU 27/31/8 acceptance counts retain their historical identity. These
+new CUDA fixtures use CUDA model initialization and make no bitwise comparison
+with that CPU baseline; native full-token T0 argmax is the correctness gate.
 """
 
 import csv
+import hashlib
 import json
 
+import pytest
+import torch
+import yaml
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
+
+from studies._shared.flow import cli as shared_cli
+from studies._shared.structure import sources as shared_sources
 
 from tests.conftest import cli
 
-EXPECTED_ACCEPT_D1 = {
-    'esp_static': 27,
-    'esp_dynamic': 31,
-    'ema_velocity': 8,
-}
+
+_CUDA_RECIPE = '''"""CUDA-only model-construction fixture; native admission remains first."""
+import torch
+from studies._shared.structure.recipe import register as native_register
+from studies._shared.structure.model import _build_tiny, _build_hf
+from spec_mtp.structure.model.factory import ModelRegistry
+
+
+def _cuda(builder, *args, **kwargs):
+    assert torch.cuda.is_available(), 'CUDA required; no CPU fallback'
+    with torch.device('cuda:0'):
+        model = builder(*args, **kwargs)
+    assert model.module.device == torch.device('cuda:0')
+    print('native fixture model device=' + str(model.module.device) + ' name=' + torch.cuda.get_device_name(0), flush=True)
+    return model
+
+
+def register(ctx):
+    native_register(ctx)
+    ModelRegistry.register('tiny_llama', 'spec_mtp', lambda *a, **kw: _cuda(_build_tiny, *a, **kw))
+    ModelRegistry.register('hf_causal', 'spec_mtp', lambda *a, **kw: _cuda(_build_hf, *a, **kw))
+'''
+
+
+@pytest.fixture
+def cuda_study_copy(study_copy, record_property):
+    assert torch.cuda.is_available(), 'native smoke requires CUDA; no CPU fallback'
+    device_name = torch.cuda.get_device_name(0)
+    print('native smoke device=cuda:0 name=' + device_name, flush=True)
+    record_property('cuda_device', device_name)
+
+    def copy(patch=None, name='cuda_smoke'):
+        def configure(study):
+            study['description'] = 'New CUDA native CLI engineering fixture; old CPU counts are historical only'
+            study['fixed']['system']['config']['device'] = 'cuda:0'
+            study['fixed']['algorithm']['config']['eval']['device'] = 'cuda:0'
+            if patch:
+                patch(study)
+        root = study_copy(configure, name='cuda-engineering-' + name)
+        recipe = root / 'recipe.py'
+        recipe.write_text(_CUDA_RECIPE, encoding='utf-8')
+        return root
+    return copy
 
 
 def _overall(study, run_id):
@@ -24,40 +72,63 @@ def _overall(study, run_id):
     return rows[0]
 
 
+def _check_run_identity(study, run_id):
+    root = study / 'runs' / run_id
+    inputs = json.loads((root / 'assets/decode_inputs.json').read_text(encoding='utf-8'))
+    config = yaml.safe_load((root / 'config.yaml').read_text(encoding='utf-8'))
+    assert inputs['device'] == inputs['settings']['eval']['device'] == 'cuda:0'
+    assert inputs['backend'] == 'eager'
+    assert inputs['settings']['run']['seed'] == config['seed'] == 123
+    assert inputs['settings']['data']['seed'] == 0
+    assert len(inputs['prompts']) == 4 and all(len(p['input_ids']) == 32 for p in inputs['prompts'])
+    result = json.loads((root / 'result.json').read_text(encoding='utf-8'))
+    assert result['status'] == 'succeeded' and result['spec_mtp']['passed'] is True
+    assert result['spec_mtp']['sources']['digest'] == result['spec_mtp']['sources_digest']
+    assert result['provenance']
+    saved_sources = json.loads((root/'assets/spec_mtp_sources.json').read_text(encoding='utf-8'))
+    assert saved_sources['study_files']['recipe.py'] == hashlib.sha256((study/'recipe.py').read_bytes()).hexdigest()
+    return inputs, result
+
+
 def _check_smoke(study):
     index = json.loads((study / 'index.json').read_text(encoding='utf-8'))
-    seen = {}
+    seen = set()
+    identities = []
     for experiment in index['experiments']:
         variant = experiment['factors']['algorithm.config.variant']
         run_id = experiment['runs'][0]['id']
+        inputs, result = _check_run_identity(study, run_id)
+        assert inputs['dtype'] == 'torch.float32'
+        assert result['spec_mtp']['argmax_all_passed']
+        assert result['spec_mtp']['argmax_checked_prompts'] == 4
+        assert result['spec_mtp']['argmax_checked_tokens'] == 128
+        assert type(result['spec_mtp']['exact_match_rate']) is float
         overall = _overall(study, run_id)
-        assert float(overall['exact_match_rate']) == 1.0
-        seen[variant] = int(float(overall['accept_d1']))
-        result = json.loads((study / 'runs' / run_id / 'result.json').read_text(encoding='utf-8'))
-        assert result['status'] == 'succeeded'
-        assert result['spec_mtp']['passed'] is True
-        assert result['spec_mtp']['sources']['digest'] == result['spec_mtp']['sources_digest']
-        assert result['provenance']  # RPipe provenance digest of the Study
-    assert seen == EXPECTED_ACCEPT_D1
+        assert int(float(overall['prompts'])) == 4
+        assert int(float(overall['accept_d1'])) >= 0
+        identities.append((inputs['model_digest'], inputs['prompts']))
+        seen.add(variant)
+    assert seen == {'esp_static', 'esp_dynamic', 'ema_velocity'}
+    assert all(identity == identities[0] for identity in identities)
     check = json.loads((study / 'spec_mtp_study_check.json').read_text(encoding='utf-8'))
     assert check['complete'] and check['passed'] and len(check['sources_digests']) == 1
 
 
-def test_smoke_study_matches_plain_generation(study_copy):
-    """The repository Study itself, via the thin spec_mtp entry (CI path)."""
-    study = study_copy(name='fresh_smoke')
+def test_smoke_study_matches_plain_generation(cuda_study_copy):
+    """New CUDA identity through the native six-stage chain; AR remains diagnostic."""
+    study = cuda_study_copy(name='fresh_smoke')
     cli('run', study, check=True)
     _check_smoke(study)
 
 
-def test_rpipe_entry_runs_the_same_chain(study_copy):
-    study = study_copy()
+def test_rpipe_entry_runs_the_same_chain(cuda_study_copy):
+    study = cuda_study_copy()
     cli('run', study, entry='spec_mtp.flow.study_cli', check=True)
     _check_smoke(study)
 
 
-def test_make_then_launch_scripts_path(study_copy):
-    study = study_copy()
+def test_make_then_launch_scripts_path(cuda_study_copy):
+    study = cuda_study_copy()
     cli('make', study, check=True)
     assert (study / 'spec_mtp_sources.json').is_file()
     assert (study / 'scripts' / 'launch.sh').is_file()
@@ -66,28 +137,33 @@ def test_make_then_launch_scripts_path(study_copy):
     _check_smoke(study)
 
 
-def test_context_limit_run_passes_on_reached_budget(study_copy):
+def test_context_limit_run_passes_on_reached_budget(cuda_study_copy):
     """Option A: context limit 56 < 32 + 32; AR is audited on the budget the speculative pass reached."""
     def patch(study):
         study['fixed']['model']['config']['tiny']['max_position_embeddings'] = 56
         study['axes'] = {'algorithm.config.variant': ['esp_static']}
-    study = study_copy(patch, name='ctx_limit')
+    study = cuda_study_copy(patch, name='ctx_limit')
     cli('run', study, check=True)
     run_id = json.loads((study / 'index.json').read_text())['experiments'][0]['runs'][0]['id']
-    assert float(_overall(study, run_id)['exact_match_rate']) == 1.0
+    _, result = _check_run_identity(study, run_id)
+    assert result['spec_mtp']['argmax_all_passed']
+    raw = json.loads((study/'runs'/run_id/'assets/decode_observations.json').read_text())
+    assert all(item['stats']['hit_context_limit'] for item in raw['out']['evidence'])
+    assert all(len(item['ar_ids']) == len(item['output_ids']) for item in raw['out']['evidence'])
 
 
-def test_argmax_audit_passes_without_independent_ar(study_copy):
+def test_argmax_audit_passes_without_independent_ar(cuda_study_copy):
     def patch(study):
         study['fixed']['algorithm']['config']['eval']['run_ar_baseline'] = False
         study['axes'] = {'algorithm.config.variant': ['esp_static']}
-    study = study_copy(patch, name='without_ar')
+    study = cuda_study_copy(patch, name='without_ar')
     proc = cli('run', study)
     assert proc.returncode == 0, proc.stderr
     run_id = json.loads((study / 'index.json').read_text())['experiments'][0]['runs'][0]['id']
     result = json.loads((study / 'runs' / run_id / 'result.json').read_text(encoding='utf-8'))
     assert result['status'] == 'succeeded' and result['spec_mtp']['argmax_all_passed']
     assert all(d['exact'] is None for d in result['spec_mtp']['AR_diagnostics'])
+    _check_run_identity(study, run_id)
 
 
 def test_bad_config_fails_before_construction(study_copy):
@@ -130,13 +206,13 @@ def test_freeze_rejects_study_change_after_make(study_copy):
     assert 'provenance changed' in (proc.stdout + proc.stderr)
 
 
-def test_alignment_probe_writes_metrics_and_passes_the_gate(study_copy):
+def test_alignment_probe_writes_metrics_and_passes_the_gate(cuda_study_copy):
     """The probe's artifact is alignment_metrics.csv; the gate needs it (was dropped before 2026-10-12)."""
     def patch(study):
         study['fixed']['algorithm']['config']['task'] = 'alignment_probe'
         study['fixed']['algorithm']['config']['eval']['probe_steps_per_prompt'] = 4
         study['axes'] = {'algorithm.config.variant': ['esp_static']}
-    study = study_copy(patch, name='probe')
+    study = cuda_study_copy(patch, name='probe')
     cli('run', study, check=True)
     run_id = json.loads((study / 'index.json').read_text())['experiments'][0]['runs'][0]['id']
     with (study / 'runs' / run_id / 'assets' / 'alignment_metrics.csv').open(encoding='utf-8') as handle:
@@ -145,25 +221,27 @@ def test_alignment_probe_writes_metrics_and_passes_the_gate(study_copy):
     assert all(int(r['n_accepted']) + int(r['n_rejected']) > 0 for r in rows)
     result = json.loads((study / 'runs' / run_id / 'result.json').read_text(encoding='utf-8'))
     assert result['status'] == 'succeeded' and result['spec_mtp']['passed']
+    _check_run_identity(study, run_id)
 
 
-def test_ar_baseline_runs_the_same_stage_chain(study_copy):
+def test_ar_baseline_runs_the_same_stage_chain(cuda_study_copy):
     def patch(study):
         study['fixed']['algorithm']['config']['task'] = 'ar_baseline'
         study['axes'] = {'algorithm.config.variant': ['esp_static']}
-    study = study_copy(patch, name='ar_stage_chain')
+    study = cuda_study_copy(patch, name='ar_stage_chain')
     cli('run', study, check=True)
     run_id = json.loads((study / 'index.json').read_text())['experiments'][0]['runs'][0]['id']
     root = study / 'runs' / run_id
     result = json.loads((root / 'result.json').read_text())
     raw = json.loads((root / 'assets/decode_observations.json').read_text())
     assert result['status'] == 'succeeded' and result['spec_mtp']['passed']
+    _check_run_identity(study, run_id)
     assert len(raw['out']['evidence']) == 4
     assert all(len(item['output_ids']) == 64 for item in raw['out']['evidence'])
 
 
-def test_ar_diagnostic_mismatch_does_not_block_native_success(study_copy):
-    study = study_copy(name='raw_mismatch')
+def test_ar_diagnostic_mismatch_does_not_block_native_success(cuda_study_copy):
+    study = cuda_study_copy(name='raw_mismatch')
     hook = study / 'flow/collect/run.py'
     hook.write_text("""from studies._shared.flow.collect import run as collect
 
@@ -173,19 +251,24 @@ def run(ctx):
     from pathlib import Path
     path = Path(ctx.layout.assets_dir) / 'decode_observations.json'
     raw = json.loads(path.read_text())
-    raw['out']['evidence'][0]['ar_ids'][-1] = -1
+    raw['out']['evidence'][0]['ar_ids'] = list(raw['out']['evidence'][0]['output_ids'])
+    if raw['out']['rows'][0]['exact_match']:
+        raw['out']['evidence'][0]['ar_ids'][-1] = -1
     path.write_text(json.dumps(raw))
 """)
     proc = cli('run', study)
     assert proc.returncode == 0, proc.stderr
     index = json.loads((study / 'index.json').read_text())
+    assert len(index['experiments']) == 3
     for experiment in index['experiments']:
         root = study / 'runs' / experiment['runs'][0]['id']
-        if (root / 'result.json').is_file():
-            result = json.loads((root / 'result.json').read_text())
-            assert result['status'] == 'succeeded' and result['spec_mtp']['argmax_all_passed']
-            assert result['spec_mtp']['exact_match_rate']==0.75
-            assert result['spec_mtp']['AR_reported_exact_mismatches']==[0]
+        assert (root / 'result.json').is_file()
+        result = json.loads((root / 'result.json').read_text())
+        assert result['status'] == 'succeeded' and result['spec_mtp']['argmax_all_passed']
+        _check_run_identity(study, root.name)
+        raw = json.loads((root/'assets/decode_observations.json').read_text())
+        assert result['spec_mtp']['AR_diagnostics'][0]['exact'] is not bool(raw['out']['rows'][0]['exact_match'])
+        assert result['spec_mtp']['AR_reported_exact_mismatches']==[0]
 
 
 def test_source_preflight_preserves_existing_result(study_copy):
@@ -205,21 +288,24 @@ def test_source_preflight_preserves_existing_result(study_copy):
         assert result.read_bytes() == original
 
 
-def test_nested_config_axis_validates_effective_factors_and_rejects_subsets(study_copy):
+def test_nested_config_axis_validates_effective_factors_and_rejects_subsets(cuda_study_copy):
     def patch(study):
         study['axes'] = {'algorithm.config': [
             {'task': 'esp_mtp', 'mask': 'frozen_mean'},
             {'task': 'esp_mtp', 'mask': 'gamma_last'},
         ]}
-    study = study_copy(patch, name='nested_config_axis')
-    cli('make', study, '--num-gpus', '0', check=True)
-    cli('launch', study, '--num-gpus', '0', '--console', 'shared', check=True)
+    study = cuda_study_copy(patch, name='nested_config_axis')
+    cli('make', study, '--num-gpus', '1', check=True)
+    cli('launch', study, '--num-gpus', '1', '--console', 'shared', check=True)
     output = study.parent / 'nested-report/numbers.md'
     cli('report', study, '--out', output, check=True)
     process = json.loads((study / 'process.json').read_text())
     assert process['complete'] and process['spec_mtp']['expected_factors_match']
     index = json.loads((study / 'index.json').read_text())
     assert all('eval' in exp['factors']['algorithm.config'] for exp in index['experiments'])
+    for experiment in index['experiments']:
+        for run in experiment['runs']:
+            _check_run_identity(study, run['id'])
     previous = output.read_bytes()
     index['experiments'] = index['experiments'][:1]
     (study / 'index.json').write_text(json.dumps(index))
@@ -229,7 +315,7 @@ def test_nested_config_axis_validates_effective_factors_and_rejects_subsets(stud
     assert result.returncode != 0 and output.read_bytes() == previous
 
 
-def test_output_hidden_real_cli_and_tampered_owner_evidence(study_copy):
+def test_output_hidden_real_cli_and_tampered_owner_evidence(cuda_study_copy):
     import yaml
     from studies._shared.structure.validation import verify_evidence, SpecMtpGateError
     import pytest
@@ -241,14 +327,15 @@ def test_output_hidden_real_cli_and_tampered_owner_evidence(study_copy):
             'tree': {'mode': 'static', 'branches': [1, 1], 'pruning': False},
             'output': {'order': 1, 'beta': .9, 'beta_prime': .99},
         }]}
-    study = study_copy(patch, name='output_hidden_cli')
-    cli('make', study, '--num-gpus', '0', check=True)
-    cli('launch', study, '--num-gpus', '0', '--console', 'shared', check=True)
+    study = cuda_study_copy(patch, name='output_hidden_cli')
+    cli('make', study, '--num-gpus', '1', check=True)
+    cli('launch', study, '--num-gpus', '1', '--console', 'shared', check=True)
     cli('report', study, '--out', study.parent / 'output-hidden-report/numbers.md', check=True)
     process = json.loads((study / 'process.json').read_text())
     assert process['complete'] and process['spec_mtp']['passed']
     run_id = json.loads((study / 'index.json').read_text())['experiments'][0]['runs'][0]['id']
     run = study / 'runs' / run_id
+    _check_run_identity(study, run_id)
     raw_path = run / 'assets/decode_observations.json'
     raw = json.loads(raw_path.read_text())
     raw['out']['evidence'][0]['stats']['trace'][0]['output_hidden']['owner_count'] = 1
@@ -257,7 +344,7 @@ def test_output_hidden_real_cli_and_tampered_owner_evidence(study_copy):
         verify_evidence(yaml.safe_load((run / 'config.yaml').read_text()), run / 'assets')
 
 
-def test_bf16_five_methods_and_independent_ar_native_cli(study_copy, tmp_path):
+def test_bf16_five_methods_and_independent_ar_native_cli(cuda_study_copy, tmp_path):
     from copy import deepcopy
     import pytest
     import torch
@@ -267,10 +354,15 @@ def test_bf16_five_methods_and_independent_ar_native_cli(study_copy, tmp_path):
 
     saved = tmp_path / 'bf16_local_hf'
     torch.manual_seed(7)
-    model = HFCausalLM(tiny_config={'vocab_size': 256, 'hidden_size': 32, 'intermediate_size': 64,
+    with torch.device('cuda:0'):
+        model = HFCausalLM(tiny_config={'vocab_size': 256, 'hidden_size': 32, 'intermediate_size': 64,
         'num_layers': 1, 'num_heads': 2, 'num_kv_heads': 1, 'max_position_embeddings': 256,
         'tie_word_embeddings': True})
-    model.hf.to(torch.bfloat16).save_pretrained(saved)
+    try:
+        assert model.device == torch.device('cuda:0')
+        model.hf.to(torch.bfloat16).save_pretrained(saved)
+    finally:
+        model.close()
     common = {'num_masks': 2, 'impl': 'naive', 'block_complexity': 30,
               'tree': {'mode': 'dynamic', 'pruning': True}}
     variants = [
@@ -289,9 +381,9 @@ def test_bf16_five_methods_and_independent_ar_native_cli(study_copy, tmp_path):
         base['eval'].update(run_ar_baseline=False, warmup=False, max_new_tokens=12)
         study['axes'] = {'algorithm.config': [dict(deepcopy(base), spec=v) for v in variants]
                         + [dict(deepcopy(base), task='ar_baseline')]}
-    study = study_copy(patch, name='bf16_five_methods_cli')
-    cli('make', study, '--num-gpus', '0', check=True)
-    cli('launch', study, '--num-gpus', '0', '--console', 'shared', check=True)
+    study = cuda_study_copy(patch, name='bf16_five_methods_cli')
+    cli('make', study, '--num-gpus', '1', check=True)
+    cli('launch', study, '--num-gpus', '1', '--console', 'shared', check=True)
     check = json.loads((study / 'spec_mtp_study_check.json').read_text())
     assert check['complete'] and check['passed'] and len(check['runs']) == 6
     output_run = None
@@ -299,7 +391,8 @@ def test_bf16_five_methods_and_independent_ar_native_cli(study_copy, tmp_path):
         run = study / 'runs' / entry['runs'][0]['id']
         result = json.loads((run / 'result.json').read_text())
         inputs = json.loads((run / 'assets/decode_inputs.json').read_text())
-        assert inputs['dtype'] == 'torch.bfloat16' and result['status'] == 'succeeded'
+        assert inputs['dtype'] == 'torch.bfloat16' and inputs['device'] == 'cuda:0' and result['status'] == 'succeeded'
+        _check_run_identity(study, run.name)
         if result['spec_mtp']['task'] == 'esp_mtp':
             assert result['spec_mtp']['argmax_all_passed']
             assert all(d['exact'] is None for d in result['spec_mtp']['AR_diagnostics'])
@@ -317,3 +410,40 @@ def test_bf16_five_methods_and_independent_ar_native_cli(study_copy, tmp_path):
         with pytest.raises(SpecMtpGateError, match=error):
             verify_evidence(config, output_run / 'assets')
     raw_path.write_bytes(original)
+
+
+_CLI_PROPERTY_SETTINGS = settings(max_examples=60, deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture])
+_CLI_PROPERTY_FLAGS = st.lists(st.sampled_from(['--remake', '--dry-run', '-v', '--phases=write']), max_size=3)
+
+
+@_CLI_PROPERTY_SETTINGS
+@given(st.sampled_from(['make', 'run', 'launch', 'status', 'collect', 'study']), _CLI_PROPERTY_FLAGS)
+def test_command_and_study_arg(tmp_path_factory, command, extra):
+    study = tmp_path_factory.mktemp('cli-property')
+    (study/'study.yaml').write_text('study: s\n', encoding='utf-8')
+    argv = [command, *extra, str(study)] if command != 'study' else ['study', 'run', *extra, str(study)]
+    assert shared_cli._command(argv) == ('run' if command == 'study' else command)
+    assert shared_cli._study_arg(argv) == study
+
+
+def test_command_edge_cases(tmp_path):
+    assert shared_cli._command([]) is None
+    assert shared_cli._command(['study']) == 'study'
+    assert shared_cli._study_arg(['make', str(tmp_path)]) is None
+    assert shared_cli._study_arg(['make', '--flag']) is None
+    assert shared_cli.write_lock_for([]) is None
+
+
+def test_main_forwards_to_rpipe(monkeypatch, tmp_path, capsys):
+    """The historical test name now checks the repository's own host CLI."""
+    from spec_mtp.flow import study_cli as host_cli
+    calls = []
+    monkeypatch.setattr(host_cli, 'main', lambda argv: calls.append(argv) or None)
+    assert shared_cli.main(['status', str(tmp_path)]) == 0
+    study = tmp_path/'s'; study.mkdir()
+    (study/'study.yaml').write_text('study: s\n', encoding='utf-8')
+    assert shared_cli.main(['make', str(study)]) == 0
+    assert calls == [['status', str(tmp_path)], ['make', str(study)]]
+    assert 'spec_mtp sources:' in capsys.readouterr().out
+    assert (study/shared_sources.LOCK_NAME).is_file()

@@ -3,8 +3,38 @@
 from types import SimpleNamespace
 
 import pytest
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 from studies._shared.structure import sources
+
+_SOURCE_PROPERTY_SETTINGS = settings(max_examples=60, deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture])
+_SOURCE_NAMES = st.text(st.characters(codec='ascii', categories=['L', 'N']), min_size=1, max_size=8)
+_SOURCE_FILES = st.dictionaries(_SOURCE_NAMES.map(lambda value: value + '.py'),
+                                st.text('0123456789abcdef', min_size=4, max_size=8), max_size=6)
+
+
+@_SOURCE_PROPERTY_SETTINGS
+@given(_SOURCE_FILES)
+def test_digest_ignores_insertion_order(files):
+    assert sources.files_digest(files) == sources.files_digest(dict(reversed(list(files.items()))))
+
+
+@_SOURCE_PROPERTY_SETTINGS
+@given(_SOURCE_FILES, _SOURCE_FILES)
+def test_changed_files_is_the_symmetric_difference_of_entries(before, now):
+    changed = sources.changed_files({'files': before}, {'files': now})
+    assert changed == sorted(changed)
+    assert set(changed) == {key for key in set(before) | set(now) if before.get(key) != now.get(key)}
+    assert (changed == []) == (before == now)
+    assert sources.changed_files({'files': now}, {'files': before}) == changed
+
+
+@_SOURCE_PROPERTY_SETTINGS
+@given(_SOURCE_FILES, _SOURCE_FILES)
+def test_digest_changes_iff_files_change(a, b):
+    assert (sources.files_digest(a) == sources.files_digest(b)) == (a == b)
 
 
 @pytest.mark.parametrize('fault', ['none', 'head', 'status', 'no_checkout'])

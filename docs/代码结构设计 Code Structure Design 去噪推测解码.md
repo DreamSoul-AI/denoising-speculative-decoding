@@ -85,7 +85,7 @@ trajectory的office三类命令集中于flow/execute/office.py，structure保留
 
 native训练恢复沿现有职责实现，不新建恢复框架：`algorithm/base.py` 分离只读 `load_resume` 与 `apply_resume`，`algorithm/resume.py` 负责持久化状态准入与RNG校验，`algorithm/train/` 先构造合同并准入、再应用；`system/factory.py` 的 `checkpoint_path` 与读取共用只读路径规则，保存仍由原System维护。`data/factory.py` 的 `validate_training_state` 纯校验v2数据状态，`data/resume.py` 维护游标及sampler/loader generator关系。测试在 `tests/spec_mtp/structure/{algorithm/train,data,system}/` 镜像，独立进程夹具只在测试内，不成为生产入口。当前分工对照远端RPipe main固定414ccb7的读取、准入、应用与原子快照机制，未复制其整套库或更改本仓旧编码。
 
-`flow/execute/fair_branch.py` 拥有原fair协议CLI与会话生命周期，`fresh_replace.py` 内的 `prepare_local_inputs` 供两条replacement flow共用本地输入预检，返回已解析的输入路径和绑定复核，不让各入口重新跟随原路径别名。`structure/fair_branch.py` 保留纯参数化的选择、校准和统计，移除main、固定模型路径与联网读件。默认pytest仍用现有prepend，入口镜像测试以 `test_fair_branch_entry.py`、`test_fresh_replace_entry.py` 区分同名结构测试。
+`flow/execute/fair_branch.py` 拥有原fair协议CLI与会话生命周期，`fresh_replace.py` 内的 `prepare_local_inputs` 供两条replacement flow共用本地输入预检，返回已解析的输入路径和绑定复核，不让各入口重新跟随原路径别名。`structure/fair_branch.py` 保留纯参数化的选择、校准和统计，移除main、固定模型路径与联网读件。pytest按当前pyproject使用importlib模式，入口镜像测试以 `test_fair_branch_entry.py`、`test_fresh_replace_entry.py` 区分同名结构测试。
 
 pilot与preforward_signal的CLI、输出发布及会话生命周期同样归各自 `flow/execute/`。pilot显式冻结本地config、计划SHA、源码和CUDA设备；structure保留合成数据、训练及各既有模式的数学。preforward复用本地模型/输入准入，固定81–208与128条校准模板，structure只接显式rows和设备，不猜模型目录。宿主mask拟合的辅助张量与输入device一致，不依赖默认CPU；不以搬目录改变公式。
 
@@ -151,4 +151,6 @@ extension 的 numerics、kernel、operator 保存张量审计集中到一个 `st
 
 summary为最后完成依据：先保存pending、生成报告并绑定SHA，再发布正式summary；报告或证据写失败只能失败。缺收集或CUDA不可用也保明确未执行范围和失败报告；不把未枚举参数当已完成。报告核声明、环境、选择和终态的一致身份/计数，拒绝漂移或把numeric改为质量通过，不用派生报告重新签原事实。只读重建函数不覆盖旧文件，不新增附件/基准框架。
 
-测试公共子进程拥有关系只用已有_process_tree，避免conftest重复装载同一helper。纯phase派发镜像归宿主flow/study，continuation保存声明/计数检查归已有norm读件镜像；默认六阶段及停止的研究协议不改。旧smoke真实模型比较的CPU历史计数与未来CUDA协议另行设计，本轮仅明确其未执行范围，不借目录迁移扩大数值运行。
+测试公共子进程拥有关系只用已有_process_tree，避免conftest重复装载同一helper。纯phase派发镜像归宿主flow/study，continuation保存声明/计数检查归已有norm读件镜像；默认六阶段及停止的研究协议不改。
+
+shared CLI 的 native smoke 与其参数/调用性质共同归 `tests/studies/_shared/flow/test_cli.py`，按 NS0–NS4 独立定义 CUDA 验证身份。设备初始化适配只存在于测试复制的 recipe，生产模型工厂及原 Study 声明不因此改写；实际输入、模型摘要和后端随原采集链冻结。纯来源性质归已有 `structure/test_sources.py`、配置性质归已有 `structure/test_config.py`，来源门和声明因子性质归实际 `structure/test_validation.py`；测试直接调用真实所属部件，不保混合 properties 文件或 flow facade。每个原性质、Hypothesis 参数规模、失败判据及历史排除仍分别维护。

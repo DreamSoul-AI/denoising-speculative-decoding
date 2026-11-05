@@ -2774,88 +2774,160 @@
       "cost_class": "c1"
     },
     {
-      "test_id": "tests/studies/shared/test_properties.py::test_digest_ignores_insertion_order",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_sources.py::test_digest_ignores_insertion_order",
+      "target": "studies._shared.structure.sources.files_digest",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_properties.py::test_changed_files_is_the_symmetric_difference_of_entries",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_sources.py::test_changed_files_is_the_symmetric_difference_of_entries",
+      "target": "studies._shared.structure.sources.changed_files",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_properties.py::test_digest_changes_iff_files_change",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_sources.py::test_digest_changes_iff_files_change",
+      "target": "studies._shared.structure.sources.files_digest",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_properties.py::test_declared_factors_is_the_full_product",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_declared_factors_is_the_full_product",
+      "target": "studies._shared.structure.validation.declared_factors",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_properties.py::test_ar_rate_never_substitutes_for_missing_argmax_audit",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_validation.py::test_ar_rate_never_substitutes_for_missing_argmax_audit",
+      "target": "studies._shared.structure.validation.evaluate_run",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_properties.py::test_apply_variant_overrides_preset_keys_and_is_idempotent",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_config.py::test_apply_variant_overrides_preset_keys_and_is_idempotent",
+      "target": "studies._shared.structure.config.apply_variant",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_properties.py::test_apply_variant_is_case_insensitive",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_config.py::test_apply_variant_is_case_insensitive",
+      "target": "studies._shared.structure.config.apply_variant",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_properties.py::test_unknown_variant_raises",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_config.py::test_unknown_variant_raises",
+      "target": "studies._shared.structure.config.apply_variant",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_properties.py::test_empty_variant_returns_input",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/structure/test_config.py::test_empty_variant_returns_input",
+      "target": "studies._shared.structure.config.apply_variant",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_properties.py::test_command_and_study_arg",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_command_and_study_arg",
+      "target": "studies._shared.flow.cli._command / _study_arg",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_properties.py::test_command_edge_cases",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_command_edge_cases",
+      "target": "studies._shared.flow.cli._command / _study_arg / write_lock_for",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_properties.py::test_main_forwards_to_rpipe",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_main_forwards_to_rpipe",
+      "target": "studies._shared.flow.cli.main -> spec_mtp.flow.study_cli.main",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
       "test_id": "tests/studies/_shared/structure/test_recipe.py::test_import_registers_nothing",
@@ -3124,109 +3196,232 @@
       "priority": "p1"
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_smoke_study_matches_plain_generation",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_smoke_study_matches_plain_generation",
+      "target": "studies._shared.flow.cli.main / spec_mtp.flow.study_cli native six-phase chain",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1
+      }
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_rpipe_entry_runs_the_same_chain",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_rpipe_entry_runs_the_same_chain",
+      "target": "studies._shared.flow.cli.main / spec_mtp.flow.study_cli native six-phase chain",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1
+      }
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_make_then_launch_scripts_path",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_make_then_launch_scripts_path",
+      "target": "studies._shared.flow.cli.main / spec_mtp.flow.study_cli native six-phase chain",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1
+      }
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_context_limit_run_passes_on_reached_budget",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_context_limit_run_passes_on_reached_budget",
+      "target": "studies._shared.flow.cli.main / spec_mtp.flow.study_cli native six-phase chain",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1
+      }
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_argmax_audit_passes_without_independent_ar",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_argmax_audit_passes_without_independent_ar",
+      "target": "studies._shared.flow.cli.main / spec_mtp.flow.study_cli native six-phase chain",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1
+      }
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_bad_config_fails_before_construction",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_bad_config_fails_before_construction",
+      "target": "studies._shared.flow.cli.main -> studies._shared.structure.recipe.validate",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_freeze_rejects_spec_mtp_change_after_make",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_freeze_rejects_spec_mtp_change_after_make",
+      "target": "studies._shared.flow.cli.check_study_inputs -> studies._shared.structure.sources.check_frozen",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_freeze_rejects_study_change_after_make",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_freeze_rejects_study_change_after_make",
+      "target": "studies._shared.flow.cli.check_study_inputs -> spec_mtp.structure.artifact.provenance.check_frozen",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_alignment_probe_writes_metrics_and_passes_the_gate",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_alignment_probe_writes_metrics_and_passes_the_gate",
+      "target": "studies._shared.flow.cli.main / spec_mtp.flow.study_cli native six-phase chain",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1
+      }
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_ar_baseline_runs_the_same_stage_chain",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_ar_baseline_runs_the_same_stage_chain",
+      "target": "studies._shared.flow.cli.main / spec_mtp.flow.study_cli native six-phase chain",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1
+      }
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_ar_diagnostic_mismatch_does_not_block_native_success",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_ar_diagnostic_mismatch_does_not_block_native_success",
+      "target": "studies._shared.flow.cli.main / spec_mtp.flow.study_cli native six-phase chain",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1
+      }
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_source_preflight_preserves_existing_result",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_source_preflight_preserves_existing_result",
+      "target": "studies._shared.flow.cli.check_study_inputs -> saved result preservation",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_nested_config_axis_validates_effective_factors_and_rejects_subsets",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_nested_config_axis_validates_effective_factors_and_rejects_subsets",
+      "target": "studies._shared.flow.cli.main / spec_mtp.flow.study_cli native six-phase chain",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1
+      }
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_output_hidden_real_cli_and_tampered_owner_evidence",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_output_hidden_real_cli_and_tampered_owner_evidence",
+      "target": "studies._shared.flow.cli.main / spec_mtp.flow.study_cli native six-phase chain",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1
+      }
     },
     {
-      "test_id": "tests/studies/shared/test_smoke_study.py::test_bf16_five_methods_and_independent_ar_native_cli",
-      "target": "studies/shared",
+      "test_id": "tests/studies/_shared/flow/test_cli.py::test_bf16_five_methods_and_independent_ar_native_cli",
+      "target": "studies._shared.flow.cli.main / spec_mtp.flow.study_cli native six-phase chain",
       "tags": [
-        "offline_cpu"
-      ]
+        "offline_cuda"
+      ],
+      "level": "e2e",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1
+      }
     },
     {
       "test_id": "tests/spec_mtp/flow/test_study.py::test_native_phase_dispatches_exported_callable",
@@ -9600,6 +9795,50 @@
         {
           "test_id": "tests/test_run.py::test_cuda_scalar_measurement_records_actual_samples_and_environment",
           "reason": "Requires actual CUDA numerical acquisition; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_cli.py::test_smoke_study_matches_plain_generation",
+          "reason": "Native smoke now requires its independent CUDA initialization/input/T0 contract; run cuda-native-smoke, never CPU fallback."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_cli.py::test_rpipe_entry_runs_the_same_chain",
+          "reason": "Native smoke now requires its independent CUDA initialization/input/T0 contract; run cuda-native-smoke, never CPU fallback."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_cli.py::test_make_then_launch_scripts_path",
+          "reason": "Native smoke now requires its independent CUDA initialization/input/T0 contract; run cuda-native-smoke, never CPU fallback."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_cli.py::test_context_limit_run_passes_on_reached_budget",
+          "reason": "Native smoke now requires its independent CUDA initialization/input/T0 contract; run cuda-native-smoke, never CPU fallback."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_cli.py::test_argmax_audit_passes_without_independent_ar",
+          "reason": "Native smoke now requires its independent CUDA initialization/input/T0 contract; run cuda-native-smoke, never CPU fallback."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_cli.py::test_alignment_probe_writes_metrics_and_passes_the_gate",
+          "reason": "Native smoke now requires its independent CUDA initialization/input/T0 contract; run cuda-native-smoke, never CPU fallback."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_cli.py::test_ar_baseline_runs_the_same_stage_chain",
+          "reason": "Native smoke now requires its independent CUDA initialization/input/T0 contract; run cuda-native-smoke, never CPU fallback."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_cli.py::test_ar_diagnostic_mismatch_does_not_block_native_success",
+          "reason": "Native smoke now requires its independent CUDA initialization/input/T0 contract; run cuda-native-smoke, never CPU fallback."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_cli.py::test_nested_config_axis_validates_effective_factors_and_rejects_subsets",
+          "reason": "Native smoke now requires its independent CUDA initialization/input/T0 contract; run cuda-native-smoke, never CPU fallback."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_cli.py::test_output_hidden_real_cli_and_tampered_owner_evidence",
+          "reason": "Native smoke now requires its independent CUDA initialization/input/T0 contract; run cuda-native-smoke, never CPU fallback."
+        },
+        {
+          "test_id": "tests/studies/_shared/flow/test_cli.py::test_bf16_five_methods_and_independent_ar_native_cli",
+          "reason": "Native smoke now requires its independent CUDA initialization/input/T0 contract; run cuda-native-smoke, never CPU fallback."
         }
       ],
       "cpu_only": true
@@ -9960,7 +10199,23 @@
         "tests/test_run.py::test_batch_report_escapes_saved_names_and_omits_failure_payload",
         "tests/test_run.py::test_batch_report_records_source_admission_failure_without_current_manifest_fallback",
         "tests/test_run.py::test_batch_report_rejects_resolved_evidence_escape_before_hashing",
-        "tests/test_run.py::test_batch_report_rechecks_inputs_after_markdown_write"
+        "tests/test_run.py::test_batch_report_rechecks_inputs_after_markdown_write",
+        "tests/studies/_shared/flow/test_cli.py::test_bad_config_fails_before_construction",
+        "tests/studies/_shared/flow/test_cli.py::test_freeze_rejects_spec_mtp_change_after_make",
+        "tests/studies/_shared/flow/test_cli.py::test_freeze_rejects_study_change_after_make",
+        "tests/studies/_shared/flow/test_cli.py::test_source_preflight_preserves_existing_result",
+        "tests/studies/_shared/flow/test_cli.py::test_command_and_study_arg",
+        "tests/studies/_shared/flow/test_cli.py::test_command_edge_cases",
+        "tests/studies/_shared/flow/test_cli.py::test_main_forwards_to_rpipe",
+        "tests/studies/_shared/structure/test_sources.py::test_digest_ignores_insertion_order",
+        "tests/studies/_shared/structure/test_sources.py::test_changed_files_is_the_symmetric_difference_of_entries",
+        "tests/studies/_shared/structure/test_sources.py::test_digest_changes_iff_files_change",
+        "tests/studies/_shared/structure/test_config.py::test_apply_variant_overrides_preset_keys_and_is_idempotent",
+        "tests/studies/_shared/structure/test_config.py::test_apply_variant_is_case_insensitive",
+        "tests/studies/_shared/structure/test_config.py::test_unknown_variant_raises",
+        "tests/studies/_shared/structure/test_config.py::test_empty_variant_returns_input",
+        "tests/studies/_shared/structure/test_validation.py::test_declared_factors_is_the_full_product",
+        "tests/studies/_shared/structure/test_validation.py::test_ar_rate_never_substitutes_for_missing_argmax_audit"
       ],
       "exclude": []
     },
@@ -10038,6 +10293,32 @@
         "estimated_device_seconds": 120,
         "estimate_basis": "previous 155-case CUDA plan: 108.68 seconds; adds one bounded eight-element CUDA numeric acquisition (no benchmark)",
         "memory_requirement": "not yet estimated; actual allocated/reserved peaks remain in per-case receipts",
+        "network": false,
+        "model_download": false
+      }
+    },
+    "cuda-native-smoke": {
+      "budget_seconds": 300,
+      "cpu_only": false,
+      "include": [
+        "tests/studies/_shared/flow/test_cli.py::test_smoke_study_matches_plain_generation",
+        "tests/studies/_shared/flow/test_cli.py::test_rpipe_entry_runs_the_same_chain",
+        "tests/studies/_shared/flow/test_cli.py::test_make_then_launch_scripts_path",
+        "tests/studies/_shared/flow/test_cli.py::test_context_limit_run_passes_on_reached_budget",
+        "tests/studies/_shared/flow/test_cli.py::test_argmax_audit_passes_without_independent_ar",
+        "tests/studies/_shared/flow/test_cli.py::test_alignment_probe_writes_metrics_and_passes_the_gate",
+        "tests/studies/_shared/flow/test_cli.py::test_ar_baseline_runs_the_same_stage_chain",
+        "tests/studies/_shared/flow/test_cli.py::test_ar_diagnostic_mismatch_does_not_block_native_success",
+        "tests/studies/_shared/flow/test_cli.py::test_nested_config_axis_validates_effective_factors_and_rejects_subsets",
+        "tests/studies/_shared/flow/test_cli.py::test_output_hidden_real_cli_and_tampered_owner_evidence",
+        "tests/studies/_shared/flow/test_cli.py::test_bf16_five_methods_and_independent_ar_native_cli"
+      ],
+      "exclude": [],
+      "resources": {
+        "gpu_count": 1,
+        "estimated_device_seconds": 190,
+        "estimate_basis": "Eleven bounded random-tiny native CLI paths took 182.394 seconds locally (10 pass, one test-fixture mismatch being corrected); six-cell BF16 case previously took 50.393 seconds. Includes child startup; no performance claim.",
+        "memory_requirement": "Random tiny LLaMA only; peak memory not yet measured for this native subprocess plan.",
         "network": false,
         "model_download": false
       }

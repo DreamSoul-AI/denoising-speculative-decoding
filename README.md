@@ -101,6 +101,10 @@ profile 在 CUDA 工作负载上使用 cProfile，component 是主机侧 self-ti
 
 每次计划在外部输出根冻结有效声明/计划 `manifest.json`、`environment.json`、`selection.json` 和逐参数phase/result，生成中文 `report.md`，最后发布绑定报告及证据SHA的 `summary.json`。报告从落盘记录汇总执行、测量、质量、维度、预算、成本和未验证范围；没有正式summary或其退出码非零就不是成功。缺收集、准入失败、缺阶段及报告写失败均保留失败/未知，不用当前源码清单补回未记录的事实。只读 `render_report(root)` 可核对重建，无额外CLI；旧输入与报告不覆盖，原异常载荷不展入正文。
 
+native shared CLI 的 smoke 测试按架构 NS0–NS4 使用独立 CUDA 验证身份。测试复制原声明到外部新根，显式绑定 system/eval 设备，微型模型在 CUDA 初始化并记录实际输入、权重摘要、dtype/backend和运行种子；CPU只准备固定离散token及做纯IO拒绝检查。T0以完整提交链argmax验收，独立AR与接受数为诊断，旧CPU的27/31/8不作CUDA基线。原CPU Study声明、旧Run和历史图保持原义，不因测试迁移重签。
+
+native CLI 验证使用独立测试计划：`python tests/run.py --plan cuda-native-smoke --output-root <另一外部新验证目录>`，单卡、300秒预算，包含11个随机tiny的数值入口路径；不并入原cuda-validation预算。两组GPU验证依次执行，实际设备与来源保存到各自回执，纯配置/来源拒绝仍由cpu-quick选择。该计划不运行真实权重或旧研究矩阵。
+
 测量类（numeric或metrics/samples粒度）须在声明给出唯一 `metric_specs`（name/unit/statistic），通过 `record_property('metrics', [...])` 提交同名有限实数、样本/暖机规模、数据规模、环境、测量边界及inline raw_samples。记录中的 `metrics` 保留原user_properties映射，测量列表位于 `metrics.metrics`，原设备诊断可并列。空/缺采集、重复属性、阶段不完整或写失败均阻断；采集后的可变对象不能改写已保存call事实。每参数的 `*.result.json` 在完整阶段后定稿，numeric为 `status=measured`、`verdict=null`，不算质量通过；summary分别记录measurement_completed与quality_passed，两者独立，带有效测量的分类用例可同时计入。当前只支持inline样本，不建立附件或基准框架；微型CUDA内容测量不提供性能结论。
 
 Study声明的 `provenance.project_plan.path` 只有在无commit/hash的当前导航角色时跟随唯一中文研究计划；带commit/path/sha的固定组及 `docs/source_refs.json` 仍按原Git身份读取。historical_sections中的anchor按原版本索引解释，不指向当前中文正文锚点。导航维护不修改历史source_path/commit/blob/hash、旧Run或原科学输入；原件缺失仍拒绝。
