@@ -4,6 +4,7 @@ import torch  # before numpy on Windows
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 import numpy as np
 POSITION_EDGES = (0, 32, 64, 128, 192, 256)
 
@@ -38,7 +39,7 @@ def summarize_geometry(capture):
     assert capture['quality_passed'] and capture['status'] == 'complete'
     methods = ('input_first', 'output_zero', 'output_first')
     metrics = ('mask_norm', 'raw_norm', 'target_norm', 'mask_target_cos', 'raw_target_cos', 'mask_target_norm_ratio', 'slot_pair_cos', 'velocity_anchor_ratio', 'real_hidden_norm', 'real_hidden_target_cos', 'predicted_hidden_real_cos', 'mask_scale_relative_error', 'reconstruction_direction_cos')
-    result = {'groups': {}, 'slot_effects': {}, 'matched_shared_prefix': {}, 'capture_cases': len(capture['cases'])}
+    result: dict[str, Any] = {'groups': {}, 'slot_effects': {}, 'matched_shared_prefix': {}, 'capture_cases': len(capture['cases'])}
     for cohort in ('all', 'shared_prefix'):
         points = [p for p in capture['points'] if cohort == 'all' or p['shared_prefix']]
         for method in methods:
@@ -48,8 +49,8 @@ def summarize_geometry(capture):
             for slot in (0, 1):
                 for depth in (None, 0, 1, 2):
                     rows = [p for p in points if p['case'] == method and p['slot'] == slot and (depth is None or p['depth'] == depth)]
-                    key = f'{cohort}/{method}/depth{depth}/slot{slot}'
-                    result['groups'][key] = {m: distribution([p[m] for p in rows if m in p]) for m in metrics}
+                    group_name = f'{cohort}/{method}/depth{depth}/slot{slot}'
+                    result['groups'][group_name] = {m: distribution([p[m] for p in rows if m in p]) for m in metrics}
     indexed = {}
     for method in methods:
         rows = [p for p in capture['points'] if p['case'] == method and p['shared_prefix']]
@@ -67,10 +68,10 @@ def summarize_geometry(capture):
 def summarize_cell(raw):
     rows, evidence = (raw['out']['rows'], raw['out']['evidence'])
     assert len(rows) == len(evidence) == 480
-    bins = [{'root_index_range': [a, b], 'calls': 0, 'accept_ge1': 0, 'accept_ge2': 0, 'accepted': 0, 'committed': 0} for a, b in zip(POSITION_EDGES, POSITION_EDGES[1:])]
+    bins: list[dict[str, Any]] = [{'root_index_range': [a, b], 'calls': 0, 'accept_ge1': 0, 'accept_ge2': 0, 'accepted': 0, 'committed': 0} for a, b in zip(POSITION_EDGES, POSITION_EDGES[1:])]
     attempts, accepts = ([0, 0, 0, 0], [0, 0, 0, 0])
     norm_min, norm_max, norm_errors, owner_diffs, scales = ([], [], [], [], [])
-    by_category = {}
+    by_category: dict[str, dict[str, int]] = {}
     for row, e in zip(rows, evidence):
         stats = e['stats']
         events = trace_metrics(e, len(e['input_ids']))
@@ -111,16 +112,11 @@ def summarize_cell(raw):
 
 def audit_saved(study, paired):
     """Recheck saved tokens and first blocks; do not re-sign native Runs."""
-    import importlib.util
-    import sys
     from studies._shared.structure import validation
+    from studies.qwen3_4b_bf16_bias_norm_scan import analyze_results as helpers
+    from studies.qwen3_4b_bf16_bias_norm_scan.norm_control import check_refs
     root = Path(__file__).resolve().parents[3]
     norm = root / 'studies/qwen3_4b_bf16_bias_norm_scan'
-    sys.path.insert(0, str(norm))
-    spec = importlib.util.spec_from_file_location('geometry_norm_helpers', norm / 'analyze_results.py')
-    helpers = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(helpers)
-    from norm_control import check_refs
     check_refs()
     assert sha(study / 'docs/paired_evidence_v1.json') == sha(root / 'studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json')
     prompts = helpers.read(root / 'studies/qwen3_4b_bf16_five_methods/docs/prompts_manifest.json')['rendered_prompts']
@@ -176,7 +172,7 @@ def velocity_geometry(anchor, velocity):
     return {'velocity_over_anchor': float(v.norm() / a.norm()), 'radial_signed_over_velocity': float(v @ a / (a.norm() * v.norm())), 'tangent_over_velocity': float(tangent.norm() / v.norm()), 'normalized_movement_retention': float(normalized_move.norm() / (v.norm() / a.norm())), 'raw_slot_norm_ratio': float((a + v).norm() / a.norm())}
 
 def transition_counts(evidence):
-    result = {str(d): {'transitions': 0, 'next_accept_d1': 0, 'next_accept_d2': 0} for d in (0, 1, 2)}
+    result: dict[str, dict[str, Any]] = {str(d): {'transitions': 0, 'next_accept_d1': 0, 'next_accept_d2': 0} for d in (0, 1, 2)}
     for e in evidence:
         trace_metrics(e, len(e['input_ids']))
         for previous, current in zip(e['stats']['trace'], e['stats']['trace'][1:]):
@@ -235,18 +231,15 @@ def plot_results(report, path):
         ax.set_xticks(range(len(qids)), [f"q{q}\nR{indexed[q, 'zero']['root_index']}" for q in qids])
         for i, j in np.ndindex(values.shape):
             ax.text(j, i, str(values[i, j]), ha='center', va='center', color='red', fontsize=11)
-        fig.colorbar(chart, ax=ax, shrink=0.8, **{'ticks': [0, 1, 2]} if values is accepted else {})
+        fig.colorbar(chart, ax=ax, shrink=0.8, ticks=[0, 1, 2] if values is accepted else None)
     fig.savefig(path, dpi=160)
     plt.close(fig)
-import importlib.util
 import ast
 ROOT = Path(__file__).resolve().parents[3]
 BASE = ROOT / 'studies/qwen3_4b_bf16_five_methods'
 STUDY = ROOT / 'studies/qwen3_4b_bf16_directions'
 RECOVERY = ROOT / 'studies/qwen3_4b_bf16_directions_recovery'
-_spec = importlib.util.spec_from_file_location('original_five_method_readout', BASE / 'analyze_results.py')
-_original = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_original)
+from studies.qwen3_4b_bf16_five_methods.structure import readout as _original
 load_cell, compare_rows = (_original.load_cell, _original.compare_rows)
 NAMES = ('template', 'random0', 'random1', 'random2', 'zero', 'content')
 
@@ -506,6 +499,8 @@ def intervention_masks(shadow, proxies, zero):
 
 def walk(tree, logits):
     from spec_mtp.structure.algorithm.decode.loop import select_token
+    accepted: list[int]
+    chosen: list[int]
     owner, accepted, chosen = (0, [], [])
     while True:
         token = select_token(logits[owner], 0.0, None)
@@ -576,6 +571,9 @@ def capture_window(model, prompt, spec, eval_cfg, eos, seed, minimum=8):
     from studies._shared.structure.config import _convert
     original_build, original_tree = (build_mask_provider, decoding.build_tree)
     original_observe, original_masks = (OutputHiddenMaskProvider.observe_committed, OutputHiddenMaskProvider.masks_per_owner)
+    active: dict[str, Any]
+    packet: dict[str, Any]
+    generated: list[Any]
     active, packet, generated = ({}, {}, [])
 
     def build(*args, **kwargs):
@@ -636,6 +634,9 @@ def capture_input_window(model, prompt, spec, eval_cfg, eos, seed, minimum):
     from studies._shared.structure.config import _convert
     original_tree = decoding.build_tree
     shadows = [OutputHiddenMaskProvider(2, model.embedding_table, order=i, beta=0.9, beta_prime=0.99) for i in (0, 1)]
+    active: dict[str, Any]
+    packet: dict[str, Any]
+    generated: list[Any]
     active, packet, generated = ({}, {}, [])
 
     def tree_builder(*args, **kwargs):
@@ -766,7 +767,7 @@ def audit_once(data_root, output_dir, continuation_study=None):
             done.append(dict(item, result_sha256=sha__audit_4b_norm_queue(path)))
         elif result.get('status') == 'failed':
             failed.append(item)
-    state = dict(complete=False, native_completed=len(done), total=8, completed=done, failed=failed, no_model_forward=True, no_timing=True, audited_cells=[])
+    state: dict[str, Any] = dict(complete=False, native_completed=len(done), total=8, completed=done, failed=failed, no_model_forward=True, no_timing=True, audited_cells=[])
     signature = hashlib.sha256(json.dumps([done, sha__audit_4b_norm_queue(READER), sha__audit_4b_norm_queue(STUDY__audit_4b_norm_queue / 'docs/source_refs.json'), sha__audit_4b_norm_queue(continuation / 'docs/source_refs.json') if continuation else None], sort_keys=True).encode()).hexdigest()
     latest = output / 'ledger.json'
     previous = read(latest) if latest.exists() else {}

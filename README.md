@@ -42,6 +42,12 @@ small_matrix 的分析统一使用 `python -m studies.output_space_small_matrix.
 
 prerequisite 的 q171 图使用 `python -m studies.output_space_prerequisite.flow.write.run --input <原executionJSON> --repository <本地Git仓库> --commit <完整提交> --input-git-sha256 <固定报告SHA> --output-root <新外部目录>`，同样只读固定历史标量，保留三臂与原轴范围规则，独占新输出并核 PNG 与来源。
 
+input-mask 的 q171 图使用同一组显式参数运行 `python -m studies.input_mask_baseline.flow.write.run`，输入为其原 `v4_execution.json`。它保留两臂 accepted 柱及保存的 cosine sums/counts 均值，零计数不画对应线，使用该报告自己的来源身份。
+
+五方法配对保存报告使用 `python -m studies.qwen3_4b_bf16_five_methods.flow.process.run --input <paired_evidence_v1.json> --repository <本地Git仓库> --commit <完整提交> --input-git-sha256 <固定报告SHA> --output-root <新外部目录>`，绘图改为同 Study 的 `flow.write.run` 并沿用这些参数。process 的可选 `--original-study <原Run所在Study>` 只核报告已记录的六类文件摘要；这是 480×11 保存计数与 WTL 复核，明确 `native_run_revalidated=false`，不重新验收模型、token 或旧 Run。当前消费者直接导入实际 readout/plots，不再动态装载被删除的顶层脚本。
+
+ESP 四格及 Qwen 旧协议分别使用 `python -m studies.esp_table1_bf16_full_argmax.flow.process.run`、`python -m studies.esp_table1_bf16_qwen_protocol.flow.process.run`，必需 `--study-dir <实际输入Study> --execution-root <原执行源码与引用所在根> --output-root <新外部目录>`。独立复验的 `studies.esp_table1_nonofficial_revalidation.flow.process.run` 另需 `--baseline-dir <原基线证据/源码目录> --baseline-runs <原基线Run目录>`，不能拿当前 helper 冒充原聚合器。原生来源锁仍按原合同拒绝漂移，缺少兼容执行源码时不能声称重聚合成功。图可单独用 full_argmax 的 `flow.write.run --report <已保存四格证据JSON> --report-sha256 <实际摘要> --output-root <新外部目录>`。派生报告、图及输入绑定写新根，正式完整证据在绘图与来源复核后最后发布，失败只留 partial。
+
 trajectory 真实模型专用入口为 `python -m studies.trajectory_observation.flow.execute.office <qwen8b|tree|traj> --help`、`python -m studies.trajectory_observation.flow.execute.fresh_replace --help`、`python -m studies.trajectory_observation.flow.execute.fair_branch --help` 与 `python -m studies.trajectory_observation.flow.execute.preforward_signal --help`。它们要求显式本地模型目录、目录外完整模型SHA清单、本地JSONL、计划文件及其SHA、新外部输出；fair_branch以 `--split specbench|dolly --input <本地JSONL>` 保留原337–464/前128切片，preforward保留SpecBench 81–208及128条校准模板，不再猜模型目录或联网取数据。共用本地输入准入，只读取已解析绑定路径。preforward的summary/fit可留作partial，只有收尾复核及关闭后写出的protocol_complete标记表示运行完整；旧gate字段不产生新研究授权。
 
 bonus-aligned/output-hidden 两个专用协议使用 `python -m studies.trajectory_observation.flow.execute.hybrid_gain <bonus-aligned|output-hidden> --help`，同样必需本地模型目录、完整模型清单、SpecBench JSONL、计划 SHA、CUDA 设备和新外部输出。前者保留 465–560 切片与四臂，后者保留 209–336 切片、32 条 holdout 与六臂，校准各为 128 条模板。共同收集、落盘与会话编排归同一 flow，structure 保留纯校准与统计。逐臂核完整 qid 与 argmax 审计，收尾核来源并关闭模型后才发布 protocol_complete，旧根不续写。

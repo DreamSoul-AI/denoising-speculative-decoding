@@ -157,7 +157,7 @@ def test_reused_only_readout_never_accepts_new_runs_or_plots(monkeypatch, tmp_pa
     from studies._shared.structure import sources
     m = norm_reader(monkeypatch)
     # This test isolates reused-only aggregation; separate tests verify missing provenance refusal.
-    import norm_control
+    from studies.qwen3_4b_bf16_bias_norm_scan import norm_control
     monkeypatch.setattr(norm_control, 'check_refs', lambda: None)
     rows = [dict(question_id=i, category='a', accepted=1, model_calls=3, new_tokens=5,
                  committed=4, decode_calls=2) for i in range(480)]

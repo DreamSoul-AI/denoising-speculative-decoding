@@ -1,18 +1,14 @@
 """Read the independent paired matrix using original native cell and WTL helpers."""
 import argparse
-import importlib.util
 import json
 from itertools import combinations
 from pathlib import Path
-import sys
 
 import yaml
-from paired_repeat import BASE, STUDY, ROOT, check_refs
-sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
-import analyze_4b_full_directions as directions  # noqa: E402
-spec = importlib.util.spec_from_file_location('paired_repeat_original_reader', BASE / 'analyze_results.py')
-original = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(original)
+from studies.qwen3_4b_bf16_paired_revalidation.paired_repeat import BASE, STUDY, ROOT, check_refs
+from studies._shared.structure import geometry_4b as directions
+from studies.qwen3_4b_bf16_five_methods.structure import readout as original
+from studies.qwen3_4b_bf16_five_methods.structure import plots as paired_plots
 
 
 def check_index(entries, expected=None):
@@ -76,12 +72,12 @@ def readout(output_dir):
     body = dict(complete=ready, scope=__doc__, argmax_is_gate_AR_is_diagnostic=True, timing_disabled=True,
                 cells=cells, pairs=pairs, versus_original=versus_prior,
                 source_refs_sha256=directions.sha(STUDY / 'docs/source_refs.json'),
-                analyzer_sha256=directions.sha(Path(__file__)), shared_reader_sha256=directions.sha(BASE / 'analyze_results.py'))
+                analyzer_sha256=directions.sha(Path(__file__)), shared_reader_sha256=directions.sha(original.__file__))
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
     if ready:
-        from plot_results import write_plot
-        body['plotter_sha256'] = directions.sha(BASE / 'plot_results.py')
+        from studies.qwen3_4b_bf16_five_methods.flow.write.run import write_plot
+        body['plotter_sha256'] = directions.sha(paired_plots.__file__)
         write_plot(body, output / 'figures/paired_outcomes.png')
     target = output / ('paired_evidence_v1.json' if ready else 'paired_pending.json')
     text = json.dumps(body, indent=2, allow_nan=False) + '\n'

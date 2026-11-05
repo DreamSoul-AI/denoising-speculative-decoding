@@ -1,20 +1,16 @@
 """CPU-only native readout of eight norm cells and the five reused endpoints."""
 import hashlib
-import importlib.util
 import json
 from pathlib import Path
-import sys
+from typing import Any
 
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 STUDY = Path(__file__).resolve().parent
 BASE = ROOT / 'studies/qwen3_4b_bf16_five_methods'
-sys.path.insert(0, str(ROOT / 'studies' / '_shared' / 'structure'))
-import analyze_4b_full_directions as directions  # noqa: E402
-_spec = importlib.util.spec_from_file_location('norm_pair_readout', BASE / 'analyze_results.py')
-_pair = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_pair)
+from studies._shared.structure import geometry_4b as directions
+from studies.qwen3_4b_bf16_five_methods.structure import readout as _pair
 
 
 def read(path):
@@ -44,7 +40,7 @@ def depth_rows(raw, prompts):
 
 def first_block_compare(first, second):
     assert len(first) == len(second)
-    result = {'total': len(first), 'same_prefix_with_block': 0, 'different_prefix': 0,
+    result: dict[str, Any] = {'total': len(first), 'same_prefix_with_block': 0, 'different_prefix': 0,
               'missing_block': 0, 'accepted': {'win': 0, 'tie': 0, 'loss': 0}}
     for a, b in zip(first, second):
         assert a['question_id'] == b['question_id']
@@ -142,7 +138,7 @@ def check_matrix(decl, entries):
 
 
 def verify_reused(data_root, output_dir=None):
-    from norm_control import check_refs
+    from studies.qwen3_4b_bf16_bias_norm_scan.norm_control import check_refs
     from studies._shared.structure import validation
     check_refs()
     formal, _, _, _, reference, cells = load_reused(data_root)
@@ -213,7 +209,7 @@ def continuation_entries(study, decl, entries, continuation):
 
 
 def main(data_root=None, study_dir=None, output_dir=None, continuation_study=None):
-    from norm_control import check_refs
+    from studies.qwen3_4b_bf16_bias_norm_scan.norm_control import check_refs
     from spec_mtp.structure.artifact.provenance import check_frozen as pcheck
     from spec_mtp.structure.make.expand import load_study_yaml
     from studies._shared.structure.sources import check_frozen, manifest

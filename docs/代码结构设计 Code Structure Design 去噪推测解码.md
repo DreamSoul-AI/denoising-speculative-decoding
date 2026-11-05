@@ -98,3 +98,9 @@ trajectory 的 bonus-aligned/output-hidden 专用命令共用一个 `flow/execut
 `output_space_prerequisite` 的 q171 历史图归既有 `flow/write/run.py`，一个 `structure/plots.py` 保留三臂原数值、样式与 Figure 构造。编排复用固定 Git 取件和外部根边界，输入与绘图源码前后核对，PNG 摘要及实际渲染环境进入完成记录。该 Study 没有合适的现有纯绘图模块，此文件承担必要的两柱边界，不为其余 Study 预建空壳。
 
 small_matrix 窗口重绘区分原运行件与后补归档附注。固定 Git window 仅可比原件新增顶层 `resources`、`cross_order_first_seed_masks`，scale 仅可新增 `resources`，共有字段仍须全部相等，原运行件不得多字段或缺科学字段。归档附注按固定 Git 成员单独记录，不混入原运行 JSON、source_binding 或绘图输入。observer 原字节仍必须匹配 scale 保存的 SHA，原件与旧 binding 不改写。其余报告保持完整内容等价合同。
+
+五方法配对读端由 `qwen3_4b_bf16_five_methods/structure/readout.py` 承接既有 case、逐行配对、汇总和 published 复核，`structure/plots.py` 保留配对矩阵与 Figure。正式保存报告入口归既有 `flow/process/run.py`，固定 Git 与实际报告分别绑定，复核既有 480×11 计数和 WTL；绘图归既有 write。显式原 Run 根仅能复核报告已有文件摘要，不以当前源码验证器改签历史 gate。原生 cell 读取 API 的当前来源校验保持，历史 native 重验的额外来源合同未完成时明确不支持。paired_revalidation、bias_norm_scan 与共用 geometry 直接依赖真实 readout/plots，不再按旧顶层路径动态装载。
+
+ESP 四格汇总、图与独立复验消费者的计算归各 Study 必要的 structure readout/plots，编排与输出归现有 process/write。相同统计复用共同实现，BC10 的 primary/auxiliary 身份、argmax/AR 边界、四格顺序与原阈值分别保持。固定保存证据读件与原生 Run 校验分开，不运行旧矩阵或改第三方原树。
+
+input_mask_baseline 的历史 q171 图采用既有 write 编排与一个纯 plots 模块，保留 accepted 柱、保存的 cosine sums/counts 相除及零计数不画线的语义。固定来源为其原报告身份，不套用 output-space 摘要或窗口归档附注例外；输出仍为外部新根、来源复核后的 PNG 与完成记录。

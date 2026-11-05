@@ -172,63 +172,56 @@
     },
     {
       "test_id": "tests/spec_mtp/test_4b_bf16_plot.py::test_row_vs_column_preserves_all_wins_ties_losses_without_double_inverting_calls",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_five_methods.structure.plots / flow.write.run",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_4b_bf16_plot.py::test_partial_or_inconsistent_results_cannot_be_plotted",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_five_methods.structure.plots / flow.write.run",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_4b_bf16_plot.py::test_synthetic_fixture_renders_png",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_five_methods.structure.plots / flow.write.run",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_pairs_retain_losses_ties_and_inverse_call_direction",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_five_methods.structure.readout",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_ar_divergence_is_diagnostic_including_length_only",
-      "target": "spec_mtp",
-      "tags": [
-        "offline_cpu"
-      ]
-    },
-    {
-      "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_pending_has_all_11_cells_without_invented_numbers_or_evidence_link",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_five_methods.structure.readout",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_readout_retains_ar_mismatch_and_audit_counts_after_native_validation",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_five_methods.structure.readout",
       "tags": [
         "offline_cpu"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_published_counts_reaggregate_without_rewriting_original",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_five_methods.structure.readout",
       "tags": [
         "external_evidence"
       ]
     },
     {
       "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_published_counts_reject_inconsistent_or_incomplete_pairs",
-      "target": "spec_mtp",
+      "target": "studies.qwen3_4b_bf16_five_methods.structure.readout",
       "tags": [
         "offline_cpu"
       ]
@@ -6694,6 +6687,300 @@
         "offline_cpu",
         "structure_cleanup"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/test_4b_bf16_readout.py::test_saved_readout_requires_existing_published_input",
+      "target": "studies.qwen3_4b_bf16_five_methods.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/esp_table1_bf16_full_argmax/flow/process/test_saved_esp_readout.py::test_saved_esp_readout_rejects_drift_before_any_output",
+      "target": "studies.esp_table1_bf16_full_argmax.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/esp_table1_bf16_full_argmax/flow/process/test_saved_esp_readout.py::test_saved_esp_readout_rejects_output_overlap_and_existing_roots",
+      "target": "studies.esp_table1_bf16_full_argmax.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/esp_table1_bf16_full_argmax/flow/process/test_saved_esp_readout.py::test_saved_esp_readout_render_failure_leaves_only_partial_ready_evidence",
+      "target": "studies.esp_table1_bf16_full_argmax.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/esp_table1_bf16_full_argmax/flow/process/test_saved_esp_readout.py::test_saved_esp_readout_streams_sha_and_rejects_changed_resolved_alias",
+      "target": "studies.esp_table1_bf16_full_argmax.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_cli_requires_explicit_history_input_and_external_output",
+      "target": "studies.input_mask_baseline.flow.write.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_reads_the_resolved_input_when_its_argument_alias_changes",
+      "target": "studies.input_mask_baseline.flow.write.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_records_separate_git_runtime_and_rendering_identities",
+      "target": "studies.input_mask_baseline.flow.write.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_rejects_output_overlap_and_existing_evidence",
+      "target": "studies.input_mask_baseline.flow.write.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_rejects_unbound_or_invalid_saved_reports_before_output",
+      "target": "studies.input_mask_baseline.flow.write.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_source_drift_keeps_partial_png_without_completion",
+      "target": "studies.input_mask_baseline.flow.write.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_write_failure_clears_figure_without_publishing_completion",
+      "target": "studies.input_mask_baseline.flow.write.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/input_mask_baseline/structure/test_input_mask_figures.py::test_input_mask_figure_keeps_counts_saved_means_colors_labels_and_axes",
+      "target": "studies.input_mask_baseline.structure.plots",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p2",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/input_mask_baseline/structure/test_input_mask_figures.py::test_input_mask_figure_omits_zero_count_observations_without_dividing_by_zero",
+      "target": "studies.input_mask_baseline.structure.plots",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p2",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_five_methods/flow/process/test_five_methods_readout.py::test_original_file_check_binds_actual_files_without_native_revalidation",
+      "target": "studies.qwen3_4b_bf16_five_methods.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_five_methods/flow/process/test_five_methods_readout.py::test_original_file_check_rejects_incomplete_or_unsafe_identity",
+      "target": "studies.qwen3_4b_bf16_five_methods.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_five_methods/flow/process/test_five_methods_readout.py::test_readout_rejects_helper_changed_during_verification",
+      "target": "studies.qwen3_4b_bf16_five_methods.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_five_methods/flow/process/test_five_methods_readout.py::test_saved_counter_admission_rejects_drift_without_output",
+      "target": "studies.qwen3_4b_bf16_five_methods.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_five_methods/flow/process/test_five_methods_readout.py::test_saved_counter_readout_preserves_original_identity_and_refuses_overwrite",
+      "target": "studies.qwen3_4b_bf16_five_methods.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_five_methods/flow/write/test_five_methods_plot.py::test_bound_saved_counter_plot_records_identity_without_overwrite",
+      "target": "studies.qwen3_4b_bf16_five_methods.flow.write.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/qwen3_4b_bf16_five_methods/flow/write/test_five_methods_plot.py::test_plot_source_changed_during_readout_is_rejected_before_figure",
+      "target": "studies.qwen3_4b_bf16_five_methods.flow.write.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
     }
   ],
   "plans": {
@@ -7024,7 +7311,28 @@
         "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_q171_plot_save_failure_clears_owned_figure_without_publishing_completion",
         "tests/studies/output_space_prerequisite/structure/test_prerequisite_figures.py::test_q171_acceptance_figure_keeps_original_counts_color_order_and_axis_rule",
         "tests/studies/output_space_small_matrix/flow/write/test_small_matrix_plots.py::test_original_window_plot_keeps_verified_archive_annotations_separate",
-        "tests/studies/output_space_small_matrix/flow/write/test_small_matrix_plots.py::test_window_archive_annotations_do_not_relax_shared_content_or_schema"
+        "tests/studies/output_space_small_matrix/flow/write/test_small_matrix_plots.py::test_window_archive_annotations_do_not_relax_shared_content_or_schema",
+        "tests/spec_mtp/test_4b_bf16_readout.py::test_saved_readout_requires_existing_published_input",
+        "tests/studies/esp_table1_bf16_full_argmax/flow/process/test_saved_esp_readout.py::test_saved_esp_readout_rejects_drift_before_any_output",
+        "tests/studies/esp_table1_bf16_full_argmax/flow/process/test_saved_esp_readout.py::test_saved_esp_readout_rejects_output_overlap_and_existing_roots",
+        "tests/studies/esp_table1_bf16_full_argmax/flow/process/test_saved_esp_readout.py::test_saved_esp_readout_render_failure_leaves_only_partial_ready_evidence",
+        "tests/studies/esp_table1_bf16_full_argmax/flow/process/test_saved_esp_readout.py::test_saved_esp_readout_streams_sha_and_rejects_changed_resolved_alias",
+        "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_cli_requires_explicit_history_input_and_external_output",
+        "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_reads_the_resolved_input_when_its_argument_alias_changes",
+        "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_records_separate_git_runtime_and_rendering_identities",
+        "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_rejects_output_overlap_and_existing_evidence",
+        "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_rejects_unbound_or_invalid_saved_reports_before_output",
+        "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_source_drift_keeps_partial_png_without_completion",
+        "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_plot_write_failure_clears_figure_without_publishing_completion",
+        "tests/studies/input_mask_baseline/structure/test_input_mask_figures.py::test_input_mask_figure_keeps_counts_saved_means_colors_labels_and_axes",
+        "tests/studies/input_mask_baseline/structure/test_input_mask_figures.py::test_input_mask_figure_omits_zero_count_observations_without_dividing_by_zero",
+        "tests/studies/qwen3_4b_bf16_five_methods/flow/process/test_five_methods_readout.py::test_original_file_check_binds_actual_files_without_native_revalidation",
+        "tests/studies/qwen3_4b_bf16_five_methods/flow/process/test_five_methods_readout.py::test_original_file_check_rejects_incomplete_or_unsafe_identity",
+        "tests/studies/qwen3_4b_bf16_five_methods/flow/process/test_five_methods_readout.py::test_readout_rejects_helper_changed_during_verification",
+        "tests/studies/qwen3_4b_bf16_five_methods/flow/process/test_five_methods_readout.py::test_saved_counter_admission_rejects_drift_without_output",
+        "tests/studies/qwen3_4b_bf16_five_methods/flow/process/test_five_methods_readout.py::test_saved_counter_readout_preserves_original_identity_and_refuses_overwrite",
+        "tests/studies/qwen3_4b_bf16_five_methods/flow/write/test_five_methods_plot.py::test_bound_saved_counter_plot_records_identity_without_overwrite",
+        "tests/studies/qwen3_4b_bf16_five_methods/flow/write/test_five_methods_plot.py::test_plot_source_changed_during_readout_is_rejected_before_figure"
       ],
       "exclude": []
     },

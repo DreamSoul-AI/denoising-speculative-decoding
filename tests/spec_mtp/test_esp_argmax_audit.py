@@ -75,10 +75,7 @@ def test_eos_or_budget_trim_is_not_counted_as_committed_and_wrong_owner_fails():
 
 
 def test_tau_aggregation_does_not_gate_on_ar_and_keeps_all_weights(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT/'studies/esp_table1_bf16_full_argmax'))
-    spec = importlib.util.spec_from_file_location('argmax_report',ROOT/'studies/esp_table1_bf16_full_argmax/analyze_results.py')
-    report = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(report)
+    from studies.esp_table1_bf16_full_argmax.structure import readout as report
     rows = [{'category':'a','committed':4,'decode_calls':4,'accepted':0,'exact':False,'argmax_passed':True,'argmax_checked_tokens':5},
             {'category':'a','committed':4,'decode_calls':2,'accepted':2,'exact':True,'argmax_passed':True,'argmax_checked_tokens':5},
             {'category':'b','committed':9,'decode_calls':3,'accepted':6,'exact':False,'argmax_passed':True,'argmax_checked_tokens':10}]
@@ -117,35 +114,34 @@ def test_historical_full_argmax_original_inputs(historical_file):
     assert len(json.loads((current/'docs/prompts_manifest.json').read_text())['rendered_prompts'])==480
 
 
-def test_pending_report_does_not_link_unpublished_local_evidence(tmp_path,monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT/'studies/esp_table1_bf16_full_argmax'))
-    spec=importlib.util.spec_from_file_location('pending_argmax_report',ROOT/'studies/esp_table1_bf16_full_argmax/analyze_results.py')
-    report=importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(report)
-    (tmp_path/'docs').mkdir()
-    (tmp_path/'docs/prompts_manifest.json').write_text(json.dumps({'rendered_prompts':[{'question_id':1}]}))
-    (tmp_path/'docs/modelscope_snapshot.json').write_text('{}')
-    (tmp_path/'index.json').write_text(json.dumps({'experiments':[]}))
-    monkeypatch.setattr(report,'__file__',str(tmp_path/'analyze_results.py'))
-    report.main()
-    text=(tmp_path/'docs/STUDY_REPORT.md').read_text(encoding='utf-8')
+def test_pending_report_does_not_link_unpublished_local_evidence(tmp_path, monkeypatch):
+    import importlib
+    report = importlib.import_module('studies.esp_table1_bf16_full_argmax.flow.process.run')
+    study, output = tmp_path / 'source', tmp_path / 'readout'
+    (study / 'docs').mkdir(parents=True)
+    (study / 'docs/prompts_manifest.json').write_text(json.dumps({'rendered_prompts': [{'question_id': 1}]}))
+    (study / 'docs/modelscope_snapshot.json').write_text('{}')
+    (study / 'index.json').write_text(json.dumps({'experiments': []}))
+    report.analyze(study, output, execution_root=study)
+    text = (output / 'STUDY_REPORT.md').read_text(encoding='utf-8')
     assert '`protocol_pending.json`' in text and '](protocol_pending.json)' not in text
-    assert not json.loads((tmp_path/'docs/protocol_pending.json').read_text())['quality_passed']
+    assert not json.loads((output / 'protocol_pending.json').read_text())['quality_passed']
     assert '全四格验收=pending' in text and 'token quality passed=False' not in text
-    summary=report.summarize([{'category':'a','committed':2,'decode_calls':1,'accepted':1,
-        'exact':False,'argmax_passed':True,'argmax_checked_tokens':3}])
-    summary['model_digest']='synthetic-model'
-    cells=report.ordered_cells({(10,1):summary})
-    monkeypatch.setattr(report,'ordered_cells',lambda observed:cells)
-    report.main()
-    text=(tmp_path/'docs/STUDY_REPORT.md').read_text(encoding='utf-8')
+    summary = report.summarize([{'category': 'a', 'committed': 2, 'decode_calls': 1, 'accepted': 1,
+        'exact': False, 'argmax_passed': True, 'argmax_checked_tokens': 3}])
+    summary['model_digest'] = 'synthetic-model'
+    cells = report.ordered_cells({(10, 1): summary})
+    monkeypatch.setattr(report, 'ordered_cells', lambda observed: cells)
+    output = tmp_path / 'readout-second'
+    report.analyze(study, output, execution_root=study)
+    text = (output / 'STUDY_REPORT.md').read_text(encoding='utf-8')
     assert 'completed=1/4; 全四格验收=pending' in text
     assert '| 10/1 | primary | valid | pending | 0/1 (0.00%) | 3/True |' in text
 
 
 def test_tau_plot_requires_full_argmax_pass_but_not_ar_exact(tmp_path,monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT/'studies/esp_table1_bf16_full_argmax'))
-    from plot_results import write_plot
+    from studies.esp_table1_bf16_full_argmax.flow.write.run import write_plot, main
+    from spec_mtp.structure.artifact.provenance import file_sha256
     cells=[{'BC':bc,'num_masks':k,'n':480,'argmax_all_passed':True,
         'pooled_tau':1.4,'prompt_mean_tau':1.5,'category_mean_pooled_tau':1.45,'accepted':100}
         for bc,k in [(10,1),(30,1),(60,1),(60,2)]]
@@ -159,5 +155,16 @@ def test_tau_plot_requires_full_argmax_pass_but_not_ar_exact(tmp_path,monkeypatc
     with pytest.raises(AssertionError):
         write_plot(body,path)
     body['quality_passed']=True
-    write_plot(body,path)
+    forbidden = ROOT / 'studies/esp_table1_bf16_full_argmax/_forbidden_plot_for_test.png'
+    with pytest.raises(ValueError):
+        write_plot(body, forbidden)
+    assert not forbidden.exists()
+    source, output = tmp_path / 'source', tmp_path / 'readout'
+    source.mkdir()
+    report = source / 'evidence.json'
+    report.write_text(json.dumps(body), encoding='utf-8')
+    assert main(['--report', str(report), '--report-sha256', file_sha256(report), '--output-root', str(output)]) == 0
+    path = output / 'figures/tau_acceptance.png'
     assert path.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') and path.stat().st_size>10000
+    binding = json.loads((output / 'readout_inputs.json').read_text(encoding='utf-8'))
+    assert binding['output_sources']['figures/tau_acceptance.png'] == file_sha256(path)

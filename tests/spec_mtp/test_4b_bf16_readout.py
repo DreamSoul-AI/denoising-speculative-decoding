@@ -1,4 +1,3 @@
-import importlib.util
 import json
 from pathlib import Path
 import pytest
@@ -7,12 +6,9 @@ STUDY = Path(__file__).resolve().parents[2]/'studies/qwen3_4b_bf16_five_methods'
 
 
 @pytest.fixture
-def reader(monkeypatch):
-    monkeypatch.syspath_prepend(str(STUDY))
-    spec = importlib.util.spec_from_file_location('bf16_pair_reader', STUDY/'analyze_results.py')
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+def reader():
+    from studies.qwen3_4b_bf16_five_methods.structure import readout
+    return readout
 
 
 def test_pairs_retain_losses_ties_and_inverse_call_direction(reader):
@@ -35,21 +31,17 @@ def test_ar_divergence_is_diagnostic_including_length_only(reader, output, refer
     assert reader.first_difference(output, reference) == first
 
 
-def test_pending_has_all_11_cells_without_invented_numbers_or_evidence_link(reader, tmp_path, capsys):
-    (tmp_path/'docs').mkdir()
-    reader.__file__ = str(tmp_path/'analyze_results.py')
-    Path(reader.__file__).write_text('fixture')
-    reader.main()
-    body = json.loads((tmp_path/'docs/paired_pending.json').read_text())
-    assert body['complete'] is False and tuple(body['cells']) == reader.CASES
-    assert all(c == {'native_status': 'pending'} for c in body['cells'].values())
-    assert 'paired_evidence_v1.json' not in (tmp_path/'docs/STUDY_REPORT.md').read_text()
-    assert '"observed": 0' in capsys.readouterr().out
+def test_saved_readout_requires_existing_published_input(tmp_path):
+    from studies.qwen3_4b_bf16_five_methods.flow.process.run import write_readout
+    output = tmp_path / 'new-readout'
+    with pytest.raises(FileNotFoundError):
+        write_readout(tmp_path / 'missing.json', STUDY.parents[1], '0' * 40, '0' * 64, output)
+    assert not output.exists()
 
 
 def test_readout_retains_ar_mismatch_and_audit_counts_after_native_validation(reader, tmp_path, monkeypatch):
     from studies._shared.structure import validation
-    import untimed_pairing
+    from studies.qwen3_4b_bf16_five_methods import untimed_pairing
     checked = []
     monkeypatch.setattr(validation, 'verify_evidence', lambda *args: checked.append(True))
     monkeypatch.setattr(untimed_pairing, 'verify_inputs', lambda *args: None)
@@ -87,13 +79,8 @@ def test_readout_retains_ar_mismatch_and_audit_counts_after_native_validation(re
 
 
 @pytest.fixture
-def published_reader(reader, monkeypatch):
-    import sys
-    monkeypatch.setitem(sys.modules, 'analyze_results', reader)
-    spec = importlib.util.spec_from_file_location('bf16_published_counts', STUDY / 'verify_published.py')
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+def published_reader(reader):
+    return reader
 
 
 def test_published_counts_reaggregate_without_rewriting_original(published_reader, historical_file):
