@@ -51,7 +51,7 @@ def test_second_slot_ar_path_requires_correct_first_and_available_target(first_c
 
 @pytest.mark.parametrize('entry', [
     ['-m', 'studies.output_space_4b_holdout.flow.process.run'],
-    ['studies/output_space_cross_task/analyze_results.py'],
+    ['-m', 'studies.output_space_cross_task.flow.process.run'],
 ])
 def test_legacy_analysis_help_uses_canonical_helpers_without_editable_paths(tmp_path, entry):
     import os

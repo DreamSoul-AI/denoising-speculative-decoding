@@ -108,3 +108,9 @@ input_mask_baseline 的历史 q171 图采用既有 write 编排与一个纯 plot
 4B recheck、recheck_v2、holdout 与 input_control 的配对统计归同一 `studies/_shared/structure/paired_4b.py`，原生输入和各 Study 的质量、来源与计数合同分别保留。共同读件协调归 recheck_v2 既有 process，复用保存读件会话，仅覆盖本组源码范围；另外三条 process 选择对应协议并保留六阶段导出。holdout 与 recheck_v2 的中文报告、Figure 共用 `studies/_shared/structure/paired_report.py`，既有 shared write 负责固定报告身份、真实输入链接与外部输出，并为两类图共用完成记录失败清理。三个相同统计模块及两份相同报告不各自继续演进；不能因合并统计而混同主批次、留出批次或 EMA 对照。不另建转调文件。
 
 cross_task 的 first-delta、sampling-expansion 和 continuation 按同一采样路径问题归入 `structure/sampling_readout.py`，保留原 trace、净差分解、逐单位汇总与判读公式，命令由既有 process 调度。历史 acceptance 图由既有 write 与一个纯 plots 模块承接，保留原 q241–244 与单独 q241 计数口径。固定 Git 原件、实际输入及当前工具身份分开，读件前后复核，新完成标记最后发布；其余张量/模型协议不借此次入口收束重启。
+
+cross_task 其余原生导出、H1/H3 判读与 canonical 审计按同一原生证据问题归 `structure/native_readout.py`，三条命令由一个 `flow/process/native.py` 协调。局部状态扩展、状态因素、采样 owner 与捕获深度的纯审计共用 `structure/state_readout.py`，显式读件与 CUDA 生命周期归一个 `flow/process/state.py`。既有 process/run.py 只协调三个问题组并保留原六阶段 callable，不为每条命令另建文件或恢复兼容 facade。新增两组各替代多个旧入口，其持续成本由独立输入合同和镜像失败用例承担；共享来源、路径和发布仍复用既有机制。
+
+continuation 的完整验证必须区分原历史材料与工程夹具。实际历史审计须逐一核旧选择、输入清单、数据、上下文张量和原 tool/plan 字节，原件不齐不得用新源码或换行变体补签。工程 CUDA 夹具可覆盖六单位、三类固定 draw-bank 统计及损坏反例，但不称历史重验或新的采样实验。
+
+状态数值审计的 FP32/FP64 概率和 margin 数学保持，实际计算设备单独记录。新 CUDA FP64 结果使用对应设备字段，旧 CPU FP64 字段仅随固定历史分析原件作为参考保留，未提供原件时记未知，不用当前 CUDA 值冒名旧 CPU 测量，也不承诺两设备逐位相同。

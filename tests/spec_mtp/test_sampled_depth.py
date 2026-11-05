@@ -13,5 +13,5 @@ from test_window_observer import ROOT
 ])
 def test_sampled_second_depth_legality(monkeypatch, first_a, first_b, target, second, eos, nodes_a, nodes_b, expected):
     monkeypatch.syspath_prepend(str(ROOT))
-    from studies.output_space_cross_task.analyze_sampled_depth import legal_second_flip
+    from studies.output_space_cross_task.structure.state_readout import legal_second_flip
     assert legal_second_flip(first_a,first_b,target,second,eos,nodes_a,nodes_b) is expected

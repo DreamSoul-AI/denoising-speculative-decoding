@@ -107,3 +107,5 @@ Study recipe 注册宿主的 Data、Model 和 Algorithm，默认 prepare/execute
 RPipe当前编码为带schema/kind/payload的snapshot并使用weights_only读取，允许值域受显式校验约束。本仓既有bundle含NumPy RNG和诊断分片，不能直接换编码并声称旧格式兼容。采用同目录临时文件、完整文件同步及最后替换的机制，保留当前数据合同；分片仅供诊断，不能因文件存在就补签完整bundle。提交后诊断清理失败与提交前写入失败须分开处理。文件同步与原子替换不能单独证明硬件掉电场景的全部持久性，也不提供同Run/stem并发写入保证。[当前System](../src/spec_mtp/structure/system/factory.py)、[恢复准入](../src/spec_mtp/structure/algorithm/resume.py)
 
 历史读件的来源判定与当前工具身份分开。RPipe固定main的readout前95行校验保存的RunRef、索引及其manifest自身摘要，明确读件不依赖当前源码文件；CLI前95行将写入命令与显式外部运行根关联，不隐式迁移旧Study。本仓旧分析器应将原Git成员、运行时报告与张量分别核字节及内容，当前tool/helper摘要另记，不能要求新源码manifest等于旧报告digest，也不能把未取得的原helper字节标为已核验。[固定readout](https://github.com/DreamSoul-AI/RPipe/blob/414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6/src/rpipe/structure/artifact/readout.py)、[固定CLI](https://github.com/DreamSoul-AI/RPipe/blob/414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6/src/rpipe/flow/cli.py)
+
+复合证据的每个成员应独立携带固定 commit、原路径和摘要。报告归档与工具演进是不同事件，单一归档提交不保证仍含原生产工具；按当前路径猜测旧成员会把目录变化误判成证据消失。读端按角色核允许的真实原路径及其字节，输入冻结后只读已解析目标，发布前再次复核。[固定 Git 读取合同](../src/spec_mtp/structure/artifact/provenance.py)、[角色读件实现](../studies/output_space_cross_task/flow/process/run.py)

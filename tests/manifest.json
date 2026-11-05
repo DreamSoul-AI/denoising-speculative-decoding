@@ -803,52 +803,59 @@
     },
     {
       "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_complete_null_falsifies_only_bounded_H1",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.native_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_count_equal_semantic_difference_is_observed",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.native_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_depth2_witness_excludes_invalid_first_EOS_and_missing_target",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.native_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_infeasible_is_not_a_null_transfer",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.native_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_incomplete_or_failed_gate_cannot_produce_a_verdict",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.native_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_natural_depth2_witness",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.native_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_cross_task_hypotheses.py::test_true_quality_flags_do_not_override_trace_mismatch",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.native_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/structure/data/test_prompts.py::test_malformed_prompt_records_fail",
@@ -2088,10 +2095,11 @@
     },
     {
       "test_id": "tests/spec_mtp/test_sampled_depth.py::test_sampled_second_depth_legality",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.state_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_sampling_causality.py::test_conditional_draws_are_shared_not_greedy",
@@ -2187,17 +2195,19 @@
     },
     {
       "test_id": "tests/spec_mtp/test_state_rounding_factors.py::test_equal_counts_do_not_hide_path_changes",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.state_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/test_state_rounding_factors.py::test_state_interaction_can_falsify_additivity",
-      "target": "spec_mtp",
+      "target": "studies.output_space_cross_task.structure.state_readout",
       "tags": [
         "offline_cpu"
-      ]
+      ],
+      "level": "unit"
     },
     {
       "test_id": "tests/spec_mtp/structure/model/test_tiny_llama.py::test_tiny_llama_embeds_token_ids",
@@ -4057,7 +4067,7 @@
     },
     {
       "test_id": "tests/spec_mtp/test_extension_windows.py::test_legacy_analysis_help_uses_canonical_helpers_without_editable_paths",
-      "target": "studies.output_space_4b_holdout.flow.process.run / output_space_cross_task.analyze_results",
+      "target": "studies.output_space_4b_holdout.flow.process.run / output_space_cross_task.flow.process.run",
       "level": "integration",
       "type": "content",
       "cost_class": "c2",
@@ -7310,6 +7320,202 @@
         "offline_cpu",
         "structure_cleanup"
       ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_native_saved_readout.py::test_native_admission_rejects_unbound_inputs_before_outputs",
+      "target": "studies.output_space_cross_task.flow.process.native",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_native_saved_readout.py::test_native_dispatch_preserves_sampling_and_state_commands",
+      "target": "studies.output_space_cross_task.flow.process.run",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_native_saved_readout.py::test_native_export_reads_original_observation_bound_inputs_without_resigning",
+      "target": "studies.output_space_cross_task.flow.process.native",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_native_saved_readout.py::test_native_exporter_source_records_its_own_commit_and_rejects_wrong_role",
+      "target": "studies.output_space_cross_task.flow.process.native",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_native_saved_readout.py::test_synthetic_native_mre_is_json_only_and_refuses_device",
+      "target": "studies.output_space_cross_task.flow.process.native",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_state_entry.py::test_state_cli_requires_all_explicit_input_output_and_device_arguments",
+      "target": "studies.output_space_cross_task.flow.process.state",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_state_entry.py::test_state_entry_rejects_cpu_before_loading_any_saved_tensor",
+      "target": "studies.output_space_cross_task.flow.process.state",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/process/test_state_entry.py::test_state_original_continuation_tool_is_accepted_only_in_its_exact_role",
+      "target": "studies.output_space_cross_task.flow.process.state",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/structure/test_continuation_readout_cuda.py::test_continuation_cli_binds_saved_inputs_before_tensor_loading_on_cuda",
+      "target": "studies.output_space_cross_task.flow.process.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/structure/test_continuation_readout_cuda.py::test_saved_continuation_audits_all_six_units_and_three_draw_banks_on_cuda",
+      "target": "studies.output_space_cross_task.structure.sampling_readout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/structure/test_continuation_readout_cuda.py::test_saved_continuation_rejects_invalid_data_context_and_schema_on_cuda",
+      "target": "studies.output_space_cross_task.structure.sampling_readout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/structure/test_native_readout.py::test_canonical_saved_state_gate_uses_cuda_and_rejects_a_changed_anchor",
+      "target": "studies.output_space_cross_task.structure.native_readout",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_conditional_labels_current_fp64_without_inventing_cpu_reference",
+      "target": "studies.output_space_cross_task.structure.state_readout",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_saved_depth_preserves_legality_and_equal_state_counterexample",
+      "target": "studies.output_space_cross_task.structure.state_readout",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ]
     }
   ],
   "plans": {
@@ -7466,6 +7672,30 @@
         },
         {
           "test_id": "tests/studies/output_space_cross_task/structure/test_sampling_readout_cuda.py::test_saved_expansion_audits_grafted_masks_and_rare_probabilities_on_cuda",
+          "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_cross_task/structure/test_continuation_readout_cuda.py::test_continuation_cli_binds_saved_inputs_before_tensor_loading_on_cuda",
+          "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_cross_task/structure/test_continuation_readout_cuda.py::test_saved_continuation_audits_all_six_units_and_three_draw_banks_on_cuda",
+          "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_cross_task/structure/test_continuation_readout_cuda.py::test_saved_continuation_rejects_invalid_data_context_and_schema_on_cuda",
+          "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_cross_task/structure/test_native_readout.py::test_canonical_saved_state_gate_uses_cuda_and_rejects_a_changed_anchor",
+          "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_conditional_labels_current_fp64_without_inventing_cpu_reference",
+          "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_saved_depth_preserves_legality_and_equal_state_counterexample",
           "reason": "Requires explicit real CUDA saved-tensor numerical audit; covered by cuda-validation."
         }
       ],
@@ -7687,7 +7917,15 @@
         "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_rejects_unbound_inputs_before_output",
         "tests/studies/shared/flow/write/test_paired_report_output.py::test_paired_report_study_commands_delegate_their_actual_identity",
         "tests/studies/shared/structure/test_paired_report.py::test_paired_count_figure_preserves_signed_differences_and_no_timing_label",
-        "tests/studies/output_space_4b_recheck_v2/flow/process/test_four_saved_readouts.py::test_saved_run_requires_actual_producer_settings_schema"
+        "tests/studies/output_space_4b_recheck_v2/flow/process/test_four_saved_readouts.py::test_saved_run_requires_actual_producer_settings_schema",
+        "tests/studies/output_space_cross_task/flow/process/test_native_saved_readout.py::test_native_admission_rejects_unbound_inputs_before_outputs",
+        "tests/studies/output_space_cross_task/flow/process/test_native_saved_readout.py::test_native_dispatch_preserves_sampling_and_state_commands",
+        "tests/studies/output_space_cross_task/flow/process/test_native_saved_readout.py::test_native_export_reads_original_observation_bound_inputs_without_resigning",
+        "tests/studies/output_space_cross_task/flow/process/test_native_saved_readout.py::test_native_exporter_source_records_its_own_commit_and_rejects_wrong_role",
+        "tests/studies/output_space_cross_task/flow/process/test_native_saved_readout.py::test_synthetic_native_mre_is_json_only_and_refuses_device",
+        "tests/studies/output_space_cross_task/flow/process/test_state_entry.py::test_state_cli_requires_all_explicit_input_output_and_device_arguments",
+        "tests/studies/output_space_cross_task/flow/process/test_state_entry.py::test_state_entry_rejects_cpu_before_loading_any_saved_tensor",
+        "tests/studies/output_space_cross_task/flow/process/test_state_entry.py::test_state_original_continuation_tool_is_accepted_only_in_its_exact_role"
       ],
       "exclude": []
     },
@@ -7732,7 +7970,13 @@
         "tests/studies/trajectory_observation/structure/test_hybrid_gain_calibration.py::test_hybrid_calibration_computes_gain_and_diagnostics_on_cuda",
         "tests/studies/_shared/flow/test_diagnostics_cuda.py::test_profile_small_cuda_preserves_host_self_time_attribution_and_exact_match",
         "tests/studies/_shared/flow/test_diagnostics_cuda.py::test_single_fingerprint_cell_runs_on_cuda_with_fixed_seed",
-        "tests/studies/output_space_cross_task/structure/test_sampling_readout_cuda.py::test_saved_expansion_audits_grafted_masks_and_rare_probabilities_on_cuda"
+        "tests/studies/output_space_cross_task/structure/test_sampling_readout_cuda.py::test_saved_expansion_audits_grafted_masks_and_rare_probabilities_on_cuda",
+        "tests/studies/output_space_cross_task/structure/test_continuation_readout_cuda.py::test_continuation_cli_binds_saved_inputs_before_tensor_loading_on_cuda",
+        "tests/studies/output_space_cross_task/structure/test_continuation_readout_cuda.py::test_saved_continuation_audits_all_six_units_and_three_draw_banks_on_cuda",
+        "tests/studies/output_space_cross_task/structure/test_continuation_readout_cuda.py::test_saved_continuation_rejects_invalid_data_context_and_schema_on_cuda",
+        "tests/studies/output_space_cross_task/structure/test_native_readout.py::test_canonical_saved_state_gate_uses_cuda_and_rejects_a_changed_anchor",
+        "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_conditional_labels_current_fp64_without_inventing_cpu_reference",
+        "tests/studies/output_space_cross_task/structure/test_state_readout.py::test_cuda_saved_depth_preserves_legality_and_equal_state_counterexample"
       ],
       "exclude": [],
       "resources": {

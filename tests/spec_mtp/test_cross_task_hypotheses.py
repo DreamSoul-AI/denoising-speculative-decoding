@@ -1,14 +1,8 @@
 """H1/H3 verdicts require complete fixed units and legal AR-first-token ancestry."""
 
 import copy
-import importlib.util
 import pytest
-from test_window_observer import ROOT
-
-specification = importlib.util.spec_from_file_location('cross_task_checker',
-    ROOT / 'studies/output_space_cross_task/check_hypotheses.py')
-checker = importlib.util.module_from_spec(specification)
-specification.loader.exec_module(checker)
+from studies.output_space_cross_task.structure import native_readout as checker
 
 
 def legal_transfer(native, diagnostic):

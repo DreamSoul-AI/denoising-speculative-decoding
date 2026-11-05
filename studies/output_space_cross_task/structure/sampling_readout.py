@@ -163,8 +163,11 @@ def analyze_continuation(expansion, rare, data, context, selection_hashes, bindi
     for group, (temperature, count) in zip(rare['groups'], ((0.8, 16384), (1.0, 16384), (2.0, 131072))):
         assert group['temperature'] == temperature and group['verifier_draws'] == count
         assert group['seeds'] == list(range(10000, 10000 + count))
+        assert len(group['verifier_token_ids']) == count
         assert group['RNG_consumed'] and group['same_verifier_draws_for_all_cells']
         assert group['role'] == ('changed_temperature_stress' if temperature == 2.0 else 'original_temperature_control')
+        assert [(cell['label'], cell['candidate']) for cell in group['cells']] == [
+            ('S0P0', 11), ('S0P1', 323), ('S1P0', 11), ('S1P1', 323)]
         probs = torch.softmax(context['frame:719']['logits'][0, 0].to(device).float() / temperature, dim=-1)
         for cell in group['cells']:
             p = cell['exact_candidate_probability']
