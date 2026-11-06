@@ -1,9 +1,13 @@
 # 去噪推测解码
-研究免训练多 token 起草与验证：以 ESP 为参照，比较输入嵌入 EMA、速度外推和输出隐藏状态掩码。中文名称为“去噪推测解码”。仓库地址：[DreamSoul-AI/denoising-speculative-decoding](https://github.com/DreamSoul-AI/denoising-speculative-decoding)。
+宏观＝围绕 training-free 的 speculative decoding 发一篇论文，以 denoising、卡尔曼滤波、EMA 为基本要件。
+
+介观＝在 GPU 上逐个验证这三个要件和相关思路是否带来真实收益，相对 ESP 等基线比较加速比、接受率和质量，正负结果都写进研究计划，逐步形成论文主表和消融。
+
+中文名称为“去噪推测解码”。仓库地址：[DreamSoul-AI/denoising-speculative-decoding](https://github.com/DreamSoul-AI/denoising-speculative-decoding)。
 
 截至2026年10月21日的 8B 非官方 Table 1 独立复验已经完成，论文目标未复现。数字和原件在 [历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>)。提交 token 的验证前向 argmax 自检与独立 AR 一致率分别报告，τ 是提交数与解码调用数之比，不能据此认定实际速度收益。
 
-当前收束已有 EMA 与具体 Kalman 方案：同8条 writing 的32/256预算均未支持EMA相对ESP的联合收益，256扩展候选已关闭，不自动续512或扫β；旧480条局部接受正证据保留。Kalman observation-only四场景受测合同已通过，多个旧配方收益为负或未确认。当前成果、范围与处置见唯一 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)。`k_affine_residual` 的 `postcommit-final-norm-v1` 仅为静态 K 合成工程夹具，不代表已有 Kalman 变体；160 对协议和真实模型收益未执行。
+微观：工程清理已收尾，最新R64完成8条非writing输入的三臂EMA幅度规则消融，预设联合收益假设不获支持，本批结束。旧同8条writing的32/256负结果、关闭256扩展及旧480条局部接受正证据保持原范围，不自动续512或扫β。Kalman observation-only四场景受测合同已通过，多个旧配方收益为负或未确认；不据R64推广整个EMA/Kalman无效。实际数字、质量边界与后续判据由唯一 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>) 维护。`k_affine_residual` 的 `postcommit-final-norm-v1` 仅为静态 K 合成工程夹具，不代表已有 Kalman 变体；160 对协议和真实模型收益未执行。
 
 # 一、文档入口
 | **文档** | **维护内容** |
@@ -25,7 +29,7 @@
 
 `python -m spec_mtp` / `spec-mtp` 由 `flow/cli.py` 提供 `decode/audit/compare`。Study 使用 `python -m studies._shared.flow.cli`，接入宿主 `flow/study_cli.py` 与默认六阶段。包初始化不加载模型或整套调度器。流程由本仓实现，不再内嵌 `src/rpipe/`。旧流程 API facade 已删除，构建直接使用所属层工厂。九个共用诊断再导出已清理，消费者直接导入真实模块。已登记的 Study 顶层遗留入口清单为空，其余结构与测试镜像差距见代码结构设计与开发计划。
 
-当前主线是按已验证范围完成 Kalman/EMA 方案与旧 Run 结案；工程只处理直接阻塞这些结论或来源保全的具体缺口，不重复派发已完成合同，不等待新算法。正确性、优化和性能验证使用 CUDA，先确认可用并记录实际设备；CPU 只做快速纯合同单元测试。GPU 满载时等待或缩小规模，模型下载不在范围。本任务普通推送现有工作分支，经 Draft PR106 面向 dev 评审，不修改 main/dev 或绕过检查。
+宏观与介观按上述原文维护，本步只制定微观假设、协议、命令和结果；工程清理停止，不自动重开旧矩阵或已验证合同。正确性、优化和性能验证使用 CUDA，先确认可用并记录实际设备；CPU 只做快速纯合同单元测试。GPU 满载时等待或缩小规模，模型下载不在范围。本任务普通推送现有工作分支，经 Draft PR106 面向 dev 评审，不修改 main/dev 或绕过检查。
 
 第三方 ESP 来源树及 `ORIGIN.json` 保留，不能把它称为作者官方实现。原始 SpecBench 数据保留于 `datasets/spec_bench/question.jsonl`。
 
