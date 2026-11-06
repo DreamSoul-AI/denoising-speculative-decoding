@@ -8,6 +8,7 @@ from urllib.parse import quote
 from typing import Any
 
 from spec_mtp.structure.artifact.errors import CorruptArtifactError
+from spec_mtp.structure.artifact.asset.tree import diagnostic_files
 from spec_mtp.structure.artifact.index import index_path, load_index
 from spec_mtp.structure.artifact.paths import PROCESS_NAME, validate_output_root
 from spec_mtp.structure.artifact.result.io import load_result
@@ -54,6 +55,7 @@ def _log_links(index: dict[str, Any], study_dir: Path, output: Path | None = Non
                 continue
             path = log_path(study_dir, run, str(run.get('run_dir') or run_id))
             if path is not None:
+                path = diagnostic_files(path)[-1]
                 relative = path.resolve().relative_to(study_dir.resolve())
                 if output is None:
                     links[run_id] = '../' + relative.as_posix()

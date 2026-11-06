@@ -11337,6 +11337,139 @@
         "network": false,
         "model_download": false
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_log_segments_preserve_closed_bytes_and_share_one_thread_safe_sequence",
+      "target": "spec_mtp.structure.system.logger.Logger.info",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_log_segment_write_admission_preserves_previous_bytes",
+      "target": "spec_mtp.structure.system.logger.Logger._emit",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_diagnostic_segments_validate_named_layout_without_reading_bodies",
+      "target": "spec_mtp.structure.artifact.asset.tree.diagnostic_files",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_status.py::test_custom_and_legacy_diagnostics_keep_single_file_selection",
+      "target": "spec_mtp.structure.artifact.readout.status.iter_diagnostic_lines",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_study_cli.py::test_logs_command_reads_all_segments_or_rejects_late_damage",
+      "target": "spec_mtp.flow.study_cli.main",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_study_cli.py::test_missing_diagnostic_anchor_never_falls_back_to_a_legacy_log",
+      "target": "spec_mtp.flow.study_cli.main",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_log_anchor_rejects_aliases_without_appending_to_legacy_bytes",
+      "target": "spec_mtp.structure.system.logger.Logger.__init__",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
     }
   ],
   "plans": {
@@ -12382,7 +12515,14 @@
         "tests/spec_mtp/structure/artifact/readout/test_status.py::test_json_diagnostics_reject_embedded_splitlines_separators",
         "tests/spec_mtp/structure/artifact/readout/test_status.py::test_legacy_stream_preserves_splitlines_replacement_and_unbounded_old_records",
         "tests/spec_mtp/flow/test_study_cli.py::test_late_diagnostic_damage_invalidates_notes_and_cli_output",
-        "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_midstream_io_failure_discards_that_runs_partial_events"
+        "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_midstream_io_failure_discards_that_runs_partial_events",
+        "tests/spec_mtp/structure/system/test_logger.py::test_log_segments_preserve_closed_bytes_and_share_one_thread_safe_sequence",
+        "tests/spec_mtp/structure/system/test_logger.py::test_log_segment_write_admission_preserves_previous_bytes",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_diagnostic_segments_validate_named_layout_without_reading_bodies",
+        "tests/spec_mtp/structure/artifact/readout/test_status.py::test_custom_and_legacy_diagnostics_keep_single_file_selection",
+        "tests/spec_mtp/flow/test_study_cli.py::test_logs_command_reads_all_segments_or_rejects_late_damage",
+        "tests/spec_mtp/flow/test_study_cli.py::test_missing_diagnostic_anchor_never_falls_back_to_a_legacy_log",
+        "tests/spec_mtp/structure/system/test_logger.py::test_log_anchor_rejects_aliases_without_appending_to_legacy_bytes"
       ],
       "exclude": []
     },

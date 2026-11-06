@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from spec_mtp.structure.artifact.asset import kinds
+from spec_mtp.structure.artifact.asset.tree import diagnostic_files
 from spec_mtp.structure.artifact.index import index_path, load_index
 from spec_mtp.structure.artifact.paths import RESULT_NAME, RUNS_DIRNAME
 from spec_mtp.structure.artifact.result.format import STATUS_SUCCEEDED
@@ -49,11 +50,15 @@ def log_path(study_dir: Path, run: dict[str, Any], run_dir: str) -> Path | None:
     else:
         return None
     path.resolve().relative_to(study_dir.resolve())
+    if path.name == 'events.jsonl':
+        diagnostic_files(path)
     if path.is_file():
         return path
     if path.name in ('run.log', 'events.jsonl'):
         alternate = path.with_name('run.log' if path.name == 'events.jsonl' else 'events.jsonl')
         alternate.resolve().relative_to(study_dir.resolve())
+        if alternate.name == 'events.jsonl':
+            diagnostic_files(alternate)
         if alternate.is_file():
             return alternate
     return path
@@ -71,28 +76,29 @@ def iter_diagnostic_lines(path: Path) -> Iterator[str]:
               'checkpoint.saved': 'ckpt', 'checkpoint.resumed': 'resume'}
     required = ('timestamp', 'level', 'event', 'message', 'logger', 'app_name',
                 'app_version', 'runtime_id', 'process_name')
-    with path.open(encoding='utf-8') as handle:
-        while line := handle.readline(65537):
-            if (not line.endswith('\n') or len(line) > 65536
-                    or any(separator in line for separator in '\v\f\x1c\x1d\x1e\x85\u2028\u2029')):
-                raise ValueError('truncated or oversized diagnostic record')
-            record = json.loads(line)
-            if (not isinstance(record, dict) or any(not isinstance(record.get(key), str) for key in required)
-                    or record['level'] not in {'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'}
-                    or type(record.get('pid')) is not int or record['pid'] <= 0):
-                raise ValueError('invalid diagnostic record')
-            if any(any((unicodedata.category(char).startswith('C') or char in '\u2028\u2029') for char in record[key]) for key in required if key != 'message'):
-                raise ValueError('invalid diagnostic identity')
-            task_id = record.get('task_id', '-')
-            if not isinstance(task_id, str) or any((unicodedata.category(char).startswith('C') or char in '\u2028\u2029') for char in task_id):
-                raise ValueError('invalid diagnostic task identity')
-            message = ''.join(char if not unicodedata.category(char).startswith('C') and char not in '\u2028\u2029' else '\\u%04x' % ord(char)
-                              for char in record['message'])
-            error_type = record.get('exception_type')
-            if isinstance(error_type, str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.]*', error_type):
-                message += f' [{error_type}]'
-            tag = events.get(record['event'], 'flow')
-            yield f"{record['timestamp']} {record['level']} {task_id} [{tag}] {message}"
+    for part in diagnostic_files(path):
+        with part.open(encoding='utf-8') as handle:
+            while line := handle.readline(65537):
+                if (not line.endswith('\n') or len(line) > 65536
+                        or any(separator in line for separator in '\v\f\x1c\x1d\x1e\x85\u2028\u2029')):
+                    raise ValueError('truncated or oversized diagnostic record')
+                record = json.loads(line)
+                if (not isinstance(record, dict) or any(not isinstance(record.get(key), str) for key in required)
+                        or record['level'] not in {'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'}
+                        or type(record.get('pid')) is not int or record['pid'] <= 0):
+                    raise ValueError('invalid diagnostic record')
+                if any(any((unicodedata.category(char).startswith('C') or char in '\u2028\u2029') for char in record[key]) for key in required if key != 'message'):
+                    raise ValueError('invalid diagnostic identity')
+                task_id = record.get('task_id', '-')
+                if not isinstance(task_id, str) or any((unicodedata.category(char).startswith('C') or char in '\u2028\u2029') for char in task_id):
+                    raise ValueError('invalid diagnostic task identity')
+                message = ''.join(char if not unicodedata.category(char).startswith('C') and char not in '\u2028\u2029' else '\\u%04x' % ord(char)
+                                  for char in record['message'])
+                error_type = record.get('exception_type')
+                if isinstance(error_type, str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.]*', error_type):
+                    message += f' [{error_type}]'
+                tag = events.get(record['event'], 'flow')
+                yield f"{record['timestamp']} {record['level']} {task_id} [{tag}] {message}"
 
 
 def diagnostic_lines(path: Path) -> list[str]:
@@ -105,11 +111,14 @@ def _note_from_log(path: Path | None, *, errors_only: bool = False) -> str:
 
     ``errors_only`` keeps the last ``[error]`` summary and ignores later epochs.
     """
-    if path is None or not path.is_file():
+    if path is None:
         return '-'
     chosen = None
     fallback = None
     try:
+        if not path.is_file():
+            diagnostic_files(path)
+            return '-'
         for line in iter_diagnostic_lines(path):
             match = _EVENT.search(line)
             if match is None:

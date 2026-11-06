@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import saved_diagnostic as _saved_diagnostic
-from spec_mtp.structure.artifact.readout.status import diagnostic_lines, _note_from_log
+from spec_mtp.structure.artifact.readout.status import diagnostic_lines, _note_from_log, iter_diagnostic_lines
+from spec_mtp.structure.artifact.asset.tree import diagnostic_files
 from spec_mtp.structure.artifact.readout import status as status_readout
 from spec_mtp.structure.artifact.readout.logs import format_logs
 
@@ -97,3 +98,16 @@ def test_legacy_stream_preserves_splitlines_replacement_and_unbounded_old_record
     monkeypatch.setattr(Path, 'read_text', read_text)
     assert diagnostic_lines(path) == raw.decode('utf-8', errors='replace').splitlines()
     assert path.read_bytes() == raw
+
+
+@pytest.mark.parametrize('name', ['custom.jsonl', 'run.log'])
+def test_custom_and_legacy_diagnostics_keep_single_file_selection(tmp_path, monkeypatch, name):
+    path = tmp_path / name
+    content = _saved_diagnostic('single') if path.suffix == '.jsonl' else 'legacy single\n'
+    path.write_text(content)
+    path.with_name(path.stem + '.000001' + path.suffix).write_text('{broken}\n')
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, 'glob', lambda *a, **k: pytest.fail('custom/legacy must not scan siblings'))
+        patch.setattr(Path, 'resolve', lambda *a, **k: pytest.fail('custom/legacy helper adds no containment contract'))
+        assert diagnostic_files(path) == [path]
+        assert 'single' in '\n'.join(iter_diagnostic_lines(path))

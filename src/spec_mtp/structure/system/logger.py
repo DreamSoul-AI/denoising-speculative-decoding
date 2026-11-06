@@ -7,6 +7,7 @@ import multiprocessing
 import os
 from pathlib import Path
 import re
+import threading
 import traceback
 from typing import Any
 import unicodedata
@@ -14,8 +15,11 @@ import uuid
 
 from spec_mtp import __version__
 from spec_mtp.structure.artifact.asset import kinds
+from spec_mtp.structure.artifact.asset.tree import diagnostic_files
 
 _RUNTIME_ID = uuid.uuid4().hex
+_WRITE_LOCK = threading.Lock()
+_SEGMENT_BYTES = 4 * 1024 * 1024
 
 _EVENTS = {'flow': 'task.progress', 'warn': 'operation.warning', 'error': 'task.failed',
            'epoch': 'algorithm.epoch_completed', 'split': 'algorithm.split_completed',
@@ -42,8 +46,13 @@ class Logger:
         self.run_id = parts[-2] if len(parts) >= 3 and parts[-1] == 'assets' and parts[-3] == 'runs' else None
         self.runtime_id = f'{os.getpid()}:{_RUNTIME_ID}'
         self.path = self.assets_dir / kinds.RUN_LOG
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.touch(exist_ok=True)
+        with _WRITE_LOCK:
+            self.path.parent.resolve().relative_to(self.assets_dir.resolve())
+            diagnostic_files(self.path)
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            if not self.path.exists():
+                with self.path.open('x', encoding='utf-8'):
+                    pass
 
     def _emit(self, level: str, event: str, message: str, **fields: Any) -> None:
         record = {
@@ -57,9 +66,27 @@ class Logger:
             record['task_id'] = self.run_id
         record.update(fields)
         payload = json.dumps(record, ensure_ascii=True, allow_nan=False)
-        with self.path.open('a', encoding='utf-8', newline='\n') as handle:
-            handle.write(payload + '\n')
-            handle.flush()
+        line = payload + '\n'
+        if len(line) > 65536:
+            raise ValueError('diagnostic record exceeds 65536 characters including LF')
+        if len(line) > _SEGMENT_BYTES:
+            raise ValueError('diagnostic record exceeds segment byte limit')
+        with _WRITE_LOCK:
+            parts = diagnostic_files(self.path)
+            path = parts[-1]
+            with path.open('rb') as handle:
+                size = handle.seek(0, 2)
+                if size:
+                    handle.seek(-1, 2)
+                    if handle.read(1) != b'\n':
+                        raise ValueError('diagnostic tail must end in LF')
+            mode = 'a'
+            if self.path.name == 'events.jsonl' and size + len(line) > _SEGMENT_BYTES:
+                path = path.with_name(f'events.{len(parts):06d}.jsonl')
+                mode = 'x'
+            with path.open(mode, encoding='utf-8', newline='\n') as handle:
+                handle.write(line)
+                handle.flush()
         error_type = f' [{record["exception_type"]}]' if 'exception_type' in record else ''
         print(f"{record['timestamp']} {level} [{record['event']}] {record['message']}{error_type}", flush=True)
 

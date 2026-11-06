@@ -5,7 +5,8 @@ import json
 import pytest
 
 from tests.conftest import saved_diagnostic as _saved_diagnostic
-from spec_mtp.structure.artifact.readout.status import _note_from_log
+from spec_mtp.structure.artifact.readout.status import _note_from_log, diagnostic_lines, log_path
+from spec_mtp.structure.artifact.readout.report import _log_links
 from spec_mtp.structure.artifact.readout.logs import format_logs
 
 from spec_mtp.flow.study_cli import prepare_study_argv
@@ -74,3 +75,55 @@ def test_late_diagnostic_damage_invalidates_notes_and_cli_output(tmp_path, capsy
     captured = capsys.readouterr()
     assert not captured.out and captured.err
     assert path.read_bytes() == raw.encode('utf-8')
+
+
+@pytest.mark.parametrize('tail', ['valid', 'malformed', 'truncated'])
+def test_logs_command_reads_all_segments_or_rejects_late_damage(tmp_path, capsys, tail):
+    from spec_mtp.flow.study_cli import main
+
+    anchor = tmp_path / 'runs/r1/assets/logs/events.jsonl'
+    anchor.parent.mkdir(parents=True)
+    anchor.write_text(_saved_diagnostic('first'))
+    last = anchor.with_name('events.000001.jsonl')
+    raw = _saved_diagnostic('last')
+    last.write_text(raw if tail == 'valid' else '{broken}\n' if tail == 'malformed' else raw[:-1])
+    index = {'experiments': [{'runs': [{'id': 'r1'}]}]}
+    (tmp_path / 'index.json').write_text(json.dumps(index))
+    before = {p: p.read_bytes() for p in (anchor, last)}
+    assert _log_links(index, tmp_path) == {'r1': '../runs/r1/assets/logs/events.000001.jsonl'}
+    if tail == 'valid':
+        assert len(diagnostic_lines(anchor)) == 2
+        assert _note_from_log(anchor) == '[flow] last'
+        text = format_logs(tmp_path)
+        assert 'first' in text and 'last' in text and text.index('first') < text.index('last')
+        assert main(['logs', str(tmp_path)]) == 0
+        assert 'last' in capsys.readouterr().out
+    else:
+        with pytest.raises(ValueError): diagnostic_lines(anchor)
+        assert _note_from_log(anchor) == '[error] diagnostic log unavailable'
+        with pytest.raises(ValueError): format_logs(tmp_path)
+        assert main(['logs', str(tmp_path)]) == 2
+        captured = capsys.readouterr()
+        assert not captured.out and captured.err
+    assert all(p.read_bytes() == body for p, body in before.items())
+
+
+def test_missing_diagnostic_anchor_never_falls_back_to_a_legacy_log(tmp_path, capsys):
+    from spec_mtp.flow.study_cli import main
+
+    parent = tmp_path / 'runs/r1/assets/logs'
+    parent.mkdir(parents=True)
+    anchor = parent / 'events.jsonl'
+    (parent / 'events.000001.jsonl').write_text(_saved_diagnostic('orphan'))
+    (parent / 'run.log').write_text('2026-01-01T00:00:00Z INFO r1 [flow] legacy\n')
+    index = {'experiments': [{'runs': [{'id': 'r1'}]}]}
+    (tmp_path / 'index.json').write_text(json.dumps(index))
+    before = {p: p.read_bytes() for p in parent.iterdir()}
+    with pytest.raises(ValueError): log_path(tmp_path, {'id': 'r1'}, 'r1')
+    assert _note_from_log(anchor) == '[error] diagnostic log unavailable'
+    with pytest.raises(ValueError): format_logs(tmp_path)
+    with pytest.raises(ValueError): _log_links(index, tmp_path)
+    assert main(['logs', str(tmp_path)]) == 2
+    captured = capsys.readouterr()
+    assert not captured.out and captured.err
+    assert not anchor.exists() and all(p.read_bytes() == body for p, body in before.items())

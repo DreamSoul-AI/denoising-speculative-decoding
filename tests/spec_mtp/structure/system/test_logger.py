@@ -144,3 +144,120 @@ def test_all_log_readers_reject_resolved_paths_outside_study(tmp_path, monkeypat
             patch.setattr(Path, 'resolve', resolved)
             with pytest.raises(ValueError):
                 log_path(study, {}, 'r1')
+
+from tests.conftest import saved_diagnostic
+
+def test_log_segments_preserve_closed_bytes_and_share_one_thread_safe_sequence(tmp_path, monkeypatch):
+    import hashlib
+    from concurrent.futures import ThreadPoolExecutor
+    from spec_mtp.structure.system import logger as implementation
+    from spec_mtp.structure.artifact.asset.tree import diagnostic_files
+
+    limit = 1024
+    monkeypatch.setattr(implementation, '_SEGMENT_BYTES', limit)
+    assets = tmp_path / 'runs/r1/assets'
+    anchor = assets / 'logs/events.jsonl'
+    anchor.parent.mkdir(parents=True)
+    seed = saved_diagnostic('s' * (limit - len(saved_diagnostic('')))).encode()
+    assert len(seed) == limit
+    anchor.write_bytes(seed)
+    stamp = anchor.stat().st_mtime_ns
+    first, second = Logger(assets), Logger(assets)
+    assert anchor.read_bytes() == seed and anchor.stat().st_mtime_ns == stamp
+    for index in range(8):
+        first.info(f'warm-{index}')
+    frozen = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in diagnostic_files(anchor)[:-1]}
+    assert len(frozen) >= 2
+    third = Logger(assets)
+    instances = (first, second, third)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        list(pool.map(lambda index: instances[index % 3].info(f'case-{index}'), range(24)))
+    parts = diagnostic_files(anchor)
+    assert [p.name for p in parts] == ['events.jsonl'] + [f'events.{i:06d}.jsonl' for i in range(1, len(parts))]
+    assert all(p.stat().st_size <= limit for p in parts)
+    assert all(hashlib.sha256(p.read_bytes()).hexdigest() == digest for p, digest in frozen.items())
+    records = [json.loads(line) for p in parts for line in p.read_text().splitlines()]
+    messages = [row['message'] for row in records[1:]]
+    assert len(records) == 33
+    assert sorted(messages) == sorted([f'warm-{i}' for i in range(8)] + [f'case-{i}' for i in range(24)])
+    assert all(instance.path == anchor and instance.state_dict() == {'path': str(anchor)} for instance in instances)
+
+
+@pytest.mark.parametrize('fault', ['below_limit', 'exact_limit', 'oversized', 'segment_cap',
+                                  'anchor_tail', 'part_tail', 'create', 'flush'])
+def test_log_segment_write_admission_preserves_previous_bytes(tmp_path, monkeypatch, capsys, fault):
+    from spec_mtp.structure.system import logger as implementation
+
+    logger = Logger(tmp_path / 'assets')
+    anchor = logger.path
+    seed = saved_diagnostic('seed').encode()
+    if fault in ('create', 'flush'):
+        monkeypatch.setattr(implementation, '_SEGMENT_BYTES', 1024)
+        seed = saved_diagnostic('s' * (1024 - len(saved_diagnostic('')))).encode()
+    anchor.write_bytes(seed[:-1] if fault == 'anchor_tail' else seed)
+    if fault == 'part_tail':
+        anchor.with_name('events.000001.jsonl').write_bytes(seed[:-1])
+    if fault == 'segment_cap':
+        monkeypatch.setattr(implementation, '_SEGMENT_BYTES', 64)
+    target = {'below_limit': 65535, 'exact_limit': 65536, 'oversized': 65537}.get(fault)
+    if target is not None:
+        dumps = json.dumps
+        def sized(record, **kwargs):
+            record['padding'] = ''
+            record['padding'] = 'x' * (target - 1 - len(dumps(record, **kwargs)))
+            return dumps(record, **kwargs)
+        from types import SimpleNamespace
+        monkeypatch.setattr(implementation, 'json', SimpleNamespace(dumps=sized))
+    primary = OSError('injected segment persistence failure')
+    if fault in ('create', 'flush'):
+        original_open = Path.open
+        class FailedFlush:
+            def __init__(self, handle): self.handle = handle
+            def __getattr__(self, name): return getattr(self.handle, name)
+            def __enter__(self): self.handle.__enter__(); return self
+            def __exit__(self, *args): return self.handle.__exit__(*args)
+            def flush(self): raise primary
+        def opened(path, *args, **kwargs):
+            mode = args[0] if args else kwargs.get('mode', 'r')
+            if path.name == 'events.000001.jsonl' and mode == 'x':
+                if fault == 'create': raise primary
+                return FailedFlush(original_open(path, *args, **kwargs))
+            return original_open(path, *args, **kwargs)
+        monkeypatch.setattr(Path, 'open', opened)
+    before = {p: p.read_bytes() for p in anchor.parent.iterdir() if p.is_file()}
+    if fault in ('below_limit', 'exact_limit'):
+        logger.info('sized')
+        line = anchor.read_bytes().splitlines(keepends=True)[-1]
+        assert len(line) == target and json.loads(line)['message'] == 'sized'
+        assert anchor.read_bytes().startswith(seed)
+    else:
+        with pytest.raises(OSError if fault in ('create', 'flush') else ValueError) as caught:
+            logger.info('must not succeed')
+        if fault in ('create', 'flush'): assert caught.value is primary
+        assert all(p.read_bytes() == body for p, body in before.items())
+        if fault != 'flush': assert set(anchor.parent.iterdir()) == set(before)
+        assert not capsys.readouterr().out
+    assert logger.path == anchor and logger.state_dict()['path'] == str(anchor)
+
+
+@pytest.mark.parametrize('alias', ['resolved_legacy', 'hardlinked_legacy'])
+def test_log_anchor_rejects_aliases_without_appending_to_legacy_bytes(tmp_path, monkeypatch, alias):
+    import os
+
+    assets = tmp_path / 'assets'
+    parent = assets / 'logs'
+    parent.mkdir(parents=True)
+    legacy = parent / 'run.log'
+    legacy.write_bytes(b'2026-01-01T00:00:00Z INFO saved [flow] old bytes\n')
+    anchor = parent / 'events.jsonl'
+    if alias == 'hardlinked_legacy':
+        os.link(legacy, anchor)
+        assert anchor.stat().st_nlink > 1
+    else:
+        anchor.write_bytes(b'placeholder\n')
+        resolve = Path.resolve
+        monkeypatch.setattr(Path, 'resolve', lambda path, *a, **k: legacy if path == anchor else resolve(path, *a, **k))
+    prior = legacy.read_bytes()
+    anchor_prior = anchor.read_bytes()
+    with pytest.raises(ValueError): Logger(assets)
+    assert legacy.read_bytes() == prior and anchor.read_bytes() == anchor_prior
