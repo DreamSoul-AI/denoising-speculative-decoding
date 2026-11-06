@@ -106,6 +106,8 @@ profile 在 CUDA 工作负载上使用 cProfile，component 是主机侧 self-ti
 
 native shared CLI 的 smoke 测试按架构 NS0–NS4 使用独立 CUDA 验证身份。测试复制原声明到外部新根，显式绑定 system/eval 设备，微型模型在 CUDA 初始化并记录实际输入、权重摘要、dtype/backend和运行种子；CPU只准备固定离散token及做纯IO拒绝检查。T0以完整提交链argmax验收，独立AR与接受数为诊断，旧CPU的27/31/8不作CUDA基线。原CPU Study声明、旧Run和历史图保持原义，不因测试迁移重签。
 
+运行前先将TEMP/TMP设为当次指定的外部任务目录，再将 `PYTHONPYCACHEPREFIX` 设为该目录下可写的缓存子目录；正常启动允许Python读写字节码缓存，所有制品仍留在任务目录。不要同时给全新空前缀和 `PYTHONDONTWRITEBYTECODE=1` 或给每个worker加 `-B`：这会绕开安装目录已有缓存并让独立进程反复编译。PowerShell可用 `Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue` 移除禁写设置；用 `python -c "import sys; print(sys.dont_write_bytecode, sys.pycache_prefix)"` 核实际子解释器配置。原native launch的90秒门限、完整断言和失败退出保持；缓存行为见[Python官方说明](https://docs.python.org/3.13/library/sys.html#sys.pycache_prefix)。
+
 native CLI 验证使用独立测试计划：`python tests/run.py --plan cuda-native-smoke --output-root <另一外部新验证目录>`，单卡、300秒预算，包含11个原smoke数值入口路径及1个报告launch，共12项；不并入原cuda-validation预算。两组GPU验证依次执行，实际设备与来源保存到各自回执，纯配置/来源拒绝仍由cpu-quick选择。该计划不运行真实权重或旧研究矩阵。
 
 typed request的轻量合同归API测试镜像；audit与科学CLI用例依赖的合成解码数值，以及decode生成/AR/选择器、mask、KV、tree/attention合同，使用cuda-validation，纯参数/路径/保存表示检查留CPU快速计划。共享夹具按显式设备创建并核embedding与forward，真实tiny模型由同一工厂恢复RNG/设备并关闭owned资源。日志区分选择器张量、刻意零forward与实际forward；局部CUDA Generator须保持全局状态。科学CLI的728参数本地模型验证使用测试内委托loader移到CUDA，不代表生产CLI增加了设备选项；它不替代真实模型研究或跨设备等价验收。Hypothesis保max_examples=80的原属性规模，单个属性仍算一个pytest参数结果，不加计内部示例。
@@ -132,6 +134,6 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 宿主CPU安全合同运行 `python -m pytest tests/spec_mtp`，真实CUDA合同运行 `python -m pytest tests/cuda/spec_mtp`；两根分别完整镜像源码相对路径，`python -m pytest tests` 仍收集两者。GPU入口先核CUDA可用并记录实际设备，保留设备、RNG、模型与张量断言，不提供无GPU回退。未知方法拒绝等纯结构guard留在CPU根，现有workflow命令不变，也不通过收集过滤或skip选择资源。
 
-登记1023函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别871/509/140/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1028参数、CUDA根277参数；本轮新增5函数27参数，分别为宿主CPU18、Study CPU6与宿主CUDA3，旧参数、断言和计划成员保留。原CPU/CUDA及诊断门通过，额外native BF16在隔离当前源码通过，主工作树两次launch90秒超时仍未根治，见[活动验收缺口](<docs/缺陷记录 Bug Report 去噪推测解码.md>)第五节；不据此宣称本轮全部通过。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
+登记1023函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别871/509/140/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1028参数、CUDA根277参数；第五十五轮新增5函数27参数，分别为宿主CPU18、Study CPU6与宿主CUDA3，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
 
 已有Kalman/EMA的P0 CUDA核验按独立参考区分递推、状态时序与研究收益：EMA闭式历史、标量Joseph、逐维/残差与对角增益各自验证；Online/Aligned每轮首commit，Hybrid last为实际末commit（截断时不保证bonus）。已修非有限噪声参数准入与forget=1除零，端点关闭Q/R自适应而P/F仍更新。局部正确性不证明Kalman建模最优或真实模型加速，成果与来源缺口见唯一研究计划。
