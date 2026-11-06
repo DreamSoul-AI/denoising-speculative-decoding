@@ -569,6 +569,7 @@ def launch_jobs(
     ) -> list[tuple[dict[str, Any], int]]:
         nonlocal wait_index
         pairs: list[tuple[dict[str, Any], int]] = []
+        positions = {str(job['run_id']): i for i, job in enumerate(job for group in groups for job in group)}
         total = len(groups)
         for index, group in enumerate(groups, start=1):
             if kind == 'wait':
@@ -710,7 +711,7 @@ def launch_jobs(
                 except BaseException as cleanup:
                     setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
                 raise
-        return pairs
+        return sorted(pairs, key=lambda pair: positions[str(pair[0]['run_id'])])
 
     for wave in waves:
         pairs = _run_groups(wave, kind='wait')

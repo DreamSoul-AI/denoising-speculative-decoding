@@ -365,3 +365,92 @@ else:
             if process.poll() is None:
                 process.kill()
             process.wait(timeout=10)
+
+
+@pytest.mark.parametrize('timed', [False, True])
+def test_spawned_cuda_code_and_blocked_sibling_keep_group_input_order(
+    tmp_path, monkeypatch, cuda_decode, record_property, timed,
+):
+    import torch
+    import yaml
+    from spec_mtp.structure.artifact.result.io import write_result
+    from spec_mtp.structure.make import schedule
+    from spec_mtp.structure.make.write import expand_study
+
+    device = cuda_decode.device
+    assert torch.cuda.is_available() and device.type == 'cuda'
+    source = tmp_path / 'source'
+    source.mkdir()
+    settings = {'device': str(device), **({'worker_timeout_seconds': 30} if timed else {})}
+    (source / 'study.yaml').write_text(yaml.safe_dump({
+        'study': 'cuda-mixed-order', 'freeze': True, 'seeds': [7, 11], 'flow': {'study_phases': False},
+    }), encoding='utf-8')
+    (source / 'experiment_config.yaml').write_text(yaml.safe_dump({
+        'experiment': 'cuda-mixed-order', 'data': {'name': 'fixture'}, 'model': {'name': 'fixture'},
+        'algorithm': {'mode': 'eval'}, 'system': {'config': settings},
+    }), encoding='utf-8')
+    expanded = expand_study(source, run_root=tmp_path / 'runtime')
+    study = expanded['study_dir']
+    jobs = schedule.plan_jobs(study, expanded['configs'], init_gpu=0, num_gpus=1, include_done=True)
+    allowed, blocked = [job['run_id'] for job in jobs]
+    dependencies = {allowed: 'allowed-parent', blocked: 'blocked-parent'}
+    monkeypatch.setattr(schedule, 'sibling_train_dependency', lambda study, run_id: dependencies.get(run_id))
+    for run_id in (allowed, blocked, 'allowed-parent'):
+        write_result(study / 'runs' / run_id / 'result.json', {
+            'status': 'succeeded', 'control': {}, 'metrics': {'preserved': 7}, 'paths': {},
+        })
+    write_result(study / 'runs' / 'blocked-parent' / 'result.json', {'status': 'failed', 'error': 'fixed parent failure'})
+    (study / 'runs' / blocked / 'preserved-input.bin').write_bytes(b'original other Run input')
+    protected = {path: (path.read_bytes(), path.stat().st_mtime_ns)
+                 for folder in (source, study) for path in folder.rglob('*') if path.is_file()}
+    facts_path, errors_path = tmp_path / 'cuda-facts.json', tmp_path / 'cuda-stderr.log'
+    child_code = '''
+import json, os, sys
+from pathlib import Path
+import torch
+from spec_mtp.structure.system.logger import Logger
+device = torch.device(sys.argv[1])
+assert torch.cuda.is_available() and device.type == 'cuda'
+with torch.random.fork_rng(devices=[device.index]), torch.no_grad():
+    model = torch.nn.Linear(2, 1, bias=False, device=device)
+    model.weight.fill_(2)
+    output = model(torch.tensor([[1., 2.]], device=device))
+    assert output.device == model.weight.device == device
+    assert torch.equal(output, torch.tensor([[6.]], device=device))
+    torch.cuda.synchronize(device)
+Logger(Path(sys.argv[2]), managed=True).info(f'mixed-order real CUDA forward device={output.device}')
+Path(sys.argv[3]).write_text(json.dumps({'pid': os.getpid(), 'device': str(output.device),
+                                      'output': output.item()}), encoding='utf-8')
+raise SystemExit(7)
+'''
+    real_popen = subprocess.Popen
+    processes, dispatched = [], []
+
+    def controlled_popen(command, **options):
+        dispatched.append(command[-1])
+        assert dispatched == [allowed], 'blocked sibling must not spawn or retry'
+        with errors_path.open('wb') as errors:
+            process = real_popen([sys.executable, '-u', '-c', child_code, str(device),
+                                 str(study / 'runs' / allowed / 'assets'), str(facts_path)],
+                                cwd=options['cwd'], env=options['env'], stdin=subprocess.DEVNULL,
+                                stdout=subprocess.DEVNULL, stderr=errors)
+        processes.append(process)
+        return process
+
+    monkeypatch.setattr(schedule.subprocess, 'Popen', controlled_popen)
+    try:
+        codes = schedule.launch_jobs(study, jobs, round_size=2, batches=[jobs], console='shared')
+        process, = processes
+        assert process.wait(timeout=0) == 7 and dispatched == [allowed]
+        facts = json.loads(facts_path.read_text(encoding='utf-8'))
+        assert facts == {'pid': process.pid, 'device': str(device), 'output': 6.0}
+        cuda_decode.observed_devices.append(facts['device'])
+        record_property('mixed_order_cuda_child', facts)
+        assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in protected} == protected
+        assert not (study / 'scripts' / 'launch-attempts').exists()
+        assert codes == [7, 1], 'codes must follow spawned then blocked input order'
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.kill()
+            process.wait(timeout=10)

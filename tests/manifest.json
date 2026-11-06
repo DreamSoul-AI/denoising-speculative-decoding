@@ -13410,6 +13410,47 @@
         "estimate_basis": "Two bounded real CUDA direct-worker deadline/normal paths passed targeted;20s is a scheduling estimate, not a performance claim.",
         "memory_requirement": "not yet estimated; actual device facts remain in the per-case receipts"
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_blocked_and_started_runs_keep_group_input_order",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_spawned_cuda_code_and_blocked_sibling_keep_group_input_order",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false,
+        "estimated_device_seconds": 15,
+        "estimate_basis": "Two bounded real CUDA group-order cases executed in the targeted RED batch (10.31s outer);15 device seconds is a scheduling estimate, not a measured performance claim.",
+        "memory_requirement": "not yet estimated; actual device facts remain in the per-case receipts"
+      }
     }
   ],
   "plans": {
@@ -14043,6 +14084,10 @@
         {
           "test_id": "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_frozen_run_deadline_reaps_real_cuda_writer_and_keeps_normal_completion",
           "reason": "Requires a real CUDA direct worker; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_spawned_cuda_code_and_blocked_sibling_keep_group_input_order",
+          "reason": "Requires a real CUDA direct worker; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -14602,7 +14647,8 @@
         "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_detected_after_popen_stops_the_next_dispatch",
         "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_observed_exits_win_and_codes_keep_job_order",
         "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_rejects_a_config_changed_since_admission_before_group_spawn",
-        "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_keeps_timeout_primary_and_original_input_binding_after_cleanup_fault"
+        "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_keeps_timeout_primary_and_original_input_binding_after_cleanup_fault",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_blocked_and_started_runs_keep_group_input_order"
       ],
       "exclude": []
     },
@@ -14754,7 +14800,8 @@
         "tests/cuda/spec_mtp/structure/system/test_factory.py::test_owned_diagnostic_retention_preserves_cuda_compute_and_checkpoint",
         "tests/cuda/spec_mtp/flow/test_runner.py::test_fixed_study_budget_admits_cuda_flow_and_refuses_missing_reservation",
         "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_cancelled_scheduler_reaps_its_cuda_writer_and_preserves_original_results",
-        "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_frozen_run_deadline_reaps_real_cuda_writer_and_keeps_normal_completion"
+        "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_frozen_run_deadline_reaps_real_cuda_writer_and_keeps_normal_completion",
+        "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_spawned_cuda_code_and_blocked_sibling_keep_group_input_order"
       ],
       "exclude": [],
       "resources": {

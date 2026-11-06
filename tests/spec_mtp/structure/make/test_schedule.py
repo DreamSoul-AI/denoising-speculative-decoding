@@ -787,3 +787,44 @@ def test_worker_deadline_keeps_timeout_primary_and_original_input_binding_after_
     assert all(row['direct_exit_confirmed'] is True for row in body['workers'])
     assert case.spawned == ['first', 'second']
     assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in before} == before
+
+
+@pytest.mark.parametrize('timed', [False, True])
+@pytest.mark.parametrize('blocked', ['first', 'second'])
+def test_blocked_and_started_runs_keep_group_input_order(saved_plan, monkeypatch, timed, blocked):
+    import yaml
+
+    case, spawned = saved_plan, []
+    (case.study / 'study.yaml').write_text('study: scheduler-fixture\nfreeze: true\n', encoding='utf-8')
+    for job in case.jobs:
+        job['mode'] = 'eval'
+        path = Path(job['config'])
+        config = schedule.load_config(path)
+        config['algorithm']['mode'] = 'eval'
+        if timed:
+            config['system']['config']['worker_timeout_seconds'] = 30
+        path.write_text(yaml.safe_dump(config), encoding='utf-8')
+
+    class Worker:
+        def poll(self):
+            return 7
+
+        def wait(self, timeout=None):
+            assert timeout == (0 if timed else None)
+            return 7
+
+    def popen(command, **options):
+        spawned.append(command[-1])
+        return Worker()
+
+    monkeypatch.setattr(schedule, 'check_frozen', lambda *args: None)
+    monkeypatch.setattr(schedule, 'sibling_train_dependency', lambda study, run_id: f'train-{run_id}')
+    monkeypatch.setattr(schedule, 'run_succeeded', lambda study, run_id: run_id != f'train-{blocked}')
+    monkeypatch.setattr(schedule.subprocess, 'Popen', popen)
+    before = {path: (path.read_bytes(), path.stat().st_mtime_ns)
+              for path in case.study.rglob('*') if path.is_file()}
+    codes = schedule.launch_jobs(case.study, case.jobs, round_size=2, console='shared')
+    assert codes == [1 if job['run_id'] == blocked else 7 for job in case.jobs]
+    assert spawned == [job['run_id'] for job in case.jobs if job['run_id'] != blocked]
+    assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in before} == before
+    assert not (case.study / 'scripts/launch-attempts').exists()
