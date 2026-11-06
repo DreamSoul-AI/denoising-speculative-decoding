@@ -146,7 +146,7 @@ EMA五方法原件固定于Git b8b20b5ada7fd860894114cbf224ce749af430cf的 studi
 | 原校准流程 | 原ESP的StateRecorder只保存decode相邻对，不补prefill对。将仅10cal按冻结顺序保存为单个states.pt，交给未改原fit脚本（不依赖多文件glob排序）：初fit8、choose序号4的qid123、report序号9的qid247；原LAMBDAS=(.1,.3,1,3,10,100)仅在校准内部按其cov@14选择，再依原程序全10cal重拟合。内部report cov是重拟合前校准诊断，真正评价是未传入fit的另外8qid。不要把它写成固定ridge10或独立内部report确认 |
 | 两臂与重复 | 原ESP mean_prompt/λ=.1/update=true，num_masks2、dynamic/pruned/BC30/naive，BF16/eager。原full仅打开frontier_gain enabled/path，online=false；K生成后原字节冻结，评价不拟合。两臂各2token预热排除，3次重复，repeat外层/qid中层，按(qid序号+repeat) mod2轮换，共48评价case |
 | 原路径T0与口径 | 原decoder无完整trace导出，使用其既有recorder.record回调的只读代理与HF输出只读hook观测真实验证logits、accepted_nodes、未裁commit及history；原reset/record/export/close仍原样委托，不改返回。按实际128-token结果裁尾，每一提交绑定真实验证row argmax；prefill单独记录，实际接受逐轮min(A,C)，τ排除prefill。原stats与严格新口径分别保存，不能以AR一致替代T0；若无法闭合则记录未通过，不降低门 |
-| 计时、判据与停止 | 外层CUDA同步夹住原decoder/gain构造及generate与同等只读取证；加载、哈希、校准/原fit单独记，原内部异步计时仅诊断。每qid先取3次中位数，H66须全部48项来源/T0/128token过且full−ESP接受均差>0、墙钟均差<0；GPU paired bootstrap10000/seed6601以8qid为单位。整批900秒/外层960秒，无自动重试，失败保partial；正负均停，不手动扫参、放大模型/长度 |
+| 计时、判据与停止 | 对照原esp_mtp.test中decoder在prompt循环外构造的边界，主墙钟用CUDA同步夹住原generate及同等只读取证；每case原decoder/gain构造与K加载/传输另计setup，不混入稳态主指标。外层为换臂各case新实例，online=false且原generate/reset不变，区别于原main缓存一个controller，不能把setup也说成已摊销。模型加载、哈希、校准/原fit另记，原内部异步计时仅诊断。每qid先取3次中位数，H66须全部48项来源/T0/128token过且full−ESP接受均差>0、墙钟均差<0；GPU paired bootstrap10000/seed6601以8qid为单位。整批900秒/外层960秒，无自动重试，失败保partial；正负均停，不手动扫参、放大模型/长度 |
 | 对照解释与后续 | R66与R65同时不同于cal8→10、原内选λ/全cal重拟合、配对是否含prefill及实现，故禁止把两批结果差归因于某一差异。先只判原full对原ESP；后续再冻结共同输入/校准，逐项最小CUDA对照配置、mask provider、EMA/Kalman公式、frontier gain、解码/验证/KV与评测口径，未执行项不写已解释。无AR计时/语义质量或原表制品时保持缺口 |
 
 **状态**：已确认原源码可读及10cal准入条件，外层取证driver准备中；正式GPU未执行，结果未知。17:48后的当前介观更新不回写R65冻结计划或原运行目标。
