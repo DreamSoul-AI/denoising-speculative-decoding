@@ -392,6 +392,8 @@ provider构造setup在外，prompt初始化/EMA递推/Kalman实际Python标量P/
 | 来源/失败/预算 | 新round84/85冻结clean HEAD、计划/输入/refs/driver/scorer/模型14件；原115源及静态K文件/GPU位始末核对。18项纯字符串/整数ID评分边界先验；开发内部180/父240秒，正式300/父360秒。失败保partial/unknown，正负均停，不追扫参数。当前dirty与之后文档提交分别记身份 |
 | GPU协调 | 北京时间07:05前绝不启动CUDA/载GPU模型。07:05后先只读固定dayan对话01a1560e-d494-7f30-9251-09da737852b2紧凑进度及实际owned退出/不再派发证据，再用原resource_admission.observe(initial=True) GPU/主机准入；未证实释放/准入不通过不接卡。CUDA窗口07:05–07:35，07:30前完成执行/关闭/来源末核，最后5分钟保留；不能仅按时点/低利用率判断独占。不发对方派单，不终止他人进程，受扰计时单列 |
 
+**执行前参考核查修订v2**：q428原参考错误地将“A比L高30%”反解成L=.7A，正确关系为L=A/1.3；后续同时涨薪也未给L的涨幅。原gold95200与原题均保留，不替换题。该qid只记录原参考匹配，数学语义状态固定unknown_reference_defect；八题分母保留，不能把原gold匹配当数学正确。其余8个含开发题参考已逐式核查。新v2 scorer/driver/协议在读取任何新模型输出前冻结，旧版本未执行且原字节保留。按Owner最新澄清，本拍仅质量/ESP-冻结K对照，原码隔离运行不作为前置；临时约束与GPU协调保持。
+
 **状态**：预注册，尚未执行CUDA。TEMP/TMP恒D:/Grok Bot/tmp；全部临时/cache/output仅D:/Grok Bot/tmp/sd。资源或权限受阻则保存准备与待验，不重复碰撞，不用CPU代替模型。合作原表cfg/K/CSV与历史raw-byte缺口保持未知；本轮不清理重构、不重跑已对齐机制。
 
 # 五、历史Run收束与判读合同
