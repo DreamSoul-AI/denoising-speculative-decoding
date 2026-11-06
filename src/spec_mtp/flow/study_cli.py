@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ from spec_mtp.structure.artifact.provenance import (
 )
 from spec_mtp.structure.artifact.readout import format_logs, format_status, list_runs, write_numbers
 from spec_mtp.structure.artifact.readout.compare import compare_runs, format_compare, write_compare
+from spec_mtp.structure.artifact.readout.logs import inventory_logs
 from spec_mtp.flow.context import FlowContext
 from spec_mtp.flow.runner import FlowRunner
 from spec_mtp.structure.artifact.layout import artifact_layout
@@ -373,6 +375,17 @@ def _execute_report(args: argparse.Namespace) -> int:
 
 
 def _execute_logs(args: argparse.Namespace) -> int:
+    if getattr(args, 'inventory', False):
+        try:
+            text = json.dumps(inventory_logs(args.study_dir), ensure_ascii=True, allow_nan=False)
+        except Exception as exc:
+            category = type(exc).__name__
+            if not category.isidentifier():
+                category = 'Exception'
+            print(f'diagnostic inventory unavailable: {category}', file=sys.stderr)
+            return 2
+        print(text)
+        return 0
     study_dir = Path(args.study_dir).resolve()
     try:
         text = format_logs(study_dir)
@@ -522,6 +535,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     logs_p = sub.add_parser('logs', help='print diagnostic events in time order (JSONL and legacy text)')
     logs_p.add_argument('study_dir', type=Path, help='Path to studies/<name>/')
+    logs_p.add_argument('--inventory', action='store_true', help='read diagnostic sizes and append limits without modifying files')
 
     status_p = sub.add_parser('status', help='list index Runs with result status (read-only)')
     status_p.add_argument('study_dir', type=Path, help='Path to studies/<name>/')

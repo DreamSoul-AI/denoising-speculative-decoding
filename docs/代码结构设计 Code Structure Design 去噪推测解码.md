@@ -87,7 +87,7 @@ flowchart TB
 
 资源清理与诊断隔离分开：四个模型flow以显式primary保存本函数首错，except BaseException保取消与异常对象，只有普通Exception沿原logger记录；不能继承调用者正在处理的异常。owned模型关闭一次，主体错与close次错并存时附cleanup_errors；正常close失败照常上抛。office/fair/preforward在关闭后最终verify，再用既有publisher发布；该helper实际源码已由package_files的整个_shared范围冻结。fresh按原位置写replication-summary数据，最终return移到close及verify后，不新增complete marker、不删数据。pilot结构内两个producer在train_model返回session后立即进入所有权保护，使用同一本函数primary/取消/close次错规则，关闭一次；原数学try体、其它函数/类/常量由整模块AST还原证明保持，未增加清理框架。train_model构造session后、返回前的tied检查另有保护：实际storage拒绝、属性错误或取消时关闭一次，close次错附原异常；正常返回保持session可用。它关闭的是borrowed session而不销毁native或承诺释放借用显存。正常模型固定请求tied embeddings，未发现自然untied路径，实际CUDA反例通过受控storage分离验证。
 
-P1本轮选定的只读小步是在既有logs入口增加--inventory。asset/tree承接共享的4KiB采集policy校验及精确诊断家族metadata盘点，system/logger仍在原写锁内复用同一准入；readout/logs按index绑定实际Run的assets/logs，flow/study_cli仅选择文本或inventory JSON，默认logs不变。盘点仅含events.jsonl、连续编号段、events.policy.json和run.log，分别列实际字节、受单Run采集配额约束的字节和冻结追加期限；无policy保unbound及未知字段，不从mtime补起点。观测前后家族/文件身份或尺寸变化拒绝，准入、读取或构造失败不输出半份清单，不承诺stdout写入故障时的原子输出。所有对象仍retain，报告不是跨Run原子配额或删除授权，不读取诊断正文，也不触碰Tracker、checkpoint、模型、输入和源码快照；本段为选定目标，实际实施从日期记录定位。
+P1只读小步已落实到既有logs入口的--inventory。asset/tree统一4KiB采集policy校验与64MiB/7天常量，system/logger以原私有别名保创建合同，在原写锁内调用同一校验；未增加转导出或生产模块。tree仅枚举events.jsonl、连续编号段、events.policy.json和run.log，核regular、无alias/hardlink及完整段序，前后比家族和dev/ino/nlink/size/mtime_ns，不以atime判断漂移。列举或metadata的OSError传播，不能当空家族；缺日志目录才给已知零。bytes含legacy，capture_bytes只含JSONL与policy；捕获状态为unbound/expired/capacity/within_limits，未知字段None，均retain。readout/logs按index绑定精确Run-relative路径，拒绝绝对路径、..、跨Run引用与目录alias；flow/study_cli全构造后一次输出ASCII JSON，准入/读取/构造失败为安全异常类别和退出2、无半份stdout，不承诺stdout故障原子性。默认logs及strict/managed写端原合同保持；盘点不读诊断正文、不建锁/Run、不删原件，也不承担物理TTL、跨Run配额或OSIO硬超时。实际验收从日期记录定位。
 
 # 五、源码与制品
 | **位置** | **保存内容** |

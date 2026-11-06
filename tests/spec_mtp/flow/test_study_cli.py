@@ -127,3 +127,51 @@ def test_missing_diagnostic_anchor_never_falls_back_to_a_legacy_log(tmp_path, ca
     captured = capsys.readouterr()
     assert not captured.out and captured.err
     assert not anchor.exists() and all(p.read_bytes() == body for p, body in before.items())
+
+
+
+
+@pytest.mark.parametrize('outcome', ['success', 'late_value_error', 'late_os_error', 'late_file_not_found'])
+def test_logs_inventory_emits_one_complete_json_or_no_partial_output(tmp_path, monkeypatch, capsys, outcome):
+    from spec_mtp.flow.study_cli import main
+    from spec_mtp.structure.artifact.asset import tree as asset_tree
+    from spec_mtp.structure.artifact.readout import logs as logs_readout
+
+    (tmp_path / 'index.json').write_text(json.dumps({'experiments': [{'runs': [{'id': 'r1'}, {'id': 'r2'}]}]}), encoding='utf-8')
+    for run_id in ('r1', 'r2'):
+        path = tmp_path / f'runs/{run_id}/assets/logs/events.jsonl'
+        path.parent.mkdir(parents=True)
+        path.write_text(_saved_diagnostic(run_id), encoding='utf-8', newline='\n')
+    before = {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}
+    actual = asset_tree.diagnostic_inventory
+    visits = []
+    def inventory_with_late_fault(anchor, now):
+        visits.append(anchor)
+        if len(visits) == 2 and outcome != 'success':
+            error_type = {'late_value_error': ValueError, 'late_os_error': OSError,
+                          'late_file_not_found': FileNotFoundError}[outcome]
+            raise error_type(r'private payload sentinel; D:\private\secret-run; credential=never_echo_this')
+        return actual(anchor, now)
+    with monkeypatch.context() as patch:
+        patch.setattr(asset_tree, 'diagnostic_inventory', inventory_with_late_fault)
+        patch.setattr(logs_readout, 'diagnostic_inventory', inventory_with_late_fault, raising=False)
+        code = main(['logs', str(tmp_path), '--inventory'])
+    captured = capsys.readouterr()
+    assert len(visits) == 2  # The late failure is after one genuinely inspected Run.
+    if outcome == 'success':
+        assert code == 0 and not captured.err
+        body = json.loads(captured.out)  # Reject extra text or multiple JSON payloads.
+        assert body['scope'] == 'run_diagnostics_only'
+        assert [row['run_id'] for row in body['runs']] == ['r1', 'r2']
+        assert all(row['disposition'] == 'retain' for row in body['runs'])
+        expected = format_logs(tmp_path)
+        assert main(['logs', str(tmp_path)]) == 0
+        assert capsys.readouterr().out == expected  # No flag keeps the original event text.
+    else:
+        category = {'late_value_error': 'ValueError', 'late_os_error': 'OSError',
+                    'late_file_not_found': 'FileNotFoundError'}[outcome]
+        assert code == 2 and not captured.out
+        assert captured.err == f'diagnostic inventory unavailable: {category}\n'
+        assert 'private payload' not in captured.err and 'never_echo_this' not in captured.err
+        assert str(tmp_path) not in captured.err and 'secret-run' not in captured.err
+    assert {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()} == before

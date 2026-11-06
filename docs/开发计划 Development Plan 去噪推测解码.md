@@ -2,12 +2,12 @@
 更新日期：2026年11月6日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-基线102e2d2，工作树干净，cpu-checks956及Branch flow已通过。A已完成训练工厂构造session后、返回前的准入失败清理及验收，下一步B推进P1日志只读盘点，尚未应用该实现。正常模型固定请求tied embeddings，未发现自然untied生产路径；仍保实际storage准入，拒绝、属性异常或取消时关闭已构造的borrowed session一次、保首错，成功返回不关闭，不改变native所有权或声称释放借用显存。日志小步为现有logs增加--inventory，展示Run本地诊断家族的实际字节、冻结追加期限及未知状态，不产生删除授权。研究冻结，不改训练/生成公式或预算，不增Study；原CPU门与真实CUDA合同不弱化。
+本轮基线102e2d2；A已提交05ecefe并通过远端cpu-checks及Branch flow。训练工厂构造session后、返回前的准入失败清理，以及B的P1日志只读盘点均已完成工程验收。正常模型固定请求tied embeddings，未发现自然untied生产路径；仍保实际storage准入，拒绝、属性异常或取消时关闭已构造的borrowed session一次、保首错，成功返回不关闭，不改变native所有权或声称释放借用显存。现有logs --inventory已展示Run本地诊断家族的实际总字节、采集计费字节、冻结追加期限及未知状态，全部retain，不产生删除授权。研究冻结，不改训练/生成公式或预算，不增Study；原CPU门与真实CUDA合同不弱化。
 
 | **步骤与预估** | **目标** | **验收** |
 | --- | --- | --- |
 | 现场核验，10分钟 | 核训练工厂准入与实际borrowed语义，选P1只读小步 | 区分受控故障与自然生产路径，旧字节不删、不补签，诊断policy不是保留/删除授权 |
-| 两批小步修复，25分钟 | 工厂返回前保护已验收；logs只读inventory待实施 | 失败首错/取消保全，成功不关闭已交付session；只用现有模块复用policy校验，精确Run路径与家族、未知不填假零、观测变化拒绝，无删除器/新框架 |
+| 两批小步修复，25分钟 | 工厂返回前保护与logs只读inventory均已验收 | 失败首错/取消保全，成功不关闭已交付session；只用现有模块复用policy校验，精确Run路径与家族、未知不填假零、观测变化拒绝，无删除器/新框架 |
 | 验证与独审，15分钟 | 每批原CPU命令、完整CUDA根与相关真实CUDA验收、实际设备日志和独审 | 纯控制/IO与CUDA数值分账；旧参数/断言/收集不变，无GPU不回退；默认logs输出/strict及managed写端不回归 |
 | 交付，10分钟 | 小步普通推送并更新Draft PR106，核新HEAD远端 | cpu-checks与Branch flow通过；明确未清的债务，不宣称一轮全库无债务 |
 
@@ -19,7 +19,7 @@ TEMP/TMP与本轮材料仅D:/Grok Bot/tmp/grokbot/sd/round53；旧回执与stash
 | 目录结构 | 宿主和Study按structure/flow分工，薄入口调用实际部件；配置和tracker装配复用既有工厂，不另建facade | 冻结顶层legacy保持为空；父包仅标识职责，普通部件使用canonical leaf导入。仍需核其余科学子包公开面与尚未镜像的测试，不推广本次范围 |
 | 配置与支持版本 | 文件 SHA256 统一使用 provenance.file_sha256 的有界流式读取，去除 Python 3.11 专属 file_digest 依赖 | Python 3.10 尚未实机运行，test_package 的 tomllib importorskip 会阻断该版本的严格计划，需确定测试兼容策略；不可据模拟缺 API 测试声称全版本支持 |
 | 入口脚本 | 共用 launch_once 委托 shared CLI，fingerprint/profile 归统一 diagnostics flow；专用入口包含 fresh、office、fair、pilot/preforward 和 hybrid_gain | 已登记顶层遗留、structure命令及直接盘符清单均为空；旧配置、拼接路径与间接装配仍须逐消费者审查，不据清单归零宣称全项目合规 |
-| 日志与输出 | 诊断JSONL逐条有界、status流式归约，4MiB保全分段；宿主托管故障隔离、Flow/System同实例，新空policy冻结单Run64MiB/7天追加窗口；旧文本只读 | 显式外部根、输出独占与源码/输入核验保持。14个Study创建点已采用managed，wiring与实际入口回归分开登记；物理保留期/跨Run总量、同步OSIO硬超时及跨进程同Run共写仍缺 |
+| 日志与输出 | 诊断JSONL有界/分段与托管隔离保持；新空policy冻结单Run64MiB/7天追加窗口，logs --inventory只读盘点已实现，旧文本只读 | 显式外部根、输出独占与源码/输入核验保持。14个Study创建点已采用managed，wiring与实际入口回归分开登记；物理保留期/跨Run总量、同步OSIO硬超时及跨进程同Run共写仍缺 |
 | 测试 | 新增行为和失败用例逐项登记，归细 target 与层级，静态直接反向导入清单归零；真实 CUDA 计划成本标 C3 并声明单卡及时间估计 | 其余用例仍大量继承 integration，target 较宽；numeric和测量粒度的空/缺/无效结果门及终态已实现，纯测量不计质量通过；批次Markdown报告及同run/plan/HEAD证据核验已实现；附件式原始证据和更细结果协议仍待按实际需求裁剪；read_plan按实际枚举与被选计划核成本/资源语义；显存需求仍待估计，需逐用例复核，不能只以字段存在认定合规 |
 | 文档 | 九类文档保持职责，研究问题和工程待办分开；设计与实际差距、日期记录和固定来源分别定位 | 提供固定 Git 原件只读接口，槽位与followup分析已迁入两柱；其余完整分析器仍依赖旧工具/计划映射，原 helper 身份存在未知，不能替换路径冒充同一来源 |
 
@@ -43,7 +43,8 @@ TEMP/TMP与本轮材料仅D:/Grok Bot/tmp/grokbot/sd/round53；旧回执与stash
 
 | **事项与状态** | **下一步与验收** |
 | --- | --- |
-| P1 只读inventory已选定、待实施；物理处置仍待合同 | 先由现有logs入口盘点精确Run诊断家族、实际字节与冻结追加期限，未知不补值、全部retain；可清对象、保留原件、归档/不可逆责任及跨Run预算另行确认，追加期限不等于物理清理 |
+| P1 物理处置与跨Run预算，待Owner合同 | 只读inventory已提供现存诊断占用与期限事实，不重复排为待实现；可清对象、保留原件、归档/不可逆责任、运行中并发及跨Run预算/超限行为仍须先确认，追加期限不等于物理清理 |
+| pre-session失败资源边界，未覆盖 | 本拍仅覆盖train_model完成session构造后的准入；原生模型/训练或session构造返回前失败的资源归属仍需按真实owner另行核验，不据post-session测试推定已覆盖 |
 | 同步文件IO等待上界与跨进程同Run，未支持 | 按真实部署需求另定合同；Exception隔离不等于OS调用不会阻塞，不在本轮引入队列/后台写框架 |
 | P2 Python3.10现成环境及元数据明细 | 现成环境未就绪则保留缺口，不扩扫描或安装；逐实际target/level/cost验证。两条有效成本注释按真实负载触发，不降资源或批量改断言求绿 |
 | 已知问题与研究边界，冻结 | 静态校正跨prompt状态作用域沿既有缺陷记录定位，四项历史原字节仍拒绝；不新立题或派发EMA/Kalman/旧矩阵 |
