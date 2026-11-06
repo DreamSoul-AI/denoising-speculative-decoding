@@ -8,7 +8,7 @@
 
 宏观与介观沿用 Owner 和巡检给定的原文；当前微观R67已完成同一K对照，R65/R66原冻结协议与结果保持，不以本拍小结论改写上两层。
 
-1. **本拍R68固定校准对检验ridge**：R67同K对照已通过，R68已完成固定401对的ridge对照，点方向通过但区间跨无效值；R69固定λ=.3的两条校准输入加入对照亦已完成，当前R69b只加入8个prefill标签，再依次检查剩余机制。每项先冻结协议、再CUDA执行并记录正负结果，临时输出只在D:/Grok Bot/tmp/sd的本拍子目录，原代码保持原字节。
+1. **本拍R68固定校准对检验ridge**：R67同K对照已通过，R68已完成固定401对的ridge对照，点方向通过但区间跨无效值；R69固定λ=.3的两条校准输入加入对照亦已完成，R69b配对边界对照已完成，当前依次执行R70公式重放与R71 anchor对照。每项先冻结协议、再CUDA执行并记录正负结果，临时输出只在D:/Grok Bot/tmp/sd的本拍子目录，原代码保持原字节。
 2. **按已验证范围判断可用性**：分开 EMA、各具体 Kalman 递推与静态仿射 K；受测状态、时序、重置与数值合同已核，未覆盖范围不写成通过。
 3. **保持既有结案**：分开受测实现可运行、接受效率、实际速度与证据不足。32/256 writing 联合收益候选关闭，未完成 Run 保留原状态，不通过延长预算或扫参数追正结果。
 4. **保留有取舍价值的证据**：EMA 历史局部正结果的适用范围、Kalman 各配方已测负结果与未知、可信 ESP 基线和必要来源。低后续投入价值支线进入 [研究成果归档](<研究成果归档 Research Archive 去噪推测解码.md>)，保留负结果与来源，不删除旧 Run 或改签完成状态。
@@ -25,6 +25,7 @@
 | 输入 EMA，Qwen3-4B BF16 五方法固定480条，seed123，T0，256/EOS，BC30/60 | input_first 为以order0 EMA作anchor的一阶velocity外推（method=ema_velocity、level=order0），β=.9999、λ=.1，无verify/Kalman；pooled τ 为1.511957584/1.636339710，高于 input_zero 的1.422420206/1.519108823；配对 accepted 胜:负364:81、374:70。11个历史Run已完成，10个speculative Run的809,118个提交token argmax审计通过，计时关闭 | **已有可运行实现及该协议内接受效率优势**。保留优先基线；单seed、不同后续轨迹及无计时不能证明普遍优势、纯空间因果或加速。[历史证据归位](<运行记录 Run Record/2026-10-31 历史证据归位.md>) |
 | Qwen3-4B已完成32-token CUDA试跑，SpecBench qid81–88、32 token/noEOS、naive K2/BC30 | 两臂16项、512个提交token来源/T0审计全过，8对输出token均相同。accepted总数ESP113、EMA86，EMA胜:负:平0:8:0，配对均差−3.375；同步解码墙钟均值ESP0.680310725秒、EMA0.810950813秒，配对均差+0.130640088秒 | **本次预设联合假设不获支持**：8条均更少接受且更慢。只关闭这次有界试跑，不抹掉旧480条局部正结果；本次只取writing子集，输出预算与停止条件不同，不构成旧完整480条的直接复验、独立确认或普遍速度结论。[本次运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>) |
 | 同8条256-token CUDA比较，模型/输入/参数与32-token回合相同 | 16项来源/T0、4096实际提交及8项EMA末状态门通过。原口径accepted ESP543、EMA509，均差−4.25；同步墙钟均值6.748489612/7.001628888秒，EMA−ESP为+0.253139275秒，接受与更快胜负均2:6 | **256预算联合假设仍不获支持**。EMA原accepted含1个未提交尾接受（实际提交中508），不事后改主指标。仅1对256输出相同，故这是同输入/预算下各自轨迹的实测比较，不是严格同输出加速证明；不自动续512或扫β。[本次运行](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>) |
+| R69b：同8cal/λ=.3，仅在324共同decode对后追加8个prefill标签 | R65保存值无损FP64→FP32，共同324 X/Y存储位零差；72项完整T0/9216提交通过。without/with接受51.875/53，τ1.694045/1.723797，同步秒2.898836/2.848934 | **H69b点方向通过**：with−without接受+1.125、墙钟−.049902秒、速度1.017516×，探索性95%速度[1.003445,1.036423]、接受[0,2.375]，WLT5/2/1。仅支持这8标签的加入效应，不能将多个条件效应相加归因为全部历史差距。[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十三节 |
 | R69：固定λ=.3，只加入107/247两条校准输入，324→401对 | ESP/cal8/cal10接受均值41.875/51.875/53.25，τ1.499941/1.694045/1.725151，同步秒3.122478/2.835645/2.794639；72项完整T0/9216提交通过 | **H69按预注册点方向通过，区间仍含无效值**。cal10−cal8接受+1.375、墙钟−.041006秒、速度1.014673×；探索性95%速度[.992050,1.043003]、接受[0,2.875]，W/L/T6/1/1。加入两条的效果限此切片，不称一般校准样本量规律；两规模都比ESP有正点收益。[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十二节 |
 | R68：固定原401对，仅ridge=.3/10，ESP/K03/K10各8qid×128×3 | K03的6,556,160个FP32字与原K逐位重现；72项完整T0/9216提交通过。ESP/K03/K10接受均值41.875/53.25/50.375，τ1.499941/1.725151/1.675156，同步墙钟3.138899/2.781261/2.905058秒 | **H68按预注册点方向通过，证据仍不确定**。K03相对K10接受+2.875、墙钟−0.123797秒、速度1.044511×；探索性95%速度区间[0.997400,1.088691]、接受差[−0.625,6.5]，W/L/T=4/3/1。两K相对ESP为1.128589×/1.080495×，本批没有支持“ridge10完全不work”；不据点值称λ单独解释全部历史差距。[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十一节 |
 | R67：固定R66同一K，两端同8qid×128token各3次 | 48项完整T0/来源及6144提交通过；24/24完整输出、实际接受、完整tree/owner/裁剪trace均同，全部实际forward行argmax与frontier摘要亦同。CUDA复核1,794对frontier的5,382对BF16 placeholder/probe/head输入存储逐位相同。两端接受均值53.25、τ1.725151 | **H67获本切片支持**。同K时，本仓临时adapter与未改原d91ed75运行时离散轨迹一致；R65/R66原不同K的接受差不再构成本切片实现失败证据。下一步固定共同校准对分离拟合因素；单独λ/样本数量/配对边界的因果仍未测。墙钟仅诊断，当前不判断算法速度差。[实际运行](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十节 |
@@ -230,7 +231,25 @@ EMA五方法原件固定于Git b8b20b5ada7fd860894114cbf224ce749af430cf的 studi
 | 评价与边界 | 原ESP/without_prefill/with_prefill三臂，原decoder+FrontierGain只切path、online=false；原8eval tokens/128/T0/noEOS/seed123、Qwen3-4B BF16/eager/RTX5090 D v2、K2/dynamic-pruned/BC30/naive、mean_prompt/λ=.1保持。每臂2token预热排除，3rep Latin共72case；同步generate与setup分记，两K原件/实际GPU值不变、source/完整T0全部通过 |
 | 主判据与停止 | qid内3次中位数后，mean(接受with−without)>0且mean(墙钟with−without)<0才支持；ESP背景、实际接受Σmin(A,C)、τ排除prefill。CUDA FP64配对bootstrap10000/seed6951，以8qid为单位报告探索性区间。新根D:/Grok Bot/tmp/sd/round69b，总900/外层960秒，无自动重试；失败/正/负均留证，已有R65/R66身份不回签，原源码不改 |
 
-**状态**：预注册，CUDA共同矩阵对齐、拟合与评价未执行。只检验加入这8个已知prefill标签；若通过也不说明全部prefill协议或Kalman递推有效。
+**结果**：8e435a8事前预注册，UTC19:35:54—19:40:28唯一正式批退出0；R65值无损转FP32，共同324 X/Y均逐位相同；新332与旧324两K冻结，72项完整T0通过。H69b点方向通过，接受差区间下界为0；所有三repeat输出/接受一致。两K均有相对ESP正点收益，但只在本切片、该λ与这8prefill标签下成立，不能把不同条件下的效应简单相加，也不是Kalman有效性证据。
+
+## （十二）R70：保存轨迹上的mask provider与EMA公式CUDA核对
+**独立子假设**：H70-ESP＝原ESP与本仓ESP在同一实际输入/提交链上的全部mask存储位相同；H70-EMA＝原EMA与本仓level=last在同一链上的mask、velocity、anchor及ref_norm存储位相同。两项各自验收，属于机制实现核对，不产生新的接受率/速度收益。
+
+固定原d91ed75的27文件与本仓R67已冻结115源，核实际module origins；用同一Qwen3-4B BF16/eager/CUDA0 embedding，原R66 r0 ESP的8条真实128-token T0链为外生轨迹。每provider对子分别核初始化及每commit后状态：8×129=1032。ESP k2/mean_prompt/λ=.1/update=true；EMA β=.9999/step1/normalize=false/extrapolate=false/update=true，本仓level=last。mask/velocity/anchor BF16用int16位比较，ref_norm FP32用int32比较，另核有限值及向量指纹；host独有order0 level不在本项对照。
+
+只做embedding lookup和逐token provider递推；actual model-adapter/HF forward计数必须0，新生成/拟合为0，模型加载/重放全段置fork_rng内恢复CPU/CUDA随机状态。原件/计划/协议/driver/模型清单先冻结，总300秒，外层有界，原工程90/300秒门保持。输出和TEMP/TMP/cache仅D:/Grok Bot/tmp/sd/round70。两个1032位门各自全过才记对应子假设通过；失配保首个状态和数据，不修改原算法凑一致。范围是已存ESP轨迹，不是EMA自身生成效果或全部输入的等价证明。
+
+**状态**：预注册，CUDA重放未执行；通过后再做下项EMA anchor收益对照。
+
+## （十三）R71：只切换EMA anchor的CUDA收益对照
+**微观假设 H71**：同一本仓宿主和其余EMA参数下，原公式对应的last anchor相对order0 anchor增加实际接受并缩短同步generate墙钟。ESP提供背景对照；即使last胜order0，也须另看是否超过ESP，不能混称EMA获得加速。
+
+固定R66实际8条tokens、Qwen3-4B BF16/eager/RTX5090 D v2、128/T0/noEOS/seed123/K2/dynamic-pruned/BC30/naive；三臂ESP mean_prompt/λ=.1/update，EMA两臂β=.9999/λ=.1/raw step1/normalize=false/extrapolate=false/update=true，唯一设置差为level=last/order0。level包括anchor初始化与逐token平滑规则的固定差异，velocity递推/精度不变。调用现有工厂/类，不改生产公式、不加载K或校准材料。
+
+每臂2token预热排除，3rep Latin循环共72/9216正式提交，qid内取3次中位数。主门全部source/完整T0/128通过，mean(接受last−order0)>0且mean(同步墙钟last−order0)<0；ESP子对照分别报告。CUDA FP64按8qid配对bootstrap10000/seed7101，重复不扩n，输出一致率、实际min(A,C)接受/τ与legacy另列。provider构造setup在外，初始化/逐token更新成本在generate内；加载/hash/IO/独审不含主墙钟。
+
+新根D:/Grok Bot/tmp/sd/round71、总900/外层960秒，源/模型/输入/计划/协议/driver事前冻结，失败保partial无自动重试，正负均停。当前历史已见8qid是有界机制消融，语义质量和独立AR仍未测；不扫β/长度、不以本项判断全部EMA或Kalman。**状态**：预注册，正式CUDA未执行。
 
 # 五、历史Run收束与判读合同
 | **材料** | **当前状态与收束** |
