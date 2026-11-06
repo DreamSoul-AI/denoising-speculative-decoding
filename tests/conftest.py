@@ -403,3 +403,13 @@ def norm_control_module(monkeypatch):
     from studies._shared.structure.geometry_4b import observe_initial_bias
     return SimpleNamespace(STUDY=ROOT/'studies/qwen3_4b_bf16_bias_norm_scan',
                            observe_initial_bias=observe_initial_bias)
+
+
+def saved_diagnostic(message='saved'):
+    import json
+
+    return json.dumps({
+        'timestamp': '2026-01-01T00:00:00Z', 'level': 'INFO', 'event': 'task.progress',
+        'message': message, 'logger': 'spec_mtp', 'app_name': 'spec_mtp',
+        'app_version': 'test', 'runtime_id': 'runtime', 'process_name': 'test', 'pid': 1,
+    }, ensure_ascii=False) + '\n'

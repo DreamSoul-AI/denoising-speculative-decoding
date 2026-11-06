@@ -5817,7 +5817,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_logger_writes_real_identity_and_escapes_payload",
-      "target": "spec_mtp.structure.system.logger",
+      "target": "spec_mtp.structure.system.logger.Logger.info",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5829,7 +5829,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_exception_is_one_record_without_exception_payload",
-      "target": "spec_mtp.structure.system.logger",
+      "target": "spec_mtp.structure.system.logger.Logger.exception",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5841,7 +5841,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_log_write_failure_is_reported_to_the_caller",
-      "target": "spec_mtp.structure.system.logger",
+      "target": "spec_mtp.structure.system.logger.Logger.info",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5853,7 +5853,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_new_and_legacy_logs_remain_readable_without_rewrite",
-      "target": "spec_mtp.structure.artifact.readout.logs",
+      "target": "spec_mtp.structure.artifact.readout.logs.format_logs",
       "level": "integration",
       "type": "content",
       "cost_class": "c1",
@@ -5865,7 +5865,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_truncated_diagnostic_is_not_rendered_as_complete",
-      "target": "spec_mtp.structure.artifact.readout.status",
+      "target": "spec_mtp.structure.artifact.readout.status.diagnostic_lines",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5877,7 +5877,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_log_order_compares_utc_instants_across_legacy_offsets",
-      "target": "spec_mtp.structure.artifact.readout.logs",
+      "target": "spec_mtp.structure.artifact.readout.logs.event_lines",
       "level": "integration",
       "type": "content",
       "cost_class": "c1",
@@ -5889,8 +5889,8 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_report_links_follow_actual_new_or_legacy_log",
-      "target": "spec_mtp.structure.artifact.readout.report",
-      "level": "unit",
+      "target": "spec_mtp.structure.artifact.readout.report._log_links",
+      "level": "integration",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
@@ -5901,7 +5901,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_malformed_diagnostic_stops_the_logs_command",
-      "target": "spec_mtp.structure.artifact.readout.logs",
+      "target": "spec_mtp.structure.artifact.readout.logs.format_logs",
       "level": "integration",
       "type": "content",
       "cost_class": "c1",
@@ -5913,8 +5913,8 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_report_rejects_a_log_link_outside_the_study",
-      "target": "spec_mtp.structure.artifact.readout.report",
-      "level": "unit",
+      "target": "spec_mtp.structure.artifact.readout.report._log_links",
+      "level": "integration",
       "type": "content",
       "cost_class": "c1",
       "result_type": "categorical",
@@ -5925,7 +5925,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_loggers_in_one_process_share_runtime_but_keep_run_identity",
-      "target": "spec_mtp.structure.system.logger",
+      "target": "spec_mtp.structure.system.logger.Logger.__init__",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -5961,7 +5961,7 @@
     },
     {
       "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_all_log_readers_reject_resolved_paths_outside_study",
-      "target": "spec_mtp.structure.artifact.readout.status",
+      "target": "spec_mtp.structure.artifact.readout.status.log_path",
       "level": "unit",
       "type": "content",
       "cost_class": "c1",
@@ -11223,6 +11223,120 @@
         "network": false,
         "model_download": false
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_status.py::test_diagnostic_readers_use_bounded_streams_without_whole_file_reads",
+      "target": "spec_mtp.structure.artifact.readout.status.iter_diagnostic_lines",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_status.py::test_diagnostic_record_character_limit_includes_terminating_linefeed",
+      "target": "spec_mtp.structure.artifact.readout.status.iter_diagnostic_lines",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_status.py::test_json_diagnostics_reject_embedded_splitlines_separators",
+      "target": "spec_mtp.structure.artifact.readout.status.iter_diagnostic_lines",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_status.py::test_legacy_stream_preserves_splitlines_replacement_and_unbounded_old_records",
+      "target": "spec_mtp.structure.artifact.readout.status.iter_diagnostic_lines",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_study_cli.py::test_late_diagnostic_damage_invalidates_notes_and_cli_output",
+      "target": "spec_mtp.flow.study_cli._execute_logs",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_midstream_io_failure_discards_that_runs_partial_events",
+      "target": "spec_mtp.structure.artifact.readout.logs.event_lines",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
     }
   ],
   "plans": {
@@ -12262,7 +12376,13 @@
         "tests/spec_mtp/structure/algorithm/decode/test_tree.py::test_node_budget_rejects_too_small_block_complexity",
         "tests/spec_mtp/structure/algorithm/decode/test_tree_attention.py::test_max_entries_must_be_at_least_one",
         "tests/spec_mtp/structure/algorithm/mask/test_factory.py::test_build_mask_provider_rejects_unknown_method",
-        "tests/spec_mtp/structure/artifact/result/test_io.py::test_optional_result_preserves_read_failures_and_never_writes"
+        "tests/spec_mtp/structure/artifact/result/test_io.py::test_optional_result_preserves_read_failures_and_never_writes",
+        "tests/spec_mtp/structure/artifact/readout/test_status.py::test_diagnostic_readers_use_bounded_streams_without_whole_file_reads",
+        "tests/spec_mtp/structure/artifact/readout/test_status.py::test_diagnostic_record_character_limit_includes_terminating_linefeed",
+        "tests/spec_mtp/structure/artifact/readout/test_status.py::test_json_diagnostics_reject_embedded_splitlines_separators",
+        "tests/spec_mtp/structure/artifact/readout/test_status.py::test_legacy_stream_preserves_splitlines_replacement_and_unbounded_old_records",
+        "tests/spec_mtp/flow/test_study_cli.py::test_late_diagnostic_damage_invalidates_notes_and_cli_output",
+        "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_midstream_io_failure_discards_that_runs_partial_events"
       ],
       "exclude": []
     },

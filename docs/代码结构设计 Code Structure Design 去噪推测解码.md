@@ -73,7 +73,9 @@ flowchart TB
 
 派生输出根通过 artifact.paths.validate_output_root 显式校验，与输入及 checkout 双向分离。report 必须提供 --out，旧槽位分析必须提供 --output-root，目标文件独占创建，不默认写 Study/docs。历史文本读取由 provenance.read_historical_bytes 显式接收仓库、固定完整提交、相对成员及期望 SHA256，只查本地 Git blob，不执行归档代码或猜测换行变体。旧槽位读端还必须显式接收原运行矩阵及 Git 原件摘要，两者分别校验并比较 JSON 内容，字节哈希不混用。完整运行根采用外部 Study 工作目录：make/run/launch 接收 --run-root，将声明、两柱源码、recipe 与 provenance.include 白名单冻结到该根，以此根统一生成 runs/shared/docs/index/锁与诊断。artifact/layout.py 维护建立和校验，不新增全局路径映射；命令在写锁前转交外部根。study_source.json 记录原 Study 路径、逐文件摘要及 Git 身份，原 Study 与快照改动都阻断执行，重复相同绑定只校验不重签。绝对自 Study 导入仍来自当前 checkout，因此来源校验继续覆盖原 Study；快照不承诺独立脱离宿主运行。旧 Run 保持原路径只读。单个冻结静态成员限16MiB、总量32MiB，模型与大数据只引用既有来源清单。
 
-新诊断保存于 assets/logs/events.jsonl。status/logs/report 共用新旧路径读取，旧 run.log 只读保留。Logger 的运行身份在同进程实例间共用，task_id 区分 Run，异常不保存原始载荷。日志轮转、保留和失败隔离的剩余工作见开发计划。
+诊断以 assets/logs/events.jsonl 为稳定锚点，旧 run.log 只读保留。status 的单条读取与摘要归约采用流式接口；diagnostic_lines 保留原列表接口，logs 的最终UTC排序与完整输出仍按选中记录占内存。JSONL逐条最多65536字符（含末LF），截断、无效身份和晚到损坏保持拒绝，不因流式读取放宽旧splitlines边界。Logger 的运行身份在同进程实例间共用，task_id 区分 Run，异常不保存原始载荷。
+
+日志分段由现有 system/logger.py 写端与 artifact/asset/tree.py 的文件枚举共同承担，不新增框架或生产模块。锚点与已封段保留原字节；单段到4MiB后在下一条记录前独占创建 events.000001.jsonl 等递增段，不重命名、覆盖或删除旧段。一个Run的多个同进程Logger实例共用写锁并从磁盘识别实际末段，self.path和保存状态仍指锚点；不声称支持跨进程共同写同一Run。读端按完整连续段顺序读取并核路径包含关系，缺段、越界和截断不当作完整日志。Tracker的scalars.jsonl及checkpoint恢复偏移保持独立。总量、保留期和既有日志IO故障隔离仍是开发计划中的缺口；单段限额不冒充总磁盘限额。
 
 `tests/run.py --plan cpu-pr --output-root <外部新验证根>` 适配 pytest，必需项缺收集、失败、跳过、缺终态、证据写失败均阻断。整批预算 420 秒，不覆盖真实权重、CUDA、测速或采样分布保证。验证产物和临时材料进入本次明确的外部任务目录。
 
