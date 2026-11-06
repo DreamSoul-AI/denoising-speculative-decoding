@@ -8,7 +8,7 @@
 
 宏观与介观沿用 Owner 和巡检给定的原文；当前微观R75–R77已完成本拍留出、组合与质量预算检查，R68–R74保持各自已测范围，R67已完成同一K对照，R65/R66原冻结协议与结果保持，不以本拍小结论改写上两层。
 
-1. **本拍R78–R79完整答案协议待验证**：先按第四章第二十节准入，再在固定独立近期切片执行；mask/EMA已对齐部分不重复派发，在线frontier仅在新合同冻结后进入。
+1. **本拍R78–R79已收束，R80待验**：开发准入可评分但答案两臂均错；正式八题两臂均7正确/1未完成，H79全可评分门失败且不扩预算。原online代数合同已过，下一步只按第四章第二十一节执行冻结的流式K对照。
 2. **此前R75–R77有界执行已收束**：32题冻结K复核通过预设稳定门，16题直接组合两法均负，四题质量批全部无EOS、语义未闭合；结果见第二章及第十七至十九节。三批已退出，不改原码/生产或扩研究树。
 3. **此前R68–R74逐因素对照已收束**：R67同K对照已通过，R68已完成固定401对的ridge对照，点方向通过但区间跨无效值；R69固定λ=.3的两条校准输入加入对照亦已完成，R69b配对边界对照已完成，R70/R71 provider与anchor、R72常量/完整frontier、R73计时口径与R74现有Kalman对照均已完成；本小时队列收束，不自动加臂/扫参/扩长度。每项先冻结协议、再CUDA执行并记录正负结果，临时输出只在D:/Grok Bot/tmp/sd的本拍子目录，原代码保持原字节。
 4. **按已验证范围判断可用性**：分开 EMA、各具体 Kalman 递推与静态仿射 K；受测状态、时序、重置与数值合同已核，未覆盖范围不写成通过。
@@ -329,14 +329,28 @@ provider构造setup在外，prompt初始化/EMA递推/Kalman实际Python标量P/
 | 计时与停止 | 同步generate实际墙钟/输出长度描述，按每qid/arm三次中位数，不与旧128token速度拼接，不据小样本正确数声称非劣。R78内部180/父进程240秒，R79内部900/父进程960秒；准入失败或正式失败保partial，正负均不自动延长/扫参。原工程90/300秒门不变 |
 | 来源与执行 | 新外部round78/79冻结clean HEAD、当前计划、驱动/协议、原输入/refs、模型14件清单及旧adapter/K；TEMP/TMP恒为D:/Grok Bot/tmp，全部输出/cache在D:/Grok Bot/tmp/sd。torch.cuda.is_available须真，日志设备具名，模型全部close与来源末核、父进程实际退出后才收束；合作者原码与本仓生产字节不改 |
 
-**当前状态**：预注册，尚未运行。下一项差分只考虑原FrontierGain.online的有界因果更新合同：其256对触发与向离线K收缩重拟合不同于本仓P/Q/R标量Kalman；先读源码、另冻结判据，不能把无refit的短请求当自适应收益。
+**实际结果**：ab41921事前提交；R78两臂各149token真实EOS、完整T0、可评分，因此H78通过；两臂都答600，对原gold1000均记wrong。R79的48项/9201实际提交全T0且重复稳定，每臂独立8题为correct7/wrong0/not_evaluable1；q414两臂各3次均256预算无EOS，保全分母，H79全可评分门不通过。其余7题的答案数值一致不能证明语义非劣或总体质量保持；不延长、不换题/采样/答案格式。匿名AI核查按预先冻结rubric另列有限文本观察，不充当验证judge。下一项差分只考虑原FrontierGain.online的有界因果更新合同：其256对触发与向离线K收缩重拟合不同于本仓P/Q/R标量Kalman；先读源码、另冻结判据，不能把无refit的短请求当自适应收益。
 
 ## （二十一）原FrontierGain.online：先核因果更新合同
 **未排除的具体差异**：原d91ed75的`FrontierGain`累计XᵀX/XᵀY，每256个已获标签的pair解一次FP64正规方程；有离线K₀时最小化‖XK−Y‖²+λ‖K−K₀‖²（截距行不惩罚）。`reset()`只丢pending及本prompt applied，保K/累计统计/计数，原decoder在prompt循环外持有。它与本仓标量随机游走KalmanMaskProvider的P/Q/R递推不同；R70的ESP/EMA逐状态零差不覆盖该自适应机制。原源码只读：[固定版本](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/src/spec/frontier_gain.py)。
 
 **CUDA代数合同预注册**：只重放R68已保存401对X/Y（SHA7413a7ba…）与原K₀（17b62c5f…），不载LLM、不生成新token。用明确标注的identity head/norm把固定创新送原未改`update→label`，online=true/ridge=.3/refit_every256。验收：前255次label不改K，第256次恰1refit，后145只累积；update不消耗未来label、同pending只消耗一次，reset丢未获标签且保累计；独立CUDA FP64批量带prior方程与原顺序计算的FP32 K最大绝差≤2e−5、相对L2≤5e−5，XᵀX/XᵀY最大绝差≤2e−8，截距惩罚为0；原源码闭包/输入/计划SHA与clean HEAD始末一致。内部150/外层210秒，设备具名，失败保未知，不改阈值。只检验已知校准数据上的调用/代数合同，不是新真实在线收益或无泄漏泛化证明。
 
-**当前状态**：未执行。若合同成立且时间足够，再预注册同初始K、同原类的static/online真实CUDA对照；每repeat重置总状态、每prompt只reset pending，必须实际触发refit并把累计/求解时间计入generate。状态跨prompt耦合，不能把qid当独立bootstrap单位；没有refit不算适应收益，不以本仓默认Kalman负结果代替该方法测量。
+**CUDA代数实测**：ab41921事前提交，实际父进程确认退出0；401对恰1refit，触发边界256，原顺序与独立批量FP64方程转FP32 K最大绝差/相对L2均0，XᵀX/XᵀY最大绝差均0，截距惩罚0，调用时序/reset门均通过。只重放历史校准代数，LLM forward/new generation均0。随后预注册同初始K、同原类的R80 static/online真实CUDA对照；每repeat重置总状态、每prompt只reset pending，必须实际触发refit并把累计/求解时间计入generate。状态跨prompt耦合，不能把qid当独立bootstrap单位；没有refit不算适应收益，不以本仓默认Kalman负结果代替该方法测量。
+
+### R80：原类在线K与同原类静态K的实际流式对照
+**微观假设H80**：同初始离线full K上，原类online=true相对online=false，在固定16prompt有序流中同时增加实际接受token总数并缩短同步generate总时长。它是合作源码已有自适应路径的探索，不是将静态K正结果改称标量Kalman成功，也不证明原480正表使用了online（其cfg/K/CSV仍缺）。
+
+| **冻结项** | **协议与验收** |
+| --- | --- |
+| 输入与处理 | 逐字复用R76 inputs（db869a0f…）：math401–404→translation161–164→summarization248–251→rag481–484，共16题；保持原旧模板、128/noEOS/T0/seed123、Qwen3-4B BF16/eager、ESP mean_prompt λ=.1/k2/BC30/dynamic-pruned/naive。它与R79新质量模板分开，不把两批速度或质量拼接 |
+| 唯一因素与状态 | 两臂都动态载入未改d91ed75原FrontierGain，仅online布尔不同；同K₀17b62c5f…/ridge=.3/refit_every256。每repeat各新建两个原gain，从同K₀/零计数开始；本repeat跨qid保统计/K，逐prompt丢pending，真实下一root的postnorm状态才作标签，不读gold/未来token。3rep、按qid+repeat轮换两臂，共96正式请求；2token预热每臂1次，各自独立控制器且不带入正式 |
+| 先行准入 | 新外部8token q401真实模型小门：R65 full adapter、原class static wrapper、原class online wrapper三臂，whole committed/actual accepted/trace一致且T0全过；online必须实际消费≥1延迟label、无refit、K不变、终端pending清空。240/父300秒；任一失败不启动正式批，不改阈值绕过 |
+| 正式正确性与因果 | 96项各128提交、来源/完整T0、实际模型close/末核/父退出0。每次update不消耗label，label只消费匹配绝对位置/bonus embedding的下一root，norm第一mask选行逐位匹配宿主交付；每256标签恰refit，每rep至少1次。static K逐位冻结；原K文件不写，在线K单独保存每refit与repeat末状态。首次refit以前已完整结束的题，两臂输出/接受/trace应相同，差异不得归为适应收益 |
+| 计时与判读 | 同步generate包括实际累计FP64统计、重拟合、共同选行/bonus因果核查与内存事件；online特有refit同步保留计时，K快照只保张量引用，生成后落盘，不含模型/K载入、setup、哈希、审计/IO。报告每rep的16题流接受总数/时长总和，主点判据用3次流总量中位数：接受online>static且时长online<static；全部rep结果、每题轨迹/τ另列。状态跨题耦合，不做qid独立bootstrap、不把3rep当独立数据，不宣称稳定区间或完整语义加速 |
+| 来源/预算/停止 | round80只写D:/Grok Bot/tmp/sd；clean HEAD、计划、原字节/bridge/driver/协议/输入/模型14清单先冻结，CUDA具名，无CPU回退。正式内部1200/父1260秒，原工程90/300秒不改；仅剩预算能覆盖到22:07Z前才启动，否则登记未执行。正负或失败均停，不扫ridge/refit阈值/长度或追正；不改合作者/本仓生产源码 |
+
+**当前状态**：预注册，准入与正式尚未执行。若后续核动态K跨实现边界，只在明确必要且剩余预算足够时另冻结最小合同，不自动新增臂或改旧实验。
 
 # 五、历史Run收束与判读合同
 | **材料** | **当前状态与收束** |
