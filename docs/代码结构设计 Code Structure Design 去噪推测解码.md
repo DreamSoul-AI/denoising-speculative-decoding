@@ -213,4 +213,6 @@ mask provider行为和factory真实张量选择/准入分别由 `tests/cuda/spec
 
 make/schedule.py拥有本次成功登记的Popen直接worker句柄；取消回收在原_run_groups内完成，不新增统一进程管理门面。清理次错含BaseException，按原异常的cleanup_errors保留顺序，不再通过同步console报告而阻断剩余回收。CPU同源镜像覆盖再次取消及首错身份，CUDA make/test_schedule镜像核真实worker计算、退出及受控日志停止观察；后代进程树与硬I/O中断仍是独立未实现合同。
 
-中断组的运行控制回执继续由make/schedule.py私有publisher维护，落在外部Study的`scripts/launch-attempts/<attempt_id>/receipt.json`；它不写activity/jobs/Run Result或诊断日志，不计为科学完成或诊断固定份额。先清理所有已登记句柄，再x写partial.json、flush/fsync和发布；单件最多64KiB，失败余件保留不重试、不覆盖。仅成功发布后在原异常附cleanup_receipt_path，回执内只保存本组的派发前摘要、请求/直接退出事实与安全错误类别；未知停止不补零。无新生产模块、通用存储门面或deadline参数，旧预算与原5秒清理升级等待保持。
+中断组的运行控制回执继续由make/schedule.py私有publisher维护，落在外部Study的`scripts/launch-attempts/<attempt_id>/receipt.json`；它不写activity/jobs/Run Result或诊断日志，不计为科学完成或诊断固定份额。先清理所有已登记句柄，再x写partial.json、flush/fsync和发布；单件最多64KiB，失败余件保留不重试、不覆盖。仅成功发布后在原异常附cleanup_receipt_path，回执内只保存本组的派发前摘要、请求/直接退出事实与安全错误类别；未知停止不补零。回执发布本身不引入新模块或存储门面，原测试预算与5秒清理升级等待保持。
+
+显式Run预算复用SystemConfig.config和RunConfig身份哈希；make/schedule.py统一准入worker_timeout_seconds、绑定config摘要，并在预算组观察循环内只做进程poll/非阻塞wait和单调计时。默认无预算保原serial wait。监控先观察退出、再查仍运行者的最早期限，固定短间隔不超过最近余量；超时事实补入既有中断回执，直接退出仍独立确认，三项unknown不提升。共享launch及生成PS/Bash已委托同一launch_jobs，不新增CLI参数、dataclass、线程/进程管理模块或Study；direct run/run-one/FlowRunner只消费配置、不提供该launcher监控。

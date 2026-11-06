@@ -35,9 +35,11 @@
 
 新建 Study 运行使用 `python -m studies._shared.flow.cli run studies/<name> --run-root <外部Study运行根>`，也可先 `make studies/<name> --run-root <外部Study运行根>`，再 `launch <外部Study运行根>`。使用 --run-root 时 Study 路径紧随命令。外部根保存声明与源码白名单快照、study_source.json、runs/shared/docs、index、锁与日志，源码 Study 保持只读；状态、日志、process 和 report 后续直接传该外部根。生成的 PowerShell 启动入口同样走 shared CLI，使用 shared 控制台并传播退出码；调度worker固定当前宿主导入根，并在写运行态前验证来源。重复 launch 跳过已完成Run，部分完成时只派发pending；这是调度恢复，不是checkpoint/RNG恢复。失败默认不自动重试，损坏或与index/config不一致的jobs会拒绝，调整GPU分配或轮次需显式remake。已绑定且逐文件摘要相同的根可继续使用，原 Study 或快照漂移会失败，须用新根与研究协议处理，不覆盖旧运行。原 Study 中的绝对导入仍需要原 checkout；静态快照限单成员16MiB、合计32MiB，不复制权重、旧 Run 或未声明生成物。
 
-launch在派发或等待异常后停止新group与retry，只回收本次成功取得句柄的直接worker：逐一terminate，沿原5秒wait、超时kill及5秒wait尝试退出。再次取消或回收错误按顺序保留在原异常cleanup_errors，清理不依赖console输出，原始异常与既有Result不改。该直接worker的wait返回不代表后代或所有OS I/O已停止；全Run硬超时仍未实现，未知状态不自动重试。
+launch在派发或等待异常后停止新group与retry，只回收本次成功取得句柄的直接worker：逐一terminate，沿原5秒wait、超时kill及5秒wait尝试退出。再次取消或回收错误按顺序保留在原异常cleanup_errors，清理不依赖console输出，原始异常与既有Result不改。该直接worker的wait返回不代表后代或所有OS I/O已停止；显式Run期限见下述launch配置，通用硬I/O/进程树停止仍未保证，未知状态不自动重试。
 
 中断组在全部直接child清理尝试后，将退出事实发布为 `scripts/launch-attempts/<attempt_id>/receipt.json`。index/config SHA在该组任何Popen前取得，回执区分terminate/kill请求与wait实际确认退出；未确认returncode不补零，后代、未返回Popen与通用writer停写保持unknown。它不是科学Result或整个launch的停写证明。仅成功发布后原异常带 `cleanup_receipt_path`；失败附cleanup_errors，首错及旧文件保持。正常完成不创建回执。每件最多64KiB，partial.json写入/fsync后发布；别名、碰撞及失败余件不自动修复或覆盖。回执属于运行控制制品，不计入诊断固定份额；总量/自动保留期及OS硬时限未实现。
+
+Run可显式设置 `system.config.worker_timeout_seconds: <正有限秒数>`（Study可经既有 `fixed.system.config.worker_timeout_seconds` 下发），必须 `freeze: true` 且来源/计划校验通过；预算参与Run身份，更改须形成新Run。缺省保原serial wait，显式null/0不是禁用写法。仅launch/shared及生成脚本的launch_jobs监控直接worker：从Popen调用前单调计时，返回后整组轮询，先观察退出再查仍运行者到期；检测超期回收整个当前组（包括未超时/无预算者），停止后续group/retry，TimeoutExpired及预算/elapsed写入既有回执，不合成failed Result。直接run/run-one/FlowRunner不创建监控；父进程或Popen阻塞、调度延迟、后代/远端I/O无硬上界，观察到已退出不证明精确退出时刻。原5秒清理升级与90/300秒测试门保持。
 
 离线报告使用 `python -m studies._shared.flow.cli report <Study> --out <外部新文件.md>`，输出路径必填，拒绝已有文件、输入目录和源码 checkout；报告检查不回写旧 process 或 gate。`output_space_extension` 的已保存槽位诊断迁入 `python -m studies.output_space_extension.flow.process.run --raw <保存张量目录> --execution <原运行矩阵.json> --repository <本地仓库> --commit <完整提交> --execution-git-sha256 <Git原件SHA256> --device cuda:0 --output-root <新外部目录>`。它只读原件并在CUDA分析保存张量，不载入模型；实际运行矩阵须匹配旧报告哈希，与固定 Git 原件分别记录字节身份并核对 JSON 内容。缺失或漂移直接失败，不自动修换行或重签旧来源。历史读件需要支持 `--no-lazy-fetch` 的本地 Git，当前验证版本为 `2.55.0.windows.3`，不支持时直接失败，不降级联网。followup 读端同样迁入 `studies.output_space_followup.flow.process.run`，参数与槽位读端一致，保存张量实际在 CUDA 分析并登记设备。
 
@@ -146,6 +148,6 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 宿主CPU安全合同运行 `python -m pytest tests/spec_mtp`，真实CUDA合同运行 `python -m pytest tests/cuda/spec_mtp`；两根分别完整镜像源码相对路径，`python -m pytest tests` 仍收集两者。GPU入口先核CUDA可用并记录实际设备，保留设备、RNG、模型与张量断言，不提供无GPU回退。未知方法拒绝等纯结构guard留在CPU根，现有workflow命令不变，也不通过收集过滤或skip选择资源。
 
-登记1063函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别907/545/144/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1183参数、CUDA根285参数；本轮新增7个纯CPU函数18参数，并增强既有CUDA2参数的退出回执校验，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
+登记1071函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别914/552/145/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1203参数、CUDA根287参数；本轮新增8函数22参数，分别为CPU20与CUDA2，原函数/断言/参数不改，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
 
 已有Kalman/EMA的P0 CUDA核验按独立参考区分递推、状态时序与研究收益：EMA闭式历史、标量Joseph、逐维/残差与对角增益各自验证；Online/Aligned每轮首commit，Hybrid last为实际末commit（截断时不保证bonus）。已修非有限噪声参数准入与forget=1除零，端点关闭Q/R自适应而P/F仍更新。局部正确性不证明Kalman建模最优或真实模型加速，成果与来源缺口见唯一研究计划。

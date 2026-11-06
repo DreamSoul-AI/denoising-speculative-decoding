@@ -277,6 +277,8 @@ K 工程 fixture 使用随机 tied tiny LLaMA、CPU FP32、eager；先拟合并�
 
 独立进程调度先验证外部根、来源与当前计划，再派发shared CLI worker；worker再次预检，实际PID和CUDA设备随运行证据保存。调度保存的jobs必须绑定index及规范config路径，空队列仍以聚合complete判断成功。派发或等待异常立即停止新group/retry，只清理本次Popen成功返回并登记的直接子进程句柄：逐一终止，再沿原5秒等待、超时kill及5秒等待尝试回收。原始异常保持；清理中的普通错误或再次取消按发生顺序附于cleanup_errors，继续其它owned句柄，清理不依赖console输出。所有清理尝试结束后才独占发布当前组的中断回执，派发前绑定index/config摘要；终止请求与wait实际确认退出分别记录，后代、未返回Popen和通用停写保持unknown。回执失败追加首错附件，不覆盖Result或阻止其它child先清理；回执I/O本身仍同步，不承诺硬时限。wait返回只证明该直接worker退出；其后代、外部writer、挂起OS调用与未知落盘仍不保证停止。默认不自动重试，pending调度恢复与checkpoint/RNG恢复分别验收。
 
+launch可显式采用Run的system.config.worker_timeout_seconds；预算为正有限秒数，必须有freeze:true及既有来源/计划冻结门，缺省组保原等待路径。全部选中Run在首Popen前准入，计时从该Run的Popen调用前取单调时钟；仅取得直接句柄后可监控，未返回的构造仍不受中断证明覆盖。有预算的组轮询所有直接worker，先确认已退出，再对仍运行者检测到期，短期限不被长worker串行等待遮挡；观察到已退出不反推其精确退出时间。任一到期触发TimeoutExpired及原整组清理/回执，未超时同组也回收，后续group/retry停止，科学Result不合成或改写。父进程阻塞、调度延迟、后代和远端I/O仍无硬停止上界；in-process run/run-one/FlowRunner没有该监控边界。
+
 # 九、Checkpoint 与 RNG 恢复合同
 调度恢复仅处理哪些Run已完成或待派发。checkpoint恢复还要恢复科学状态；以下CR标识单独约束恢复验收，不由调度通过、同seed或文件能载入推出完整等价。
 

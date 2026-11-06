@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import shlex
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -509,6 +511,27 @@ def launch_jobs(
         raise ValueError('duplicate Run in launch plan; use a new version for repeated computation')
     for run_id in run_ids:
         diagnostic_assets.check_diagnostic_budget(study_dir, run_id)
+    limits: dict[str, float] = {}
+    limit_hashes: dict[str, str] = {}
+    missing = object()
+    for job in jobs:
+        path = Path(job['config'])
+        system = load_config(path).get('system')
+        value = get_setting(system, 'worker_timeout_seconds', missing) if isinstance(system, dict) else missing
+        if value is missing:
+            continue
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError('worker_timeout_seconds must be a positive finite number')
+        try:
+            seconds = float(value)
+        except OverflowError as exc:
+            raise ValueError('worker_timeout_seconds must be finite') from exc
+        if not math.isfinite(seconds) or seconds <= 0:
+            raise ValueError('worker_timeout_seconds must be a positive finite number')
+        if declared.get('freeze') is not True:
+            raise ValueError('worker_timeout_seconds requires freeze: true and frozen provenance')
+        run_id = str(job['run_id'])
+        limits[run_id], limit_hashes[run_id] = seconds, file_sha256(path)
     codes: list[int] = []
     console_mode = resolve_console(console)
     popen_extra = job_popen_kwargs(console_mode)
@@ -555,9 +578,40 @@ def launch_jobs(
             index_sha = file_sha256(study_dir / 'index.json')
             admitted_jobs = [{'run_id': str(job['run_id']),
                               'config_sha256': file_sha256(Path(job['config']))} for job in group]
+            if any(row['run_id'] in limit_hashes and row['config_sha256'] != limit_hashes[row['run_id']]
+                   for row in admitted_jobs):
+                raise ValueError('timed Run config changed since deadline admission')
             procs: list[tuple[dict[str, Any], subprocess.Popen[str]]] = []
+            monitored = any(str(job['run_id']) in limits for job in group)
+            started: dict[str, float] = {}
+            observed: dict[str, int] = {}
+            deadline_report: dict[str, Any] | None = None
+
+            def observe() -> None:
+                nonlocal deadline_report
+                for selected, process in procs:
+                    name = str(selected['run_id'])
+                    if name not in observed and process.poll() is not None:
+                        observed[name] = int(process.wait(timeout=0))
+                now = time.monotonic()
+                expired = [name for name in started if name not in observed
+                           and now >= started[name] + limits[name]]
+                if expired:
+                    name = min(expired, key=lambda selected: started[selected] + limits[selected])
+                    elapsed = now - started[name]
+                    deadline_report = {'run_id': name, 'worker_timeout_seconds': limits[name],
+                                       'elapsed_seconds': elapsed, 'clock': 'monotonic',
+                                       'start': 'before_popen', 'poll_interval_seconds': .05}
+                    failure = subprocess.TimeoutExpired(['run-one', name], limits[name])
+                    setattr(failure, 'run_id', name)
+                    setattr(failure, 'worker_timeout_seconds', limits[name])
+                    setattr(failure, 'elapsed_seconds', elapsed)
+                    raise failure
+
             try:
                 for job in group:
+                    if monitored:
+                        observe()
                     run_id = str(job['run_id'])
                     parent = dependencies.get(run_id)
                     if parent is not None and not run_succeeded(study_dir, parent):
@@ -569,6 +623,8 @@ def launch_jobs(
                     where = 'window' if console_mode == 'new' and os.name == 'nt' else 'here'
                     resource = f'gpu={job["gpu"]}' if job.get('gpu') is not None and str(job.get('device') or 'cuda').lower() != 'cpu' else 'cpu'
                     print(f'+ {resource} {job["run_id"]} ({where})', flush=True)
+                    if run_id in limits:
+                        started[run_id] = time.monotonic()
                     procs.append(
                         (
                             job,
@@ -580,8 +636,17 @@ def launch_jobs(
                             ),
                         )
                     )
+                if monitored:
+                    while len(observed) < len(procs):
+                        observe()
+                        if len(observed) < len(procs):
+                            remaining = [started[name] + limits[name] - time.monotonic()
+                                         for name in started if name not in observed]
+                            delay = min(.05, min(remaining, default=.05))
+                            if delay > 0:
+                                time.sleep(delay)
                 for job, proc in procs:
-                    code = int(proc.wait())
+                    code = observed[str(job['run_id'])] if monitored else int(proc.wait())
                     pairs.append((job, code))
                     if code != 0:
                         print(f'error {job["run_id"]} exit={code}', flush=True)
@@ -594,6 +659,9 @@ def launch_jobs(
                     pid = getattr(proc, 'pid', None)
                     if type(pid) is int and pid > 0:
                         row['pid'] = pid
+                    if str(job['run_id']) in started:
+                        row['worker_timeout_seconds'] = limits[str(job['run_id'])]
+                        row['elapsed_seconds'] = time.monotonic() - started[str(job['run_id'])]
                     workers.append(row)
                 for (_job, proc), row in zip(procs, workers):
                     try:
@@ -627,14 +695,17 @@ def launch_jobs(
                 try:
                     if hasattr(primary, 'cleanup_receipt_path'):
                         delattr(primary, 'cleanup_receipt_path')
-                    receipt = _write_interruption_receipt(study_dir, {
+                    receipt_body: dict[str, Any] = {
                         'schema': 1, 'scope': 'owned_current_group_only', 'study': str(study_dir),
                         'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                         'launcher_pid': os.getpid(), 'primary_exception_type': type(primary).__name__,
                         'cleanup_wait_seconds': 5, 'index_sha256': index_sha, 'jobs': admitted_jobs,
                         'workers': workers, 'descendants': 'unknown', 'writer_stop': 'unknown',
                         'unreturned_popen': 'unknown',
-                    })
+                    }
+                    if deadline_report is not None:
+                        receipt_body['deadline'] = deadline_report
+                    receipt = _write_interruption_receipt(study_dir, receipt_body)
                     setattr(primary, 'cleanup_receipt_path', str(receipt))
                 except BaseException as cleanup:
                     setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))

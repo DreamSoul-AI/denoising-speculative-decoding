@@ -13255,6 +13255,161 @@
         "network": false,
         "model_download": false
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_rejects_invalid_declarations_before_any_spawn",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_requires_an_explicit_frozen_study_before_dispatch",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_monitors_all_owned_workers_without_serial_starvation",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_detected_after_popen_stops_the_next_dispatch",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_observed_exits_win_and_codes_keep_job_order",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_rejects_a_config_changed_since_admission_before_group_spawn",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_keeps_timeout_primary_and_original_input_binding_after_cleanup_fault",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_frozen_run_deadline_reaps_real_cuda_writer_and_keeps_normal_completion",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false,
+        "estimated_device_seconds": 20,
+        "estimate_basis": "Two bounded real CUDA direct-worker deadline/normal paths passed targeted;20s is a scheduling estimate, not a performance claim.",
+        "memory_requirement": "not yet estimated; actual device facts remain in the per-case receipts"
+      }
     }
   ],
   "plans": {
@@ -13884,6 +14039,10 @@
         {
           "test_id": "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_cancelled_scheduler_reaps_its_cuda_writer_and_preserves_original_results",
           "reason": "Requires a real CUDA worker; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_frozen_run_deadline_reaps_real_cuda_writer_and_keeps_normal_completion",
+          "reason": "Requires a real CUDA direct worker; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -14436,7 +14595,14 @@
         "tests/spec_mtp/structure/make/test_schedule.py::test_interruption_receipt_binds_original_inputs_before_any_spawn",
         "tests/spec_mtp/structure/make/test_schedule.py::test_interruption_publisher_refuses_alias_collision_and_failed_publication",
         "tests/spec_mtp/structure/make/test_schedule.py::test_repeated_interruptions_never_overwrite_an_earlier_attempt",
-        "tests/spec_mtp/structure/make/test_schedule.py::test_normal_worker_completion_does_not_create_interruption_receipts"
+        "tests/spec_mtp/structure/make/test_schedule.py::test_normal_worker_completion_does_not_create_interruption_receipts",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_rejects_invalid_declarations_before_any_spawn",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_requires_an_explicit_frozen_study_before_dispatch",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_monitors_all_owned_workers_without_serial_starvation",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_detected_after_popen_stops_the_next_dispatch",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_observed_exits_win_and_codes_keep_job_order",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_rejects_a_config_changed_since_admission_before_group_spawn",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_worker_deadline_keeps_timeout_primary_and_original_input_binding_after_cleanup_fault"
       ],
       "exclude": []
     },
@@ -14587,7 +14753,8 @@
         "tests/cuda/spec_mtp/structure/system/test_factory.py::test_busy_diagnostics_do_not_block_cuda_checkpoint_integration",
         "tests/cuda/spec_mtp/structure/system/test_factory.py::test_owned_diagnostic_retention_preserves_cuda_compute_and_checkpoint",
         "tests/cuda/spec_mtp/flow/test_runner.py::test_fixed_study_budget_admits_cuda_flow_and_refuses_missing_reservation",
-        "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_cancelled_scheduler_reaps_its_cuda_writer_and_preserves_original_results"
+        "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_cancelled_scheduler_reaps_its_cuda_writer_and_preserves_original_results",
+        "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_frozen_run_deadline_reaps_real_cuda_writer_and_keeps_normal_completion"
       ],
       "exclude": [],
       "resources": {

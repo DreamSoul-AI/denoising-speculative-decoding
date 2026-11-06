@@ -576,3 +576,214 @@ def test_normal_worker_completion_does_not_create_interruption_receipts(interrup
             for path in case.study.rglob('*') if path.is_file()} == before
     assert sorted(path.relative_to(case.study).as_posix()
                   for path in case.study.rglob('*') if path.is_dir()) == directories
+
+
+@pytest.fixture
+def deadline_case(saved_plan, monkeypatch):
+    import yaml
+
+    case = saved_plan
+    state = SimpleNamespace(now=100.0, events=[], spawned=[], sleeps=[], checked=[],
+                            exits={}, codes={}, spawn_advance={}, cleanup_error=None)
+    (case.study / 'study.yaml').write_text('study: scheduler-fixture\nfreeze: true\n', encoding='utf-8')
+
+    def limit(run_id, value, *, omit=False):
+        path = case.study / 'runs' / run_id / 'config.yaml'
+        config = schedule.load_config(path)
+        settings = config['system']['config']
+        if omit:
+            settings.pop('worker_timeout_seconds', None)
+        else:
+            settings['worker_timeout_seconds'] = value
+        path.write_text(yaml.safe_dump(config), encoding='utf-8')
+
+    def sleep(seconds):
+        assert 0 < seconds <= .05
+        state.sleeps.append(seconds)
+        state.now += seconds
+
+    def frozen(study, declaration):
+        assert study == case.study
+        state.checked.append(declaration.get('freeze'))
+
+    class Worker:
+        def __init__(self, run_id):
+            self.run_id, self.pid, self.stopped = run_id, 2001 + len(state.spawned), False
+
+        def poll(self):
+            state.events.append((self.run_id, 'poll', state.now))
+            if self.stopped:
+                return -15
+            if state.now >= state.exits.get(self.run_id, float('inf')):
+                return state.codes.get(self.run_id, 0)
+            return None
+
+        def wait(self, timeout=None):
+            state.events.append((self.run_id, 'wait', timeout))
+            assert timeout is not None, 'a timed group must not serially wait on an unbounded worker'
+            if timeout == 0:
+                code = self.poll()
+                assert code is not None, 'wait(0) must follow an observed direct exit'
+                return code
+            assert timeout == 5
+            self.stopped = True
+            return -15
+
+        def terminate(self):
+            state.events.append((self.run_id, 'terminate'))
+            self.stopped = True
+            if state.cleanup_error is not None and self.run_id == 'first':
+                raise state.cleanup_error
+
+        def kill(self):
+            state.events.append((self.run_id, 'kill'))
+            self.stopped = True
+
+    def popen(command, **options):
+        run_id = command[-1]
+        state.spawned.append(run_id)
+        state.events.append((run_id, 'spawn', state.now))
+        state.now += state.spawn_advance.get(run_id, 0)
+        return Worker(run_id)
+
+    monkeypatch.setattr(schedule, 'time', SimpleNamespace(monotonic=lambda: state.now, sleep=sleep), raising=False)
+    monkeypatch.setattr(schedule, 'check_frozen', frozen)
+    monkeypatch.setattr(schedule.subprocess, 'Popen', popen)
+    state.study, state.jobs, state.limit = case.study, case.jobs, limit
+    state.case = case
+    return state
+
+
+@pytest.mark.parametrize('value', [None, True, False, '1', [], 0, -1, float('nan'), float('inf'), -float('inf')])
+def test_worker_deadline_rejects_invalid_declarations_before_any_spawn(deadline_case, value):
+    case = deadline_case
+    case.limit('second', value)
+    before = {path: (path.read_bytes(), path.stat().st_mtime_ns)
+              for path in case.study.rglob('*') if path.is_file()}
+    with pytest.raises(ValueError):
+        schedule.launch_jobs(case.study, case.jobs, round_size=1, console='shared')
+    assert not case.spawned and not case.sleeps
+    assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in before} == before
+    assert not (case.study / 'scripts/launch-attempts').exists()
+
+
+@pytest.mark.parametrize('declaration', ['study: scheduler-fixture\n', 'study: scheduler-fixture\nfreeze: false\n'])
+def test_worker_deadline_requires_an_explicit_frozen_study_before_dispatch(deadline_case, declaration):
+    case = deadline_case
+    case.limit('first', .1)
+    (case.study / 'study.yaml').write_text(declaration, encoding='utf-8')
+    with pytest.raises(ValueError, match='freez'):
+        schedule.launch_jobs(case.study, case.jobs, round_size=2, console='shared')
+    assert not case.spawned and not case.sleeps
+    assert not (case.study / 'scripts/launch-attempts').exists()
+
+
+@pytest.mark.parametrize('limits,expired', [((None, .1), 'second'), ((.2, .1), 'second'), ((.1, .1), 'first')])
+def test_worker_deadline_monitors_all_owned_workers_without_serial_starvation(deadline_case, limits, expired):
+    case = deadline_case
+    for run_id, value in zip(('first', 'second'), limits):
+        case.limit(run_id, value, omit=value is None)
+    later_config = case.study / 'runs/later/config.yaml'
+    later_config.parent.mkdir()
+    later_config.write_bytes(Path(case.jobs[0]['config']).read_bytes().replace(b'id: first', b'id: later'))
+    later = {**case.jobs[0], 'run_id': 'later', 'config': str(later_config)}
+    case.case.index['experiments'][0]['runs'].append({
+        'id': 'later', 'run_dir': 'later', 'seed': 7, 'config': 'runs/later/config.yaml',
+    })
+    (case.study / 'index.json').write_text(json.dumps(case.case.index), encoding='utf-8')
+    with pytest.raises(schedule.subprocess.TimeoutExpired) as caught:
+        schedule.launch_jobs(case.study, [*case.jobs, later], round_size=2, retry_failed=True, console='shared')
+    primary = caught.value
+    assert primary.cmd == ['run-one', expired] and primary.run_id == expired
+    assert primary.timeout == primary.worker_timeout_seconds == .1
+    assert primary.elapsed_seconds == case.now - 100.0
+    assert 100.1 <= case.now < 100.151
+    assert case.spawned == ['first', 'second'] and case.checked and all(value is True for value in case.checked)
+    assert case.sleeps and all(0 < seconds <= .05 for seconds in case.sleeps)
+    assert all((run_id, 'terminate') in case.events and (run_id, 'wait', 5) in case.events
+               for run_id in ('first', 'second'))
+    body = json.loads(Path(primary.cleanup_receipt_path).read_bytes())
+    assert body['primary_exception_type'] == 'TimeoutExpired'
+    assert body['deadline'] == {'run_id': expired, 'worker_timeout_seconds': .1,
+                                'elapsed_seconds': primary.elapsed_seconds, 'clock': 'monotonic',
+                                'start': 'before_popen', 'poll_interval_seconds': .05}
+    assert body['descendants'] == body['writer_stop'] == body['unreturned_popen'] == 'unknown'
+
+
+def test_worker_deadline_detected_after_popen_stops_the_next_dispatch(deadline_case):
+    case = deadline_case
+    case.limit('first', .1)
+    case.spawn_advance['first'] = .2
+    with pytest.raises(schedule.subprocess.TimeoutExpired) as caught:
+        schedule.launch_jobs(case.study, case.jobs, round_size=2, retry_failed=True, console='shared')
+    assert caught.value.run_id == 'first' and caught.value.elapsed_seconds == pytest.approx(.2)
+    assert case.spawned == ['first']
+    body = json.loads(Path(caught.value.cleanup_receipt_path).read_bytes())
+    assert [row['run_id'] for row in body['jobs']] == ['first', 'second']
+    assert [row['run_id'] for row in body['workers']] == ['first']
+    assert body['workers'][0]['direct_exit_confirmed'] is True
+
+
+@pytest.mark.parametrize('scenario', ['exit_at_deadline', 'out_of_order'])
+def test_worker_deadline_observed_exits_win_and_codes_keep_job_order(deadline_case, scenario):
+    case = deadline_case
+    for run_id in ('first', 'second'):
+        case.limit(run_id, 1)
+    if scenario == 'exit_at_deadline':
+        case.spawn_advance.update(first=1, second=1)
+        case.exits.update(first=101, second=102)
+    else:
+        case.exits.update(first=100.1, second=100)
+    case.codes.update(first=3, second=7)
+    before = {path: (path.read_bytes(), path.stat().st_mtime_ns)
+              for path in case.study.rglob('*') if path.is_file()}
+    assert schedule.launch_jobs(case.study, case.jobs, round_size=2, console='shared') == [3, 7]
+    assert case.spawned == ['first', 'second'] and case.checked and all(value is True for value in case.checked)
+    assert not (case.study / 'scripts/launch-attempts').exists()
+    assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in before} == before
+    if scenario == 'out_of_order':
+        waits = [event[0] for event in case.events if event[1:] == ('wait', 0)]
+        assert waits == ['second', 'first']
+
+
+def test_worker_deadline_rejects_a_config_changed_since_admission_before_group_spawn(deadline_case, monkeypatch):
+    case = deadline_case
+    case.limit('second', .1)
+    path = Path(case.jobs[1]['config'])
+    original_hash = schedule.file_sha256
+    reads = []
+
+    def hash_and_change(selected):
+        if Path(selected) == path:
+            reads.append(selected)
+            if len(reads) == 2:
+                case.limit('second', 99)
+        return original_hash(selected)
+
+    monkeypatch.setattr(schedule, 'file_sha256', hash_and_change)
+    with pytest.raises(ValueError, match='chang|admi|drift'):
+        schedule.launch_jobs(case.study, case.jobs, round_size=2, console='shared')
+    assert len(reads) >= 2 and not case.spawned
+    assert not (case.study / 'scripts/launch-attempts').exists()
+
+
+def test_worker_deadline_keeps_timeout_primary_and_original_input_binding_after_cleanup_fault(deadline_case):
+    case = deadline_case
+    case.limit('second', .1)
+    case.cleanup_error = OSError('secondary terminate failure')
+    original = {job['run_id']: schedule.file_sha256(Path(job['config'])) for job in case.jobs}
+    before = {path: (path.read_bytes(), path.stat().st_mtime_ns)
+              for path in case.study.rglob('*') if path.is_file()}
+    with pytest.raises(schedule.subprocess.TimeoutExpired) as caught:
+        schedule.launch_jobs(case.study, case.jobs, round_size=2, retry_failed=True, console='shared')
+    primary = caught.value
+    assert primary.run_id == 'second' and tuple(primary.cleanup_errors) == (case.cleanup_error,)
+    assert all((run_id, 'terminate') in case.events and (run_id, 'wait', 5) in case.events
+               for run_id in ('first', 'second'))
+    body = json.loads(Path(primary.cleanup_receipt_path).read_bytes())
+    assert {row['run_id']: row['config_sha256'] for row in body['jobs']} == original
+    assert body['workers'][0]['cleanup_error_types'] == ['OSError']
+    assert body['workers'][1]['cleanup_error_types'] == []
+    assert all(row['direct_exit_confirmed'] is True for row in body['workers'])
+    assert case.spawned == ['first', 'second']
+    assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in before} == before
