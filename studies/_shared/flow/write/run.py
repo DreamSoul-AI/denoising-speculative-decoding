@@ -96,7 +96,7 @@ def write_paired_report(study, bindings_path, repository, output_root):
         verify()
         output.mkdir(parents=True, exist_ok=False)
         from spec_mtp.structure.system.logger import Logger
-        Logger(output / 'assets').info('CPU saved-scalar paired report rendering; no tensor or model forward')
+        Logger(output / 'assets', managed=True).info('CPU saved-scalar paired report rendering; no tensor or model forward')
         image = output / 'paired_counts_v1.png'
         with image.open('xb') as stream:
             figure.savefig(stream, format='png', dpi=150)

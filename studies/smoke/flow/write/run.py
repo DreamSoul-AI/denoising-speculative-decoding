@@ -35,7 +35,7 @@ def write_plot(input_path,input_sha256,output_root,*,repository=None,commit=None
     try:
         verify();output.mkdir(parents=True,exist_ok=False)
         from spec_mtp.structure.system.logger import Logger
-        Logger(output/'assets').info('saved CPU/934dac3 smoke counts; no model or tensor execution')
+        Logger(output/'assets', managed=True).info('saved CPU/934dac3 smoke counts; no model or tensor execution')
         image=output/'tiny_acceptance.png'
         with image.open('xb') as stream:figure.savefig(stream,format='png',dpi=160)
         verify()

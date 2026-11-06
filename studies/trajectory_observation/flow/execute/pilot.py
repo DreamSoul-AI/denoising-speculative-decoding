@@ -118,7 +118,7 @@ def run(args):
         'torch': torch.__version__, 'device': str(device), 'device_name': torch.cuda.get_device_name(device), 'dtype': 'float32'}
     with (output / 'header.json').open('x', encoding='utf-8') as handle:
         json.dump(header, handle, ensure_ascii=False, allow_nan=False, indent=2)
-    logger = Logger(output / 'assets')
+    logger = Logger(output / 'assets', managed=True)
     logger.info(f"pilot device={device} dtype=float32 name={header['device_name']}")
     results = []
     for seed in config['seeds']:

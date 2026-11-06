@@ -50,7 +50,7 @@ def write_plot(execution, canonical, repository, commit, execution_git_sha256, c
         verify()
         output.mkdir(parents=True, exist_ok=False)
         from spec_mtp.structure.system.logger import Logger
-        Logger(output / 'assets').info('CPU saved-scalar cross-task rendering; no tensor or model forward')
+        Logger(output / 'assets', managed=True).info('CPU saved-scalar cross-task rendering; no tensor or model forward')
         target = output / 'acceptance_v1.png'
         with target.open('xb') as stream:
             figure.savefig(stream, format='png', dpi=170)

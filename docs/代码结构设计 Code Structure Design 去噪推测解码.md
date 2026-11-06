@@ -75,13 +75,17 @@ flowchart TB
 
 诊断以 assets/logs/events.jsonl 为稳定锚点，旧 run.log 只读保留。status 的单条读取与摘要归约采用流式接口；diagnostic_lines 保留原列表接口，logs 的最终UTC排序与完整输出仍按选中记录占内存。JSONL逐条最多65536字符（含末LF），截断、无效身份和晚到损坏保持拒绝，不因流式读取放宽旧splitlines边界。Logger 的运行身份在同进程实例间共用，task_id 区分 Run，异常不保存原始载荷。
 
-日志分段由现有 system/logger.py 写端与 artifact/asset/tree.py 的文件枚举共同承担，不新增框架或生产模块。锚点与已封段保留原字节；单段到4MiB后在下一条记录前独占创建 events.000001.jsonl 等递增段，不重命名、覆盖或删除旧段。一个Run的多个同进程Logger实例共用写锁并从磁盘识别实际末段，self.path和保存状态仍指锚点；不声称支持跨进程共同写同一Run。读端按完整连续段顺序读取，日志链接指末段；缺锚点/缺段/重复编号、解析路径别名、多硬链、越界和截断严格拒绝，不能借同目录链接追加旧run.log。custom和legacy文件保持单文件选择，原新旧路径准入保留。Tracker的scalars.jsonl及checkpoint恢复偏移保持独立。物理保留期/跨Run总量与14个Study严格入口的隔离仍是开发计划中的缺口；托管累计配额与隔离按下述合同，单Run限额不冒充总磁盘限额。
+日志分段由现有 system/logger.py 写端与 artifact/asset/tree.py 的文件枚举共同承担，不新增框架或生产模块。锚点与已封段保留原字节；单段到4MiB后在下一条记录前独占创建 events.000001.jsonl 等递增段，不重命名、覆盖或删除旧段。一个Run的多个同进程Logger实例共用写锁并从磁盘识别实际末段，self.path和保存状态仍指锚点；不声称支持跨进程共同写同一Run。读端按完整连续段顺序读取，日志链接指末段；缺锚点/缺段/重复编号、解析路径别名、多硬链、越界和截断严格拒绝，不能借同目录链接追加旧run.log。custom和legacy文件保持单文件选择，原新旧路径准入保留。Tracker的scalars.jsonl及checkpoint恢复偏移保持独立。物理保留期、跨Run总量与OSIO等待上界仍是开发计划中的缺口；托管累计配额与隔离按下述合同，单Run限额不冒充总磁盘限额。
 
 `tests/run.py --plan cpu-pr --output-root <外部新验证根>` 适配 pytest，必需项缺收集、失败、跳过、缺终态、证据写失败均阻断。整批预算 420 秒，不覆盖真实权重、CUDA、测速或采样分布保证。验证产物和临时材料进入本次明确的外部任务目录。
 
-宿主托管诊断仍由同一Logger承担，不另建proxy或运行器。严格直接API默认上抛；managed模式仅隔离Logger自身构造、格式化、序列化、文件和console诊断操作，捕Exception而不吞取消类BaseException。失败操作计数不冒称丢失条数，首次stderr只呈现安全类别与完整性未知，stderr再次失败不改变业务结果。FlowRunner建立托管实例，prepare将同一实例注入SystemFactory，避免两实例状态分叉；实际算法、Tracker保存、checkpoint发布和Result写入保持原错误。其它Study专用入口的严格Logger须逐项迁移，不将宿主收束扩大为全库已隔离。
+宿主托管诊断仍由同一Logger承担，不另建proxy或运行器。严格直接API默认上抛；managed模式仅隔离Logger自身构造、格式化、序列化、文件和console诊断操作，捕Exception而不吞取消类BaseException。失败操作计数不冒称丢失条数，首次stderr只呈现安全类别与完整性未知，stderr再次失败不改变业务结果。FlowRunner建立托管实例，prepare将同一实例注入SystemFactory，避免两实例状态分叉；实际算法、Tracker保存、checkpoint发布和Result写入保持原错误。默认直接Logger API保留严格调用合同。
 
 托管采集policy只在新空日志family以独占方式建立events.policy.json，不覆盖旧policy，也不为旧非空/编号/legacy日志补造起点。当前工程默认schema1、owner=run_operator、累计64MiB与UTC创建后7天追加窗口；每写同锁重新读取并核4KiB上界、唯一字段/类型、UTC非未来起点、原期限及regular无alias/hardlink，累计policy+全部JSONL段+待写完整记录，strict有policy亦守限。到容量/期限或无可信旧绑定仅停止新追加，suppressed_records/stop_reason是本实例已拒记录与原因；未知IO/损坏仍计failure_count，不混为主动减少。构造不计丢失，重开不续期，path-only checkpoint状态不变。这不负责物理到期清理、跨Run预算或同步OS调用的等待上界，保留责任由Run发起人承担；业务证据和旧字节不删除。
+
+14个Study独立诊断创建点直接采用同一managed模式，不添加Study logger facade或配置分支。创建点门禁逐项定位真实调用表达式并用实际Logger核wire policy，完整入口另由原保存件和CUDA smoke故障验收；不能把AST绑定检查冒充整个研究已执行。来源快照包含新的flow字节，共享来源树成员不删，旧锁发现漂移应拒绝；SOURCE_DIGEST、固定Git原件和旧Run身份保留原义。后续仅拟收束smoke、small_matrix、prerequisite、input_mask与cross_task五个绘图flow的owned Figure释放和新completion发布，当前仍有先发布后clear的缺口；四个模型控制入口及pilot两个producer的清理问题按开发计划保留待办。清理只覆盖本次owned内存资源与新completion残件，旧文件不删除。
+
+资源清理与诊断隔离分开：flow自己持有的Figure/模型只释放一次，主体失败时保原异常并附清理次错；正常释放成功后才构造最终回执、复核来源和独占发布完成件。复用现有publisher，不加全局清理框架，也不删除旧Run；pilot结构内producer的清理缺口单独登记，不扩大本轮数学模块范围。
 
 # 五、源码与制品
 | **位置** | **保存内容** |

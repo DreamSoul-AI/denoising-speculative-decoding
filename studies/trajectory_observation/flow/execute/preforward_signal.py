@@ -29,7 +29,7 @@ def run(args):
         'holdout_qids': [item['qid'] for item in holdout_prompts]}
     with (output / 'header.json').open('x', encoding='utf-8') as handle:
         json.dump(header, handle, ensure_ascii=False, allow_nan=False, indent=2)
-    logger = Logger(output / 'assets')
+    logger = Logger(output / 'assets', managed=True)
     logger.info(f"preforward device={device} name={binding['device_name']}")
     model = HFCausalLM(str(weights), local_files_only=True, torch_dtype='bfloat16', attn_implementation='eager')
     try:

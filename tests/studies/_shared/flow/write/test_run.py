@@ -206,3 +206,43 @@ def test_paired_report_cleanup_preserves_primary_and_blocks_completion(report_ca
     assert caught.value is expected
     if fault != 'clear_only': assert caught.value.figure_cleanup_error is cleanup
     assert not (case.output/'report_complete.json').exists()
+
+
+@pytest.mark.parametrize('sink', ['file', 'console'])
+def test_paired_report_preserves_completion_when_real_diagnostic_sink_fails(report_case, monkeypatch, sink):
+    import sys
+    from spec_mtp.structure.system.logger import Logger
+    case = report_case
+    before, bindings_before = case.path.read_bytes(), case.bindings.read_bytes()
+    log_path = case.output / 'assets/logs/events.jsonl'
+    native_init, native_open = Logger.__init__, Path.open
+    instances = []
+    def initialized(self, *args, **kwargs):
+        native_init(self, *args, **kwargs)
+        instances.append(self)
+    def opened(path, *args, **kwargs):
+        if path == log_path: raise PermissionError('report diagnostic unavailable')
+        return native_open(path, *args, **kwargs)
+    class FailedConsole:
+        def write(self, text): raise BrokenPipeError('report diagnostic console unavailable')
+        def flush(self): pass
+    with monkeypatch.context() as patch:
+        patch.setattr(Logger, '__init__', initialized)
+        if sink == 'file': patch.setattr(Path, 'open', opened)
+        else: patch.setattr(sys, 'stdout', FailedConsole())
+        target = _write(case)
+    assert len(instances) == 1 and instances[0].managed is True
+    assert instances[0].failure_count >= 1
+    assert instances[0].last_error_type == ('PermissionError' if sink == 'file' else 'BrokenPipeError')
+    assert target == case.output / 'paired_report.md' and target.is_file()
+    receipt = json.loads((case.output / 'report_complete.json').read_bytes())
+    assert receipt['historical_inputs'][0]['sha256'] == SHA
+    assert receipt['runtime_inputs']['execution']['sha256'] == hashlib.sha256(before).hexdigest()
+    assert receipt['rendering_environment']['backend'] == 'Agg'
+    for name in ('paired_report.md', 'paired_counts_v1.png'):
+        assert receipt['outputs'][name] == hashlib.sha256((case.output / name).read_bytes()).hexdigest()
+    assert (case.output / 'paired_counts_v1.png').read_bytes().startswith(b'\x89PNG')
+    assert case.path.read_bytes() == before and case.bindings.read_bytes() == bindings_before
+    if sink == 'console':
+        record = json.loads(log_path.read_text(encoding='utf-8'))
+        assert record['event'] == 'task.progress' and record['message']

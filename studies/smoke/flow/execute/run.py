@@ -78,7 +78,7 @@ def run(args):
         'trace_origin':'native SpecDecoder.stats.trace; no independent source-line/cache observer'}
     (output/'header.json').write_text(json.dumps(header,indent=2)+'\n',encoding='utf-8')
     from spec_mtp.structure.system.logger import Logger
-    logger=Logger(output/'assets');logger.info('smoke CUDA device='+str(device)+' name='+identity['device_name'])
+    logger=Logger(output/'assets', managed=True);logger.info('smoke CUDA device='+str(device)+' name='+identity['device_name'])
     from spec_mtp.structure.model.hf_causal import HFCausalLM
     from spec_mtp.structure.algorithm.decode.loop import SpecDecoder,ar_generate
     from spec_mtp.structure.algorithm.mask import build_mask_provider

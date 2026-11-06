@@ -11813,6 +11813,63 @@
         "network": false,
         "model_download": false
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/test_structure_flow_gates.py::test_study_logger_constructors_wire_managed_capture_for_every_dedicated_entry",
+      "target": "spec_mtp.structure.system.logger.Logger.__init__",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/_shared/flow/write/test_run.py::test_paired_report_preserves_completion_when_real_diagnostic_sink_fails",
+      "target": "studies._shared.flow.write.run.write_paired_report",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_current_cuda_smoke_completes_with_a_failed_diagnostic_sink",
+      "target": "studies.smoke.flow.execute.run.run",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     }
   ],
   "plans": {
@@ -12402,6 +12459,10 @@
         {
           "test_id": "tests/cuda/spec_mtp/structure/algorithm/test_eval_hook.py::test_cuda_evaluation_finalizes_tracker_after_diagnostic_failure",
           "reason": "Real CUDA model/Tracker fault acceptance; retained and executed in the CUDA root."
+        },
+        {
+          "test_id": "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_current_cuda_smoke_completes_with_a_failed_diagnostic_sink",
+          "reason": "Real existing CUDA Study smoke fault acceptance; executed in the explicit GPU path."
         }
       ],
       "cpu_only": true
@@ -12886,7 +12947,8 @@
         "tests/spec_mtp/structure/system/test_logger.py::test_capture_policy_aliases_never_authorize_writing_existing_bytes",
         "tests/spec_mtp/structure/system/test_logger.py::test_capture_policy_bytes_alone_can_exhaust_the_frozen_budget",
         "tests/spec_mtp/flow/test_runner.py::test_capture_limits_do_not_change_a_successful_business_result",
-        "tests/spec_mtp/structure/system/test_logger.py::test_initial_policy_failure_never_creates_authority_or_repairs_an_anchor"
+        "tests/spec_mtp/structure/system/test_logger.py::test_initial_policy_failure_never_creates_authority_or_repairs_an_anchor",
+        "tests/spec_mtp/test_structure_flow_gates.py::test_study_logger_constructors_wire_managed_capture_for_every_dedicated_entry"
       ],
       "exclude": []
     },
@@ -13027,7 +13089,8 @@
         "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_online_verify_cuda_matches_independent_coordinate_filter",
         "tests/cuda/spec_mtp/structure/algorithm/mask/test_factory.py::test_kalman_factory_rejects_nonfinite_variances",
         "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round",
-        "tests/cuda/spec_mtp/structure/algorithm/test_eval_hook.py::test_cuda_evaluation_finalizes_tracker_after_diagnostic_failure"
+        "tests/cuda/spec_mtp/structure/algorithm/test_eval_hook.py::test_cuda_evaluation_finalizes_tracker_after_diagnostic_failure",
+        "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_current_cuda_smoke_completes_with_a_failed_diagnostic_sink"
       ],
       "exclude": [],
       "resources": {

@@ -101,7 +101,7 @@ def run(args):
     with (output / 'header.json').open('x', encoding='utf-8') as handle:
         json.dump(header, handle, ensure_ascii=False, indent=2, allow_nan=False)
     from spec_mtp.structure.system.logger import Logger
-    logger = Logger(output / 'assets')
+    logger = Logger(output / 'assets', managed=True)
     logger.info(f'fresh replication device={device} name={header["device_name"]}')
     model_dir = output / args.model
     model_dir.mkdir()

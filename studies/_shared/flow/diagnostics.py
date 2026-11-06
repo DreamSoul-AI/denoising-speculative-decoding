@@ -147,7 +147,7 @@ def run(args):
               'correctness_scope': 'T<=0 verification argmax audit; T>0 tokens/statistics/AR diagnostic only'}
     with (output / 'header.json').open('x', encoding='utf-8') as handle:
         json.dump(header, handle, indent=2, allow_nan=False)
-    logger = Logger(output / 'assets')
+    logger = Logger(output / 'assets', managed=True)
     logger.info(f"{args.command} device={device} name={identity['device_name']} config={workload}")
     models, primary = [], None
     try:

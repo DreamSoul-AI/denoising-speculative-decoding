@@ -40,7 +40,7 @@ def write_plot(input_path, repository, commit, input_git_sha256, output_root):
         verify()
         output.mkdir(parents=True, exist_ok=False)
         from spec_mtp.structure.system.logger import Logger
-        Logger(output / 'assets').info('render saved input-mask counts and cosine sums/counts with Agg')
+        Logger(output / 'assets', managed=True).info('render saved input-mask counts and cosine sums/counts with Agg')
         target = output / 'input_mask_baseline_v4.png'
         with target.open('xb') as stream:
             figure.savefig(stream, format='png', dpi=180)

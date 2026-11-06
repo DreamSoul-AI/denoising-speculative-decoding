@@ -67,3 +67,64 @@ def test_probe_comparison_requires_published_bundle_before_cuda_or_model(tmp_pat
     monkeypatch.setattr(torch.cuda,'is_available',available)
     with pytest.raises((ValueError,FileNotFoundError)):entry.run(args)
     assert not args.output_root.exists()
+
+
+def test_current_cuda_smoke_completes_with_a_failed_diagnostic_sink(tmp_path, monkeypatch, record_property):
+    import torch
+    from pathlib import Path
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
+    from spec_mtp.structure.system.logger import Logger
+    assert torch.cuda.is_available() and torch.cuda.device_count() > 0, 'CUDA required; no CPU fallback'
+    device = torch.device('cuda:0')
+    print('Study diagnostic fault device='+str(device)+' name='+torch.cuda.get_device_name(device), flush=True)
+    args = arguments(tmp_path)
+    plan_before = args.plan.read_bytes()
+    log_path = args.output_root / 'assets/logs/events.jsonl'
+    native_model_init, native_logger_init, native_open = HFCausalLM.__init__, Logger.__init__, Path.open
+    models, loggers, hooks, observed = [], [], [], []
+    def forward_hook(module, values, options, output):
+        assert options['inputs_embeds'].device == options['position_ids'].device == output.logits.device == device
+        assert module.get_input_embeddings().weight.device == device
+        observed.append(str(output.logits.device))
+    def initialized_model(self, *values, **options):
+        native_model_init(self, *values, **options)
+        assert self.embedding_table.device == device and self.dtype == torch.float32
+        models.append(self)
+        hooks.append(self.hf.register_forward_hook(forward_hook, with_kwargs=True))
+    def initialized_logger(self, *values, **options):
+        native_logger_init(self, *values, **options)
+        loggers.append(self)
+    def opened(path, *values, **options):
+        if path == log_path: raise PermissionError('smoke diagnostic constructor unavailable')
+        return native_open(path, *values, **options)
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(HFCausalLM, '__init__', initialized_model)
+            patch.setattr(Logger, '__init__', initialized_logger)
+            patch.setattr(Path, 'open', opened)
+            report = entry.run(args)
+    finally:
+        for handle in hooks: handle.remove()
+    assert len(models) == 1 and models[0].closed
+    assert len(loggers) == 1 and loggers[0].managed is True
+    assert loggers[0].failure_count >= 1 and loggers[0].last_error_type == 'PermissionError'
+    assert observed and set(observed) == {str(device)}
+    assert report['identity']['device'] == 'cuda:0' and report['identity']['dtype'] == 'torch.float32'
+    assert len(report['cells']) == 36 and report['summary']['T0_argmax_checked_tokens'] == 384
+    assert report['summary']['sampling_distribution_validated'] is False
+    assert all(len(row['trace']) == row['decode_calls'] for row in report['cells'].values())
+    complete = json.loads((args.output_root / 'probe_complete.json').read_bytes())
+    assert complete['summary'] == report['summary'] and complete['legacy_CPU_comparison'] is False
+    assert complete['readout_only'] is False
+    for field, name in (('header_sha256', 'header.json'), ('probe_sha256', 'probe.json'), ('cells_sha256', 'cells.jsonl')):
+        assert complete[field] == file_sha256(args.output_root / name)
+    header = json.loads((args.output_root / 'header.json').read_bytes())
+    saved_report = json.loads((args.output_root / 'probe.json').read_bytes())
+    assert header['sources'] == report['sources'] == saved_report['sources']
+    assert saved_report['model_digest'] == report['model_digest'] and report['model_digest']
+    rows = [json.loads(line) for line in (args.output_root / 'cells.jsonl').read_text().splitlines()]
+    assert len(rows) == 36 and {row['cell'] for row in rows} == set(report['cells'])
+    assert args.plan.read_bytes() == plan_before
+    record_property('cuda_device', str(device))
+    record_property('cuda_name', torch.cuda.get_device_name(device))
+    record_property('hf_forward_devices', observed)

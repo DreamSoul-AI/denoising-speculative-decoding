@@ -27,7 +27,7 @@ def run(args):
               'prompt_sha256': prompt_sha256(prompts), 'qids': [item['qid'] for item in prompts]}
     with (output / 'header.json').open('x', encoding='utf-8') as handle:
         json.dump(header, handle, ensure_ascii=False, indent=2, allow_nan=False)
-    logger = Logger(output / 'assets')
+    logger = Logger(output / 'assets', managed=True)
     logger.info(f"fair replacement device={device} name={binding['device_name']}")
     model_dir = output / args.model
     model_dir.mkdir()

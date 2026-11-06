@@ -109,7 +109,7 @@ def main(argv=None):
         json.dump(binding, handle, ensure_ascii=False, indent=2, allow_nan=False)
     from spec_mtp.structure.system.logger import Logger
 
-    logger = Logger(dest / 'assets')
+    logger = Logger(dest / 'assets', managed=True)
     logger.info(f"office device={device} name={binding['device_name']} stage={args.only}")
     model = None
     try:

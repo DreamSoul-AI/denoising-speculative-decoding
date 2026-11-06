@@ -83,7 +83,7 @@ def write_plots(kind, input_path, repository, commit, input_git_sha256, output_r
         verify()
         output.mkdir(parents=True, exist_ok=False)
         from spec_mtp.structure.system.logger import Logger
-        logger = Logger(output / 'assets')
+        logger = Logger(output / 'assets', managed=True)
         logger.info(f'render saved {kind} scalars with Agg; no new numerical computation')
         target = output / ('acceptance_v1.png' if kind == 'acceptance' else 'windows_v1.png')
         with target.open('xb') as stream:
