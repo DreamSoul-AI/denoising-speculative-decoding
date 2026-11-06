@@ -614,3 +614,83 @@ def test_initial_policy_failure_never_creates_authority_or_repairs_an_anchor(
         assert policy.read_bytes() == before and not anchor.exists()
         with pytest.raises(ValueError):
             Logger(assets)
+
+@pytest.mark.parametrize('managed', [False, True], ids=['strict', 'managed'])
+@pytest.mark.parametrize('operation', ['constructor', 'emit'])
+def test_logger_contention_retains_strict_and_isolates_managed_writes(tmp_path, monkeypatch, capsys, managed, operation):
+    import threading
+    from spec_mtp.structure.system import logger as implementation
+
+    assets = tmp_path / 'runs/r1/assets'
+    logger = Logger(assets, managed=managed) if operation == 'emit' else None
+    before = {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}
+    lock = threading.Lock()
+    monkeypatch.setattr(implementation, '_WRITE_LOCK', lock)
+    started, done = threading.Event(), threading.Event()
+    returned, failures = [], []
+
+    def work():
+        started.set()
+        try:
+            current = Logger(assets, managed=managed) if logger is None else logger
+            if operation == 'emit': current.info('token=private contention payload')
+            returned.append(current)
+        except BaseException as exc:
+            failures.append(exc)
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=work, daemon=True)
+    lock.acquire()
+    try:
+        thread.start()
+        assert started.wait(2)
+        assert done.wait(.5 if managed else .03) is managed, 'managed diagnostics queued behind another writer'
+        if managed:
+            assert lock.locked(), 'a rejected writer released another writer lock'
+            assert before == {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}
+    finally:
+        lock.release()
+        thread.join(5)
+    assert not thread.is_alive() and not failures
+    current = returned[0]
+    assert current.failure_count == int(managed)
+    if managed:
+        assert current.last_error_type == 'BlockingIOError'
+        emergency = capsys.readouterr().err
+        assert 'BlockingIOError' in emergency and 'private contention payload' not in emergency
+        assert current.suppressed_records == 0 and current.stop_reason is None
+        recovered = Logger(assets, managed=True) if operation == 'constructor' else current
+        recovered.info('after release')
+        assert json.loads(recovered.path.read_text(encoding='utf-8'))['message'] == 'after release'
+    else:
+        assert current.last_error_type is None and current.path.is_file()
+
+
+@pytest.mark.parametrize('managed', [False, True], ids=['strict', 'managed'])
+@pytest.mark.parametrize('operation', ['constructor', 'emit'])
+@pytest.mark.parametrize('error_type', [OSError, KeyboardInterrupt, SystemExit])
+def test_logger_releases_only_its_owned_lock_after_sink_errors(tmp_path, monkeypatch, managed, operation, error_type):
+    import threading
+    from spec_mtp.structure.system import logger as implementation
+
+    logger = Logger(tmp_path, managed=managed) if operation == 'emit' else None
+    lock = threading.Lock()
+    monkeypatch.setattr(implementation, '_WRITE_LOCK', lock)
+    primary = error_type('private sink failure')
+
+    def fail(path):
+        assert lock.locked(), 'diagnostic sink was accessed without owning its write lock'
+        raise primary
+
+    monkeypatch.setattr(implementation, 'diagnostic_files', fail)
+    def invoke():
+        return Logger(tmp_path, managed=managed) if logger is None else logger.info('event')
+    if managed and error_type is OSError:
+        result = invoke()
+        assert (logger if logger is not None else result).failure_count == 1
+    else:
+        with pytest.raises(error_type) as caught: invoke()
+        assert caught.value is primary
+    assert lock.acquire(blocking=False), 'owned write lock survived a sink failure or cancellation'
+    lock.release()

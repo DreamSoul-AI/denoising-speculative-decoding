@@ -65,7 +65,7 @@ class Logger:
         self.runtime_id = f'{os.getpid()}:{_RUNTIME_ID}'
         self.path = self.assets_dir / kinds.RUN_LOG
         with self._guard():
-            with _WRITE_LOCK:
+            with self._write_lock():
                 self.path.parent.resolve().relative_to(self.assets_dir.resolve())
                 parts = diagnostic_files(self.path)
                 policy = self.path.with_name('events.policy.json')
@@ -93,6 +93,15 @@ class Logger:
                     with policy.open('x', encoding='utf-8', newline='\n') as handle:
                         handle.write(payload)
                         handle.flush()
+
+    @contextmanager
+    def _write_lock(self) -> Iterator[None]:
+        if not _WRITE_LOCK.acquire(blocking=not self.managed):
+            raise BlockingIOError('diagnostic write lock is busy')
+        try:
+            yield
+        finally:
+            _WRITE_LOCK.release()
 
     @contextmanager
     def _guard(self) -> Iterator[None]:
@@ -143,7 +152,7 @@ class Logger:
                 raise ValueError('diagnostic record exceeds 65536 characters including LF')
             if len(line) > _SEGMENT_BYTES:
                 raise ValueError('diagnostic record exceeds segment byte limit')
-            with _WRITE_LOCK:
+            with self._write_lock():
                 parts = diagnostic_files(self.path)
                 now = datetime.now(timezone.utc)
                 policy = read_capture_policy(self.path, now)

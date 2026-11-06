@@ -12560,6 +12560,85 @@
         "network": false,
         "model_download": false
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_logger_contention_retains_strict_and_isolates_managed_writes",
+      "target": "spec_mtp.structure.system.logger.Logger._write_lock",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_logger_releases_only_its_owned_lock_after_sink_errors",
+      "target": "spec_mtp.structure.system.logger.Logger._write_lock",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_runner.py::test_busy_managed_diagnostics_preserve_formal_flow_results",
+      "target": "spec_mtp.flow.runner.FlowRunner.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_busy_diagnostics_do_not_block_cuda_checkpoint_integration",
+      "target": "spec_mtp.structure.system.factory.SystemFactory.build",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "estimated_device_seconds": 10,
+        "estimate_basis": "One tiny CUDA Linear/checkpoint integration with diagnostic contention; scheduling estimate only, not a performance result.",
+        "memory_requirement": "Unknown peak GPU memory; not measured for this tiny integration.",
+        "network": false,
+        "model_download": false
+      }
     }
   ],
   "plans": {
@@ -13173,6 +13252,10 @@
         {
           "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cuda_cli_cleanup_cancellation_still_closes_its_real_model",
           "reason": "Requires a real CUDA model forward and ownership cleanup; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_busy_diagnostics_do_not_block_cuda_checkpoint_integration",
+          "reason": "Requires an actual CUDA Linear and checkpoint under diagnostic-lock contention; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -13689,7 +13772,10 @@
         "tests/spec_mtp/structure/model/test_hf_causal.py::test_pretrained_loader_propagates_first_failure_without_retry",
         "tests/spec_mtp/structure/model/test_hf_causal.py::test_invalid_local_hf_configuration_is_read_once_and_preserves_its_error",
         "tests/spec_mtp/flow/test_cli.py::test_cli_cleanup_finishes_every_resource_and_preserves_primary",
-        "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostic_model_cleanup_preserves_primary_and_reverse_order"
+        "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostic_model_cleanup_preserves_primary_and_reverse_order",
+        "tests/spec_mtp/structure/system/test_logger.py::test_logger_contention_retains_strict_and_isolates_managed_writes",
+        "tests/spec_mtp/structure/system/test_logger.py::test_logger_releases_only_its_owned_lock_after_sink_errors",
+        "tests/spec_mtp/flow/test_runner.py::test_busy_managed_diagnostics_preserve_formal_flow_results"
       ],
       "exclude": []
     },
@@ -13836,7 +13922,8 @@
         "tests/studies/trajectory_observation/structure/test_pilot.py::test_train_model_rejects_untied_cuda_session_without_destroying_native",
         "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_failed_session_constructor_respects_real_cuda_model_ownership",
         "tests/studies/trajectory_observation/structure/test_pilot.py::test_training_factory_delegates_eval_once_to_session_admission_on_cuda",
-        "tests/cuda/spec_mtp/flow/test_cli.py::test_cuda_cli_cleanup_cancellation_still_closes_its_real_model"
+        "tests/cuda/spec_mtp/flow/test_cli.py::test_cuda_cli_cleanup_cancellation_still_closes_its_real_model",
+        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_busy_diagnostics_do_not_block_cuda_checkpoint_integration"
       ],
       "exclude": [],
       "resources": {

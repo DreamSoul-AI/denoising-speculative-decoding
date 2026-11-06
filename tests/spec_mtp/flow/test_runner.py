@@ -140,3 +140,40 @@ def test_capture_limits_do_not_change_a_successful_business_result(tmp_path, mon
     assert logger.stop_reason == cause and logger.suppressed_records == 2
     assert logger.failure_count == 0
     assert {p: p.read_bytes() for p in logs.iterdir()} == saved
+
+@pytest.mark.parametrize('business_fails', [False, True])
+def test_busy_managed_diagnostics_preserve_formal_flow_results(tmp_path, monkeypatch, business_fails):
+    import threading
+    from spec_mtp.flow import runner as implementation
+    from spec_mtp.structure.system import logger as logger_module
+
+    ctx = _io_context(tmp_path)
+    primary = ValueError('actual business rejection')
+    def write(current):
+        if business_fails: raise primary
+        write_result(current.layout.result_path, current.state['result_draft'])
+    monkeypatch.setattr(implementation, 'import_module', lambda name: SimpleNamespace(run=write))
+    monkeypatch.setattr(implementation, 'run_study_phase', lambda *a, **k: None)
+    lock, done = threading.Lock(), threading.Event()
+    monkeypatch.setattr(logger_module, '_WRITE_LOCK', lock)
+    failures = []
+    def work():
+        try: FlowRunner(phases=['write']).run(ctx)
+        except BaseException as exc: failures.append(exc)
+        finally: done.set()
+    worker = threading.Thread(target=work, daemon=True)
+    lock.acquire()
+    try:
+        worker.start()
+        assert done.wait(2), 'diagnostic contention blocked formal Flow completion'
+        assert lock.locked()
+    finally:
+        lock.release()
+        worker.join(5)
+    assert not worker.is_alive()
+    assert failures == ([primary] if business_fails else [])
+    result = load_result(ctx.layout.result_path)
+    assert result['status'] == ('failed' if business_fails else 'succeeded')
+    assert result['metrics'] == {'saved_count': 1}
+    assert ctx.state['logger'].failure_count >= 2
+    assert ctx.state['logger'].last_error_type == 'BlockingIOError'

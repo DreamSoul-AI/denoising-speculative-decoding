@@ -93,6 +93,8 @@ epoch预算与早停另有独立进程CUDA对照，固定评估分数只用于�
 
 只读盘点使用 `python -m studies._shared.flow.cli logs <外部Study运行根> --inventory`，输出每个index Run的精确诊断家族JSON；重复run_id或规范Run目录拒绝，避免同一家族重复计量或同名串身份。不加flag仍输出原事件文本。`bytes`计已知JSONL、policy和legacy文本的实际总字节，`capture_bytes`仅计受采集配额约束的JSONL与policy，不包含legacy。无policy保`unbound`，未知配额/起点/期限为`null`；已知追加状态为`within_limits`、`expired`或`capacity`，全部`disposition=retain`，到期不表示任务停止或可删。列举、身份及metadata读取失败不填假零，准入/读取/构造失败返回2、stdout为空，stderr只给安全异常类别。入口不建来源锁或Run，不读诊断正文、不改原字节；不承诺stdout故障时的原子输出，也不提供物理清理、跨Run配额或硬IO超时。
 
+托管Logger构造/追加对进程内写锁只作一次非阻塞准入；锁忙沿既有诊断失败计数与安全应急提示处理，业务继续。严格Logger仍等待并序列化写入。竞争可能形成诊断缺口；构造被拒的实例不会自动补建日志根，后续可保持unbound。该合同只消除锁排队，前置callback、当前writer和console仍同步，不提供物理清理、跨Run配额或OS级硬I/O超时。
+
 # 三、开发与验证
 工作分支经 PR 面向 `dev`，完成检查并按当次明确授权集成，不自动发布。当前 HEAD 的本地结果、历史红项和未覆盖范围记在 PR 正文，不用旧提交结果代替。
 
@@ -134,6 +136,6 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 宿主CPU安全合同运行 `python -m pytest tests/spec_mtp`，真实CUDA合同运行 `python -m pytest tests/cuda/spec_mtp`；两根分别完整镜像源码相对路径，`python -m pytest tests` 仍收集两者。GPU入口先核CUDA可用并记录实际设备，保留设备、RNG、模型与张量断言，不提供无GPU回退。未知方法拒绝等纯结构guard留在CPU根，现有workflow命令不变，也不通过收集过滤或skip选择资源。
 
-登记1023函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别871/509/140/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1028参数、CUDA根277参数；第五十五轮新增5函数27参数，分别为宿主CPU18、Study CPU6与宿主CUDA3，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
+登记1027函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别874/512/141/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1046参数、CUDA根279参数；本轮新增4函数20参数，分别为宿主CPU18与CUDA2，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
 
 已有Kalman/EMA的P0 CUDA核验按独立参考区分递推、状态时序与研究收益：EMA闭式历史、标量Joseph、逐维/残差与对角增益各自验证；Online/Aligned每轮首commit，Hybrid last为实际末commit（截断时不保证bonus）。已修非有限噪声参数准入与forget=1除零，端点关闭Q/R自适应而P/F仍更新。局部正确性不证明Kalman建模最优或真实模型加速，成果与来源缺口见唯一研究计划。

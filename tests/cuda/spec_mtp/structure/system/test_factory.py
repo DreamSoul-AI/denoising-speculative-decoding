@@ -271,3 +271,50 @@ def test_checkpoint_serialization_error_survives_a_second_stream_close_failure(c
     assert caught.value is primary and cleanup in primary.cleanup_errors
     assert bundle.read_bytes() == before
     assert case.system.load_checkpoint('latest')['epoch'] == 1
+
+@pytest.mark.parametrize('operation', ['constructor', 'emit'])
+def test_busy_diagnostics_do_not_block_cuda_checkpoint_integration(cuda_checkpoint, monkeypatch, operation):
+    import threading
+    import torch
+    from spec_mtp.structure.system.config import SystemConfig
+    from spec_mtp.structure.system.factory import SystemFactory
+    from spec_mtp.structure.system import logger as implementation
+
+    case = cuda_checkpoint
+    config = SystemConfig(config={'device': str(case.device)})
+    system = SystemFactory.build(config, case.system.assets_dir) if operation == 'emit' else None
+    with torch.random.fork_rng(devices=[case.device.index]), torch.no_grad():
+        module = torch.nn.Linear(2, 1, bias=False, device=case.device)
+        module.weight.fill_(2)
+    lock, done = threading.Lock(), threading.Event()
+    monkeypatch.setattr(implementation, '_WRITE_LOCK', lock)
+    results, failures = [], []
+    def work():
+        try:
+            current = SystemFactory.build(config, case.system.assets_dir) if system is None else system
+            current.logger.info('CUDA checkpoint integration')
+            model = current.place_module(module)
+            output = model(torch.tensor([[1., 2.]], device=case.device))
+            assert output.device == model.weight.device == case.device
+            assert torch.equal(output, torch.tensor([[6.]], device=case.device))
+            torch.cuda.synchronize(case.device)
+            path = current.save_checkpoint({'model': {'weight': model.weight.detach()}, 'logger': current.logger.state_dict()}, 'busy')
+            results.append((current, path))
+        except BaseException as exc: failures.append(exc)
+        finally: done.set()
+    worker = threading.Thread(target=work, daemon=True)
+    lock.acquire()
+    try:
+        worker.start()
+        assert done.wait(10), 'managed writer contention blocked CUDA compute/checkpoint'
+        assert lock.locked()
+    finally:
+        lock.release()
+        worker.join(5)
+    assert not worker.is_alive() and not failures
+    current, path = results[0]
+    restored = current.load_checkpoint(str(path))
+    assert restored['model']['weight'].device == case.device
+    assert torch.equal(restored['model']['weight'], module.weight)
+    assert current.logger.failure_count == (2 if operation == 'constructor' else 1)
+    assert current.logger.last_error_type == 'BlockingIOError'
