@@ -59,7 +59,7 @@ class FlowRunner:
             return existing
         from spec_mtp.structure.system.logger import Logger
 
-        logger = Logger(ctx.layout.assets_dir)
+        logger = Logger(ctx.layout.assets_dir, managed=True)
         ctx.state['logger'] = logger
         return logger
 

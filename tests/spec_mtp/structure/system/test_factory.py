@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from spec_mtp.structure.system.factory import System
+from spec_mtp.structure.system.factory import System, SystemFactory
+from spec_mtp.structure.system.logger import Logger
+from spec_mtp.structure.system.config import SystemConfig
 
 def _system(root):
     return System(device='cuda:0', logger=SimpleNamespace(), assets_dir=root, meta={})
@@ -68,3 +70,35 @@ def test_checkpoint_path_rechecks_selected_bundle_for_unpublished_alias(tmp_path
     with pytest.raises(OSError, match='unpublished checkpoint'):
         _system(tmp_path).load_checkpoint(requested)
     assert bundle.read_bytes() == b'selected bundle alias fixture'
+
+
+@pytest.mark.parametrize('owner', ['same_run', 'different_run', 'spy'])
+def test_native_system_reuses_only_the_admitted_run_logger(tmp_path, monkeypatch, owner):
+    assets = tmp_path / 'runs/r1/assets'
+    injected = (SimpleNamespace(info=lambda *a, **k: None) if owner == 'spy' else
+                Logger(assets if owner == 'same_run' else tmp_path / 'runs/r2/assets', managed=True))
+    def forbidden(*args, **kwargs): pytest.fail('injected logger must not trigger another Logger construction')
+    monkeypatch.setattr(Logger, '__init__', forbidden)
+    if owner == 'different_run':
+        with pytest.raises(ValueError): SystemFactory.build(SystemConfig(), assets, logger=injected)
+    else:
+        system = SystemFactory.build(SystemConfig(), assets, logger=injected)
+        assert system.logger is injected and system.assets_dir == assets
+        assert system.to_result_snapshot()['ready'] is True
+
+
+def test_native_system_without_injection_isolates_logger_construction_failure(tmp_path, monkeypatch):
+    assets = tmp_path / 'assets'
+    path = assets / 'logs/events.jsonl'
+    primary = PermissionError('diagnostic directory not writable')
+    original_open = Path.open
+    def opened(candidate, *args, **kwargs):
+        if candidate == path: raise primary
+        return original_open(candidate, *args, **kwargs)
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, 'open', opened)
+        system = SystemFactory.build(SystemConfig(), assets)
+        system.logger.info('still a diagnostic operation')
+    assert system.assets_dir == assets and system.to_result_snapshot()['ready'] is True
+    assert system.logger.failure_count >= 1 and system.logger.last_error_type == 'PermissionError'
+    assert system.logger.state_dict() == {'path': str(path)}

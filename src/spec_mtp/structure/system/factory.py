@@ -196,13 +196,16 @@ class System:
 
 class SystemFactory:
     @staticmethod
-    def build(system_config: SystemConfig, assets_dir: Path | str) -> System:
-        return _build_native(system_config, Path(assets_dir))
+    def build(system_config: SystemConfig, assets_dir: Path | str, *, logger: Logger | None = None) -> System:
+        return _build_native(system_config, Path(assets_dir), logger=logger)
 
 
-def _build_native(system_config: SystemConfig, assets_dir: Path) -> System:
+def _build_native(system_config: SystemConfig, assets_dir: Path, *, logger: Logger | None = None) -> System:
     device = str(system_config.setting('device', 'cpu'))
-    logger = Logger(assets_dir)
+    if isinstance(logger, Logger) and logger.assets_dir.resolve() != assets_dir.resolve():
+        raise ValueError('injected diagnostic logger belongs to another Run')
+    if logger is None:
+        logger = Logger(assets_dir, managed=True)
     deterministic = bool(system_config.setting('deterministic', False))
     return System(
         device=device,

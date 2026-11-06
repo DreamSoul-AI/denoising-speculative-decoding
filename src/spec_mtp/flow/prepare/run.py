@@ -39,6 +39,7 @@ def run(ctx: FlowContext) -> None:
     system = SystemFactory.build(
         system_config,
         ctx.layout.assets_dir,
+        logger=ctx.state.get('logger'),
     )
     system.meta.update(ctx.state['runtime'])
     ctx.state['system'] = system

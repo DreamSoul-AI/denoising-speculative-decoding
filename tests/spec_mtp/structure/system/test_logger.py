@@ -1,5 +1,7 @@
 """Diagnostic records and legacy read-only views share no scientific state."""
 import json
+import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -261,3 +263,96 @@ def test_log_anchor_rejects_aliases_without_appending_to_legacy_bytes(tmp_path, 
     anchor_prior = anchor.read_bytes()
     with pytest.raises(ValueError): Logger(assets)
     assert legacy.read_bytes() == prior and anchor.read_bytes() == anchor_prior
+
+
+@pytest.mark.parametrize('fault', ['constructor', 'sanitize', 'serialize', 'open', 'flush', 'stdout'])
+def test_managed_logger_isolates_its_own_diagnostic_failures(tmp_path, monkeypatch, fault):
+    from spec_mtp.structure.system import logger as implementation
+    assets = tmp_path / 'runs/r1/assets'
+    path = assets / 'logs/events.jsonl'
+    primary = OSError('prompt=private diagnostic failure')
+    original_open = Path.open
+    def fail(*args, **kwargs): raise primary
+    class FailedFlush:
+        def __init__(self, handle): self.handle = handle
+        def __getattr__(self, name): return getattr(self.handle, name)
+        def __enter__(self): self.handle.__enter__(); return self
+        def __exit__(self, *args): return self.handle.__exit__(*args)
+        def flush(self): raise primary
+    def opened(candidate, *args, **kwargs):
+        if candidate == path:
+            if fault in ('constructor', 'open'): raise primary
+            handle = original_open(candidate, *args, **kwargs)
+            mode = args[0] if args else kwargs.get('mode', 'r')
+            return FailedFlush(handle) if fault == 'flush' and mode in ('a', 'x') else handle
+        return original_open(candidate, *args, **kwargs)
+    logger = None if fault == 'constructor' else Logger(assets, managed=True)
+    with monkeypatch.context() as patch:
+        if fault in ('constructor', 'open', 'flush'): patch.setattr(Path, 'open', opened)
+        elif fault == 'sanitize': patch.setattr(implementation, '_text', fail)
+        elif fault == 'serialize': patch.setattr(implementation, 'json', SimpleNamespace(dumps=fail))
+        else: patch.setattr(sys, 'stdout', SimpleNamespace(write=fail, flush=fail))
+        if logger is None: logger = Logger(assets, managed=True)
+        else: logger.info('safe message')
+    assert logger.failure_count == 1 and logger.last_error_type == 'OSError'
+    assert logger.state_dict() == {'path': str(path)} and not hasattr(logger, 'dropped_count')
+    if fault == 'stdout':
+        records = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines()]
+        assert len(records) == 1 and records[0]['message'] == 'safe message'
+
+
+@pytest.mark.parametrize('stderr_fails', [False, True])
+def test_managed_logger_reports_first_failure_once_and_keeps_direct_api_strict(tmp_path, monkeypatch, stderr_fails):
+    managed, strict = Logger(tmp_path / 'managed', managed=True), Logger(tmp_path / 'strict')
+    primary = PermissionError('prompt=private path=D:/private/secret')
+    attempted = []
+    class Emergency:
+        def write(self, text):
+            attempted.append(text)
+            if stderr_fails: raise OSError('emergency unavailable')
+            return len(text)
+        def flush(self): pass
+    original_open = Path.open
+    def opened(path, *args, **kwargs):
+        if path in (managed.path, strict.path): raise primary
+        return original_open(path, *args, **kwargs)
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, 'open', opened)
+        patch.setattr(sys, 'stderr', Emergency())
+        managed.info('first'); managed.warning('second')
+        with pytest.raises(PermissionError) as caught: strict.info('strict')
+        assert caught.value is primary
+    text = ''.join(attempted)
+    assert text.count('unknown') == 1 and 'PermissionError' in text
+    assert 'private' not in text and 'D:/' not in text
+    assert managed.failure_count == 2 and managed.last_error_type == 'PermissionError'
+    assert strict.state_dict() == {'path': str(strict.path)}
+
+
+@pytest.mark.parametrize('managed', [False, True])
+@pytest.mark.parametrize('error_type', [KeyboardInterrupt, SystemExit])
+def test_logging_never_swallows_process_control_exceptions(tmp_path, monkeypatch, managed, error_type):
+    from spec_mtp.structure.system import logger as implementation
+    logger = Logger(tmp_path, managed=managed)
+    primary = error_type('requested interruption')
+    def interrupted(*args, **kwargs): raise primary
+    with monkeypatch.context() as patch:
+        patch.setattr(implementation, '_text', interrupted)
+        with pytest.raises(error_type) as caught: logger.info('interrupted')
+    assert caught.value is primary and logger.path.read_bytes() == b''
+    assert logger.failure_count == 0
+
+
+@pytest.mark.parametrize('operation', ['report', 'exception'])
+def test_managed_logger_covers_report_and_exception_formatting(tmp_path, monkeypatch, operation):
+    from spec_mtp.structure.system import logger as implementation
+    logger = Logger(tmp_path, managed=True)
+    primary = ValueError('prompt=private formatting payload')
+    def failed(*args, **kwargs): raise primary
+    with monkeypatch.context() as patch:
+        if operation == 'exception':
+            patch.setattr(implementation.traceback, 'extract_tb', failed)
+            logger.exception('safe exception', RuntimeError('original business exception'))
+        else: logger.report(SimpleNamespace(display_mean=failed, last=lambda split: {}), 'test')
+    assert logger.failure_count == 1 and logger.last_error_type == 'ValueError'
+    assert logger.path.read_bytes() == b''

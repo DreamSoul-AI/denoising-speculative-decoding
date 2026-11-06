@@ -11470,6 +11470,178 @@
         "network": false,
         "model_download": false
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_managed_logger_isolates_its_own_diagnostic_failures",
+      "target": "spec_mtp.structure.system.logger.Logger",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_managed_logger_reports_first_failure_once_and_keeps_direct_api_strict",
+      "target": "spec_mtp.structure.system.logger.Logger",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_logging_never_swallows_process_control_exceptions",
+      "target": "spec_mtp.structure.system.logger.Logger",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_managed_logger_covers_report_and_exception_formatting",
+      "target": "spec_mtp.structure.system.logger.Logger",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_native_system_reuses_only_the_admitted_run_logger",
+      "target": "spec_mtp.structure.system.factory.SystemFactory.build",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_factory.py::test_native_system_without_injection_isolates_logger_construction_failure",
+      "target": "spec_mtp.structure.system.factory.SystemFactory.build",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_runner.py::test_flow_diagnostic_failures_preserve_success_and_one_logger",
+      "target": "spec_mtp.flow.runner.FlowRunner.run",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_runner.py::test_flow_keeps_business_exception_when_diagnostics_and_failure_result_fail",
+      "target": "spec_mtp.flow.runner.FlowRunner.run",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/cuda/spec_mtp/structure/algorithm/test_eval_hook.py::test_cuda_evaluation_finalizes_tracker_after_diagnostic_failure",
+      "target": "spec_mtp.structure.algorithm.eval_hook.eval_test_split",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false,
+        "estimated_device_seconds": 15
+      }
     }
   ],
   "plans": {
@@ -12055,6 +12227,10 @@
         {
           "test_id": "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round",
           "reason": "Requires actual CUDA for independent Kalman/EMA recurrence and decode-timeline validation; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/cuda/spec_mtp/structure/algorithm/test_eval_hook.py::test_cuda_evaluation_finalizes_tracker_after_diagnostic_failure",
+          "reason": "Real CUDA model/Tracker fault acceptance; retained and executed in the CUDA root."
         }
       ],
       "cpu_only": true
@@ -12522,7 +12698,15 @@
         "tests/spec_mtp/structure/artifact/readout/test_status.py::test_custom_and_legacy_diagnostics_keep_single_file_selection",
         "tests/spec_mtp/flow/test_study_cli.py::test_logs_command_reads_all_segments_or_rejects_late_damage",
         "tests/spec_mtp/flow/test_study_cli.py::test_missing_diagnostic_anchor_never_falls_back_to_a_legacy_log",
-        "tests/spec_mtp/structure/system/test_logger.py::test_log_anchor_rejects_aliases_without_appending_to_legacy_bytes"
+        "tests/spec_mtp/structure/system/test_logger.py::test_log_anchor_rejects_aliases_without_appending_to_legacy_bytes",
+        "tests/spec_mtp/structure/system/test_logger.py::test_managed_logger_isolates_its_own_diagnostic_failures",
+        "tests/spec_mtp/structure/system/test_logger.py::test_managed_logger_reports_first_failure_once_and_keeps_direct_api_strict",
+        "tests/spec_mtp/structure/system/test_logger.py::test_logging_never_swallows_process_control_exceptions",
+        "tests/spec_mtp/structure/system/test_logger.py::test_managed_logger_covers_report_and_exception_formatting",
+        "tests/spec_mtp/structure/system/test_factory.py::test_native_system_reuses_only_the_admitted_run_logger",
+        "tests/spec_mtp/structure/system/test_factory.py::test_native_system_without_injection_isolates_logger_construction_failure",
+        "tests/spec_mtp/flow/test_runner.py::test_flow_diagnostic_failures_preserve_success_and_one_logger",
+        "tests/spec_mtp/flow/test_runner.py::test_flow_keeps_business_exception_when_diagnostics_and_failure_result_fail"
       ],
       "exclude": []
     },
@@ -12662,7 +12846,8 @@
         "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_aligned_residual_cuda_matches_independent_scalar_filter",
         "tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py::test_online_verify_cuda_matches_independent_coordinate_filter",
         "tests/cuda/spec_mtp/structure/algorithm/mask/test_factory.py::test_kalman_factory_rejects_nonfinite_variances",
-        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round"
+        "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round",
+        "tests/cuda/spec_mtp/structure/algorithm/test_eval_hook.py::test_cuda_evaluation_finalizes_tracker_after_diagnostic_failure"
       ],
       "exclude": [],
       "resources": {
