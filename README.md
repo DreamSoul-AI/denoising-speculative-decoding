@@ -1,13 +1,15 @@
 # 去噪推测解码
 宏观＝围绕 training-free 的 speculative decoding 发一篇论文，以 denoising、卡尔曼滤波、EMA 为基本要件。
 
-介观＝在 GPU 上逐个验证这三个要件和相关思路是否带来真实收益，相对 ESP 等基线比较加速比、接受率和质量，正负结果都写进研究计划，逐步形成论文主表和消融。
+介观＝搞清楚合作者 speculative_mtp（d91ed75）为什么能 work、我们这边为什么不 work。先在临时目录（D:\Grok Bot\tmp\sd）隔离跑通合作者原代码，用同一模型、同一数据、同一 GPU，按源码重新校准 K，作为新实验记录；再和我们的实现逐项对照差异（配置、mask provider、EMA 和 Kalman 公式、frontier gain、解码/验证/KV、评测口径），每项用最小 CUDA 实验定位导致差距的原因，结论写进研究计划。合并进我们的分支先不做，也不改合作者代码。
 
 中文名称为“去噪推测解码”。仓库地址：[DreamSoul-AI/denoising-speculative-decoding](https://github.com/DreamSoul-AI/denoising-speculative-decoding)。
 
 截至2026年10月21日的 8B 非官方 Table 1 独立复验已经完成，论文目标未复现。数字和原件在 [历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>)。提交 token 的验证前向 argmax 自检与独立 AR 一致率分别报告，τ 是提交数与解码调用数之比，不能据此认定实际速度收益。
 
 微观：工程清理已收尾，最新R65在8条校准/另8条评价的Qwen3-4B CUDA切片，冻结完整仿射K相对共同插桩ESP取得1.092504×稳态加速、实际接受均差+8.25，72项完整T0/来源通过；仅为本次拟合留出证据，不是原表复现或Kalman递推证明，语义质量、相对AR与完整冷启动摊销未测。R64 EMA原幅度相对ESP为0.943×，旧writing32/256结案保持，不扩长度/扫参数。方法身份、成本、实际数字与质量边界见唯一 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)；旧`k_affine_residual`合成postcommit协议与本拍真实frontier协议分别保留。
+
+下一步按新介观先隔离运行合作者d91ed75原代码、原生重新校准K，再做共同条件下的逐项差异实验；原代码不改、不并入本仓。R66协议由研究计划维护，当前不称已经跑通。
 
 # 一、文档入口
 | **文档** | **维护内容** |
