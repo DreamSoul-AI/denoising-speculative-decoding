@@ -2,15 +2,17 @@
 更新日期：2026年11月6日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-研究冻结，基线81e81d5。本轮先收束硬I/O的真实责任：Logger、sink、模型close与console仍在调用它们的worker中同步执行；普通guard只隔离已返回的异常，不能中断挂起OS调用。选定未来优先复用现有Run worker作为阻塞操作的执行边界，由调度器持有本次Popen成功返回的直接进程句柄、停止新派发并确认退出，不新增后台writer或线程超时冒充停止。
+研究冻结，基线2e17ee2。本轮将剩余I/O责任分开：生产deadline必须来自显式冻结的Run协议，按实际worker准入后的单调时钟预算判定；当前没有这种输入或监控实现。jobs.seconds仅耗时估计，训练步数是工作量，日志七天是追加窗口，原90/300秒是测试门，cleanup wait(5)是升级等待，均不改作整worker强停授权。
 
-本轮可落地的是取消回收缺陷：派发/等待首错后不再进入新group/retry；逐直接owned worker terminate，再沿原wait(5)、TimeoutExpired时kill/wait(5)尝试回收。清理中的普通错误、KeyboardInterrupt/SystemExit都按顺序附于原异常cleanup_errors，继续其它句柄并原样重抛首错，不再依赖cleanup console输出。未返回Popen构造、后代进程和外部writer不归本次句柄清理证明。
+强停继续只允许既有异常/取消处理器对本次成功登记的直接Popen句柄执行原terminate→wait(5)→超时kill/wait(5)。未来若引入deadline，须另明确整worker强停与partial checkpoint/Result语义，并在执行前建立后代归属；未返回构造、DataLoader/第三方后代与外部writer仍未知，不能根据PID或kill方法返回补成已停。
 
-完整硬I/O超时明确延期：尚缺操作deadline的责任来源、杀整个科学worker的允许语义、DataLoader/第三方后代进程所有权、持久化逐writer退出/停写回执、未完成checkpoint/Result与超时后写入处置。wait返回只证明直接child退出；受控writer在退出后文件稳定是该夹具证据，不能推广任意内核/远端I/O已停止。恢复前须分别验调用者返回、停止新派发、所有纳管writer退出及实际文件停止变化，未知保持unknown且不自动重试同Run。
+本轮落地当前中断组的持久退出回执：每组派发前绑定index与config SHA，全部owned清理尝试结束后才在scripts/launch-attempts/<attempt_id>/receipt.json独占发布。schema1分别记terminate/kill请求、wait实际整数returncode与direct_exit_confirmed；未确认的returncode省略，descendants/writer_stop/unreturned_popen保unknown。该回执不是科学Result，也不是整个launch或任意I/O停写证明。直接run/in-process入口没有本次Popen回收边界，独立deadline owner同样尚未建立。
 
-工程验收为CPU取消控制/原文件保全、真实独立CUDA worker计算与退出/停写观察，再跑原CPU/CUDA/native/诊断门。保原90秒launch、300秒native与既有全部断言/成员，不加skip/xfail或新过滤。明确上述缺口后只修受影响的入口状态漂移并整理第五章周末路线，不开展新研究或泛化框架。
+发布只用新attempt目录、partial.json独占写、flush/fsync后发布，单件最多64KiB；namespace/attempt别名、碰撞与失败拒绝，不覆盖旧回执/Result。写入失败或再次取消附原primary.cleanup_errors；成功后才附cleanup_receipt_path，旧指针不冒充本次成功。正常完成不创建审计文件。回执写盘仍同步，掉电目录持久性与跨attempt总量/保留期尚无保证，不自动清除余件。
 
-本轮预估60分钟：责任合同12、最小实现23、验收15、交付10。TEMP/TMP与所有scratch仅D:/Grok Bot/tmp/grokbot/sd/round60；复用已核CPU环境及检出，旧回执不覆盖。81e的固定诊断份额、失败不退款、控制stage及新owned清理保持；历史根、研究正文与stash不动。
+验收CPU请求与退出分离、kill后wait仍未知、发布失败在全部child清理之后、派发前身份不回绑、别名/碰撞/正常零写入；真实CUDA child退出后发布与旧文件保全；再跑原CPU/CUDA/native/诊断门，保90/300秒及全部旧断言/参数。仅更新现有六文档及周末路线，不扩大研究或新建存储框架。
+
+本轮预估60分钟：责任合同12、最小实现23、验收15、交付10。TEMP/TMP与全部scratch仅D:/Grok Bot/tmp/grokbot/sd/round61，复用已核CPU环境与检出，旧回执不覆盖；固定诊断预算/owned清理原合同和历史根严格拒绝保持。
 
 # 二、六类核对与落实
 | **类别** | **已有实现条件** | **仍需完成的具体差距** |
@@ -41,7 +43,8 @@ Tracker曲线读取与调度新鲜度的两条ponytail成本说明继续有效�
 
 | **顺序与类别** | **输入、下一步与验收** | **停止条件** |
 | --- | --- | --- |
-| P1 技术债：硬I/O中断（延期） | 优先复用现有Run worker为执行边界，调度器只拥有已返回的直接Popen句柄。本轮修取消次错遮蔽；周末先确定deadline发放、整worker强停语义、后代归属及partial制品处置，再分别验调用者返回/停止派发/纳管writer退出/实际文件变化 | 直接child退出或有限稳定采样不能证明所有后代/OS/远端写入停止；缺一项仍unknown、不自动重试。不得以后台线程、future超时或PID标签替代停止证明 |
+| P1 技术债：完整硬I/O中断（延期） | 直接owned当前组已有不可覆盖退出回执；接手者先给出显式Run deadline输入及单调时钟起点、整worker强停/partial制品语义、执行前后代归属，再验调用者返回/停止派发/全部纳管writer退出/实际文件变化 | 直接child退出或有限稳定采样不能证明所有后代/OS/远端写入停止；缺一项仍unknown、不自动重试。不得以后台线程、future超时或PID标签替代停止证明 |
+| P1 技术债：中断回执保留与消费 | 新回执最多64KiB/件、仅异常路径追加；需要真实保留期/总量或自动消费者时先定引用与归属，再选处置授权和验收。只有receipt.json为发布件，partial/缺件保持未知 | 不将回执当科学完成、全进程树停写或删除许可；不覆盖旧attempt、不自动清理、迁移或据缺件推成功 |
 | P1 技术债：自动保留期与旧根迁移（延期） | 新owned家族的显式prepare/seal/purge已提供。自动到期或历史根另须给出处置授权、引用审查、可确认的writer协议与停止证据，未知保持retain；验收保全模型/数据/checkpoint/原snapshot | 不把policy owner、expired/capacity、成功Result或进程内锁当旧根可删依据；不收编已有logs，不把手动新家族处置写成全盘/自动TTL完成 |
 | P1 技术债：动态/跨Study预算（延期） | 81e81d5已提供新外置Study固定份额，保留其已验证边界。仅有具体动态/共享消费者时才定义增减、退款的原子责任与崩溃恢复，既有份额不作为重复复核任务 | 不以inventory后追加冒充一致配额；不迁移历史根、不自动重签部分初始化、不删除旧Run腾空间；控制留量以单件4KiB及固定stage拒重入为界 |
 | 技术债：取得hf前及异常引用 | 固定版本loader的TypeError误重试和两处取消清理已完成；输入仍限既有有限pre-session CUDA探针与真实owner，第三方loader/训练内部帧及外部引用不保证即时释放，按实际场景核验 | 单一受控故障不推广所有路径；不据probe的clear_frames加入生产清帧或宣称自然泄漏/即时显存释放 |

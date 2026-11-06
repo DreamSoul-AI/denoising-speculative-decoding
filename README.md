@@ -37,6 +37,8 @@
 
 launch在派发或等待异常后停止新group与retry，只回收本次成功取得句柄的直接worker：逐一terminate，沿原5秒wait、超时kill及5秒wait尝试退出。再次取消或回收错误按顺序保留在原异常cleanup_errors，清理不依赖console输出，原始异常与既有Result不改。该直接worker的wait返回不代表后代或所有OS I/O已停止；全Run硬超时仍未实现，未知状态不自动重试。
 
+中断组在全部直接child清理尝试后，将退出事实发布为 `scripts/launch-attempts/<attempt_id>/receipt.json`。index/config SHA在该组任何Popen前取得，回执区分terminate/kill请求与wait实际确认退出；未确认returncode不补零，后代、未返回Popen与通用writer停写保持unknown。它不是科学Result或整个launch的停写证明。仅成功发布后原异常带 `cleanup_receipt_path`；失败附cleanup_errors，首错及旧文件保持。正常完成不创建回执。每件最多64KiB，partial.json写入/fsync后发布；别名、碰撞及失败余件不自动修复或覆盖。回执属于运行控制制品，不计入诊断固定份额；总量/自动保留期及OS硬时限未实现。
+
 离线报告使用 `python -m studies._shared.flow.cli report <Study> --out <外部新文件.md>`，输出路径必填，拒绝已有文件、输入目录和源码 checkout；报告检查不回写旧 process 或 gate。`output_space_extension` 的已保存槽位诊断迁入 `python -m studies.output_space_extension.flow.process.run --raw <保存张量目录> --execution <原运行矩阵.json> --repository <本地仓库> --commit <完整提交> --execution-git-sha256 <Git原件SHA256> --device cuda:0 --output-root <新外部目录>`。它只读原件并在CUDA分析保存张量，不载入模型；实际运行矩阵须匹配旧报告哈希，与固定 Git 原件分别记录字节身份并核对 JSON 内容。缺失或漂移直接失败，不自动修换行或重签旧来源。历史读件需要支持 `--no-lazy-fetch` 的本地 Git，当前验证版本为 `2.55.0.windows.3`，不支持时直接失败，不降级联网。followup 读端同样迁入 `studies.output_space_followup.flow.process.run`，参数与槽位读端一致，保存张量实际在 CUDA 分析并登记设备。
 
 smoke 当前微型工程验证使用 `python -m studies.smoke.flow.execute.run --plan <当前计划> --plan-sha256 <实际SHA> --version <新工程版本> --device cuda:0 --output-root <新外部根>`，保留三种variant、四条输入、T0/0.7/1.0和32-token预算。T0完整提交链argmax为门，采样AR一致仅作诊断；`--compare <完整CUDA报告> --compare-sha256 <实际SHA>`要求同目录probe_complete/header/cells与实际SHA闭合，再核协议、模型、输入、设备与随机身份，不拿旧CPU报告冒充CUDA基线。历史CPU图使用 `python -m studies.smoke.flow.write.run --input <原delivery_validation.json> --input-sha256 <实际SHA> --output-root <新外部根>`，只读已保存计数，保留934dac3的CPU身份；可另给固定Git身份核原件，不加载模型。
@@ -144,6 +146,6 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 宿主CPU安全合同运行 `python -m pytest tests/spec_mtp`，真实CUDA合同运行 `python -m pytest tests/cuda/spec_mtp`；两根分别完整镜像源码相对路径，`python -m pytest tests` 仍收集两者。GPU入口先核CUDA可用并记录实际设备，保留设备、RNG、模型与张量断言，不提供无GPU回退。未知方法拒绝等纯结构guard留在CPU根，现有workflow命令不变，也不通过收集过滤或skip选择资源。
 
-登记1056函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别900/538/144/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1165参数、CUDA根285参数；本轮新增2函数12参数，分别为CPU10与CUDA2，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
+登记1063函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别907/545/144/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1183参数、CUDA根285参数；本轮新增7个纯CPU函数18参数，并增强既有CUDA2参数的退出回执校验，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
 
 已有Kalman/EMA的P0 CUDA核验按独立参考区分递推、状态时序与研究收益：EMA闭式历史、标量Joseph、逐维/残差与对角增益各自验证；Online/Aligned每轮首commit，Hybrid last为实际末commit（截断时不保证bonus）。已修非有限噪声参数准入与forget=1除零，端点关闭Q/R自适应而P/F仍更新。局部正确性不证明Kalman建模最优或真实模型加速，成果与来源缺口见唯一研究计划。

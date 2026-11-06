@@ -212,3 +212,5 @@ mask provider行为和factory真实张量选择/准入分别由 `tests/cuda/spec
 固定预留继续由artifact/asset/tree.py维护：Study required预算、有限Run份额与原字节绑定，复用现有原子控制写入和每Run原生锁。make/write.py先建立pending再完成全部份额后发布ready；runner及make/schedule.py在执行前重验，Logger在同一写锁内重验份额与policy。默认无预算根不新增文件；不新增配额模块、后台writer或Study树。
 
 make/schedule.py拥有本次成功登记的Popen直接worker句柄；取消回收在原_run_groups内完成，不新增统一进程管理门面。清理次错含BaseException，按原异常的cleanup_errors保留顺序，不再通过同步console报告而阻断剩余回收。CPU同源镜像覆盖再次取消及首错身份，CUDA make/test_schedule镜像核真实worker计算、退出及受控日志停止观察；后代进程树与硬I/O中断仍是独立未实现合同。
+
+中断组的运行控制回执继续由make/schedule.py私有publisher维护，落在外部Study的`scripts/launch-attempts/<attempt_id>/receipt.json`；它不写activity/jobs/Run Result或诊断日志，不计为科学完成或诊断固定份额。先清理所有已登记句柄，再x写partial.json、flush/fsync和发布；单件最多64KiB，失败余件保留不重试、不覆盖。仅成功发布后在原异常附cleanup_receipt_path，回执内只保存本组的派发前摘要、请求/直接退出事实与安全错误类别；未知停止不补零。无新生产模块、通用存储门面或deadline参数，旧预算与原5秒清理升级等待保持。

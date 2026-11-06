@@ -2,6 +2,8 @@
 
 import hashlib
 import json
+import os
+from pathlib import Path
 import subprocess
 import sys
 import time
@@ -41,6 +43,8 @@ def test_cancelled_scheduler_reaps_its_cuda_writer_and_preserves_original_result
     other.write_bytes(b'other Run input remains unchanged')
     protected = {path: (path.read_bytes(), path.stat().st_mtime_ns)
                  for path in study.rglob('*') if path.is_file()}
+    original_index_sha = hashlib.sha256((study / 'index.json').read_bytes()).hexdigest()
+    original_config_sha = hashlib.sha256(Path(jobs[0]['config']).read_bytes()).hexdigest()
     assets = study / 'runs' / 'first' / 'assets'
     ready, stderr = tmp_path / 'worker-ready.json', tmp_path / 'worker-stderr.log'
     child_code = '''
@@ -77,6 +81,7 @@ while True:
     class OwnedWorker:
         def __init__(self, process):
             self.process = process
+            self.pid = process.pid
 
         def poll(self):
             return self.process.poll()
@@ -121,6 +126,20 @@ while True:
         return OwnedWorker(process)
 
     monkeypatch.setattr(schedule.subprocess, 'Popen', controlled_popen)
+    publish = getattr(schedule, '_write_interruption_receipt', None)
+    published = []
+
+    def publish_after_exit(study_dir, body):
+        assert events[-1] == ('wait', 5)
+        assert processes and all(process.poll() is not None for process in processes)
+        assert not hasattr(primary, 'cleanup_receipt_path')
+        path = publish(study_dir, body)
+        assert path.is_file()
+        published.append(path)
+        return path
+
+    if publish is not None:
+        monkeypatch.setattr(schedule, '_write_interruption_receipt', publish_after_exit)
     try:
         with pytest.raises(error_type) as caught:
             schedule.launch_jobs(study, jobs, round_size=1, retry_failed=True, console='shared')
@@ -142,6 +161,25 @@ while True:
         record_property('owned_child_returncode', process.returncode)
         record_property('stopped_diagnostic_sha256', {name: value[0] for name, value in stopped.items()})
         record_property('post_exit_stability_checks', 3)
+        receipt_path = Path(primary.cleanup_receipt_path)
+        assert receipt_path.is_file() and receipt_path.resolve().is_relative_to(study.resolve())
+        assert published == [receipt_path]
+        receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
+        assert receipt['schema'] == 1 and receipt['scope'] == 'owned_current_group_only'
+        assert receipt['study'] == str(study.resolve()) and receipt['launcher_pid'] == os.getpid()
+        assert receipt['primary_exception_type'] == error_type.__name__
+        assert receipt['index_sha256'] == original_index_sha
+        assert receipt['jobs'] == [{'run_id': 'first', 'config_sha256': original_config_sha}]
+        worker, = receipt['workers']
+        assert worker['run_id'] == 'first' and worker['pid'] == process.pid
+        assert worker['terminate_requested'] is True and worker['kill_requested'] is False
+        assert worker['direct_exit_confirmed'] is True
+        assert type(worker['returncode']) is int and worker['returncode'] == process.returncode
+        assert worker['cleanup_error_types'] == []
+        assert receipt['cleanup_wait_seconds'] == 5
+        assert receipt['descendants'] == receipt['writer_stop'] == receipt['unreturned_popen'] == 'unknown'
+        record_property('cleanup_receipt_path', str(receipt_path))
+        record_property('cleanup_receipt_sha256', hashlib.sha256(receipt_path.read_bytes()).hexdigest())
     finally:
         for process in processes:
             if process.poll() is None:

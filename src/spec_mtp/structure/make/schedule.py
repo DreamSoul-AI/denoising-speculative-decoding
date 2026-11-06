@@ -7,15 +7,17 @@ import os
 import shlex
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+import uuid
 
 from spec_mtp.structure.algorithm.resume import sibling_train_dependency
 from spec_mtp.structure.artifact.asset import tree as diagnostic_assets
 from spec_mtp.structure.artifact.config.io import load_config
 from spec_mtp.structure.artifact.index import load_index
 from spec_mtp.structure.artifact.layout import validate_run_directory, validate_study_root
-from spec_mtp.structure.artifact.provenance import check_frozen
+from spec_mtp.structure.artifact.provenance import check_frozen, file_sha256
 from spec_mtp.structure.make.expand import load_study_yaml
 from spec_mtp.structure.artifact.result.format import STATUS_SUCCEEDED, decode_result
 from spec_mtp.structure.control.mapping import get_setting
@@ -438,6 +440,41 @@ def launch_job_env(job: dict[str, Any]) -> dict[str, str]:
     return env
 
 
+def _write_interruption_receipt(study_dir: Path, body: dict[str, Any]) -> Path:
+    """Publish once, after child cleanup; partial evidence is never auto-repaired."""
+    study_dir = Path(study_dir).absolute()
+    if study_dir.resolve() != study_dir or body.get('study') != str(study_dir):
+        raise ValueError('interruption receipt requires its admitted canonical Study')
+    attempt_id = uuid.uuid4().hex
+    payload = json.dumps({**body, 'attempt_id': attempt_id}, ensure_ascii=True,
+                         allow_nan=False, separators=(',', ':')) + '\n'
+    if len(payload) > 65536:
+        raise ValueError('interruption receipt exceeds 64 KiB')
+    namespace = study_dir / SCRIPTS_DIRNAME / 'launch-attempts'
+    for directory in (namespace.parent, namespace):
+        if directory.resolve() != directory:
+            raise ValueError('interruption receipt namespace must not be an alias')
+        directory.mkdir(exist_ok=True)
+        if directory.resolve() != directory:
+            raise ValueError('interruption receipt namespace changed')
+    # shortcut: append-only evidence has no automatic retention; deletion needs an ownership policy.
+    attempt = namespace / attempt_id
+    attempt.mkdir()
+    if attempt.resolve() != attempt:
+        raise ValueError('interruption attempt must not be an alias')
+    partial, receipt = attempt / 'partial.json', attempt / 'receipt.json'
+    with partial.open('x', encoding='utf-8', newline='\n') as stream:
+        stream.write(payload)
+        stream.flush()
+        os.fsync(stream.fileno())
+    if attempt.resolve() != attempt or partial.resolve() != partial:
+        raise ValueError('interruption attempt changed before publication')
+    if receipt.exists() or receipt.is_symlink():
+        raise FileExistsError('interruption receipt already exists')
+    os.rename(partial, receipt)
+    return receipt
+
+
 def launch_jobs(
     study_dir: Path,
     jobs: list[dict[str, Any]],
@@ -515,6 +552,9 @@ def launch_jobs(
                 wait_index += 1
             position = f'{wait_index}/{total_waits}' if kind == 'wait' else f'{index}/{total}'
             print(f'launch: {kind} {position} mode={_group_mode(group)}', flush=True)
+            index_sha = file_sha256(study_dir / 'index.json')
+            admitted_jobs = [{'run_id': str(job['run_id']),
+                              'config_sha256': file_sha256(Path(job['config']))} for job in group]
             procs: list[tuple[dict[str, Any], subprocess.Popen[str]]] = []
             try:
                 for job in group:
@@ -546,23 +586,58 @@ def launch_jobs(
                     if code != 0:
                         print(f'error {job["run_id"]} exit={code}', flush=True)
             except BaseException as primary:
-                for _job, proc in procs:
+                workers: list[dict[str, Any]] = []
+                for job, proc in procs:
+                    row: dict[str, Any] = {'run_id': str(job['run_id']), 'terminate_requested': False,
+                                          'kill_requested': False, 'direct_exit_confirmed': False,
+                                          'cleanup_error_types': []}
+                    pid = getattr(proc, 'pid', None)
+                    if type(pid) is int and pid > 0:
+                        row['pid'] = pid
+                    workers.append(row)
+                for (_job, proc), row in zip(procs, workers):
                     try:
                         if proc.poll() is None:
+                            row['terminate_requested'] = True
                             proc.terminate()
                     except BaseException as cleanup:
+                        row['cleanup_error_types'].append(type(cleanup).__name__)
                         setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
-                for _job, proc in procs:
+                for (_job, proc), row in zip(procs, workers):
                     try:
-                        proc.wait(timeout=5)
+                        code = proc.wait(timeout=5)
+                        if type(code) is not int:
+                            raise TypeError('worker wait did not return an integer exit code')
+                        row.update(direct_exit_confirmed=True, returncode=code)
                     except subprocess.TimeoutExpired:
+                        row['wait_timed_out'] = True
                         try:
+                            row['kill_requested'] = True
                             proc.kill()
-                            proc.wait(timeout=5)
+                            code = proc.wait(timeout=5)
+                            if type(code) is not int:
+                                raise TypeError('worker wait did not return an integer exit code')
+                            row.update(direct_exit_confirmed=True, returncode=code)
                         except BaseException as cleanup:
+                            row['cleanup_error_types'].append(type(cleanup).__name__)
                             setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
                     except BaseException as cleanup:
+                        row['cleanup_error_types'].append(type(cleanup).__name__)
                         setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
+                try:
+                    if hasattr(primary, 'cleanup_receipt_path'):
+                        delattr(primary, 'cleanup_receipt_path')
+                    receipt = _write_interruption_receipt(study_dir, {
+                        'schema': 1, 'scope': 'owned_current_group_only', 'study': str(study_dir),
+                        'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+                        'launcher_pid': os.getpid(), 'primary_exception_type': type(primary).__name__,
+                        'cleanup_wait_seconds': 5, 'index_sha256': index_sha, 'jobs': admitted_jobs,
+                        'workers': workers, 'descendants': 'unknown', 'writer_stop': 'unknown',
+                        'unreturned_popen': 'unknown',
+                    })
+                    setattr(primary, 'cleanup_receipt_path', str(receipt))
+                except BaseException as cleanup:
+                    setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
                 raise
         return pairs
 

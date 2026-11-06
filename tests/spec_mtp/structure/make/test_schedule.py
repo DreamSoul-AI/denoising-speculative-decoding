@@ -341,3 +341,238 @@ def test_cancellation_cleanup_preserves_primary_and_attempts_all_owned_workers(
     assert not cleanup_output, 'secondary failures must remain attached without requiring a writable console'
     assert not any(event[0] == 'unrelated' for event in events)
     assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in before} == before
+    receipt = Path(primary.cleanup_receipt_path)
+    assert receipt.name == 'receipt.json' and receipt.parent.parent == case.study / 'scripts/launch-attempts'
+    assert len(receipt.parent.name) == 32 and all(char in '0123456789abcdef' for char in receipt.parent.name)
+    assert {path for path in case.study.rglob('*') if path.is_file()} == {*before, receipt}
+    body = json.loads(receipt.read_bytes())
+    assert body['schema'] == 1 and body['scope'] == 'owned_current_group_only'
+    assert [row['run_id'] for row in body['jobs']] == ['first', 'second']
+    assert [row['run_id'] for row in body['workers']] == ['first', 'second']
+
+
+@pytest.fixture
+def interruption_case(saved_plan, monkeypatch):
+    import hashlib
+    from datetime import datetime, timezone
+
+    case = saved_plan
+    state = SimpleNamespace(primary=KeyboardInterrupt('original wait interrupted'), mode='wait_returned',
+                            spawn_failure=False, on_spawn=None, events=[], spawned=[])
+
+    class Worker:
+        def __init__(self, run_id, pid):
+            self.run_id, self.pid, self.killed = run_id, pid, False
+
+        def poll(self):
+            state.events.append((self.run_id, 'poll'))
+            return None
+
+        def terminate(self):
+            state.events.append((self.run_id, 'terminate'))
+
+        def kill(self):
+            state.events.append((self.run_id, 'kill'))
+            self.killed = True
+
+        def wait(self, timeout=None):
+            state.events.append((self.run_id, 'wait', timeout))
+            if timeout is None:
+                if state.mode == 'normal':
+                    return 0
+                raise state.primary
+            assert timeout == 5
+            if self.run_id == 'first' and state.mode != 'wait_returned':
+                if not self.killed or state.mode == 'kill_wait_timeout':
+                    raise schedule.subprocess.TimeoutExpired('owned-worker', timeout)
+            return -9 if self.killed else -15
+
+    workers = {'first': Worker('first', 1001), 'second': Worker('second', 1002)}
+
+    def popen(command, **kwargs):
+        run_id = command[-1]
+        state.spawned.append(run_id)
+        if state.on_spawn is not None:
+            state.on_spawn(run_id)
+        if state.spawn_failure:
+            raise state.primary
+        return workers[run_id]
+
+    def invoke():
+        with pytest.raises(BaseException) as caught:
+            schedule.launch_jobs(case.study, case.jobs, round_size=2, retry_failed=True, console='shared')
+        assert caught.value is state.primary
+        return getattr(state.primary, 'cleanup_receipt_path', None)
+
+    def body():
+        return {'schema': 1, 'scope': 'owned_current_group_only', 'study': str(case.study.resolve()),
+                'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+                'launcher_pid': os.getpid(), 'primary_exception_type': 'KeyboardInterrupt',
+                'index_sha256': hashlib.sha256((case.study / 'index.json').read_bytes()).hexdigest(),
+                'jobs': [{'run_id': job['run_id'], 'config_sha256': hashlib.sha256(Path(job['config']).read_bytes()).hexdigest()}
+                         for job in case.jobs], 'workers': [], 'descendants': 'unknown',
+                'writer_stop': 'unknown', 'unreturned_popen': 'unknown', 'cleanup_wait_seconds': 5}
+
+    monkeypatch.setattr(schedule.subprocess, 'Popen', popen)
+    state.study, state.jobs, state.invoke, state.body = case.study, case.jobs, invoke, body
+    return state
+
+
+@pytest.mark.parametrize('mode', ['wait_returned', 'kill_wait_returned', 'kill_wait_timeout'])
+def test_interruption_receipt_separates_requests_from_confirmed_direct_exit(interruption_case, mode):
+    from datetime import datetime, timezone
+
+    case = interruption_case
+    case.mode = mode
+    path = Path(case.invoke())
+    body = json.loads(path.read_bytes())
+    assert body['schema'] == 1 and body['scope'] == 'owned_current_group_only'
+    assert body['study'] == str(case.study.resolve()) and body['launcher_pid'] == os.getpid()
+    observed = datetime.fromisoformat(body['observed_at'].replace('Z', '+00:00'))
+    assert observed.tzinfo is not None and observed.utcoffset() == timezone.utc.utcoffset(observed)
+    assert body['primary_exception_type'] == 'KeyboardInterrupt' and body['cleanup_wait_seconds'] == 5
+    assert body['descendants'] == body['writer_stop'] == body['unreturned_popen'] == 'unknown'
+    first, second = body['workers']
+    assert (first['run_id'], first['pid'], second['run_id'], second['pid']) == ('first', 1001, 'second', 1002)
+    assert first['terminate_requested'] is second['terminate_requested'] is True
+    assert first['kill_requested'] is (mode != 'wait_returned') and second['kill_requested'] is False
+    assert second['direct_exit_confirmed'] is True and type(second['returncode']) is int and second['returncode'] == -15
+    if mode == 'kill_wait_timeout':
+        assert first['direct_exit_confirmed'] is False and first.get('returncode') is None
+        assert 'TimeoutExpired' in first['cleanup_error_types']
+    else:
+        assert first['direct_exit_confirmed'] is True and type(first['returncode']) is int
+        assert first['returncode'] == (-9 if mode == 'kill_wait_returned' else -15)
+        assert first['cleanup_error_types'] == []
+    assert not path.with_name('partial.json').exists()
+
+
+def test_interruption_receipt_keeps_unreturned_spawn_ownership_unknown(interruption_case):
+    case = interruption_case
+    case.spawn_failure = True
+    body = json.loads(Path(case.invoke()).read_bytes())
+    assert case.spawned == ['first'] and body['workers'] == []
+    assert [row['run_id'] for row in body['jobs']] == ['first', 'second']
+    assert body['unreturned_popen'] == body['writer_stop'] == body['descendants'] == 'unknown'
+
+
+@pytest.mark.parametrize('failure_type', [OSError, KeyboardInterrupt, SystemExit])
+def test_interruption_publication_failure_is_after_cleanup_and_preserves_primary(interruption_case, monkeypatch, failure_type):
+    case = interruption_case
+    prior = LookupError('old attachment')
+    case.primary.cleanup_errors = (prior,)
+    case.primary.cleanup_receipt_path = 'old receipt pointer'
+    failure = failure_type('private payload; token=never_echo_this')
+    calls = []
+
+    def publish(study, body):
+        calls.append(body)
+        assert study == case.study
+        assert ('first', 'wait', 5) in case.events and ('second', 'wait', 5) in case.events
+        raise failure
+
+    monkeypatch.setattr(schedule, '_write_interruption_receipt', publish, raising=False)
+    assert case.invoke() is None
+    assert len(calls) == 1 and tuple(case.primary.cleanup_errors) == (prior, failure)
+    assert not hasattr(case.primary, 'cleanup_receipt_path')
+
+
+@pytest.mark.parametrize('member', ['index', 'config'])
+def test_interruption_receipt_binds_original_inputs_before_any_spawn(interruption_case, member):
+    import hashlib
+
+    case = interruption_case
+    original = case.body()
+    path = case.study / 'index.json' if member == 'index' else Path(case.jobs[1]['config'])
+
+    def change_after_admission(run_id):
+        if run_id == 'first':
+            path.write_bytes(path.read_bytes() + b' ')
+
+    case.on_spawn = change_after_admission
+    body = json.loads(Path(case.invoke()).read_bytes())
+    assert body['index_sha256'] == original['index_sha256'] and body['jobs'] == original['jobs']
+    if member == 'index':
+        assert body['index_sha256'] != hashlib.sha256(path.read_bytes()).hexdigest()
+    else:
+        assert body['jobs'][1]['config_sha256'] != hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+@pytest.mark.parametrize('fault', ['namespace_alias', 'attempt_alias', 'collision', 'open', 'fsync', 'rename', 'oversized'])
+def test_interruption_publisher_refuses_alias_collision_and_failed_publication(interruption_case, tmp_path, monkeypatch, fault):
+    case = interruption_case
+    body = case.body()
+    namespace = case.study / 'scripts/launch-attempts'
+    before = {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in case.study.rglob('*') if path.is_file()}
+    failure = OSError('controlled publication failure')
+    resolve, mkdir, opened = Path.resolve, Path.mkdir, Path.open
+    collided = []
+
+    def redirected(path, *args, **kwargs):
+        if ((fault == 'namespace_alias' and path.is_relative_to(namespace))
+                or (fault == 'attempt_alias' and path.parent == namespace and len(path.name) == 32)):
+            return resolve(tmp_path / 'outside' / path.relative_to(namespace), *args, **kwargs)
+        return resolve(path, *args, **kwargs)
+
+    def directory(path, *args, **kwargs):
+        if fault == 'collision' and path.parent == namespace:
+            assert not collided, 'a collision must not silently retry a different attempt ID'
+            mkdir(path, parents=True)
+            sentinel = path / 'receipt.json'
+            sentinel.write_bytes(b'old immutable receipt\n')
+            collided.append(sentinel)
+            raise FileExistsError('attempt already exists')
+        return mkdir(path, *args, **kwargs)
+
+    def stream(path, *args, **kwargs):
+        if path.name == 'partial.json' and path.is_relative_to(namespace):
+            raise failure
+        return opened(path, *args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        if fault in ('namespace_alias', 'attempt_alias'):
+            patch.setattr(Path, 'resolve', redirected)
+        elif fault == 'collision':
+            patch.setattr(Path, 'mkdir', directory)
+        elif fault == 'open':
+            patch.setattr(Path, 'open', stream)
+        elif fault == 'fsync':
+            patch.setattr(os, 'fsync', lambda fd: (_ for _ in ()).throw(failure))
+        elif fault == 'rename':
+            patch.setattr(os, 'rename', lambda *args, **kwargs: (_ for _ in ()).throw(failure))
+        else:
+            body['primary_exception_type'] = 'X' * 65536
+        with pytest.raises((ValueError, OSError)):
+            schedule._write_interruption_receipt(case.study, body)
+    assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in before} == before
+    if collided:
+        assert len(collided) == 1 and collided[0].read_bytes() == b'old immutable receipt\n'
+    else:
+        assert not list(namespace.glob('*/receipt.json'))
+
+
+def test_repeated_interruptions_never_overwrite_an_earlier_attempt(interruption_case):
+    case = interruption_case
+    first = Path(case.invoke())
+    original = first.read_bytes(), first.stat().st_mtime_ns
+    case.primary = KeyboardInterrupt('second attempt interrupted')
+    second = Path(case.invoke())
+    assert first != second and second.parent.parent == first.parent.parent
+    assert (first.read_bytes(), first.stat().st_mtime_ns) == original
+    assert set(first.parent.parent.glob('*/receipt.json')) == {first, second}
+
+
+def test_normal_worker_completion_does_not_create_interruption_receipts(interruption_case):
+    case = interruption_case
+    case.mode = 'normal'
+    before = {path: (path.read_bytes(), path.stat().st_mtime_ns)
+              for path in case.study.rglob('*') if path.is_file()}
+    directories = sorted(path.relative_to(case.study).as_posix()
+                         for path in case.study.rglob('*') if path.is_dir())
+    assert schedule.launch_jobs(case.study, case.jobs, round_size=2, console='shared') == [0, 0]
+    assert case.spawned == ['first', 'second']
+    assert not (case.study / 'scripts/launch-attempts').exists()
+    assert {path: (path.read_bytes(), path.stat().st_mtime_ns)
+            for path in case.study.rglob('*') if path.is_file()} == before
+    assert sorted(path.relative_to(case.study).as_posix()
+                  for path in case.study.rglob('*') if path.is_dir()) == directories

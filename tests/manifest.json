@@ -13122,6 +13122,139 @@
         "estimate_basis": "Two bounded real CUDA child cancellation paths passed targeted;10s is a scheduling estimate, not a performance claim.",
         "memory_requirement": "not yet estimated; actual device facts remain in the per-case receipts"
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_interruption_receipt_separates_requests_from_confirmed_direct_exit",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_interruption_receipt_keeps_unreturned_spawn_ownership_unknown",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_interruption_publication_failure_is_after_cleanup_and_preserves_primary",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_interruption_receipt_binds_original_inputs_before_any_spawn",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_interruption_publisher_refuses_alias_collision_and_failed_publication",
+      "target": "spec_mtp.structure.make.schedule._write_interruption_receipt",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_repeated_interruptions_never_overwrite_an_earlier_attempt",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_normal_worker_completion_does_not_create_interruption_receipts",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
     }
   ],
   "plans": {
@@ -14296,7 +14429,14 @@
         "tests/spec_mtp/structure/make/test_write.py::test_expand_budget_admission_precedes_writes_and_ready_reuse_is_read_only",
         "tests/spec_mtp/flow/test_runner.py::test_budget_admission_precedes_phases_and_keeps_failure_result",
         "tests/spec_mtp/structure/make/test_schedule.py::test_dispatch_checks_all_budgeted_runs_before_creating_any_worker",
-        "tests/spec_mtp/structure/make/test_schedule.py::test_cancellation_cleanup_preserves_primary_and_attempts_all_owned_workers"
+        "tests/spec_mtp/structure/make/test_schedule.py::test_cancellation_cleanup_preserves_primary_and_attempts_all_owned_workers",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_interruption_receipt_separates_requests_from_confirmed_direct_exit",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_interruption_receipt_keeps_unreturned_spawn_ownership_unknown",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_interruption_publication_failure_is_after_cleanup_and_preserves_primary",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_interruption_receipt_binds_original_inputs_before_any_spawn",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_interruption_publisher_refuses_alias_collision_and_failed_publication",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_repeated_interruptions_never_overwrite_an_earlier_attempt",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_normal_worker_completion_does_not_create_interruption_receipts"
       ],
       "exclude": []
     },
