@@ -109,6 +109,7 @@ def run(args):
         json.dump([{'qid': prompt['qid'], 'sha256': hashlib.sha256(prompt['text'].encode('utf-8')).hexdigest()}
                    for prompt in prompts], handle, ensure_ascii=False)
     model = HFCausalLM(str(weights), local_files_only=True, torch_dtype='bfloat16', attn_implementation='eager')
+    primary = None
     try:
         model.hf.to(device)
         if torch.device(model.device) != device:
@@ -127,12 +128,20 @@ def run(args):
         with (model_dir / 'replication-summary.json').open('x', encoding='utf-8') as handle:
             json.dump(summary, handle, ensure_ascii=False, indent=2, allow_nan=False)
         print(json.dumps(summary, ensure_ascii=False, allow_nan=False), flush=True)
-        return summary
-    except Exception as exc:
-        logger.exception('fresh protocol failed', exc)
+    except BaseException as exc:
+        primary = exc
+        if isinstance(exc, Exception):
+            logger.exception('fresh protocol failed', exc)
         raise
     finally:
-        model.close()
+        try:
+            model.close()
+        except BaseException as cleanup:
+            if primary is None:
+                raise
+            setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
+    verify_inputs()
+    return summary
 
 
 def main(argv=None):

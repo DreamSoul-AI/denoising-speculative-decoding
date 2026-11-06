@@ -152,3 +152,53 @@ def test_fresh_command_requires_explicit_local_input_device_and_output(missing, 
     with pytest.raises(SystemExit) as caught:
         command.main([part for key, value in values.items() if key != missing for part in (key, value)])
     assert caught.value.code == 2 and not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize('scenario', ['close_only', 'body_error', 'interrupt', 'close_mutates_input', 'ambient_close_only'])
+def test_fresh_cleanup_preserves_primary_and_blocks_completion(local_inputs, monkeypatch, scenario):
+    case = local_inputs
+    close_error = OSError('injected model close failure')
+    primary = (ValueError('body failed') if scenario == 'body_error' else
+               KeyboardInterrupt('body interrupted') if scenario == 'interrupt' else None)
+    body_seen = []
+    from spec_mtp.structure.model import hf_causal
+    from studies.trajectory_observation.structure import fair_branch
+    original = fair_branch.run_split
+    def close(model):
+        case.calls.append(('closed',))
+        if scenario == 'close_mutates_input':
+            case.args.plan.write_bytes(b'changed during close')
+            return
+        raise close_error
+    def body(*values):
+        body_seen.append(True)
+        if primary is not None:
+            raise primary
+        return original(*values)
+    monkeypatch.setattr(hf_causal.HFCausalLM, 'close', close)
+    monkeypatch.setattr(fair_branch, 'run_split', body)
+    expected = primary if primary is not None else close_error
+    ambient = LookupError('caller exception must not become this function primary')
+    with pytest.raises(ValueError if scenario == 'close_mutates_input' else type(expected)) as caught:
+        if scenario == 'ambient_close_only':
+            try:
+                raise ambient
+            except LookupError:
+                command.run(case.args)
+        else:
+            command.run(case.args)
+    assert not hasattr(ambient, 'cleanup_errors')
+    if scenario == 'close_mutates_input':
+        assert 'changed' in str(caught.value)
+    else:
+        assert caught.value is expected
+        assert getattr(expected, 'cleanup_errors', ()) == (() if primary is None else (close_error,))
+    assert body_seen == [True]
+    output = case.args.output
+    assert (output / 'header.json').is_file()
+    assert not (output / 'protocol_complete.json').exists()
+    assert case.calls.count(('closed',)) == 1
+    summary = output / '4b/replication-summary.json'
+    assert summary.exists() is (primary is None)
+    if primary is None:
+        assert json.loads(summary.read_text())['complete'] is True

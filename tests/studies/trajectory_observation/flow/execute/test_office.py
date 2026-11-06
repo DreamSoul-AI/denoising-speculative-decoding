@@ -205,3 +205,87 @@ def test_office_loader_closes_session_when_tokenizer_loading_fails(tmp_path, mon
         else:
             t._load_model('8b', tmp_path, 'cuda:0')
     assert closed == [True]
+
+
+@pytest.mark.parametrize('scenario', ['close_only', 'body_error', 'interrupt', 'close_mutates_input', 'ambient_close_only'])
+def test_office_cleanup_preserves_primary_and_blocks_completion(local_office, monkeypatch, scenario):
+    case = local_office
+    close_error = OSError('injected model close failure')
+    primary = (ValueError('body failed') if scenario == 'body_error' else
+               KeyboardInterrupt('body interrupted') if scenario == 'interrupt' else None)
+    body_seen = []
+    closed = []
+    def close():
+        closed.append(True)
+        if scenario == 'close_mutates_input':
+            case.plan.write_bytes(b'changed during close')
+            return
+        raise close_error
+    def body(*values):
+        body_seen.append(True)
+        if primary is not None:
+            raise primary
+    model = SimpleNamespace(device='cuda:0', dtype='IO admission stub', close=close)
+    monkeypatch.setattr(case.command.q, '_load_model', lambda *values: (model, object(), 'stub'))
+    monkeypatch.setattr(case.command.q, '_offline_caches', lambda root: None)
+    monkeypatch.setattr(case.command.q, '_fit', lambda *values: ({}, {}))
+    monkeypatch.setattr(case.command.q, '_smoke', body)
+    expected = primary if primary is not None else close_error
+    ambient = LookupError('caller exception must not become this function primary')
+    with pytest.raises(ValueError if scenario == 'close_mutates_input' else type(expected)) as caught:
+        if scenario == 'ambient_close_only':
+            try:
+                raise ambient
+            except LookupError:
+                case.command.main(_argv(case, "qwen8b"))
+        else:
+            case.command.main(_argv(case, "qwen8b"))
+    assert not hasattr(ambient, 'cleanup_errors')
+    if scenario == 'close_mutates_input':
+        assert 'changed' in str(caught.value)
+    else:
+        assert caught.value is expected
+        assert getattr(expected, 'cleanup_errors', ()) == (() if primary is None else (close_error,))
+    assert body_seen == [True]
+    output = case.root / 'new-office-run'
+    assert (output / 'protocol_inputs.json').is_file()
+    assert not (output / 'protocol_complete.json').exists()
+    assert closed == [True] and not case.calls
+
+
+@pytest.mark.parametrize('failure_at', ['write', 'close'])
+def test_office_failed_completion_write_removes_only_its_new_marker(local_office, monkeypatch, failure_at):
+    from pathlib import Path
+    case = local_office
+    closed = []
+    model = SimpleNamespace(device='cuda:0', dtype='IO admission stub', close=lambda: closed.append(True))
+    monkeypatch.setattr(case.command.q, '_load_model', lambda *values: (model, object(), 'stub'))
+    monkeypatch.setattr(case.command.q, '_offline_caches', lambda root: None)
+    monkeypatch.setattr(case.command.q, '_fit', lambda *values: ({}, {}))
+    monkeypatch.setattr(case.command.q, '_smoke', lambda *values: None)
+    failure = OSError('injected completion write failure')
+    native = Path.open
+    class BrokenMarker:
+        def __init__(self, stream):
+            self.stream = stream
+        def __enter__(self):
+            return self
+        def write(self, payload):
+            self.stream.write(payload)
+            if failure_at == 'write':
+                raise failure
+        def __exit__(self, *args):
+            self.stream.close()
+            if failure_at == 'close':
+                raise failure
+    def open_file(path, *args, **options):
+        stream = native(path, *args, **options)
+        return BrokenMarker(stream) if path.name == 'protocol_complete.json' and args[0] == 'x' else stream
+    monkeypatch.setattr(Path, 'open', open_file)
+    with pytest.raises(OSError) as caught:
+        case.command.main(_argv(case, "qwen8b"))
+    assert caught.value is failure
+    output = case.root / 'new-office-run'
+    assert (output / 'protocol_inputs.json').is_file()
+    assert not (output / 'protocol_complete.json').exists()
+    assert closed == [True] and not case.calls

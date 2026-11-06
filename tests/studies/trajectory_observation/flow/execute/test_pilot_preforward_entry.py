@@ -201,3 +201,80 @@ def test_pilot_source_identity_limits_git_trust_and_preserves_unknown_state(monk
     assert protocol.source_identity() == ({'git_head': None, 'dirty': None} if unavailable
                                           else {'git_head': 'a' * 40, 'dirty': False})
     assert all(command[:5] == ['git', '-c', 'safe.directory=' + str(root), '-C', str(root)] for command in calls)
+
+
+@pytest.mark.parametrize('scenario', ['close_only', 'body_error', 'interrupt', 'close_mutates_input', 'ambient_close_only'])
+def test_preforward_cleanup_preserves_primary_and_blocks_completion(local_args, monkeypatch, scenario):
+    case = local_args
+    close_error = OSError('injected model close failure')
+    primary = (ValueError('body failed') if scenario == 'body_error' else
+               KeyboardInterrupt('body interrupted') if scenario == 'interrupt' else None)
+    body_seen = []
+    from spec_mtp.structure.model import hf_causal
+    original = case.signals.fit_and_summarize
+    def close(model):
+        case.calls.append(('closed',))
+        if scenario == 'close_mutates_input':
+            case.args.plan.write_bytes(b'changed during close')
+            return
+        raise close_error
+    def body(*values, **options):
+        body_seen.append(True)
+        if primary is not None:
+            raise primary
+        return original(*values, **options)
+    monkeypatch.setattr(hf_causal.HFCausalLM, 'close', close)
+    monkeypatch.setattr(case.signals, 'fit_and_summarize', body)
+    expected = primary if primary is not None else close_error
+    ambient = LookupError('caller exception must not become this function primary')
+    with pytest.raises(ValueError if scenario == 'close_mutates_input' else type(expected)) as caught:
+        if scenario == 'ambient_close_only':
+            try:
+                raise ambient
+            except LookupError:
+                preforward_signal.run(case.args)
+        else:
+            preforward_signal.run(case.args)
+    assert not hasattr(ambient, 'cleanup_errors')
+    if scenario == 'close_mutates_input':
+        assert 'changed' in str(caught.value)
+    else:
+        assert caught.value is expected
+        assert getattr(expected, 'cleanup_errors', ()) == (() if primary is None else (close_error,))
+    assert body_seen == [True]
+    output = case.args.output
+    assert (output / 'header.json').is_file()
+    assert not (output / 'protocol_complete.json').exists()
+    assert case.calls.count(('closed',)) == 1
+
+
+@pytest.mark.parametrize('failure_at', ['write', 'close'])
+def test_preforward_failed_completion_write_removes_only_its_new_marker(local_args, monkeypatch, failure_at):
+    from pathlib import Path
+    case = local_args
+    failure = OSError('injected completion write failure')
+    native = Path.open
+    class BrokenMarker:
+        def __init__(self, stream):
+            self.stream = stream
+        def __enter__(self):
+            return self
+        def write(self, payload):
+            self.stream.write(payload)
+            if failure_at == 'write':
+                raise failure
+        def __exit__(self, *args):
+            self.stream.close()
+            if failure_at == 'close':
+                raise failure
+    def open_file(path, *args, **options):
+        stream = native(path, *args, **options)
+        return BrokenMarker(stream) if path.name == 'protocol_complete.json' and args[0] == 'x' else stream
+    monkeypatch.setattr(Path, 'open', open_file)
+    with pytest.raises(OSError) as caught:
+        preforward_signal.run(case.args)
+    assert caught.value is failure
+    output = case.args.output
+    assert (output / 'header.json').is_file()
+    assert not (output / 'protocol_complete.json').exists()
+    assert case.calls.count(('closed',)) == 1

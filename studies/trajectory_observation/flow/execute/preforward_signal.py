@@ -13,6 +13,7 @@ def run(args):
     from spec_mtp.structure.data.prompts import load_questions
     from spec_mtp.structure.model.hf_causal import HFCausalLM
     from spec_mtp.structure.system.logger import Logger
+    from studies._shared.flow.write.run import publish_new_completion
     from studies.trajectory_observation.structure import preforward_signal as protocol
 
     output, weights, device, data, binding, verify = prepare_local_inputs(args, args.input)
@@ -32,6 +33,7 @@ def run(args):
     logger = Logger(output / 'assets', managed=True)
     logger.info(f"preforward device={device} name={binding['device_name']}")
     model = HFCausalLM(str(weights), local_files_only=True, torch_dtype='bfloat16', attn_implementation='eager')
+    primary = None
     try:
         model.hf.to(device)
         if torch.device(model.device) != device:
@@ -50,13 +52,21 @@ def run(args):
             raise RuntimeError('preforward collection requires both complete 128-prompt sets')
         summary = protocol.fit_and_summarize(calibration, holdout, output, device=device)
         verify()
-    except Exception as exc:
-        logger.exception('preforward protocol failed', exc)
+    except BaseException as exc:
+        primary = exc
+        if isinstance(exc, Exception):
+            logger.exception('preforward protocol failed', exc)
         raise
     finally:
-        model.close()
-    with (output / 'protocol_complete.json').open('x', encoding='utf-8') as handle:
-        json.dump({'protocol': header['protocol'], 'inputs_verified': True, 'device': str(device)}, handle)
+        try:
+            model.close()
+        except BaseException as cleanup:
+            if primary is None:
+                raise
+            setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
+    payload = json.dumps({'protocol': header['protocol'], 'inputs_verified': True, 'device': str(device)})
+    verify()
+    publish_new_completion(output / 'protocol_complete.json', payload)
     return summary
 
 

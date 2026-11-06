@@ -11965,6 +11965,139 @@
         "network": false,
         "model_download": false
       }
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office.py::test_office_cleanup_preserves_primary_and_blocks_completion",
+      "target": "studies.trajectory_observation.flow.execute.office.main",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_cleanup_preserves_primary_and_blocks_completion",
+      "target": "studies.trajectory_observation.flow.execute.fair_branch.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_cleanup_preserves_primary_and_blocks_completion",
+      "target": "studies.trajectory_observation.flow.execute.fresh_replace.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_preforward_cleanup_preserves_primary_and_blocks_completion",
+      "target": "studies.trajectory_observation.flow.execute.preforward_signal.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_office.py::test_office_failed_completion_write_removes_only_its_new_marker",
+      "target": "studies.trajectory_observation.flow.execute.office.main",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_failed_completion_write_removes_only_its_new_marker",
+      "target": "studies.trajectory_observation.flow.execute.fair_branch.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_preforward_failed_completion_write_removes_only_its_new_marker",
+      "target": "studies.trajectory_observation.flow.execute.preforward_signal.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
     }
   ],
   "plans": {
@@ -13048,7 +13181,14 @@
         "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_output_space_prerequisite_figure_cleanup_is_part_of_completion",
         "tests/studies/output_space_small_matrix/flow/write/test_small_matrix_plots.py::test_output_space_small_matrix_figure_cleanup_is_part_of_completion",
         "tests/studies/output_space_cross_task/flow/write/test_cross_task_plot.py::test_output_space_cross_task_figure_cleanup_is_part_of_completion",
-        "tests/studies/smoke/flow/write/test_smoke_plot.py::test_historical_smoke_figure_cleanup_is_part_of_completion"
+        "tests/studies/smoke/flow/write/test_smoke_plot.py::test_historical_smoke_figure_cleanup_is_part_of_completion",
+        "tests/studies/trajectory_observation/flow/execute/test_office.py::test_office_cleanup_preserves_primary_and_blocks_completion",
+        "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_cleanup_preserves_primary_and_blocks_completion",
+        "tests/studies/trajectory_observation/flow/execute/test_fresh_replace_entry.py::test_fresh_cleanup_preserves_primary_and_blocks_completion",
+        "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_preforward_cleanup_preserves_primary_and_blocks_completion",
+        "tests/studies/trajectory_observation/flow/execute/test_office.py::test_office_failed_completion_write_removes_only_its_new_marker",
+        "tests/studies/trajectory_observation/flow/execute/test_fair_branch_entry.py::test_fair_failed_completion_write_removes_only_its_new_marker",
+        "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_preforward_failed_completion_write_removes_only_its_new_marker"
       ],
       "exclude": []
     },

@@ -12,6 +12,7 @@ def run(args):
     from transformers import AutoTokenizer
     from spec_mtp.structure.model.hf_causal import HFCausalLM
     from spec_mtp.structure.system.logger import Logger
+    from studies._shared.flow.write.run import publish_new_completion
     from studies.trajectory_observation.structure import fair_branch as protocol
     from studies.trajectory_observation.structure.fresh_replace import prompt_sha256
 
@@ -32,6 +33,7 @@ def run(args):
     model_dir = output / args.model
     model_dir.mkdir()
     model = HFCausalLM(str(weights), local_files_only=True, torch_dtype='bfloat16', attn_implementation='eager')
+    primary = None
     try:
         model.hf.to(device)
         if torch.device(model.device) != device:
@@ -44,14 +46,22 @@ def run(args):
         if not summary.get('complete') or summary.get('argmax_all_passed') is not True:
             raise RuntimeError('fair replacement finished without both complete audited arms')
         verify_inputs()
-    except Exception as exc:
-        logger.exception('fair replacement failed', exc)
+    except BaseException as exc:
+        primary = exc
+        if isinstance(exc, Exception):
+            logger.exception('fair replacement failed', exc)
         raise
     finally:
-        model.close()
-    with (output / 'protocol_complete.json').open('x', encoding='utf-8') as handle:
-        json.dump({'protocol': protocol.PROTOCOL, 'split': args.split,
-                   'inputs_verified': True, 'device': str(device)}, handle, allow_nan=False)
+        try:
+            model.close()
+        except BaseException as cleanup:
+            if primary is None:
+                raise
+            setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
+    payload = json.dumps({'protocol': protocol.PROTOCOL, 'split': args.split,
+                          'inputs_verified': True, 'device': str(device)}, allow_nan=False)
+    verify_inputs()
+    publish_new_completion(output / 'protocol_complete.json', payload)
     logger.info('fair replacement completed with verified inputs')
     return summary
 

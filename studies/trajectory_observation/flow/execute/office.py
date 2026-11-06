@@ -108,10 +108,12 @@ def main(argv=None):
     with (dest / 'protocol_inputs.json').open('x', encoding='utf-8') as handle:
         json.dump(binding, handle, ensure_ascii=False, indent=2, allow_nan=False)
     from spec_mtp.structure.system.logger import Logger
+    from studies._shared.flow.write.run import publish_new_completion
 
     logger = Logger(dest / 'assets', managed=True)
     logger.info(f"office device={device} name={binding['device_name']} stage={args.only}")
     model = None
+    primary = None
     try:
         if args.command == 'qwen8b':
             model, tokenizer, _version = q._load_model(weights, device)
@@ -145,15 +147,23 @@ def main(argv=None):
                     else:
                         (tr.gscan_formal if args.protocol == 'gscan' else tr._formal)(model, tokenizer, prompts, skipped, digest, dest, cfg)
         verify_inputs()
-        with (dest / 'protocol_complete.json').open('x', encoding='utf-8') as handle:
-            json.dump({'inputs_verified': True, 'device': str(device)}, handle)
-        logger.info('office protocol completed with verified inputs')
-    except Exception as exc:
-        logger.exception('office protocol failed', exc)
+    except BaseException as exc:
+        primary = exc
+        if isinstance(exc, Exception):
+            logger.exception('office protocol failed', exc)
         raise
     finally:
         if model is not None:
-            model.close()
+            try:
+                model.close()
+            except BaseException as cleanup:
+                if primary is None:
+                    raise
+                setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
+    payload = json.dumps({'inputs_verified': True, 'device': str(device)})
+    verify_inputs()
+    publish_new_completion(dest / 'protocol_complete.json', payload)
+    logger.info('office protocol completed with verified inputs')
     return 0
 
 
