@@ -2,18 +2,15 @@
 更新日期：2026年11月6日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-研究冻结，基线06dbdbe；Bug#5的可写外置缓存配置与原90秒launch门保持。本轮已实现并验收一个中断前置合同：托管Logger构造和写入只尝试一次非阻塞进程内写锁；锁忙不进入锁内文件操作，沿既有failure_count/last_error_type与首次安全应急提示报告诊断失败。严格直接API仍等待写锁，成功取得者无论正常、异常或取消均释放自己持有的锁；未取得者不得释放别人的锁。不新增参数、队列、线程writer或日志状态字段。
+研究冻结，基线3d2152d，原90秒launch门和可写外置缓存保持。本轮选定新诊断家族的显式prepare→seal→purge合同：仅尚未建立logs目录、未执行的Run可接管；required/pending从创建起阻止降回普通捕获，原生OS锁串行化每次构造/追加。seal取得锁后永久撤销写权，再冻结精确家族SHA；这证明受协议约束的写入停止，不证明业务进程退出。
 
-验收先真实持锁复现托管排队，再验证托管调用能在持锁者释放前结束、严格调用在释放后完成且记录保全；覆盖构造/追加、普通错误/取消时释放、业务Result及CUDA checkpoint路径。仅该锁内sink操作不执行，report/exception的前置callback、已有writer的OS调用和stdout/stderr仍同步，不能宣称整个Logger调用或底层I/O有硬超时；锁忙可能丢诊断，失败计数不等于记录完整性。
+purge要求显式Run与匹配seal SHA，操作方负责复核引用和处置范围；只删封存列举的JSONL/分段与policy，不删目录、legacy、未知成员、模型、数据或Result。控制marker/lock/seal/journal永久保留；首个unlink前写pending journal，取消或部分失败保持封闭、不记完成、不自动续删/重开。接管拒绝旧目录，锁忙拒绝而不等待，错误身份/字节漂移在删除前拒绝；默认未接管根保持原合同。OS锁只采用本机原生Windows/POSIX后端，未知后端拒绝，无软锁替代。
 
-| **步骤与预估** | **目标** | **验收** |
-| --- | --- | --- |
-| 合同与边界，12分钟 | 核清理对象/所有权、跨Run预算、硬I/O中断语义 | 明确本步只消除托管锁排队；另外三项延期原因及恢复条件留第五章 |
-| 最小实现，23分钟 | 既有Logger私有锁context复用到两处 | 真实RED→GREEN，strict原并发断言不改，无配置/调用方扩散 |
-| 回归与独审，15分钟 | 原CPU根、完整CUDA与native/诊断合同 | 实际RTX5090Dv2写日志，原90秒和300秒预算不变，无skip/过滤/CPU数值替代 |
-| 交付，10分钟 | 普通推本分支更新DraftPR106 | 原参数/元数据保留，既有周末路线清楚，无研究或CI变更 |
+跨Run预留责任确定为未来显式新Study根、有限Run集合、派发前固定份额，失败/取消/崩溃不退款或挪用；控制字节及各份额总和必须受预算约束，required声明和全部执行入口尚未接入，故本轮不称硬配额。硬I/O中断必须由独立执行owner负责停止派发、确认取消/退出及超时后未知写入，不能以调用者返回、PID标签或线程等待替代；当前同步文件/console I/O仍无硬时限，本轮不新增后台框架。
 
-TEMP/TMP及本轮scratch仅D:/Grok Bot/tmp/grokbot/sd/round57。物理删除延期：缺可处置家族及引用/停止writer的可靠证明，过期policy和成功Result均不足；跨Run硬配额延期：缺跨进程预留/提交与根集合，先盘点再写有竞态；OS级硬I/O超时延期：缺独立可中断owner、超时后仍在写的处置及退出语义，future等待超时不足。三项按第五章恢复，不用本步锁准入冒充完成。旧Run/来源/stash保留。
+验收：旧根字节与原API；接管争用/别名/旧目录拒绝；独立进程持锁拒绝及强制退出后OS释放；封存后新旧Logger均不能追加；错误sealSHA/新增成员/改字节在首unlink前拒绝；部分删除普通错误/取消保journal与余件；正常清理仅精确家族，模型/Result/哨兵保持；真实CUDA计算/checkpoint不因封存诊断反转。原CPU/CUDA/native/诊断、元数据和原预算保持，完成后普通推本分支维护DraftPR106。
+
+本轮预估：合同15分钟、实现20分钟、验收15分钟、交付10分钟。TEMP/TMP及scratch仅D:/Grok Bot/tmp/grokbot/sd/round58，旧Run、研究正文及stash不动。只在新临时测试根实际清理，不对历史目录执行处置。
 
 # 二、六类核对与落实
 | **类别** | **已有实现条件** | **仍需完成的具体差距** |
@@ -21,7 +18,7 @@ TEMP/TMP及本轮scratch仅D:/Grok Bot/tmp/grokbot/sd/round57。物理删除延�
 | 目录结构 | 宿主和Study按structure/flow分工，薄入口调用实际部件；配置和tracker装配复用既有工厂，不另建facade | 冻结顶层legacy保持为空；父包仅标识职责，普通部件使用canonical leaf导入。仍需核其余科学子包公开面与尚未镜像的测试，不推广本次范围 |
 | 配置与支持版本 | 文件 SHA256 统一使用 provenance.file_sha256 的有界流式读取，去除 Python 3.11 专属 file_digest 依赖 | Python 3.10 尚未实机运行，test_package 的 tomllib importorskip 会阻断该版本的严格计划，需确定测试兼容策略；不可据模拟缺 API 测试声称全版本支持 |
 | 入口脚本 | 共用 launch_once 委托 shared CLI，fingerprint/profile 归统一 diagnostics flow；专用入口包含 fresh、office、fair、pilot/preforward 和 hybrid_gain | 已登记顶层遗留、structure命令及直接盘符清单均为空；旧配置、拼接路径与间接装配仍须逐消费者审查，不据清单归零宣称全项目合规 |
-| 日志与输出 | 诊断JSONL有界/分段与托管隔离保持；新空policy冻结单Run64MiB/7天追加窗口，logs --inventory只读盘点已实现，旧文本只读 | 显式外部根、输出独占与源码/输入核验保持。14个Study创建点已采用managed，wiring与实际入口回归分开登记；物理保留期/跨Run总量、同步OSIO硬超时及跨进程同Run共写仍缺 |
+| 日志与输出 | 诊断JSONL有界/分段与托管隔离保持；新空policy冻结单Run64MiB/7天追加窗口，logs --inventory只读盘点已实现，旧文本只读 | 显式外部根、输出独占与源码/输入核验保持。14个Study创建点已采用managed，wiring与实际入口回归分开登记；新owned家族已提供显式封存/清除及跨进程互斥；自动保留期、旧/未接管根、跨Run总量及同步OSIO硬超时仍缺 |
 | 测试 | 新增行为和失败用例逐项登记，归细 target 与层级，静态直接反向导入清单归零；真实 CUDA 计划成本标 C3 并声明单卡及时间估计 | 其余用例仍大量继承 integration，target 较宽；numeric和测量粒度的空/缺/无效结果门及终态已实现，纯测量不计质量通过；批次Markdown报告及同run/plan/HEAD证据核验已实现；附件式原始证据和更细结果协议仍待按实际需求裁剪；read_plan按实际枚举与被选计划核成本/资源语义；显存需求仍待估计，需逐用例复核，不能只以字段存在认定合规 |
 | 文档 | 九类文档保持职责，研究问题和工程待办分开；设计与实际差距、日期记录和固定来源分别定位 | 提供固定 Git 原件只读接口，槽位与followup分析已迁入两柱；其余完整分析器仍依赖旧工具/计划映射，原 helper 身份存在未知，不能替换路径冒充同一来源 |
 
@@ -44,7 +41,7 @@ Tracker曲线读取与调度新鲜度的两条ponytail成本说明继续有效�
 
 | **顺序与类别** | **输入、下一步与验收** | **停止条件** |
 | --- | --- | --- |
-| P1 技术债：物理处置（延期） | 运行管理者先给可处置诊断家族/根、保留引用和跨进程停写证明，再冻结清单。验收应拒绝活跃或未知writer、来源引用、alias/hardlink与身份/尺寸漂移，证明模型/数据/checkpoint/原snapshot不受影响 | schema1 owner、expired/capacity、成功Result或局部写锁均不是删除许可/停写证明；输入未齐保持retain，不实施删除器 |
+| P1 技术债：自动保留期与旧根迁移（延期） | 新owned家族的显式prepare/seal/purge已提供。自动到期或历史根另须给出处置授权、引用审查、可确认的writer协议与停止证据，未知保持retain；验收保全模型/数据/checkpoint/原snapshot | 不把policy owner、expired/capacity、成功Result或进程内锁当旧根可删依据；不收编已有logs，不把手动新家族处置写成全盘/自动TTL完成 |
 | P1 技术债：跨Run配额（延期） | 先冻结根集合、诊断字节口径及跨进程预留/提交责任。验收两writer各自可容纳而合计超限时不能同时准入，并覆盖失败/崩溃后的已写字节与预留归属，未知用量不能假零 | inventory只作观察，盘点后追加有竞态；未定一致性与崩溃责任不宣称硬配额，不删除旧Run腾空间 |
 | P1 技术债：硬I/O中断（延期） | 先定义可等待时长、可中断I/O的执行owner及超时后仍在写的处置；验收分别记录调用者结束、writer停止和文件实际变化，拿不到停止证明保未知，不自动重试同Run | 本轮非阻塞准入只消除进程内锁排队；已进入的OS调用、前置callback与stdout/stderr仍同步，future等待超时不等于OSIO停止，不加后台writer冒充硬保证 |
 | 技术债：取得hf前及异常引用 | 固定版本loader的TypeError误重试和两处取消清理已完成；输入仍限既有有限pre-session CUDA探针与真实owner，第三方loader/训练内部帧及外部引用不保证即时释放，按实际场景核验 | 单一受控故障不推广所有路径；不据probe的clear_frames加入生产清帧或宣称自然泄漏/即时显存释放 |

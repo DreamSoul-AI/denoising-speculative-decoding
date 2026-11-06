@@ -12639,6 +12639,275 @@
         "network": false,
         "model_download": false
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_retention_logs_dispatches_only_the_selected_registered_run",
+      "target": "spec_mtp.structure.artifact.readout.logs.retention_logs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_retention_logs_rejects_invalid_run_or_action_before_mutation",
+      "target": "spec_mtp.structure.artifact.readout.logs.retention_logs",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_study_cli.py::test_logs_retention_emits_only_the_complete_core_receipt",
+      "target": "spec_mtp.flow.study_cli.main",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_study_cli.py::test_logs_retention_requires_an_explicit_unambiguous_action",
+      "target": "spec_mtp.flow.study_cli.main",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_study_cli.py::test_logs_retention_failure_is_safe_and_cancellation_propagates",
+      "target": "spec_mtp.flow.study_cli.main",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_closed_capture_marker_fences_old_and_new_loggers_before_any_write",
+      "target": "spec_mtp.structure.artifact.asset.tree.diagnostic_write_guard",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_capture_prepare_preflights_ownership_without_changing_existing_files",
+      "target": "spec_mtp.structure.artifact.asset.tree.prepare_diagnostic_capture",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_capture_seal_and_purge_only_the_exact_rotated_family",
+      "target": "spec_mtp.structure.artifact.asset.tree.purge_sealed_diagnostics",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_seal_refuses_untrusted_members_and_keeps_the_capture_closed",
+      "target": "spec_mtp.structure.artifact.asset.tree.seal_diagnostic_capture",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_purge_rejects_changed_binding_before_any_unlink",
+      "target": "spec_mtp.structure.artifact.asset.tree.purge_sealed_diagnostics",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_purge_second_unlink_failure_stays_pending_and_cannot_retry",
+      "target": "spec_mtp.structure.artifact.asset.tree.purge_sealed_diagnostics",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_native_capture_lease_busy_then_owned_process_exit_releases_it",
+      "target": "spec_mtp.structure.artifact.asset.tree._diagnostic_lease",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_capture_bootstrap_races_leave_a_fence_and_never_publish_extra_bytes",
+      "target": "spec_mtp.structure.artifact.asset.tree.prepare_diagnostic_capture",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_owned_diagnostic_retention_preserves_cuda_compute_and_checkpoint",
+      "target": "spec_mtp.structure.system.factory.SystemFactory.build",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false,
+        "estimated_device_seconds": 10,
+        "estimate_basis": "Two bounded real CUDA Linear and checkpoint paths after explicit seal/purge passed targeted in3.80s;10s is scheduling budget, not a performance claim.",
+        "memory_requirement": "not yet estimated; actual device facts remain in per-case receipts"
+      }
     }
   ],
   "plans": {
@@ -13256,6 +13525,10 @@
         {
           "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_busy_diagnostics_do_not_block_cuda_checkpoint_integration",
           "reason": "Requires an actual CUDA Linear and checkpoint under diagnostic-lock contention; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_owned_diagnostic_retention_preserves_cuda_compute_and_checkpoint",
+          "reason": "Requires a real CUDA device; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -13775,7 +14048,20 @@
         "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostic_model_cleanup_preserves_primary_and_reverse_order",
         "tests/spec_mtp/structure/system/test_logger.py::test_logger_contention_retains_strict_and_isolates_managed_writes",
         "tests/spec_mtp/structure/system/test_logger.py::test_logger_releases_only_its_owned_lock_after_sink_errors",
-        "tests/spec_mtp/flow/test_runner.py::test_busy_managed_diagnostics_preserve_formal_flow_results"
+        "tests/spec_mtp/flow/test_runner.py::test_busy_managed_diagnostics_preserve_formal_flow_results",
+        "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_retention_logs_dispatches_only_the_selected_registered_run",
+        "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_retention_logs_rejects_invalid_run_or_action_before_mutation",
+        "tests/spec_mtp/flow/test_study_cli.py::test_logs_retention_emits_only_the_complete_core_receipt",
+        "tests/spec_mtp/flow/test_study_cli.py::test_logs_retention_requires_an_explicit_unambiguous_action",
+        "tests/spec_mtp/flow/test_study_cli.py::test_logs_retention_failure_is_safe_and_cancellation_propagates",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_closed_capture_marker_fences_old_and_new_loggers_before_any_write",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_capture_prepare_preflights_ownership_without_changing_existing_files",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_capture_seal_and_purge_only_the_exact_rotated_family",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_seal_refuses_untrusted_members_and_keeps_the_capture_closed",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_purge_rejects_changed_binding_before_any_unlink",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_purge_second_unlink_failure_stays_pending_and_cannot_retry",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_native_capture_lease_busy_then_owned_process_exit_releases_it",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_capture_bootstrap_races_leave_a_fence_and_never_publish_extra_bytes"
       ],
       "exclude": []
     },
@@ -13923,7 +14209,8 @@
         "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_failed_session_constructor_respects_real_cuda_model_ownership",
         "tests/studies/trajectory_observation/structure/test_pilot.py::test_training_factory_delegates_eval_once_to_session_admission_on_cuda",
         "tests/cuda/spec_mtp/flow/test_cli.py::test_cuda_cli_cleanup_cancellation_still_closes_its_real_model",
-        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_busy_diagnostics_do_not_block_cuda_checkpoint_integration"
+        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_busy_diagnostics_do_not_block_cuda_checkpoint_integration",
+        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_owned_diagnostic_retention_preserves_cuda_compute_and_checkpoint"
       ],
       "exclude": [],
       "resources": {

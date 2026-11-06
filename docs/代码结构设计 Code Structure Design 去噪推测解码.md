@@ -89,6 +89,8 @@ flowchart TB
 
 Logger的进程内锁准入留在system/logger.py同一类的私有context，构造与_emit复用，不增加模块或调用方配置。CPU镜像验证managed/strict竞争、锁所有权及取消，FlowRunner镜像验证正式Result，CUDA system/factory镜像验证真实设备上的模型与checkpoint不被托管锁竞争阻断；原严格并发写入、policy及来源断言保留。
 
+owned诊断家族的控制状态、原生OS锁、封存清单和精确清理由既有artifact/asset/tree.py承接；system/logger.py在每次写准入复用该guard并重验bootstrap绑定。现有logs入口编排显式prepare/seal/purge，readout/logs.py只解析已登记规范Run目标，不承担删除。CPU镜像覆盖跨进程所有权与失败/取消，CUDA system/factory镜像验证封存不改计算/checkpoint；不新建通用lease框架或并行文档。
+
 P1只读小步已落实到既有logs入口的--inventory。asset/tree统一4KiB采集policy校验与64MiB/7天常量，system/logger以原私有别名保创建合同，在原写锁内调用同一校验；未增加转导出或生产模块。tree仅枚举events.jsonl、连续编号段、events.policy.json和run.log，核regular、无alias/hardlink及完整段序，前后比家族和dev/ino/nlink/size/mtime_ns，不以atime判断漂移。列举或metadata的OSError传播，不能当空家族；缺日志目录才给已知零。bytes含legacy，capture_bytes只含JSONL与policy；捕获状态为unbound/expired/capacity/within_limits，未知字段None，均retain。readout/logs按index绑定精确Run-relative路径，拒绝绝对路径、..、跨Run引用、目录alias及重复run_id/规范Run目录；唯一性只在inventory调用内核验，不改load_index/defaultlogs/写端；flow/study_cli全构造后一次输出ASCII JSON，准入/读取/构造失败为安全异常类别和退出2、无半份stdout，不承诺stdout故障原子性。默认logs及strict/managed写端原合同保持；盘点不读诊断正文、不建锁/Run、不删原件，也不承担物理TTL、跨Run配额或OSIO硬超时。实际验收从日期记录定位。
 
 # 五、源码与制品

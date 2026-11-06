@@ -123,3 +123,99 @@ def test_inventory_logs_rejects_duplicate_run_id_or_directory_across_experiments
         logs_readout.inventory_logs(tmp_path)
     assert {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in tmp_path.rglob('*') if p.is_file()} == before
     assert sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob('*') if p.is_dir()) == directories
+
+
+@pytest.mark.parametrize('action', ['prepare', 'seal', 'purge'])
+def test_retention_logs_dispatches_only_the_selected_registered_run(tmp_path, monkeypatch, action):
+    from spec_mtp.structure.artifact.asset import tree as asset_tree
+
+    runs = [{'id': 'id1', 'run_dir': 'r1'}, {'id': 'id2', 'run_dir': 'r2'}]
+    (tmp_path / 'index.json').write_text(json.dumps({'experiments': [{'runs': runs}]}), encoding='utf-8')
+    for run in runs:
+        (tmp_path / 'runs' / run['run_dir']).mkdir(parents=True)
+    before = {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}
+    calls = []
+    seal_sha = 'a' * 64
+
+    def prepare(anchor):
+        calls.append(('prepare', anchor))
+        return {'state': 'ready'}
+
+    def seal(anchor):
+        calls.append(('seal', anchor))
+        return seal_sha
+
+    def purge(anchor, expected):
+        calls.append(('purge', anchor, expected))
+        return {'state': 'purged', 'deleted_files': ['events.jsonl']}
+
+    monkeypatch.setattr(asset_tree, 'prepare_diagnostic_capture', prepare, raising=False)
+    monkeypatch.setattr(asset_tree, 'seal_diagnostic_capture', seal, raising=False)
+    monkeypatch.setattr(asset_tree, 'purge_sealed_diagnostics', purge, raising=False)
+    body = logs_readout.retention_logs(tmp_path, 'id2', action,
+                                       seal_sha256=seal_sha if action == 'purge' else None)
+    anchor = tmp_path / 'runs/r2/assets/logs/events.jsonl'
+    assert calls == [(action, anchor, seal_sha) if action == 'purge' else (action, anchor)]
+    assert body['scope'] == 'run_diagnostics_only' and body['run_id'] == 'id2' and body['action'] == action
+    assert body['state'] == {'prepare': 'ready', 'seal': 'sealed', 'purge': 'purged'}[action]
+    if action == 'seal':
+        assert body['seal_sha256'] == seal_sha
+    assert {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()} == before
+    assert not (tmp_path / 'runs/r1/assets').exists() and not (tmp_path / 'runs/r2/assets').exists()
+
+
+@pytest.mark.parametrize('fault', [
+    'unregistered', 'duplicate_id', 'duplicate_root', 'cross_run_log', 'parent_run_dir',
+    'run_alias', 'missing_run', 'existing_result', 'wrong_action', 'missing_seal', 'extra_seal',
+])
+def test_retention_logs_rejects_invalid_run_or_action_before_mutation(tmp_path, monkeypatch, fault):
+    from spec_mtp.structure.artifact.asset import tree as asset_tree
+
+    runs = [{'id': 'id1', 'run_dir': 'r1'}, {'id': 'id2', 'run_dir': 'r2'}]
+    for run in runs:
+        (tmp_path / 'runs' / run['run_dir']).mkdir(parents=True)
+    action, run_id, seal_sha = 'prepare', 'id1', None
+    if fault == 'unregistered':
+        run_id = 'unknown'
+    elif fault == 'duplicate_id':
+        runs[1]['id'] = 'id1'
+    elif fault == 'duplicate_root':
+        runs[1]['run_dir'] = 'r1'
+    elif fault == 'cross_run_log':
+        runs[0]['log'] = 'runs/r2/assets/logs/events.jsonl'
+    elif fault == 'parent_run_dir':
+        runs[0]['run_dir'] = '../r2'
+    elif fault == 'missing_run':
+        (tmp_path / 'runs/r1').rmdir()
+    elif fault == 'existing_result':
+        (tmp_path / 'runs/r1/result.json').write_bytes(b'{"status":"succeeded"}\n')
+    elif fault == 'wrong_action':
+        action = 'delete_everything'
+    elif fault == 'missing_seal':
+        action = 'purge'
+    elif fault == 'extra_seal':
+        seal_sha = 'a' * 64
+    (tmp_path / 'index.json').write_text(json.dumps({'experiments': [{'runs': [run]} for run in runs]}), encoding='utf-8')
+    before = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in tmp_path.rglob('*') if p.is_file()}
+    directories = sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob('*') if p.is_dir())
+
+    def forbidden(*args, **kwargs):
+        pytest.fail('an invalid selection must not reach a mutating core operation')
+
+    for name in ('prepare_diagnostic_capture', 'seal_diagnostic_capture', 'purge_sealed_diagnostics'):
+        monkeypatch.setattr(asset_tree, name, forbidden, raising=False)
+    resolve = Path.resolve
+    run_root = tmp_path / 'runs/r1'
+
+    def redirected(path, *args, **kwargs):
+        if path.is_relative_to(run_root):
+            return resolve(tmp_path / 'runs/r2' / path.relative_to(run_root), *args, **kwargs)
+        return resolve(path, *args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        if fault == 'run_alias':
+            patch.setattr(Path, 'resolve', redirected)
+        with pytest.raises((ValueError, FileNotFoundError)):
+            logs_readout.retention_logs(tmp_path, run_id, action, seal_sha256=seal_sha)
+    assert {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in tmp_path.rglob('*') if p.is_file()} == before
+    assert sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob('*') if p.is_dir()) == directories

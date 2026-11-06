@@ -95,6 +95,10 @@ epoch预算与早停另有独立进程CUDA对照，固定评估分数只用于�
 
 托管Logger构造/追加对进程内写锁只作一次非阻塞准入；锁忙沿既有诊断失败计数与安全应急提示处理，业务继续。严格Logger仍等待并序列化写入。竞争可能形成诊断缺口；构造被拒的实例不会自动补建日志根，后续可保持unbound。该合同只消除锁排队，前置callback、当前writer和console仍同步，不提供物理清理、跨Run配额或OS级硬I/O超时。
 
+新、未执行Run可在首次Logger前显式接管诊断家族：`python -m studies._shared.flow.cli logs <外部Study> --retention prepare --run-id <ID>`；已有logs目录、Result、旧根或不可信路径拒绝。随后正常运行沿用原入口。需要处置时先 `logs <外部Study> --retention seal --run-id <ID>` 撤销当前协议内新旧Logger的追加权并取得seal SHA，再由运行管理者审查引用并显式调用 `logs <外部Study> --retention purge --run-id <ID> --seal-sha256 <SHA>`。只清除封存列举且复核相同的JSONL/分段与policy，不删除目录、legacy、未知成员、模型、数据或Result。
+
+`assets/.diagnostic-capture.json`、`assets/.diagnostic-capture.lock`、`assets/.diagnostic-capture.seal.json`、`assets/.diagnostic-capture.purge.json` 为永久控制，不清除或手动重建；原生OS锁只用本机Windows/POSIX后端，无软锁替代。pending/closed/部分失败保持封闭，不自动重试、补建或恢复捕获；文件锁释放不等于业务进程退出，封存也不表示科学完成或日志完整。仅保证当前协作协议内的writer，不覆盖旧版本、外部直接写入或非协作替换；不提供自动到期回收、旧Run收编、跨Run配额或OS级硬I/O超时。默认日志及只读inventory保持原用途，inventory统计诊断内容，不把控制journal当科学完成凭证。
+
 # 三、开发与验证
 工作分支经 PR 面向 `dev`，完成检查并按当次明确授权集成，不自动发布。当前 HEAD 的本地结果、历史红项和未覆盖范围记在 PR 正文，不用旧提交结果代替。
 
@@ -136,6 +140,6 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 宿主CPU安全合同运行 `python -m pytest tests/spec_mtp`，真实CUDA合同运行 `python -m pytest tests/cuda/spec_mtp`；两根分别完整镜像源码相对路径，`python -m pytest tests` 仍收集两者。GPU入口先核CUDA可用并记录实际设备，保留设备、RNG、模型与张量断言，不提供无GPU回退。未知方法拒绝等纯结构guard留在CPU根，现有workflow命令不变，也不通过收集过滤或skip选择资源。
 
-登记1027函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别874/512/141/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1046参数、CUDA根279参数；本轮新增4函数20参数，分别为宿主CPU18与CUDA2，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
+登记1041函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别887/525/142/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1113参数、CUDA根281参数；本轮新增14函数69参数，分别为CPU67与CUDA2，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
 
 已有Kalman/EMA的P0 CUDA核验按独立参考区分递推、状态时序与研究收益：EMA闭式历史、标量Joseph、逐维/残差与对角增益各自验证；Online/Aligned每轮首commit，Hybrid last为实际末commit（截断时不保证bonus）。已修非有限噪声参数准入与forget=1除零，端点关闭Q/R自适应而P/F仍更新。局部正确性不证明Kalman建模最优或真实模型加速，成果与来源缺口见唯一研究计划。

@@ -19,7 +19,7 @@ from spec_mtp import __version__
 from spec_mtp.structure.artifact.asset import kinds
 from spec_mtp.structure.artifact.asset.tree import (
     CAPTURE_MAX_BYTES as _TOTAL_BYTES, CAPTURE_WINDOW as _WRITE_WINDOW,
-    diagnostic_files, read_capture_policy,
+    diagnostic_files, read_capture_policy, diagnostic_write_guard, check_diagnostic_binding,
 )
 
 _RUNTIME_ID = uuid.uuid4().hex
@@ -60,12 +60,12 @@ class Logger:
         self.stop_reason: str | None = None
         self._reported_stop = False
         self.assets_dir = Path(assets_dir)
-        parts = self.assets_dir.parts
-        self.run_id = parts[-2] if len(parts) >= 3 and parts[-1] == 'assets' and parts[-3] == 'runs' else None
+        location_parts = self.assets_dir.parts
+        self.run_id = location_parts[-2] if len(location_parts) >= 3 and location_parts[-1] == 'assets' and location_parts[-3] == 'runs' else None
         self.runtime_id = f'{os.getpid()}:{_RUNTIME_ID}'
         self.path = self.assets_dir / kinds.RUN_LOG
         with self._guard():
-            with self._write_lock():
+            with self._write_lock() as owned:
                 self.path.parent.resolve().relative_to(self.assets_dir.resolve())
                 parts = diagnostic_files(self.path)
                 policy = self.path.with_name('events.policy.json')
@@ -80,6 +80,7 @@ class Logger:
                                 and (not legacy.is_file() or legacy.stat().st_size))):
                         return
                 self.path.parent.mkdir(parents=True, exist_ok=True)
+                check_diagnostic_binding(self.path, owned)
                 if not self.path.exists():
                     with self.path.open('x', encoding='utf-8'):
                         pass
@@ -95,11 +96,12 @@ class Logger:
                         handle.flush()
 
     @contextmanager
-    def _write_lock(self) -> Iterator[None]:
+    def _write_lock(self) -> Iterator[bool]:
         if not _WRITE_LOCK.acquire(blocking=not self.managed):
             raise BlockingIOError('diagnostic write lock is busy')
         try:
-            yield
+            with diagnostic_write_guard(self.path) as owned:
+                yield owned
         finally:
             _WRITE_LOCK.release()
 
@@ -152,10 +154,11 @@ class Logger:
                 raise ValueError('diagnostic record exceeds 65536 characters including LF')
             if len(line) > _SEGMENT_BYTES:
                 raise ValueError('diagnostic record exceeds segment byte limit')
-            with self._write_lock():
+            with self._write_lock() as owned:
                 parts = diagnostic_files(self.path)
                 now = datetime.now(timezone.utc)
                 policy = read_capture_policy(self.path, now)
+                check_diagnostic_binding(self.path, owned)
                 if policy is None and self.managed:
                     raise _CaptureStopped('unbound')
                 if policy is not None:

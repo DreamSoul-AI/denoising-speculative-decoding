@@ -318,3 +318,43 @@ def test_busy_diagnostics_do_not_block_cuda_checkpoint_integration(cuda_checkpoi
     assert torch.equal(restored['model']['weight'], module.weight)
     assert current.logger.failure_count == (2 if operation == 'constructor' else 1)
     assert current.logger.last_error_type == 'BlockingIOError'
+
+@pytest.mark.parametrize('retention', ['seal', 'purge'])
+def test_owned_diagnostic_retention_preserves_cuda_compute_and_checkpoint(cuda_checkpoint, retention):
+    import json
+    import torch
+    from spec_mtp.structure.artifact.asset import tree
+    from spec_mtp.structure.system.config import SystemConfig
+    from spec_mtp.structure.system.factory import SystemFactory
+
+    case = cuda_checkpoint
+    assets = case.system.assets_dir
+    anchor = assets / 'logs/events.jsonl'
+    tree.prepare_diagnostic_capture(anchor)
+    system = SystemFactory.build(SystemConfig(config={'device': str(case.device)}), assets)
+    system.logger.info('before explicit retention')
+    sentinel = assets / 'preserved-model.bin'
+    sentinel.write_bytes(b'original model sentinel')
+    seal_sha = tree.seal_diagnostic_capture(anchor)
+    if retention == 'purge':
+        assert tree.purge_sealed_diagnostics(anchor, seal_sha)['state'] == 'purged'
+    before = {p.name: p.read_bytes() for p in anchor.parent.iterdir()}
+    with torch.random.fork_rng(devices=[case.device.index]), torch.no_grad():
+        model = torch.nn.Linear(2, 1, bias=False, device=case.device)
+        model.weight.fill_(2)
+    model = system.place_module(model)
+    output = model(torch.tensor([[1., 2.]], device=case.device))
+    assert output.device == model.weight.device == case.device
+    assert torch.equal(output, torch.tensor([[6.]], device=case.device))
+    torch.cuda.synchronize(case.device)
+    system.logger.info('must stay closed while business succeeds')
+    assert system.logger.failure_count == 1 and system.logger.last_error_type == 'PermissionError'
+    path = system.save_checkpoint({'model': {'weight': model.weight.detach()}}, 'retention')
+    loaded = system.load_checkpoint(str(path))
+    assert loaded['model']['weight'].device == case.device
+    assert torch.equal(loaded['model']['weight'], model.weight)
+    assert sentinel.read_bytes() == b'original model sentinel'
+    assert before == {p.name: p.read_bytes() for p in anchor.parent.iterdir()}
+    controls = tree._capture_controls(anchor)
+    assert json.loads(controls['required'].read_text())['state'] == 'closed'
+    assert all(controls[key].is_file() for key in ('required', 'lock', 'seal'))

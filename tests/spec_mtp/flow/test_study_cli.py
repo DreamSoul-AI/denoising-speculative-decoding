@@ -175,3 +175,78 @@ def test_logs_inventory_emits_one_complete_json_or_no_partial_output(tmp_path, m
         assert 'private payload' not in captured.err and 'never_echo_this' not in captured.err
         assert str(tmp_path) not in captured.err and 'secret-run' not in captured.err
     assert {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()} == before
+
+
+@pytest.mark.parametrize('action', ['prepare', 'seal', 'purge'])
+def test_logs_retention_emits_only_the_complete_core_receipt(tmp_path, monkeypatch, capsys, action):
+    from spec_mtp.flow import study_cli
+
+    calls = []
+    seal_sha = 'b' * 64
+    expected = {'scope': 'run_diagnostics_only', 'run_id': 'r1', 'action': action,
+                'state': {'prepare': 'ready', 'seal': 'sealed', 'purge': 'purged'}[action]}
+
+    def retained(study_dir, run_id, operation, *, seal_sha256=None):
+        calls.append((study_dir, run_id, operation, seal_sha256))
+        return expected
+
+    monkeypatch.setattr(study_cli, 'retention_logs', retained, raising=False)
+    argv = ['logs', str(tmp_path), '--retention', action, '--run-id', 'r1']
+    if action == 'purge':
+        argv += ['--seal-sha256', seal_sha]
+    assert study_cli.main(argv) == 0
+    captured = capsys.readouterr()
+    assert not captured.err and json.loads(captured.out) == expected
+    assert calls == [(tmp_path, 'r1', action, seal_sha if action == 'purge' else None)]
+    assert list(tmp_path.iterdir()) == []  # No implicit make, source lock, or Run materialization.
+
+
+@pytest.mark.parametrize('suffix', [
+    ['--run-id', 'r1'], ['--seal-sha256', 'a' * 64],
+    ['--inventory', '--run-id', 'r1'], ['--inventory', '--seal-sha256', 'a' * 64],
+    ['--retention', 'prepare'], ['--retention', 'seal'],
+    ['--retention', 'purge', '--run-id', 'r1'],
+    ['--retention', 'prepare', '--run-id', 'r1', '--seal-sha256', 'a' * 64],
+    ['--retention', 'seal', '--run-id', 'r1', '--seal-sha256', 'a' * 64],
+    ['--inventory', '--retention', 'seal', '--run-id', 'r1'],
+])
+def test_logs_retention_requires_an_explicit_unambiguous_action(tmp_path, monkeypatch, capsys, suffix):
+    from spec_mtp.flow import study_cli
+
+    def forbidden(*args, **kwargs):
+        pytest.fail('invalid action flags must not inspect or mutate a Study')
+
+    monkeypatch.setattr(study_cli, 'retention_logs', forbidden, raising=False)
+    monkeypatch.setattr(study_cli, 'inventory_logs', forbidden)
+    monkeypatch.setattr(study_cli, 'format_logs', forbidden)
+    try:
+        code = study_cli.main(['logs', str(tmp_path), *suffix])
+    except SystemExit as stopped:
+        code = stopped.code
+    captured = capsys.readouterr()
+    assert code == 2 and not captured.out and captured.err
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize('error_type', [OSError, ValueError, FileNotFoundError, KeyboardInterrupt, SystemExit])
+def test_logs_retention_failure_is_safe_and_cancellation_propagates(tmp_path, monkeypatch, capsys, error_type):
+    from spec_mtp.flow import study_cli
+
+    error = error_type(r'sensitive prompt secret; D:\private\source; token=not_public')
+
+    def failed(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr(study_cli, 'retention_logs', failed, raising=False)
+    argv = ['logs', str(tmp_path), '--retention', 'seal', '--run-id', 'r1']
+    if error_type in (KeyboardInterrupt, SystemExit):
+        with pytest.raises(error_type) as caught:
+            study_cli.main(argv)
+        assert caught.value is error
+    else:
+        assert study_cli.main(argv) == 2
+    captured = capsys.readouterr()
+    assert not captured.out
+    assert captured.err == ('' if error_type in (KeyboardInterrupt, SystemExit)
+                            else f'diagnostic retention unavailable: {error_type.__name__}\n')
+    assert list(tmp_path.iterdir()) == []

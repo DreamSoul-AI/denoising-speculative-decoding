@@ -1,4 +1,4 @@
-"""Print Study diagnostic event lines in timestamp order. Does not write a file."""
+"""Study diagnostic readouts and explicit opt-in capture retention."""
 
 from __future__ import annotations
 
@@ -7,10 +7,11 @@ import re
 from pathlib import Path
 from typing import Any
 
+from spec_mtp.structure.artifact.asset import tree as asset_tree
 from spec_mtp.structure.artifact.asset.tree import diagnostic_inventory
 from spec_mtp.structure.artifact.index import load_index
-from spec_mtp.structure.artifact.paths import RUNS_DIRNAME
-from spec_mtp.structure.artifact.layout import validate_run_directory
+from spec_mtp.structure.artifact.paths import RESULT_NAME, RUNS_DIRNAME
+from spec_mtp.structure.artifact.layout import validate_run_directory, validate_study_root
 from spec_mtp.structure.artifact.readout.status import iter_diagnostic_lines, log_path
 
 _STAMP = re.compile(r'^(\d{4}-\d{2}-\d{2}T\S+)')
@@ -58,12 +59,10 @@ def format_logs(study_dir: Path | str) -> str:
     return '\n'.join(lines) + '\n'
 
 
-def inventory_logs(study_dir: Path | str) -> dict[str, Any]:
-    """Read only each indexed Run's canonical diagnostic family."""
-    study_dir = Path(study_dir).resolve()
+def _indexed_log_roots(study_dir: Path) -> list[tuple[str, Path]]:
+    """Admit all indexed identities before selecting a Run for a mutation."""
     index = load_index(study_dir)
-    now = datetime.now(timezone.utc)
-    rows: list[dict[str, Any]] = []
+    roots: list[tuple[str, Path]] = []
     seen_ids: set[str] = set()
     seen_roots: set[Path] = set()
     for experiment in index.get('experiments') or []:
@@ -89,6 +88,51 @@ def inventory_logs(study_dir: Path | str) -> dict[str, Any]:
                 if (reference.is_absolute() or reference.drive or '..' in reference.parts
                         or reference not in (expected / 'events.jsonl', expected / 'run.log')):
                     raise ValueError('inventory log reference must belong to this exact Run')
-            rows.append({'run_id': run_id, **diagnostic_inventory(logs_dir / 'events.jsonl', now)})
+            roots.append((run_id, run_root))
+    return roots
+
+
+def inventory_logs(study_dir: Path | str) -> dict[str, Any]:
+    """Read only each indexed Run's canonical diagnostic family."""
+    study_dir = Path(study_dir).resolve()
+    now = datetime.now(timezone.utc)
+    rows = [{'run_id': run_id, **diagnostic_inventory(root / 'assets/logs/events.jsonl', now)}
+            for run_id, root in _indexed_log_roots(study_dir)]
     return {'scope': 'run_diagnostics_only',
             'observed_at': now.isoformat().replace('+00:00', 'Z'), 'runs': rows}
+
+
+def retention_logs(
+    study_dir: Path | str,
+    run_id: str,
+    action: str,
+    *,
+    seal_sha256: str | None = None,
+) -> dict[str, Any]:
+    """Explicitly manage only one registered Run's opt-in diagnostic capture."""
+    validate_run_directory(run_id)
+    if action not in ('prepare', 'seal', 'purge'):
+        raise ValueError('unknown diagnostic retention action')
+    if ((action == 'purge' and (not isinstance(seal_sha256, str)
+                               or re.fullmatch(r'[0-9a-f]{64}', seal_sha256) is None))
+            or (action != 'purge' and seal_sha256 is not None)):
+        raise ValueError('a seal SHA256 is required only for diagnostic purge')
+    study = validate_study_root(study_dir)
+    roots = dict(_indexed_log_roots(study))
+    if run_id not in roots:
+        raise ValueError('diagnostic retention requires an exact registered Run ID')
+    root = roots[run_id]
+    if not root.is_dir():
+        raise FileNotFoundError('registered Run directory is absent')
+    result = root / RESULT_NAME
+    if action == 'prepare' and (result.exists() or result.is_symlink()):
+        raise ValueError('diagnostic capture preparation requires an unexecuted Run')
+    anchor = root / 'assets/logs/events.jsonl'
+    if action == 'prepare':
+        detail = asset_tree.prepare_diagnostic_capture(anchor)
+    elif action == 'seal':
+        detail = {'state': 'sealed', 'seal_sha256': asset_tree.seal_diagnostic_capture(anchor)}
+    else:
+        assert seal_sha256 is not None
+        detail = asset_tree.purge_sealed_diagnostics(anchor, seal_sha256)
+    return {'scope': 'run_diagnostics_only', 'run_id': run_id, 'action': action, **detail}
