@@ -434,9 +434,10 @@ def run_seed(config, seed, device='cuda:0'):
     data = torch.cat([sample(lang_a, content, half, train['length'], generator),
                       sample(lang_b, content + 1, half, train['length'], generator)])
     started = time.perf_counter()
+    primary = None
     session, losses = train_model(config, data, seed, device)
-    train_seconds = time.perf_counter() - started
     try:
+        train_seconds = time.perf_counter() - started
         plan = config['prompts']
         if config.get('affine_ridge'):
             count = plan['fit']
@@ -503,8 +504,16 @@ def run_seed(config, seed, device='cuda:0'):
             result['trees'].append(entry)
         return result
 
+    except BaseException as exc:
+        primary = exc
+        raise
     finally:
-        session.close()
+        try:
+            session.close()
+        except BaseException as cleanup:
+            if primary is None:
+                raise
+            setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
 
 
 class OracleMaskProvider:
@@ -554,6 +563,7 @@ def run_oracle(config, seed, device='cuda:0'):
     half = train['sequences'] // 2
     data = torch.cat([sample(lang_a, content, half, train['length'], generator),
                       sample(lang_b, content + 1, half, train['length'], generator)])
+    primary = None
     session, losses = train_model(config, data, seed, device)
     try:
         plan = config['prompts']
@@ -591,8 +601,16 @@ def run_oracle(config, seed, device='cuda:0'):
             result['trees'].append(entry)
         return result
 
+    except BaseException as exc:
+        primary = exc
+        raise
     finally:
-        session.close()
+        try:
+            session.close()
+        except BaseException as cleanup:
+            if primary is None:
+                raise
+            setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
 
 
 def source_identity():

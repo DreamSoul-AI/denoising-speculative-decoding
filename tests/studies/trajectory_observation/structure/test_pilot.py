@@ -95,3 +95,198 @@ def test_oracle_masks_accept_full_depth_after_prefill(tree, record_property):
     assert later and all(accepted == k for accepted in later)
     model.close()
     record_property('cuda_device', torch.cuda.get_device_name(0))
+
+
+@pytest.fixture
+def owned_pilot_session(monkeypatch):
+    from types import SimpleNamespace
+
+    config = json.loads(json.dumps(pilot.DEFAULT))
+    config['trees'] = []
+    state = {'owned': False, 'primary': None, 'cleanup': None, 'closed': []}
+
+    class Rows:
+        shape = (1, 4)
+
+        def __getitem__(self, item):
+            return self
+
+    class Session:
+        def close(self):
+            state['closed'].append(True)
+            if state['cleanup'] is not None:
+                raise state['cleanup']
+
+    def sample(*args, **kwargs):
+        if state['owned'] and state['primary'] is not None:
+            raise state['primary']
+        return Rows()
+
+    def train(*args, **kwargs):
+        state['owned'] = True
+        return Session(), []
+
+    monkeypatch.setattr(pilot, 'torch', SimpleNamespace(
+        Generator=torch.Generator, cat=lambda rows: Rows()))
+    monkeypatch.setattr(pilot, 'make_language', lambda *args: None)
+    monkeypatch.setattr(pilot, 'sample', sample)
+    monkeypatch.setattr(pilot, 'train_model', train)
+    monkeypatch.setattr(pilot, 'ar_generate', lambda *args: (None, {}))
+    return config, state
+
+
+@pytest.mark.parametrize('fault', ['close_only', 'body_error', 'interrupt', 'ambient_close_only'])
+def test_run_seed_cleanup_preserves_primary(owned_pilot_session, fault):
+    config, state = owned_pilot_session
+    cleanup = OSError('injected session close failure')
+    primary = (None if fault in ('close_only', 'ambient_close_only') else
+               KeyboardInterrupt('body interrupted') if fault == 'interrupt'
+               else ValueError('body failed'))
+    state.update(primary=primary, cleanup=cleanup)
+    expected = cleanup if primary is None else primary
+
+    ambient = LookupError('caller exception must not become producer primary')
+    with pytest.raises(type(expected)) as caught:
+        if fault == 'ambient_close_only':
+            try:
+                raise ambient
+            except LookupError:
+                pilot.run_seed(config, 5, device='cuda:0')
+        else:
+            pilot.run_seed(config, 5, device='cuda:0')
+    assert not hasattr(ambient, 'cleanup_errors')
+
+    assert caught.value is expected
+    assert state['closed'] == [True]
+    assert getattr(expected, 'cleanup_errors', ()) == (
+        () if primary is None else (cleanup,))
+
+
+@pytest.mark.parametrize('fault', ['close_only', 'body_error', 'interrupt', 'ambient_close_only'])
+def test_run_oracle_cleanup_preserves_primary(owned_pilot_session, fault):
+    config, state = owned_pilot_session
+    cleanup = OSError('injected session close failure')
+    primary = (None if fault in ('close_only', 'ambient_close_only') else
+               KeyboardInterrupt('body interrupted') if fault == 'interrupt'
+               else ValueError('body failed'))
+    state.update(primary=primary, cleanup=cleanup)
+    expected = cleanup if primary is None else primary
+
+    ambient = LookupError('caller exception must not become producer primary')
+    with pytest.raises(type(expected)) as caught:
+        if fault == 'ambient_close_only':
+            try:
+                raise ambient
+            except LookupError:
+                pilot.run_oracle(config, 5, device='cuda:0')
+        else:
+            pilot.run_oracle(config, 5, device='cuda:0')
+    assert not hasattr(ambient, 'cleanup_errors')
+
+    assert caught.value is expected
+    assert state['closed'] == [True]
+    assert getattr(expected, 'cleanup_errors', ()) == (
+        () if primary is None else (cleanup,))
+
+
+def test_run_seed_timer_failure_still_closes_session(
+        owned_pilot_session, monkeypatch):
+    config, state = owned_pilot_session
+    primary = ValueError('post-training timer failed')
+    cleanup = OSError('injected session close failure')
+    state['cleanup'] = cleanup
+
+    class Clock:
+        @staticmethod
+        def perf_counter():
+            if state['owned']:
+                raise primary
+            return 0.0
+
+    monkeypatch.setattr(pilot, 'time', Clock)
+    with pytest.raises(ValueError) as caught:
+        pilot.run_seed(config, 5, device='cuda:0')
+
+    assert caught.value is primary
+    assert state['closed'] == [True]
+    assert primary.cleanup_errors == (cleanup,)
+
+
+@pytest.mark.parametrize('fault', ['normal', 'body_plus_close'])
+def test_tiny_oracle_producer_lifecycle_on_cuda(
+        monkeypatch, record_property, fault):
+    assert torch.cuda.is_available(), 'real CUDA required; no CPU fallback'
+    device = torch.device('cuda:0')
+    name = torch.cuda.get_device_name(device)
+    print(f'pilot oracle lifecycle device={device} name={name} fault={fault}')
+    record_property('cuda_device', str(device))
+    record_property('cuda_name', name)
+
+    config = json.loads(json.dumps(pilot.DEFAULT))
+    config.update(content_vocab=8, max_new_tokens=4,
+                  trees=[{'num_masks': 1, 'branches': [2]}])
+    config['model'].update(hidden_size=8, intermediate_size=16,
+                           num_hidden_layers=1, max_position_embeddings=64)
+    config['train'].update(sequences=16, length=12, steps=1, batch=2)
+    config['prompts'] = {'fit': 4, 'holdout': 1, 'cross': 1, 'length': 4}
+    primary = ValueError('injected failure after actual CUDA AR')
+    cleanup = OSError('injected failure after actual session close')
+    owned, hooks, close_calls, observed = [], [], [], set()
+    original_train, original_ar = pilot.train_model, pilot.ar_generate
+
+    def watch(module, args, kwargs):
+        observed.add(str(kwargs['inputs_embeds'].device))
+
+    def train(*args, **kwargs):
+        session, losses = original_train(*args, **kwargs)
+        assert session.device == device
+        actual_close = session.close
+        owned.append((session, actual_close))
+        hooks.append(session.hf.register_forward_pre_hook(
+            watch, with_kwargs=True))
+
+        def close():
+            close_calls.append(True)
+            actual_close()
+            if fault == 'body_plus_close':
+                raise cleanup
+
+        monkeypatch.setattr(session, 'close', close)
+        return session, losses
+
+    def ar(*args, **kwargs):
+        result = original_ar(*args, **kwargs)
+        if fault == 'body_plus_close':
+            raise primary
+        return result
+
+    monkeypatch.setattr(pilot, 'train_model', train)
+    monkeypatch.setattr(pilot, 'ar_generate', ar)
+    try:
+        if fault == 'body_plus_close':
+            with pytest.raises(ValueError) as caught:
+                pilot.run_oracle(config, 5, device=str(device))
+            assert caught.value is primary
+            assert primary.cleanup_errors == (cleanup,)
+        else:
+            result = pilot.run_oracle(config, 5, device=str(device))
+            assert result['seed'] == 5 and len(result['trees']) == 1
+            splits = result['trees'][0]['splits']
+            assert set(splits) == {'holdout', 'cross'}
+            for arms in splits.values():
+                assert set(arms) == {'esp_trajectory', 'esp_oracle'}
+                for arm in arms.values():
+                    assert len(arm['rows']) == 1
+                    assert all(row['argmax_passed'] is True
+                               for row in arm['rows'])
+        assert close_calls == [True]
+        assert len(owned) == 1 and owned[0][0].closed is True
+        assert observed == {str(device)}
+        record_property('forward_devices', sorted(observed))
+        record_property('session_closed', True)
+    finally:
+        for hook in hooks:
+            hook.remove()
+        for session, actual_close in owned:
+            if not session.closed:
+                actual_close()
