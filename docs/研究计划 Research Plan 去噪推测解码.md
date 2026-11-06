@@ -284,19 +284,19 @@ EMA五方法原件固定于Git b8b20b5ada7fd860894114cbf224ce749af430cf的 studi
 | **冻结项** | **协议** |
 | --- | --- |
 | 数据 | 原SpecBench question.jsonl SHA7dd26882f31ada100c2aa7447019b5349bddc55697021acbc5643fdc8740aa21；按预先题号规则固定translation161–168、summarization248–255、math_reasoning401–408、rag481–488，各8条。与cal10、R64八题、R66–74八题及writing81–88共34题在qid、原文本、完整渲染与token序列均不交；原480的其它切片不算额外独立数据。不看模型输出换题 |
-| 输入与参考 | D:/Grok Bot/tmp/sd/round75/inputs.json SHA4ad97bc22eafce04bd1b5c6f68e02a2c14425153479f0de11592eefc7d31ba09，32题总12401输入token、最长1351，不截断/不silent skip。CPU只做tokenizer与IO预处理，R66原18题重渲染逐token相同；实际template_kwargs={}。参考独立quality-references.json SHAfd1dd0506673ebcb598fe2239961e3cee3cf8fbcce9401fd522ba4ea5217b02e，不进入模型输入 |
+| 输入与参考 | D:/Grok Bot/tmp/sd/round75/inputs.json SHA4ad97bc22eafce04bd1b5c6f68e02a2c14425153479f0de11592eefc7d31ba09，32题总12401输入token、最长1351，不截断/不silent skip。CPU只做tokenizer与IO预处理，R66原18题重渲染逐token相同；实际template_kwargs={}。实际输入/Latin遍历顺序固定为math_reasoning401–408→translation161–168→summarization248–255→rag481–488，与输入字节同序。参考独立quality-references.json SHAfd1dd0506673ebcb598fe2239961e3cee3cf8fbcce9401fd522ba4ea5217b02e，不进入模型输入 |
 | 模型与三臂 | 同一本地Qwen3-4B、14成员manifest20ff496548750bd139b280a544bcab83424f7bcf691b22c7d25c41c52a120167、BF16/eager、CUDA0 RTX5090 D v2；共同当前host与已冻结R65 FrontierPolicy，所有臂同等捕获/审计。ESP mean_prompt/λ=.1/update=true；bias用R72最佳常量K f9374de94a7a7f8c359182c022eb7dec0cfbb45f7c266a3d9eb36a4342ed945c；full用R66按原码新校准的K17b62c5ff2df63df0d4201a66158b5d1be00c39f984fb45c37394c8a13da2e66。两校正臂均走dense u@K及LM head，常量部署未优化；不refit/选λ/更新K，原码与生产源不改 |
 | 预算与顺序 | K2/dynamic-pruned/BC30/naive、128/T0/noEOS/seed123。每臂2token预热一次排除，repeat外/qid中、按(qid序号+repeat)mod3循环顺序，共288正式case/36864实际提交。qid内取3次中位数，4个任务各8题固定构成，不将重复当独立题 |
 | 计时与门 | fresh provider构造/K加载setup另列，同步generate含prompt初始化、逐token状态更新、实际校正/LM head及同等完整T0取证；模型/哈希/渲染/落盘/分析另计。每case完整来源/128预算/实际forward argmax提交链通过，K原字节与GPU值前后不变。accepted=Σmin(A,C)，legacy、排prefill的平均与合并τ、输出一致率、重复一致性、全部失败均报告 |
 | 统计 | 32qid为配对单位，在每个任务内8qid重采样、保持4任务等权的CUDA FP64分层配对bootstrap10000/seed7501；主比为baseline中位墙钟之和/full之和，接受/墙钟为qid配对均差。报告整体及四任务，不按结果删题；两子对照点方向及95%区间分别列，不把保留同T0当成语义等质 |
 | 执行边界 | 本批1200秒、外层1260秒；确认torch.cuda.is_available且记录设备后执行，不CPU替代。此前只用旧q105做五臂各8token的CUDA适配准入（≤180/外层240秒）：完整T0、实际base placeholder/bonus与首slot校正的调用归属、有限值与K冻结须过，正式32题不得用于适配调参。失败保partial不自动重试或缩题后冒称完成。所有命令TEMP/TMP先设且保持D:/Grok Bot/tmp，源码缓存/临时材料/输出仅本会话子目录，原工程90/300秒门保持 |
 
-**状态**：已预注册，正式CUDA未执行。数据预处理回执data-semantic-audit.json SHAf031baecf4b2dad6b84ea9d919f4787ebb240582306b8c85d9678deee064f068。本批只回答冻结K的留出稳健性，不追原480正表或重开旧矩阵。
+**状态**：正式CUDA未执行；首版纯元数据预检发现调度EXPECTED/protocol与已冻输入顺序不一，在GPU前只统一顺序并冻结v2，原题号/tokens/K/判据/预算不变，旧注册文件与candidate保留，不回签。数据预处理回执data-semantic-audit.json SHAf031baecf4b2dad6b84ea9d919f4787ebb240582306b8c85d9678deee064f068。本批只回答冻结K的留出稳健性，不追原480正表或重开旧矩阵。
 
 ## （十八）R76：冻结完整K之上分别叠加EMA与Kalman
 **微观假设H76-EMA/H76-Kalman**：在冻结full K上，仅把base provider分别换成原EMA-last或现有online Kalman，是否相对fresh full+ESP同时提高实际接受并缩短同步generate。两个假设各自验收，无论R75正负都按原定小批执行，不只选较有利组合；不新增参数/长度搜索。
 
-为给质量和交付留预算，事前固定R75每类首4条：161–164、248–251、401–404、481–484，共16；inputs-r76.json SHAdb869a0f0c477d484bd492b2fbb74c9f2786c6610518ebdbd9af3cddf98f415e。三臂fresh full、full+EMA-last、full+Kalman全部同host/FrontierPolicy与原17b62 K，不用R75跨批墙钟替代共同基线。EMA β=.9999/λ=.1/step1/normalize=false/extrapolate=false/update=true/level=last；Kalman online/forget=.95/r_min=1e-6/q_min=1e-8/q_scale=.01。其它模型/树/128/noEOS/T0/seed与R75相同，三臂各2token预热排除、3rep Latin共144正式case/18432提交。K是按ESP placeholder特征拟合；更换provider改变placeholder/innovation分布，本实验只回答冻结K直接组合的效果，不据失败否定再校准组合，也不事后重拟合追正。
+为给质量和交付留预算，事前固定R75每类首4条：161–164、248–251、401–404、481–484，共16；inputs-r76.json SHAdb869a0f0c477d484bd492b2fbb74c9f2786c6610518ebdbd9af3cddf98f415e。实际输入/Latin遍历顺序同样为math_reasoning→translation→summarization→rag、各类前4，与冻结inputs-r76字节同序。三臂fresh full、full+EMA-last、full+Kalman全部同host/FrontierPolicy与原17b62 K，不用R75跨批墙钟替代共同基线。EMA β=.9999/λ=.1/step1/normalize=false/extrapolate=false/update=true/level=last；Kalman online/forget=.95/r_min=1e-6/q_min=1e-8/q_scale=.01。其它模型/树/128/noEOS/T0/seed与R75相同，三臂各2token预热排除、3rep Latin共144正式case/18432提交。K是按ESP placeholder特征拟合；更换provider改变placeholder/innovation分布，本实验只回答冻结K直接组合的效果，不据失败否定再校准组合，也不事后重拟合追正。
 
 provider构造setup在外，prompt初始化/EMA递推/Kalman实际Python标量P/Q/R/K与CUDA level/innovation同步及K校正均计入generate；末态finite与设备按实际记。完整来源/T0/预算/K冻结为门，两个候选分别须接受均差>0、墙钟均差<0才支持对应点假设。16qid按四任务各4分层CUDA配对bootstrap10000/seed7601，qid内median3；报告95%探索区间，并给两个方法比较的97.5%保守区间，不把挑中一法称整体成功。输出一致率/legacy/平均与合并τ全列，语义判断另列。总900/外层960秒、输出round76，失败保partial不重试；21:10Z后不新派模型任务，已执行结果不填假完成。
 
