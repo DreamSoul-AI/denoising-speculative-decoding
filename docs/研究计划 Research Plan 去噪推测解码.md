@@ -125,7 +125,7 @@ EMA五方法原件固定于Git b8b20b5ada7fd860894114cbf224ce749af430cf的 studi
 | 拟合与时序 | 校准只运行 ESP。u=[e(bonus)−本 forward 首 placeholder;1]，y=下一 decode forward 同位置实际 root 的 final-norm hidden−该 frontier 首 mask hidden；包含 prefill→首 decode 的配对和后续相邻 decode，校正也从已知 prefill bonus 开始。它区别于原离线 recorder 仅取 decode 对的口径。跨 prompt 不串 pending，末尾未获下一次标签的 pending 丢弃；512个校准提交不等于512个训练对。CUDA FP64 解 (UᵀU+diag(10,…,10,0))K=UᵀY，偏置不惩罚，K 转FP32后冻结。禁止原 fit 脚本的全数据重拟合；评价不收集标签、不更新 K |
 | 三臂 | ESP 无校正；bias 只加同一校准残差 Y 的均值 b0（不是完整 K 的截距行）；full 为 z′=z+uK。只替换下一轮起草的首 mask logits，bonus 已知后执行，其余起草行和验证 logits 保持原路径。不把静态 K 命名为 Kalman 已有效 |
 | 重复与计时 | 拟合后每臂2token预热一次并排除；正式3次重复，repeat外层、qid中层，按(qid序号+repeat) mod3轮换三臂，共72case。CUDA同步夹住 provider构造、generate与同等内存证据记录；不含模型加载、校准、拟合、渲染、哈希、落盘或独立审计。校准/拟合成本另报，有正收益时再算摊销，不隐藏训练外成本 |
-| 接受与质量 | primary accepted逐轮取min(accepted_nodes数,实际committed_tokens数)，legacy另列；τ另按提交token/解码调用报告，不混用。72case全部须128token、来源/evidence/完整提交链argmax审计通过；报告重复一致性、三臂完整输出一致率。T0不证明独立AR逐字一致或语义质量，输出不全同则不得称严格同输出加速 |
+| 接受与质量 | primary accepted逐轮取min(accepted_nodes数,实际committed_tokens数)，legacy另列；τ沿宿主合同按解码阶段提交token（排除prefill）/解码调用报告，不混用。72case全部须128token、来源/evidence/完整提交链argmax审计通过；报告重复一致性、三臂完整输出一致率。T0不证明独立AR逐字一致或语义质量，输出不全同则不得称严格同输出加速 |
 | 主判据与分析 | 每qid/arm先取3次中位数，再以8qid配对：full−ESP接受均差>0且墙钟均差<0、全部质量门过才支持H65。速度比为ESP中位时长之和/full中位时长之和。CUDA FP64按qid配对bootstrap10000次、seed6501，报告探索性95%区间；重复不扩大独立样本量，bias仅次级消融，不以单格或子集追正 |
 | 来源与停止 | 新round65外部Run冻结当前clean提交、原计划/协议/driver、模型全清单、输入与K；torch.cuda.is_available须真并记录RTX5090 D v2。研究批总预算900秒，原工程90/300秒门保持；失败保partial，不盲重试。正负均停止，不扫ridge/长度/模型，不重开旧矩阵或旧EMA候选 |
 
