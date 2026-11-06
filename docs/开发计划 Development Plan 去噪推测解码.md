@@ -2,15 +2,15 @@
 更新日期：2026年11月6日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
 # 一、当前范围
-研究冻结，基线2746113。优先接入新外置Study的派发前固定预留，沿用既有owned prepare→seal→purge与原生OS锁，不收编旧根、不删历史目录。显式study.yaml顶层diagnostic_budget_bytes采用正整数；有限Run集合在配置写入前建立pending，全部配置/index原字节绑定、owner及policy建齐后才发布ready，未完成不得执行或退回默认64MiB。
+研究冻结，基线81e81d5。本轮先收束硬I/O的真实责任：Logger、sink、模型close与console仍在调用它们的worker中同步执行；普通guard只隔离已返回的异常，不能中断挂起OS调用。选定未来优先复用现有Run worker作为阻塞操作的执行边界，由调度器持有本次Popen成功返回的直接进程句柄、停止新派发并确认退出，不新增后台writer或线程超时冒充停止。
 
-每根预留8192控制字节、每Run预留16384控制字节；其余预算平均固定分配，每份至少4096、最多64MiB，余数/封顶余量不挪用。JSONL与policy合计受各份额约束，控制文件单件最多4096，预算写入只允许一个固定stage；失败遗留stage拒绝再次写入。相同冻结根的make只读复用；失败、取消、崩溃、封存或清除均不退还份额，不动态扫描盘点后抢占。
+本轮可落地的是取消回收缺陷：派发/等待首错后不再进入新group/retry；逐直接owned worker terminate，再沿原wait(5)、TimeoutExpired时kill/wait(5)尝试回收。清理中的普通错误、KeyboardInterrupt/SystemExit都按顺序附于原异常cleanup_errors，继续其它句柄并原样重抛首错，不再依赖cleanup console输出。未返回Popen构造、后代进程和外部writer不归本次句柄清理证明。
 
-该预算只覆盖协议具名诊断文件的逻辑字节，不覆盖文件系统块、目录、业务制品、外部写入或历史根；不是全盘配额。源码、索引、配置、required或policy缺失/漂移应在执行和写入准入拒绝。封存/purge后的Run保留计费且不阻断其它Run；partial根不自动修复、重开或续删。
+完整硬I/O超时明确延期：尚缺操作deadline的责任来源、杀整个科学worker的允许语义、DataLoader/第三方后代进程所有权、持久化逐writer退出/停写回执、未完成checkpoint/Result与超时后写入处置。wait返回只证明直接child退出；受控writer在退出后文件稳定是该夹具证据，不能推广任意内核/远端I/O已停止。恢复前须分别验调用者返回、停止新派发、所有纳管writer退出及实际文件停止变化，未知保持unknown且不自动重试同Run。
 
-验收：新预算整数/容量/新根准入、有限Run固定份额、原字节绑定、不可降级、跨进程追加与容量、失败stage不累积、清除后不退款；make/Runner/调度三入口及真实CUDA前向前拒绝。旧CPU/CUDA/native/诊断与元数据、90秒launch和300秒native预算保留。只有实际完成证据才能更新状态。
+工程验收为CPU取消控制/原文件保全、真实独立CUDA worker计算与退出/停写观察，再跑原CPU/CUDA/native/诊断门。保原90秒launch、300秒native与既有全部断言/成员，不加skip/xfail或新过滤。明确上述缺口后只修受影响的入口状态漂移并整理第五章周末路线，不开展新研究或泛化框架。
 
-本轮预估60分钟：合同12、实现23、验收15、交付10。TEMP/TMP及scratch仅D:/Grok Bot/tmp/grokbot/sd/round59；旧Run、研究正文、main/dev与stash不动。硬I/O中断仍须独立执行owner及停止/退出证明，现有同步OS/console不承诺硬时限。
+本轮预估60分钟：责任合同12、最小实现23、验收15、交付10。TEMP/TMP与所有scratch仅D:/Grok Bot/tmp/grokbot/sd/round60；复用已核CPU环境及检出，旧回执不覆盖。81e的固定诊断份额、失败不退款、控制stage及新owned清理保持；历史根、研究正文与stash不动。
 
 # 二、六类核对与落实
 | **类别** | **已有实现条件** | **仍需完成的具体差距** |
@@ -18,7 +18,7 @@
 | 目录结构 | 宿主和Study按structure/flow分工，薄入口调用实际部件；配置和tracker装配复用既有工厂，不另建facade | 冻结顶层legacy保持为空；父包仅标识职责，普通部件使用canonical leaf导入。仍需核其余科学子包公开面与尚未镜像的测试，不推广本次范围 |
 | 配置与支持版本 | 文件 SHA256 统一使用 provenance.file_sha256 的有界流式读取，去除 Python 3.11 专属 file_digest 依赖 | Python 3.10 尚未实机运行，test_package 的 tomllib importorskip 会阻断该版本的严格计划，需确定测试兼容策略；不可据模拟缺 API 测试声称全版本支持 |
 | 入口脚本 | 共用 launch_once 委托 shared CLI，fingerprint/profile 归统一 diagnostics flow；专用入口包含 fresh、office、fair、pilot/preforward 和 hybrid_gain | 已登记顶层遗留、structure命令及直接盘符清单均为空；旧配置、拼接路径与间接装配仍须逐消费者审查，不据清单归零宣称全项目合规 |
-| 日志与输出 | 诊断JSONL有界/分段与托管隔离保持；新空policy冻结单Run64MiB/7天追加窗口，logs --inventory只读盘点已实现，旧文本只读 | 显式外部根、输出独占与源码/输入核验保持。14个Study创建点已采用managed，wiring与实际入口回归分开登记；新owned家族已提供显式封存/清除及跨进程互斥；自动保留期、旧/未接管根、跨Run总量及同步OSIO硬超时仍缺 |
+| 日志与输出 | 诊断JSONL有界/分段与托管隔离保持；新空policy冻结单Run64MiB/7天追加窗口，logs --inventory只读盘点已实现，旧文本只读 | 显式外部根、输出独占与源码/输入核验保持。14个Study创建点已采用managed，wiring与实际入口回归分开登记；新owned家族已提供显式封存/清除、跨进程互斥与新外置Study固定诊断预算；自动保留期、旧/未接管根、动态/跨Study共享预算及同步OSIO硬超时仍缺 |
 | 测试 | 新增行为和失败用例逐项登记，归细 target 与层级，静态直接反向导入清单归零；真实 CUDA 计划成本标 C3 并声明单卡及时间估计 | 其余用例仍大量继承 integration，target 较宽；numeric和测量粒度的空/缺/无效结果门及终态已实现，纯测量不计质量通过；批次Markdown报告及同run/plan/HEAD证据核验已实现；附件式原始证据和更细结果协议仍待按实际需求裁剪；read_plan按实际枚举与被选计划核成本/资源语义；显存需求仍待估计，需逐用例复核，不能只以字段存在认定合规 |
 | 文档 | 九类文档保持职责，研究问题和工程待办分开；设计与实际差距、日期记录和固定来源分别定位 | 提供固定 Git 原件只读接口，槽位与followup分析已迁入两柱；其余完整分析器仍依赖旧工具/计划映射，原 helper 身份存在未知，不能替换路径冒充同一来源 |
 
@@ -37,13 +37,13 @@ Tracker曲线读取与调度新鲜度的两条ponytail成本说明继续有效�
 临时材料仅用户指定D:/Grok Bot/tmp内的SD任务目录，制品不入Git。普通推本分支维护Draft PR106到dev，不改main/dev，不合并、强推、autoMerge或绕过检查；只读远端运行结果，不动Actions/workflow、设置、规则、凭据及禁区，不联系外部人员。
 
 # 五、周末工程接手路线
-以下复用现有计划与缺陷入口，不产生删除、研究或新派发授权。当前已完成项从日期开发/运行记录定位，不另设交接正本。
+以下复用现有计划与缺陷入口，不产生删除、研究或新派发授权。接手顺序先明确硬I/O尚缺决策，再处理有明确输入的保留期/动态预算或P2消费者；输入不足即保缺口，不重复派发已交付固定份额、取消首错及既有研究。已完成项从日期记录定位，不另设交接正本。
 
 | **顺序与类别** | **输入、下一步与验收** | **停止条件** |
 | --- | --- | --- |
+| P1 技术债：硬I/O中断（延期） | 优先复用现有Run worker为执行边界，调度器只拥有已返回的直接Popen句柄。本轮修取消次错遮蔽；周末先确定deadline发放、整worker强停语义、后代归属及partial制品处置，再分别验调用者返回/停止派发/纳管writer退出/实际文件变化 | 直接child退出或有限稳定采样不能证明所有后代/OS/远端写入停止；缺一项仍unknown、不自动重试。不得以后台线程、future超时或PID标签替代停止证明 |
 | P1 技术债：自动保留期与旧根迁移（延期） | 新owned家族的显式prepare/seal/purge已提供。自动到期或历史根另须给出处置授权、引用审查、可确认的writer协议与停止证据，未知保持retain；验收保全模型/数据/checkpoint/原snapshot | 不把policy owner、expired/capacity、成功Result或进程内锁当旧根可删依据；不收编已有logs，不把手动新家族处置写成全盘/自动TTL完成 |
-| P1 技术债：跨Run预算 | 本轮接入显式新外置Study、有限Run集合、派发前固定份额；实际门禁由运行记录定位。周末只核既有声明与消费者，后续动态增减/退款/跨Study共享必须另定原子责任与崩溃恢复 | 不以inventory后追加冒充一致配额；不迁移历史根、不自动重签部分初始化、不删除旧Run腾空间；控制留量以单件4KiB及固定stage拒重入为界 |
-| P1 技术债：硬I/O中断（延期） | 先定义可等待时长、可中断I/O的执行owner及超时后仍在写的处置；验收分别记录调用者结束、writer停止和文件实际变化，拿不到停止证明保未知，不自动重试同Run | 本轮非阻塞准入只消除进程内锁排队；已进入的OS调用、前置callback与stdout/stderr仍同步，future等待超时不等于OSIO停止，不加后台writer冒充硬保证 |
+| P1 技术债：动态/跨Study预算（延期） | 81e81d5已提供新外置Study固定份额，保留其已验证边界。仅有具体动态/共享消费者时才定义增减、退款的原子责任与崩溃恢复，既有份额不作为重复复核任务 | 不以inventory后追加冒充一致配额；不迁移历史根、不自动重签部分初始化、不删除旧Run腾空间；控制留量以单件4KiB及固定stage拒重入为界 |
 | 技术债：取得hf前及异常引用 | 固定版本loader的TypeError误重试和两处取消清理已完成；输入仍限既有有限pre-session CUDA探针与真实owner，第三方loader/训练内部帧及外部引用不保证即时释放，按实际场景核验 | 单一受控故障不推广所有路径；不据probe的clear_frames加入生产清帧或宣称自然泄漏/即时显存释放 |
 | P2 技术债：兼容与元数据 | 只用已关联现成Python3.10环境，完整收集并执行必需合同且无skip才记该版本通过；逐实际target/level/cost及显存需求核声明，两条有效成本注释按真实负载触发 | 无现成环境则保缺口，不扫描/下载/安装；不降成本资源或批量改断言求绿 |
 | 已知问题：缺陷记录入口 | native缓存配置与原90秒门按README执行，旧失败和本轮对照保在日期记录；最低版本、证据缺口、Restricted与跨prompt待核沿活动缺陷入口 | 旧隔离缓存环境未冻结则不补签；不抬门限/过滤/改签首红，不绕过策略，不把静态怀疑记为旧Run失效，真实模型诊断先有明确授权 |

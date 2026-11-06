@@ -275,7 +275,7 @@ K 工程 fixture 使用随机 tied tiny LLaMA、CPU FP32、eager；先拟合并�
 
 归档报告、原工具和原计划各自绑定完整提交、成员与摘要，不能要求它们恰好共存于一次归档提交。成员路径依原角色明确准入，不按当前目录替换旧路径；源码只读核字节，不执行归档程序。完整保存张量审计与新模型/采样实验分开，原生输出合同、假设判读和工程夹具也分别报告。
 
-独立进程调度先验证外部根、来源与当前计划，再派发shared CLI worker；worker再次预检，实际PID和CUDA设备随运行证据保存。调度保存的jobs必须绑定index及规范config路径，空队列仍以聚合complete判断成功。派发异常只清理本次已取得的进程句柄并保留首错；默认不自动重试。pending调度恢复与checkpoint/RNG恢复分别验收。
+独立进程调度先验证外部根、来源与当前计划，再派发shared CLI worker；worker再次预检，实际PID和CUDA设备随运行证据保存。调度保存的jobs必须绑定index及规范config路径，空队列仍以聚合complete判断成功。派发或等待异常立即停止新group/retry，只清理本次Popen成功返回并登记的直接子进程句柄：逐一终止，再沿原5秒等待、超时kill及5秒等待尝试回收。原始异常保持；清理中的普通错误或再次取消按发生顺序附于cleanup_errors，继续其它owned句柄，清理不依赖console输出。wait返回只证明该直接worker退出；其后代、外部writer、挂起OS调用与未知落盘仍不保证停止。默认不自动重试，pending调度恢复与checkpoint/RNG恢复分别验收。
 
 # 九、Checkpoint 与 RNG 恢复合同
 调度恢复仅处理哪些Run已完成或待派发。checkpoint恢复还要恢复科学状态；以下CR标识单独约束恢复验收，不由调度通过、同seed或文件能载入推出完整等价。

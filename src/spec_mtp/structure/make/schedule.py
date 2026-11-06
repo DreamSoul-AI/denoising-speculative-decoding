@@ -545,13 +545,13 @@ def launch_jobs(
                     pairs.append((job, code))
                     if code != 0:
                         print(f'error {job["run_id"]} exit={code}', flush=True)
-            except BaseException:
+            except BaseException as primary:
                 for _job, proc in procs:
                     try:
                         if proc.poll() is None:
                             proc.terminate()
-                    except Exception as cleanup:
-                        print(f'worker cleanup terminate failed: {type(cleanup).__name__}', flush=True)
+                    except BaseException as cleanup:
+                        setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
                 for _job, proc in procs:
                     try:
                         proc.wait(timeout=5)
@@ -559,10 +559,10 @@ def launch_jobs(
                         try:
                             proc.kill()
                             proc.wait(timeout=5)
-                        except Exception as cleanup:
-                            print(f'worker cleanup kill failed: {type(cleanup).__name__}', flush=True)
-                    except Exception as cleanup:
-                        print(f'worker cleanup wait failed: {type(cleanup).__name__}', flush=True)
+                        except BaseException as cleanup:
+                            setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
+                    except BaseException as cleanup:
+                        setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
                 raise
         return pairs
 

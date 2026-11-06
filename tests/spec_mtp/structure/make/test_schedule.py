@@ -226,3 +226,118 @@ def test_worker_admission_failure_does_not_rewrite_a_previous_scientific_success
         wait=lambda timeout=None: 1, poll=lambda: 1))
     assert schedule.launch_jobs(saved_plan.study, saved_plan.jobs[:1], console='shared') == [1]
     assert result.read_bytes() == before
+
+
+@pytest.mark.parametrize('primary_type,operation,cleanup_type,broken_output', [
+    (KeyboardInterrupt, 'poll', SystemExit, False),
+    (SystemExit, 'terminate', KeyboardInterrupt, False),
+    (OSError, 'wait', SystemExit, False),
+    (KeyboardInterrupt, 'kill', OSError, False),
+    (SystemExit, 'kill_wait', KeyboardInterrupt, False),
+    (OSError, 'terminate', RuntimeError, True),
+    (KeyboardInterrupt, 'wait', OSError, True),
+    (SystemExit, 'poll', KeyboardInterrupt, True),
+    (OSError, 'kill', SystemExit, True),
+    (KeyboardInterrupt, 'kill_wait', SystemExit, True),
+])
+def test_cancellation_cleanup_preserves_primary_and_attempts_all_owned_workers(
+    saved_plan, monkeypatch, primary_type, operation, cleanup_type, broken_output,
+):
+    import builtins
+
+    case = saved_plan
+    config = case.study / 'runs/later/config.yaml'
+    config.parent.mkdir()
+    config.write_bytes(Path(case.jobs[0]['config']).read_bytes().replace(b'id: first', b'id: later'))
+    later = {**case.jobs[0], 'run_id': 'later', 'config': str(config)}
+    case.index['experiments'][0]['runs'].append({
+        'id': 'later', 'run_dir': 'later', 'seed': 7, 'config': 'runs/later/config.yaml',
+    })
+    (case.study / 'index.json').write_text(json.dumps(case.index), encoding='utf-8')
+    result = case.study / 'runs/first/result.json'
+    result.write_bytes(b'{"status":"succeeded","saved":"prior result"}\n')
+    before = {path: (path.read_bytes(), path.stat().st_mtime_ns)
+              for path in case.study.rglob('*') if path.is_file()}
+    primary = primary_type('original worker wait interrupted')
+    prior = LookupError('an existing cleanup attachment')
+    primary.cleanup_errors = (prior,)
+    cleanup = cleanup_type('injected first worker cleanup failure')
+    tail = RuntimeError('second worker cleanup failure')
+    expected = [prior]
+    events, dispatched, cleanup_output = [], [], []
+
+    def fail(error):
+        expected.append(error)
+        raise error
+
+    class Worker:
+        def __init__(self, label):
+            self.label = label
+            self.killed = False
+
+        def poll(self):
+            events.append((self.label, 'poll'))
+            if self.label == 'first' and operation == 'poll':
+                fail(cleanup)
+            return None
+
+        def terminate(self):
+            events.append((self.label, 'terminate'))
+            if self.label == 'second':
+                fail(tail)
+            if operation == 'terminate':
+                fail(cleanup)
+
+        def wait(self, timeout=None):
+            events.append((self.label, 'wait', timeout))
+            if timeout is None:
+                assert self.label == 'first'
+                raise primary
+            assert timeout == 5  # Preserve the existing escalation boundary.
+            if self.label == 'first':
+                if operation == 'wait':
+                    fail(cleanup)
+                if operation in ('kill', 'kill_wait'):
+                    if not self.killed:
+                        raise schedule.subprocess.TimeoutExpired('owned-worker', timeout)
+                    if operation == 'kill_wait':
+                        fail(cleanup)
+            return -15
+
+        def kill(self):
+            events.append((self.label, 'kill'))
+            self.killed = True
+            if operation == 'kill':
+                fail(cleanup)
+
+    workers = {name: Worker(name) for name in ('first', 'second', 'unrelated')}
+
+    def popen(command, **kwargs):
+        run_id = command[-1]
+        dispatched.append(run_id)
+        assert run_id in ('first', 'second'), 'cancellation dispatched a later group or retry'
+        return workers[run_id]
+
+    original_print = builtins.print
+
+    def printed(*values, **kwargs):
+        if values and str(values[0]).startswith('worker cleanup '):
+            cleanup_output.append(values[0])
+            if broken_output:
+                raise BrokenPipeError('cleanup reporting must not replace the original interruption')
+        return original_print(*values, **kwargs)
+
+    monkeypatch.setattr(schedule.subprocess, 'Popen', popen)
+    monkeypatch.setattr(builtins, 'print', printed)
+    with pytest.raises(BaseException) as caught:
+        schedule.launch_jobs(case.study, [*case.jobs, later], round_size=2,
+                             retry_failed=True, console='shared')
+    assert caught.value is primary
+    assert dispatched == ['first', 'second']
+    assert ('first', 'wait', 5) in events and ('second', 'wait', 5) in events
+    assert ('second', 'terminate') in events
+    assert cleanup in expected and tail in expected
+    assert tuple(primary.cleanup_errors) == tuple(expected)
+    assert not cleanup_output, 'secondary failures must remain attached without requiring a writable console'
+    assert not any(event[0] == 'unrelated' for event in events)
+    assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in before} == before

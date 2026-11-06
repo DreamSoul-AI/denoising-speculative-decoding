@@ -35,6 +35,8 @@
 
 新建 Study 运行使用 `python -m studies._shared.flow.cli run studies/<name> --run-root <外部Study运行根>`，也可先 `make studies/<name> --run-root <外部Study运行根>`，再 `launch <外部Study运行根>`。使用 --run-root 时 Study 路径紧随命令。外部根保存声明与源码白名单快照、study_source.json、runs/shared/docs、index、锁与日志，源码 Study 保持只读；状态、日志、process 和 report 后续直接传该外部根。生成的 PowerShell 启动入口同样走 shared CLI，使用 shared 控制台并传播退出码；调度worker固定当前宿主导入根，并在写运行态前验证来源。重复 launch 跳过已完成Run，部分完成时只派发pending；这是调度恢复，不是checkpoint/RNG恢复。失败默认不自动重试，损坏或与index/config不一致的jobs会拒绝，调整GPU分配或轮次需显式remake。已绑定且逐文件摘要相同的根可继续使用，原 Study 或快照漂移会失败，须用新根与研究协议处理，不覆盖旧运行。原 Study 中的绝对导入仍需要原 checkout；静态快照限单成员16MiB、合计32MiB，不复制权重、旧 Run 或未声明生成物。
 
+launch在派发或等待异常后停止新group与retry，只回收本次成功取得句柄的直接worker：逐一terminate，沿原5秒wait、超时kill及5秒wait尝试退出。再次取消或回收错误按顺序保留在原异常cleanup_errors，清理不依赖console输出，原始异常与既有Result不改。该直接worker的wait返回不代表后代或所有OS I/O已停止；全Run硬超时仍未实现，未知状态不自动重试。
+
 离线报告使用 `python -m studies._shared.flow.cli report <Study> --out <外部新文件.md>`，输出路径必填，拒绝已有文件、输入目录和源码 checkout；报告检查不回写旧 process 或 gate。`output_space_extension` 的已保存槽位诊断迁入 `python -m studies.output_space_extension.flow.process.run --raw <保存张量目录> --execution <原运行矩阵.json> --repository <本地仓库> --commit <完整提交> --execution-git-sha256 <Git原件SHA256> --device cuda:0 --output-root <新外部目录>`。它只读原件并在CUDA分析保存张量，不载入模型；实际运行矩阵须匹配旧报告哈希，与固定 Git 原件分别记录字节身份并核对 JSON 内容。缺失或漂移直接失败，不自动修换行或重签旧来源。历史读件需要支持 `--no-lazy-fetch` 的本地 Git，当前验证版本为 `2.55.0.windows.3`，不支持时直接失败，不降级联网。followup 读端同样迁入 `studies.output_space_followup.flow.process.run`，参数与槽位读端一致，保存张量实际在 CUDA 分析并登记设备。
 
 smoke 当前微型工程验证使用 `python -m studies.smoke.flow.execute.run --plan <当前计划> --plan-sha256 <实际SHA> --version <新工程版本> --device cuda:0 --output-root <新外部根>`，保留三种variant、四条输入、T0/0.7/1.0和32-token预算。T0完整提交链argmax为门，采样AR一致仅作诊断；`--compare <完整CUDA报告> --compare-sha256 <实际SHA>`要求同目录probe_complete/header/cells与实际SHA闭合，再核协议、模型、输入、设备与随机身份，不拿旧CPU报告冒充CUDA基线。历史CPU图使用 `python -m studies.smoke.flow.write.run --input <原delivery_validation.json> --input-sha256 <实际SHA> --output-root <新外部根>`，只读已保存计数，保留934dac3的CPU身份；可另给固定Git身份核原件，不加载模型。
@@ -95,11 +97,11 @@ epoch预算与早停另有独立进程CUDA对照，固定评估分数只用于�
 
 只读盘点使用 `python -m studies._shared.flow.cli logs <外部Study运行根> --inventory`，输出每个index Run的精确诊断家族JSON；重复run_id或规范Run目录拒绝，避免同一家族重复计量或同名串身份。不加flag仍输出原事件文本。`bytes`计已知JSONL、policy和legacy文本的实际总字节，`capture_bytes`仅计受采集配额约束的JSONL与policy，不包含legacy。无policy保`unbound`，未知配额/起点/期限为`null`；已知追加状态为`within_limits`、`expired`或`capacity`，全部`disposition=retain`，到期不表示任务停止或可删。列举、身份及metadata读取失败不填假零，准入/读取/构造失败返回2、stdout为空，stderr只给安全异常类别。入口不建来源锁或Run，不读诊断正文、不改原字节；不承诺stdout故障时的原子输出，也不提供物理清理、跨Run配额或硬IO超时。
 
-托管Logger构造/追加对进程内写锁只作一次非阻塞准入；锁忙沿既有诊断失败计数与安全应急提示处理，业务继续。严格Logger仍等待并序列化写入。竞争可能形成诊断缺口；构造被拒的实例不会自动补建日志根，后续可保持unbound。该合同只消除锁排队，前置callback、当前writer和console仍同步，不提供物理清理、跨Run配额或OS级硬I/O超时。
+托管Logger构造/追加对进程内写锁只作一次非阻塞准入；锁忙沿既有诊断失败计数与安全应急提示处理，业务继续。严格Logger仍等待并序列化写入。竞争可能形成诊断缺口；构造被拒的实例不会自动补建日志根，后续可保持unbound。该锁准入合同只消除排队，前置callback、当前writer和console仍同步，不能据此证明清理完成或OS I/O已停止；显式owned处置与固定诊断预留各按其独立合同执行。
 
 新、未执行Run可在首次Logger前显式接管诊断家族：`python -m studies._shared.flow.cli logs <外部Study> --retention prepare --run-id <ID>`；已有logs目录、Result、旧根或不可信路径拒绝。随后正常运行沿用原入口。需要处置时先 `logs <外部Study> --retention seal --run-id <ID>` 撤销当前协议内新旧Logger的追加权并取得seal SHA，再由运行管理者审查引用并显式调用 `logs <外部Study> --retention purge --run-id <ID> --seal-sha256 <SHA>`。只清除封存列举且复核相同的JSONL/分段与policy，不删除目录、legacy、未知成员、模型、数据或Result。
 
-`assets/.diagnostic-capture.json`、`assets/.diagnostic-capture.lock`、`assets/.diagnostic-capture.seal.json`、`assets/.diagnostic-capture.purge.json` 为永久控制，不清除或手动重建；原生OS锁只用本机Windows/POSIX后端，无软锁替代。pending/closed/部分失败保持封闭，不自动重试、补建或恢复捕获；文件锁释放不等于业务进程退出，封存也不表示科学完成或日志完整。仅保证当前协作协议内的writer，不覆盖旧版本、外部直接写入或非协作替换；不提供自动到期回收、旧Run收编、跨Run配额或OS级硬I/O超时。默认日志及只读inventory保持原用途，inventory统计诊断内容，不把控制journal当科学完成凭证。
+`assets/.diagnostic-capture.json`、`assets/.diagnostic-capture.lock`、`assets/.diagnostic-capture.seal.json`、`assets/.diagnostic-capture.purge.json` 为永久控制，不清除或手动重建；原生OS锁只用本机Windows/POSIX后端，无软锁替代。pending/closed/部分失败保持封闭，不自动重试、补建或恢复捕获；文件锁释放不等于业务进程退出，封存也不表示科学完成或日志完整。仅保证当前协作协议内的writer，不覆盖旧版本、外部直接写入或非协作替换；不提供自动到期回收、旧Run收编、动态跨Run退款/重分或OS级硬I/O超时；新Study固定预留见前述声明。默认日志及只读inventory保持原用途，inventory统计诊断内容，不把控制journal当科学完成凭证。
 
 # 三、开发与验证
 工作分支经 PR 面向 `dev`，完成检查并按当次明确授权集成，不自动发布。当前 HEAD 的本地结果、历史红项和未覆盖范围记在 PR 正文，不用旧提交结果代替。
@@ -142,6 +144,6 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 宿主CPU安全合同运行 `python -m pytest tests/spec_mtp`，真实CUDA合同运行 `python -m pytest tests/cuda/spec_mtp`；两根分别完整镜像源码相对路径，`python -m pytest tests` 仍收集两者。GPU入口先核CUDA可用并记录实际设备，保留设备、RNG、模型与张量断言，不提供无GPU回退。未知方法拒绝等纯结构guard留在CPU根，现有workflow命令不变，也不通过收集过滤或skip选择资源。
 
-登记1054函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别899/537/143/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1155参数、CUDA根283参数；本轮新增13函数44参数，分别为CPU42与CUDA2，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
+登记1056函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别900/538/144/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1165参数、CUDA根285参数；本轮新增2函数12参数，分别为CPU10与CUDA2，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
 
 已有Kalman/EMA的P0 CUDA核验按独立参考区分递推、状态时序与研究收益：EMA闭式历史、标量Joseph、逐维/残差与对角增益各自验证；Online/Aligned每轮首commit，Hybrid last为实际末commit（截断时不保证bonus）。已修非有限噪声参数准入与forget=1除零，端点关闭Q/R自适应而P/F仍更新。局部正确性不证明Kalman建模最优或真实模型加速，成果与来源缺口见唯一研究计划。

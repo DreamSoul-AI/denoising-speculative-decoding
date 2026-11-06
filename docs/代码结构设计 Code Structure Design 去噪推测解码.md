@@ -210,3 +210,5 @@ mask provider行为和factory真实张量选择/准入分别由 `tests/cuda/spec
 参与数值的表、prompt、logits及预期/输出显式使用CUDA；固定seed用局部Generator，原未指定seed的输入通过selected CUDA fork_rng隔离，不额外指定seed。全局CPU/CUDA RNG与默认设备恢复通过状态断言取证，属性只记录实际参与张量。拒绝用例记录真实输入与异常，factory未生成mask时只记输入/对象归属，不补成功输出或模型forward。文件内fixture只服务实际消费者，简单构造就地表达，不增加共享转发层。镜像按真实方法的unit/content/C3/GPU1登记；纯I/O与配置合同及完整CLI旅程分别按其成本/层级选择，未授权的模型矩阵不随测试归位派发。
 
 固定预留继续由artifact/asset/tree.py维护：Study required预算、有限Run份额与原字节绑定，复用现有原子控制写入和每Run原生锁。make/write.py先建立pending再完成全部份额后发布ready；runner及make/schedule.py在执行前重验，Logger在同一写锁内重验份额与policy。默认无预算根不新增文件；不新增配额模块、后台writer或Study树。
+
+make/schedule.py拥有本次成功登记的Popen直接worker句柄；取消回收在原_run_groups内完成，不新增统一进程管理门面。清理次错含BaseException，按原异常的cleanup_errors保留顺序，不再通过同步console报告而阻断剩余回收。CPU同源镜像覆盖再次取消及首错身份，CUDA make/test_schedule镜像核真实worker计算、退出及受控日志停止观察；后代进程树与硬I/O中断仍是独立未实现合同。

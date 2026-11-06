@@ -13086,6 +13086,42 @@
         "estimate_basis": "Two bounded real CUDA Flow reservation paths passed targeted;10s is a scheduling estimate, not a performance claim.",
         "memory_requirement": "not yet estimated; actual device facts remain in the per-case receipts"
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_cancellation_cleanup_preserves_primary_and_attempts_all_owned_workers",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_cancelled_scheduler_reaps_its_cuda_writer_and_preserves_original_results",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false,
+        "estimated_device_seconds": 10,
+        "estimate_basis": "Two bounded real CUDA child cancellation paths passed targeted;10s is a scheduling estimate, not a performance claim.",
+        "memory_requirement": "not yet estimated; actual device facts remain in the per-case receipts"
+      }
     }
   ],
   "plans": {
@@ -13711,6 +13747,10 @@
         {
           "test_id": "tests/cuda/spec_mtp/flow/test_runner.py::test_fixed_study_budget_admits_cuda_flow_and_refuses_missing_reservation",
           "reason": "Requires a real CUDA device; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_cancelled_scheduler_reaps_its_cuda_writer_and_preserves_original_results",
+          "reason": "Requires a real CUDA worker; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -14255,7 +14295,8 @@
         "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_interrupted_reserved_control_stage_is_bounded_and_blocks_later_writers",
         "tests/spec_mtp/structure/make/test_write.py::test_expand_budget_admission_precedes_writes_and_ready_reuse_is_read_only",
         "tests/spec_mtp/flow/test_runner.py::test_budget_admission_precedes_phases_and_keeps_failure_result",
-        "tests/spec_mtp/structure/make/test_schedule.py::test_dispatch_checks_all_budgeted_runs_before_creating_any_worker"
+        "tests/spec_mtp/structure/make/test_schedule.py::test_dispatch_checks_all_budgeted_runs_before_creating_any_worker",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_cancellation_cleanup_preserves_primary_and_attempts_all_owned_workers"
       ],
       "exclude": []
     },
@@ -14405,7 +14446,8 @@
         "tests/cuda/spec_mtp/flow/test_cli.py::test_cuda_cli_cleanup_cancellation_still_closes_its_real_model",
         "tests/cuda/spec_mtp/structure/system/test_factory.py::test_busy_diagnostics_do_not_block_cuda_checkpoint_integration",
         "tests/cuda/spec_mtp/structure/system/test_factory.py::test_owned_diagnostic_retention_preserves_cuda_compute_and_checkpoint",
-        "tests/cuda/spec_mtp/flow/test_runner.py::test_fixed_study_budget_admits_cuda_flow_and_refuses_missing_reservation"
+        "tests/cuda/spec_mtp/flow/test_runner.py::test_fixed_study_budget_admits_cuda_flow_and_refuses_missing_reservation",
+        "tests/cuda/spec_mtp/structure/make/test_schedule.py::test_cancelled_scheduler_reaps_its_cuda_writer_and_preserves_original_results"
       ],
       "exclude": [],
       "resources": {
