@@ -1,5 +1,6 @@
 """Managed diagnostics preserve formal Flow results and original errors."""
 from pathlib import Path
+import json
 from types import SimpleNamespace
 import pytest
 from spec_mtp.flow.context import FlowContext
@@ -92,3 +93,50 @@ def test_flow_keeps_business_exception_when_diagnostics_and_failure_result_fail(
         assert result['status'] == 'failed' and result['error'] == 'ValueError: actual business failure'
         assert result['metrics'] == {'saved_count': 1}
     assert ctx.state['logger'].failure_count >= 1
+
+
+@pytest.mark.parametrize('cause', ['capacity', 'expired', 'unbound'])
+def test_capture_limits_do_not_change_a_successful_business_result(tmp_path, monkeypatch, cause):
+    from datetime import datetime, timedelta, timezone
+    from types import SimpleNamespace
+    from spec_mtp.flow import runner as implementation
+    from spec_mtp.flow.context import FlowContext
+    from spec_mtp.structure.artifact.layout import ArtifactLayout
+    from spec_mtp.structure.artifact.result.io import write_result, load_result
+    from spec_mtp.structure.system import logger as log_implementation
+    from spec_mtp.structure.system.logger import Logger
+    from tests.conftest import saved_diagnostic
+
+    now = datetime(2026, 11, 6, 12, tzinfo=timezone.utc)
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now.astimezone(tz) if tz is not None else now.replace(tzinfo=None)
+    monkeypatch.setattr(log_implementation, 'datetime', Clock)
+    study = tmp_path / 'study'
+    layout = ArtifactLayout(root=study / 'runs/r1', study_dir=study)
+    logs = layout.assets_dir / 'logs'
+    logs.mkdir(parents=True)
+    (logs / 'events.jsonl').write_bytes(saved_diagnostic('original').encode())
+    if cause != 'unbound':
+        created = now - timedelta(days=7) if cause == 'expired' else now
+        (logs / 'events.policy.json').write_text(json.dumps({
+            'schema': 1, 'owner': 'run_operator', 'max_bytes': 1 if cause == 'capacity' else 4096,
+            'created_at': created.isoformat().replace('+00:00', 'Z'),
+            'write_until': (created + timedelta(days=7)).isoformat().replace('+00:00', 'Z')}), encoding='ascii')
+    saved = {p: p.read_bytes() for p in logs.iterdir()}
+    logger = Logger(layout.assets_dir, managed=True)
+    ctx = FlowContext(study_dir=study, layout=layout, config={}, state={'logger': logger})
+    success = {'status': 'succeeded', 'control': {}, 'metrics': {'count': 1}, 'paths': {}}
+    calls = []
+    def publish(context):
+        calls.append(context)
+        write_result(context.layout.result_path, success)
+    monkeypatch.setattr(implementation, 'import_module', lambda name: SimpleNamespace(run=publish))
+    monkeypatch.setattr(implementation, 'run_study_phase', lambda *a, **k: None)
+    actual = implementation.FlowRunner(phases=['write']).run(ctx)
+    assert actual == layout.result_path and calls == [ctx]
+    assert load_result(actual) == success
+    assert logger.stop_reason == cause and logger.suppressed_records == 2
+    assert logger.failure_count == 0
+    assert {p: p.read_bytes() for p in logs.iterdir()} == saved

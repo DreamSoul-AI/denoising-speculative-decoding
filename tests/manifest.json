@@ -11642,6 +11642,177 @@
         "model_download": false,
         "estimated_device_seconds": 15
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_managed_capture_policy_is_frozen_across_instances_and_mtime",
+      "target": "spec_mtp.structure.system.logger.Logger.__init__",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_capture_budget_counts_policy_all_parts_and_next_record",
+      "target": "spec_mtp.structure.system.logger.Logger.info",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_capture_deadline_never_renews_from_reopen_or_file_mtime",
+      "target": "spec_mtp.structure.system.logger.Logger.info",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_untrusted_capture_policy_is_not_repaired_or_classified_as_capacity",
+      "target": "spec_mtp.structure.system.logger.Logger.info",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_managed_capture_never_backfills_a_policy_for_nonempty_old_logs",
+      "target": "spec_mtp.structure.system.logger.Logger.info",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_capture_policy_aliases_never_authorize_writing_existing_bytes",
+      "target": "spec_mtp.structure.system.logger.Logger.info",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_capture_policy_bytes_alone_can_exhaust_the_frozen_budget",
+      "target": "spec_mtp.structure.system.logger.Logger.info",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_runner.py::test_capture_limits_do_not_change_a_successful_business_result",
+      "target": "spec_mtp.flow.runner.FlowRunner.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/system/test_logger.py::test_initial_policy_failure_never_creates_authority_or_repairs_an_anchor",
+      "target": "spec_mtp.structure.system.logger.Logger.__init__",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
     }
   ],
   "plans": {
@@ -12706,7 +12877,16 @@
         "tests/spec_mtp/structure/system/test_factory.py::test_native_system_reuses_only_the_admitted_run_logger",
         "tests/spec_mtp/structure/system/test_factory.py::test_native_system_without_injection_isolates_logger_construction_failure",
         "tests/spec_mtp/flow/test_runner.py::test_flow_diagnostic_failures_preserve_success_and_one_logger",
-        "tests/spec_mtp/flow/test_runner.py::test_flow_keeps_business_exception_when_diagnostics_and_failure_result_fail"
+        "tests/spec_mtp/flow/test_runner.py::test_flow_keeps_business_exception_when_diagnostics_and_failure_result_fail",
+        "tests/spec_mtp/structure/system/test_logger.py::test_managed_capture_policy_is_frozen_across_instances_and_mtime",
+        "tests/spec_mtp/structure/system/test_logger.py::test_capture_budget_counts_policy_all_parts_and_next_record",
+        "tests/spec_mtp/structure/system/test_logger.py::test_capture_deadline_never_renews_from_reopen_or_file_mtime",
+        "tests/spec_mtp/structure/system/test_logger.py::test_untrusted_capture_policy_is_not_repaired_or_classified_as_capacity",
+        "tests/spec_mtp/structure/system/test_logger.py::test_managed_capture_never_backfills_a_policy_for_nonempty_old_logs",
+        "tests/spec_mtp/structure/system/test_logger.py::test_capture_policy_aliases_never_authorize_writing_existing_bytes",
+        "tests/spec_mtp/structure/system/test_logger.py::test_capture_policy_bytes_alone_can_exhaust_the_frozen_budget",
+        "tests/spec_mtp/flow/test_runner.py::test_capture_limits_do_not_change_a_successful_business_result",
+        "tests/spec_mtp/structure/system/test_logger.py::test_initial_policy_failure_never_creates_authority_or_repairs_an_anchor"
       ],
       "exclude": []
     },

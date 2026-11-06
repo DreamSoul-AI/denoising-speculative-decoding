@@ -89,7 +89,7 @@ checkpoint/RNG的独立合同见架构设计CR0–CR5。native `TrainAlgorithm` 
 
 epoch预算与早停另有独立进程CUDA对照，固定评估分数只用于检验stall与停止状态。已停止或任一预算上限已尽的恢复只还原状态，不再取batch、评估或写checkpoint/tracker。checkpoint以同目录独占临时文件同步后最后替换bundle；提交前错误保留旧bundle，提交后诊断清理失败不否定已提交状态。未发布stage及其别名拒绝读入；只有旧分片目录时，写入前要求显式迁移，不自动补签或覆盖旧原件。
 
-诊断日志以 `assets/logs/events.jsonl` 为稳定锚点，每段到4MiB后另建 `events.000001.jsonl` 等递增段，旧字节不覆盖、不删除。状态与logs命令按全段读取，报告日志链接指末段；旧 `run.log` 保持只读兼容。JSONL逐条有界读取，状态摘要流式归约；缺段、链接别名和损坏尾记录拒绝，完整输出的UTC排序仍占用选中记录内存。宿主托管Logger隔离自身诊断故障，Flow与System复用同一实例；默认直接API仍严格报错，业务Tracker/checkpoint/Result错误不吞。失败操作计数不等于丢失条数，stderr仅安全类别与完整性未知。总量/期限及Study独立严格入口仍待收束；Python3.10所需API已兼容，最低版本及全部依赖组合尚未实机验证。
+诊断日志以 `assets/logs/events.jsonl` 为稳定锚点，每段到4MiB后另建 `events.000001.jsonl` 等递增段，旧字节不覆盖、不删除。状态与logs命令按全段读取，报告日志链接指末段；旧 `run.log` 保持只读兼容。JSONL逐条有界读取，状态摘要流式归约；缺段、链接别名和损坏尾记录拒绝，完整输出的UTC排序仍占用选中记录内存。宿主托管Logger隔离自身诊断故障，Flow与System复用同一实例；默认直接API仍严格报错，业务Tracker/checkpoint/Result错误不吞。失败操作计数不等于丢失条数，stderr仅安全类别与完整性未知。新空托管日志以events.policy.json冻结64MiB累计配额（含policy与全部诊断段）和实际UTC起点后的7天追加窗口；重开不续期，旧非空/legacy无policy不补签，到限停止追加并报告本实例suppressed_records。该窗口不等于物理保留期，跨Run全盘总量/到期清理及14个Study严格入口仍未收束；最低Python3.10及全部依赖组合尚未实机验证。
 
 # 三、开发与验证
 工作分支经 PR 面向 `dev`，完成检查并按当次明确授权集成，不自动发布。当前 HEAD 的本地结果、历史红项和未覆盖范围记在 PR 正文，不用旧提交结果代替。
@@ -130,6 +130,6 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 宿主CPU安全合同运行 `python -m pytest tests/spec_mtp`，真实CUDA合同运行 `python -m pytest tests/cuda/spec_mtp`；两根分别完整镜像源码相对路径，`python -m pytest tests` 仍收集两者。GPU入口先核CUDA可用并记录实际设备，保留设备、RNG、模型与张量断言，不提供无GPU回退。未知方法拒绝等纯结构guard留在CPU根，现有workflow命令不变，也不通过收集过滤或skip选择资源。
 
-登记975函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别829/468/134/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根914参数、CUDA根270参数；原1158参数保全，新增24个托管诊断IO/首错合同和2个实际CUDA评估收尾合同。运行及结果绑定实际提交，历史规模与设备结论从原运行记录定位。Study侧独立CUDA计划及旧72项观测模型矩阵的暂停状态不变，不因工程整理重启研究或产生新的性能结论。
+登记984函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别838/477/134/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根942参数、CUDA根270参数；原1158参数保全，本轮新增24个托管诊断IO/首错、2个实际CUDA评估收尾及28个采集policy合同。运行及结果绑定实际提交，历史规模与设备结论从原运行记录定位。Study侧独立CUDA计划及旧72项观测模型矩阵的暂停状态不变，不因工程整理重启研究或产生新的性能结论。
 
 已有Kalman/EMA的P0 CUDA核验按独立参考区分递推、状态时序与研究收益：EMA闭式历史、标量Joseph、逐维/残差与对角增益各自验证；Online/Aligned每轮首commit，Hybrid last为实际末commit（截断时不保证bonus）。已修非有限噪声参数准入与forget=1除零，端点关闭Q/R自适应而P/F仍更新。局部正确性不证明Kalman建模最优或真实模型加速，成果与来源缺口见唯一研究计划。

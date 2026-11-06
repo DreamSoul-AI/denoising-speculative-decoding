@@ -180,9 +180,11 @@ CLI、YAML/JSON、token 数据、Hub 文件和旧运行记录都校验形状、�
 
 诊断日志由统一 Logger 保存为 UTF-8 JSONL，包含 timestamp/level/event/logger/message/app_name/app_version/runtime_id/process_name/pid，按场景加 Run/phase、outcome 和实际耗时。未知可选项省略，凭据、prompt 正文和完整 tensor 不进普通日志。sink 故障记录实际影响，日志无错误不能作为成功依据。
 
-诊断按完整记录保全分段，稳定锚点与旧段不覆盖、不删除；状态与logs读取全段，报告链接末段。单段4MiB、单条65536字符含LF，解析路径别名/硬链、缺段和截断拒绝；同进程多实例写入协调不扩大为跨进程协议。严格直接API的追加IO错误仍上抛并保留可能的partial事实，宿主托管隔离按下述独立合同；累计容量与物理保留期仍待收束，不能由日志读取成功或单段限额推断这些能力。指标Tracker与checkpoint恢复字节偏移保持独立。
+诊断按完整记录保全分段，稳定锚点与旧段不覆盖、不删除；状态与logs读取全段，报告链接末段。单段4MiB、单条65536字符含LF，解析路径别名/硬链、缺段和截断拒绝；同进程多实例写入协调不扩大为跨进程协议。严格直接API的追加IO错误仍上抛并保留可能的partial事实，宿主托管隔离按下述独立合同；新空托管日志另按policy限制累计容量和追加期限；物理保留期与跨Run总量仍待收束，不能由日志读取成功推断这些能力。指标Tracker与checkpoint恢复字节偏移保持独立。
 
 宿主诊断采用显式托管模式，与严格直接Logger API分开。诊断构造、格式化、序列化、文件与console故障不会改业务结果或替换首个业务异常；KeyboardInterrupt/SystemExit继续传播。Flow向System注入同一Run Logger，避免实例状态分叉。记录failure_count只代表失败诊断操作，不能断言对应记录未落盘；stderr二次故障也不能妨碍业务。算法执行、Tracker状态落盘、checkpoint发布及正式Result仍按其原合同失败，不能由托管模式降级成成功。独立Study入口仍需按影响逐项采用，不据宿主验收宣称全库故障隔离。
+
+采集policy由新空诊断根独占冻结，当前默认每Run64MiB（policy与全部JSONL合计）和实际UTC起点后7天；重开不延期、旧非空无policy不补签。准入写前核下一条完整记录，已到期限/配额或无可信旧绑定时只停止诊断追加，正式业务继续；主动抑制与未知诊断故障分别计数，计数仅限本Logger实例。原日志与业务证据不清理；物理保留期、跨Run全盘限额和同步文件IO等待上界不在该合同中。
 
 CSV指标行与诊断日志分开。可选文件Logger按首个有效header固定列序，每次追加前核现有header和末尾记录边界；同键重排不改变字段含义，schema不符、header损坏或目标状态变化必须拒绝，旧行不修补。stdout-only仍可输出动态指标，四位小数与step/prefix格式保持。追加IO失败上抛，CSV不是原子事务、并发写协议或科学完成标记；native正式指标资产由collect和后续gate另行校验。
 

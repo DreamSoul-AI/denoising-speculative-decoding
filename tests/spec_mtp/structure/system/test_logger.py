@@ -1,5 +1,7 @@
 """Diagnostic records and legacy read-only views share no scientific state."""
 import json
+from datetime import datetime, timedelta, timezone
+import os
 import sys
 from types import SimpleNamespace
 from pathlib import Path
@@ -356,3 +358,259 @@ def test_managed_logger_covers_report_and_exception_formatting(tmp_path, monkeyp
         else: logger.report(SimpleNamespace(display_mean=failed, last=lambda split: {}), 'test')
     assert logger.failure_count == 1 and logger.last_error_type == 'ValueError'
     assert logger.path.read_bytes() == b''
+
+
+@pytest.fixture
+def frozen_diagnostic_clock(monkeypatch):
+    from spec_mtp.structure.system import logger as implementation
+
+    clock = {'now': datetime(2026, 11, 6, 12, tzinfo=timezone.utc)}
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock['now'].astimezone(tz) if tz is not None else clock['now'].replace(tzinfo=None)
+    monkeypatch.setattr(implementation, 'datetime', Clock)
+    return clock
+
+
+def _diagnostic_policy_bytes(created, cap=4096):
+    return (json.dumps({'schema': 1, 'owner': 'run_operator', 'max_bytes': cap,
+                        'created_at': created.isoformat().replace('+00:00', 'Z'),
+                        'write_until': (created + timedelta(days=7)).isoformat().replace('+00:00', 'Z')},
+                       separators=(',', ':')) + '\n').encode('ascii')
+
+
+def test_managed_capture_policy_is_frozen_across_instances_and_mtime(tmp_path, frozen_diagnostic_clock):
+    assets = tmp_path / 'runs/r1/assets'
+    first = Logger(assets, managed=True)
+    path = first.path.with_name('events.policy.json')
+    raw = path.read_bytes()
+    policy = json.loads(raw)
+    assert len(raw) <= 4096
+    assert set(policy) == {'schema', 'owner', 'max_bytes', 'created_at', 'write_until'}
+    assert policy['schema'] == 1 and type(policy['schema']) is int
+    assert policy['owner'] == 'run_operator' and policy['max_bytes'] == 64 * 1024 * 1024
+    created = datetime.fromisoformat(policy['created_at'].replace('Z', '+00:00'))
+    deadline = datetime.fromisoformat(policy['write_until'].replace('Z', '+00:00'))
+    assert created == frozen_diagnostic_clock['now'] and deadline - created == timedelta(days=7)
+    first.info('first')
+    os.utime(path, (1, 1))
+    frozen_diagnostic_clock['now'] += timedelta(days=1)
+    second = Logger(assets, managed=True)
+    second.info('second')
+    strict = Logger(assets)
+    strict.info('strict shares the frozen policy')
+    assert path.read_bytes() == raw and path.stat().st_mtime_ns == 1_000_000_000
+    assert [json.loads(row)['message'] for row in first.path.read_text().splitlines()] == [
+        'first', 'second', 'strict shares the frozen policy']
+    assert first.suppressed_records == second.suppressed_records == 0
+    assert first.failure_count == second.failure_count == 0
+    assert first.state_dict() == second.state_dict() == {'path': str(first.path)}
+
+
+@pytest.mark.parametrize('managed', [False, True], ids=['strict', 'managed'])
+@pytest.mark.parametrize('offset', [-1, 0, 1], ids=['below_cap', 'exact_cap', 'above_cap'])
+def test_capture_budget_counts_policy_all_parts_and_next_record(
+        tmp_path, capsys, frozen_diagnostic_clock, managed, offset):
+    # The probe obtains the real wire length without replacing json.dumps or sizing a fake record.
+    probe = Logger(tmp_path / 'probe/runs/r1/assets')
+    probe.info('bounded record')
+    line_size = probe.path.stat().st_size
+    capsys.readouterr()
+    assets = tmp_path / 'actual/runs/r1/assets'
+    anchor = assets / 'logs/events.jsonl'
+    anchor.parent.mkdir(parents=True)
+    cap = 4096
+    policy_path = anchor.with_name('events.policy.json')
+    policy_bytes = _diagnostic_policy_bytes(frozen_diagnostic_clock['now'], cap)
+    policy_path.write_bytes(policy_bytes)
+    saved_size = cap - len(policy_bytes) - line_size + offset
+    # Two actual parts make an implementation that counts only its last file fail.
+    seed_size = saved_size // 2
+    for path, size in ((anchor, seed_size), (anchor.with_name('events.000001.jsonl'), saved_size - seed_size)):
+        payload = saved_diagnostic('')
+        assert size >= len(payload)
+        path.write_bytes(saved_diagnostic('x' * (size - len(payload))).encode('ascii'))
+    before = {path: path.read_bytes() for path in anchor.parent.iterdir()}
+    logger = Logger(assets, managed=managed)
+    if offset <= 0:
+        logger.info('bounded record')
+        assert sum(path.stat().st_size for path in anchor.parent.iterdir()) == cap + offset
+        assert all(path.read_bytes().startswith(raw) for path, raw in before.items())
+        if managed:
+            assert logger.suppressed_records == logger.failure_count == 0
+    else:
+        if managed:
+            logger.info('bounded record')
+            assert logger.suppressed_records == 1 and logger.stop_reason == 'capacity'
+            assert logger.failure_count == 0
+        else:
+            with pytest.raises(ValueError):
+                logger.info('bounded record')
+        assert {path: path.read_bytes() for path in anchor.parent.iterdir()} == before
+        assert not capsys.readouterr().out
+    assert policy_path.read_bytes() == policy_bytes
+
+
+@pytest.mark.parametrize('remaining', [1, 0, -1], ids=['before_deadline', 'at_deadline', 'after_deadline'])
+def test_capture_deadline_never_renews_from_reopen_or_file_mtime(
+        tmp_path, capsys, frozen_diagnostic_clock, remaining):
+    now = frozen_diagnostic_clock['now']
+    assets = tmp_path / 'assets'
+    anchor = assets / 'logs/events.jsonl'
+    anchor.parent.mkdir(parents=True)
+    created = now - timedelta(days=7) + timedelta(seconds=remaining)
+    policy_path = anchor.with_name('events.policy.json')
+    policy_path.write_bytes(_diagnostic_policy_bytes(created))
+    anchor.write_bytes(saved_diagnostic('saved').encode())
+    os.utime(anchor, (now.timestamp(), now.timestamp()))
+    os.utime(policy_path, (now.timestamp(), now.timestamp()))
+    before = {p: p.read_bytes() for p in anchor.parent.iterdir()}
+    managed = Logger(assets, managed=True)
+    assert managed.suppressed_records == 0  # construction is not a lost log record
+    if remaining > 0:
+        managed.info('still authorized')
+        assert managed.suppressed_records == managed.failure_count == 0
+        assert anchor.read_bytes().startswith(before[anchor])
+    else:
+        managed.info('must stop')
+        managed.warning('must remain stopped')
+        reopened = Logger(assets, managed=True)
+        reopened.info('reopening is not renewal')
+        assert managed.suppressed_records == 2 and reopened.suppressed_records == 1
+        assert managed.stop_reason == reopened.stop_reason == 'expired'
+        assert managed.failure_count == reopened.failure_count == 0
+        with pytest.raises(ValueError):
+            Logger(assets).info('strict also respects expiry')
+        assert {p: p.read_bytes() for p in anchor.parent.iterdir()} == before
+        captured = capsys.readouterr()
+        assert not captured.out and captured.err.count('\n') <= 2
+    assert policy_path.read_bytes() == before[policy_path]
+
+
+@pytest.mark.parametrize('damage', ['partial', 'oversized', 'extra_field', 'bool_cap',
+                                  'over_cap', 'future_created', 'wrong_window', 'wrong_owner'])
+def test_untrusted_capture_policy_is_not_repaired_or_classified_as_capacity(
+        tmp_path, frozen_diagnostic_clock, damage):
+    assets = tmp_path / 'assets'
+    anchor = assets / 'logs/events.jsonl'
+    anchor.parent.mkdir(parents=True)
+    anchor.write_bytes(saved_diagnostic('saved').encode())
+    policy = json.loads(_diagnostic_policy_bytes(frozen_diagnostic_clock['now']))
+    if damage == 'extra_field': policy['extra'] = 'not authorized'
+    if damage == 'bool_cap': policy['max_bytes'] = True
+    if damage == 'over_cap': policy['max_bytes'] = 64 * 1024 * 1024 + 1
+    if damage == 'future_created':
+        policy = json.loads(_diagnostic_policy_bytes(frozen_diagnostic_clock['now'] + timedelta(seconds=1)))
+    if damage == 'wrong_window':
+        policy['write_until'] = (frozen_diagnostic_clock['now'] + timedelta(days=8)).isoformat()
+    if damage == 'wrong_owner': policy['owner'] = 'guessed_owner'
+    raw = (b'{"schema":1' if damage == 'partial' else b' ' * 4097 if damage == 'oversized'
+           else json.dumps(policy).encode())
+    policy_path = anchor.with_name('events.policy.json')
+    policy_path.write_bytes(raw)
+    before = {p: p.read_bytes() for p in anchor.parent.iterdir()}
+    managed = Logger(assets, managed=True)
+    managed.info('must refuse unknown source')
+    assert managed.failure_count >= 1
+    assert managed.suppressed_records == 0
+    assert managed.stop_reason not in ('capacity', 'expired', 'unbound')
+    with pytest.raises(ValueError):
+        Logger(assets).info('strict invalid policy')
+    assert {p: p.read_bytes() for p in anchor.parent.iterdir()} == before
+
+
+@pytest.mark.parametrize('name', ['events.jsonl', 'run.log'], ids=['old_jsonl', 'legacy_text'])
+def test_managed_capture_never_backfills_a_policy_for_nonempty_old_logs(tmp_path, capsys, name):
+    assets = tmp_path / 'assets'
+    parent = assets / 'logs'
+    parent.mkdir(parents=True)
+    old = parent / name
+    old.write_bytes(saved_diagnostic('original').encode() if name.endswith('jsonl') else b'old bytes\n')
+    before = {p: p.read_bytes() for p in parent.iterdir()}
+    managed = Logger(assets, managed=True)
+    assert managed.suppressed_records == 0
+    managed.info('not authorized to bind old bytes')
+    managed.info('not authorized on retry')
+    assert managed.stop_reason == 'unbound' and managed.suppressed_records == 2
+    assert managed.failure_count == 0
+    assert {p: p.read_bytes() for p in parent.iterdir()} == before
+    assert not (parent / 'events.policy.json').exists()
+    captured = capsys.readouterr()
+    assert not captured.out and captured.err.count('\n') <= 1
+    assert str(old) not in captured.err and 'original' not in captured.err
+    # Strict no-policy API keeps its pre-existing explicit append behavior.
+    strict = Logger(assets)
+    strict.info('explicit strict append')
+    assert not (parent / 'events.policy.json').exists()
+    if name == 'run.log':
+        assert old.read_bytes() == before[old]
+    else:
+        assert old.read_bytes().startswith(before[old])
+
+
+@pytest.mark.parametrize('alias', ['resolved_alias', 'hardlink'])
+def test_capture_policy_aliases_never_authorize_writing_existing_bytes(
+        tmp_path, monkeypatch, frozen_diagnostic_clock, alias):
+    assets = tmp_path / 'assets'
+    anchor = assets / 'logs/events.jsonl'
+    anchor.parent.mkdir(parents=True)
+    anchor.write_bytes(saved_diagnostic('saved').encode())
+    policy_path = anchor.with_name('events.policy.json')
+    original = anchor.parent / 'original-policy.json'
+    raw = _diagnostic_policy_bytes(frozen_diagnostic_clock['now'])
+    original.write_bytes(raw)
+    if alias == 'hardlink':
+        os.link(original, policy_path)
+        assert policy_path.stat().st_nlink > 1
+    else:
+        policy_path.write_bytes(raw)
+        resolve = Path.resolve
+        monkeypatch.setattr(Path, 'resolve', lambda p, *a, **k: original if p == policy_path else resolve(p, *a, **k))
+    before = {p: p.read_bytes() for p in anchor.parent.iterdir()}
+    managed = Logger(assets, managed=True)
+    managed.info('must not trust linked policy')
+    assert managed.failure_count >= 1 and managed.suppressed_records == 0
+    with pytest.raises(ValueError):
+        Logger(assets).info('strict also refuses')
+    assert {p: p.read_bytes() for p in anchor.parent.iterdir()} == before
+
+
+def test_capture_policy_bytes_alone_can_exhaust_the_frozen_budget(tmp_path, frozen_diagnostic_clock):
+    assets = tmp_path / 'assets'
+    anchor = assets / 'logs/events.jsonl'
+    anchor.parent.mkdir(parents=True)
+    anchor.write_bytes(b'')
+    policy_path = anchor.with_name('events.policy.json')
+    policy_path.write_bytes(_diagnostic_policy_bytes(frozen_diagnostic_clock['now'], cap=1))
+    before = {p: p.read_bytes() for p in anchor.parent.iterdir()}
+    managed = Logger(assets, managed=True)
+    assert managed.suppressed_records == 0
+    managed.info('no record fits')
+    assert managed.suppressed_records == 1 and managed.stop_reason == 'capacity'
+    assert managed.failure_count == 0
+    assert {p: p.read_bytes() for p in anchor.parent.iterdir()} == before
+
+
+@pytest.mark.parametrize('problem', ['new_policy_exceeds_budget', 'bound_policy_missing_anchor'])
+def test_initial_policy_failure_never_creates_authority_or_repairs_an_anchor(
+        tmp_path, monkeypatch, frozen_diagnostic_clock, problem):
+    from spec_mtp.structure.system import logger as implementation
+
+    assets = tmp_path / 'assets'
+    anchor = assets / 'logs/events.jsonl'
+    policy = anchor.with_name('events.policy.json')
+    if problem == 'new_policy_exceeds_budget':
+        monkeypatch.setattr(implementation, '_TOTAL_BYTES', 1)
+    else:
+        policy.parent.mkdir(parents=True)
+        policy.write_bytes(_diagnostic_policy_bytes(frozen_diagnostic_clock['now']))
+    before = policy.read_bytes() if policy.exists() else None
+    logger = Logger(assets, managed=True)
+    assert logger.failure_count == 1 and logger.suppressed_records == 0
+    if problem == 'new_policy_exceeds_budget':
+        assert not policy.exists() and anchor.read_bytes() == b''
+    else:
+        assert policy.read_bytes() == before and not anchor.exists()
+        with pytest.raises(ValueError):
+            Logger(assets)
