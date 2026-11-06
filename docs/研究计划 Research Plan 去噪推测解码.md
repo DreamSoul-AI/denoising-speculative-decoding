@@ -380,6 +380,20 @@ provider构造setup在外，prompt初始化/EMA递推/Kalman实际Python标量P/
 
 **R82b实测**：d7b69e4/clean、round83新来源，两GPU矩阵stride[1,2561]，288项/36864提交T0、模型close/14件末核及actualexit0；full−zero接受+8.187500、墙钟-0.300858秒、速度1.107204×，H82点门通过，探索性95%速度[1.086110,1.127636]。zero/ESP为0.979870×、接受+0.000000；full/ESP为1.084916×。这些处理效应分别报告，原R82中断不进入统计。见运行记录第八十五节。
 
+## （二十四）R84–R85：固定单数值格式的完整答案质量协议
+**问题与假设**：R79在非思考但自由解释格式下，每臂7正确/1无EOS；本次检验明确单数值格式能否形成完整可评分答案。原q414与R79保持失败，不延长/换题补签。新开发q417与固定评价q425–432在读取新生成输出前选定；题号按原数据顺序，不按难度/正确结果挑选，历史480已见，评价与本次校准/近期R75/R79不交。
+
+| **冻结项** | **协议/验收** |
+| --- | --- |
+| 输入/格式 | 同原SpecBench数据7dd26882…、原题干后固定追加“Output exactly one number using decimal notation, with no units, explanation, or formatting.”；enable_thinking=False，实际空闭合think来自输入prefix；不插入gold。开发417，正式425–432，原####参考单独冻结 |
+| 模型/对照 | 同Qwen3-4B BF16/eager、ESP/冻结完整K17b62…成对对照、原R65 adapter不改，K2/BC30/dynamic-pruned/naive/mean_prompt λ=.1/update，greedy/seed123/max64/EOS=true。无新校准、无在线更新；CPU只离散tokenizer、纯评分/来源合同 |
+| 准入H84 | q417两臂各1次，必须真实终端EOS、whole-decimal可解析、与原gold匹配、完整来源/T0和实际模型关闭/末核/进程退出；任一失败则正式R85不派发，不改提示/长度或选替代题 |
+| 正式H85与指标 | q425–432、两臂3rep Latin，共48请求，独立n8；先核全EOS/严格格式/重复稳定的协议可执行性，再分开报告correct/wrong/not_evaluable、接受/τ及同步generate时长。整个finaltail仅允许一个十进制数（可符号/千位逗号），解释、单位、分数、boxed及thought/新role均不可评分；无EOS/裁尾保NE且保分母。H85全可评分门不等于质量非劣；三rep不扩n。变长完整答案计时仅描述，未预注册稳定加速假设 |
+| 来源/失败/预算 | 新round84/85冻结clean HEAD、计划/输入/refs/driver/scorer/模型14件；原115源及静态K文件/GPU位始末核对。18项纯字符串/整数ID评分边界先验；开发内部180/父240秒，正式300/父360秒。失败保partial/unknown，正负均停，不追扫参数。当前dirty与之后文档提交分别记身份 |
+| GPU协调 | 北京时间07:05前绝不启动CUDA/载GPU模型。07:05后先只读固定dayan对话01a1560e-d494-7f30-9251-09da737852b2紧凑进度及实际owned退出/不再派发证据，再用原resource_admission.observe(initial=True) GPU/主机准入；未证实释放/准入不通过不接卡。CUDA窗口07:05–07:35，07:30前完成执行/关闭/来源末核，最后5分钟保留；不能仅按时点/低利用率判断独占。不发对方派单，不终止他人进程，受扰计时单列 |
+
+**状态**：预注册，尚未执行CUDA。TEMP/TMP恒D:/Grok Bot/tmp；全部临时/cache/output仅D:/Grok Bot/tmp/sd。资源或权限受阻则保存准备与待验，不重复碰撞，不用CPU代替模型。合作原表cfg/K/CSV与历史raw-byte缺口保持未知；本轮不清理重构、不重跑已对齐机制。
+
 # 五、历史Run收束与判读合同
 | **材料** | **当前状态与收束** |
 | --- | --- |
