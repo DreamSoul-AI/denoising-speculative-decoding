@@ -53,3 +53,54 @@ def test_expand_writer_refuses_changed_snapshot_before_rewriting_existing_artifa
     (source/'protocol.txt').write_text('changed frozen source\n')
     with pytest.raises(ValueError):expand_study(source,run_root=runtime)
     assert {p.relative_to(runtime):file_sha256(p) for p in runtime.rglob('*') if p.is_file()}==before
+
+
+@pytest.mark.parametrize('admission', ['new', 'ready', 'rejected'])
+def test_expand_budget_admission_precedes_writes_and_ready_reuse_is_read_only(tmp_path, monkeypatch, admission):
+    from spec_mtp.structure.artifact.asset import tree
+    from spec_mtp.structure.make import write
+
+    source = declaration(tmp_path)
+    runtime = tmp_path / 'runtime'
+    if admission == 'ready':
+        previous = expand_study(source, run_root=runtime)
+        before = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in runtime.rglob('*') if p.is_file()}
+    else:
+        before = {}
+    events = []
+    primary = ValueError('reservation is not admitted')
+
+    def begin(study_dir, run_count):
+        events.append('begin')
+        assert study_dir == runtime and run_count == 2
+        if admission != 'ready':
+            assert not (runtime / 'index.json').exists()
+            assert not list((runtime / 'runs').glob('*/config.yaml'))
+        if admission == 'rejected':
+            raise primary
+        return admission == 'ready'
+
+    def finish(study_dir, configs):
+        events.append('finish')
+        assert events == ['begin', 'finish'] and study_dir == runtime
+        assert len(configs) == 2 and all(path.is_file() for path in configs)
+        assert (runtime / 'index.json').is_file() and (runtime / 'provenance.json').is_file()
+
+    monkeypatch.setattr(tree, 'begin_diagnostic_budget', begin, raising=False)
+    monkeypatch.setattr(tree, 'finish_diagnostic_budget', finish, raising=False)
+    if admission == 'ready':
+        def forbidden(*args, **kwargs):
+            pytest.fail('a ready reservation must not rewrite its frozen artifacts')
+        for name in ('write_run_configs', 'write_study_index', 'write_provenance'):
+            monkeypatch.setattr(write, name, forbidden)
+    if admission == 'rejected':
+        with pytest.raises(ValueError) as caught:
+            expand_study(source, run_root=runtime)
+        assert caught.value is primary and events == ['begin']
+        assert not list((runtime / 'runs').glob('*/config.yaml')) and not (runtime / 'index.json').exists()
+    else:
+        current = expand_study(source, run_root=runtime)
+        assert events == (['begin'] if admission == 'ready' else ['begin', 'finish'])
+        if admission == 'ready':
+            assert current == previous
+            assert {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in runtime.rglob('*') if p.is_file()} == before

@@ -6,6 +6,7 @@ import os
 from importlib import import_module
 from pathlib import Path
 
+from spec_mtp.structure.artifact.asset import tree as diagnostic_assets
 from spec_mtp.structure.artifact.result.format import STATUS_FAILED, STATUS_SUCCEEDED
 from spec_mtp.structure.artifact.result.io import write_result
 from spec_mtp.flow.context import FlowContext
@@ -35,6 +36,7 @@ class FlowRunner:
         logger.info(f'start phases={",".join(self.phases)} pid={os.getpid()}')
         current = None
         try:
+            diagnostic_assets.check_diagnostic_budget(ctx.study_dir, ctx.layout.root.name)
             study = load_study_yaml(ctx.study_dir) if (ctx.study_dir / 'study.yaml').is_file() else {}
             if study_phases_enabled(study):
                 check_frozen(ctx.study_dir, study)

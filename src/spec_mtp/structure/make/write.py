@@ -5,13 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from spec_mtp.structure.artifact.asset import tree as diagnostic_assets
 from spec_mtp.structure.artifact.layout import artifact_layout
-from spec_mtp.structure.artifact.index import build_index, experiment_entries, write_index
+from spec_mtp.structure.artifact.index import build_index, experiment_entries, index_path, load_index, write_index
 from spec_mtp.structure.artifact.config.io import load_config, write_config
+from spec_mtp.structure.artifact.paths import CONFIG_NAME, RUNS_DIRNAME
 from spec_mtp.structure.control.run_config import experiment_config_from_mapping, run_config_from_merge
 from spec_mtp.structure.make.expand import axis_keys_from_study, expand_patches, load_study_yaml
 from spec_mtp.structure.artifact.layout import ensure_study_layout, materialize_study
-from spec_mtp.structure.artifact.provenance import write_provenance
+from spec_mtp.structure.artifact.provenance import provenance_path, write_provenance
 from spec_mtp.structure.make.recipe import load_recipe
 
 
@@ -59,9 +61,17 @@ def expand_study(study_dir: Path | str, *, run_root: Path | str | None = None) -
     study = load_study_yaml(resolved)
     load_recipe(resolved, study)
     patches = expand_patches(study)
-    configs = write_run_configs(resolved, patches)
-    index_file = write_study_index(resolved, study, configs)
-    provenance_file = write_provenance(resolved, study)
+    if diagnostic_assets.begin_diagnostic_budget(resolved, len(patches)):
+        index_file = index_path(resolved)
+        index = load_index(resolved)
+        configs = [resolved / RUNS_DIRNAME / (run.get('run_dir') or run['id']) / CONFIG_NAME
+                   for experiment in index.get('experiments') or [] for run in experiment.get('runs') or []]
+        provenance_file = provenance_path(resolved)
+    else:
+        configs = write_run_configs(resolved, patches)
+        index_file = write_study_index(resolved, study, configs)
+        provenance_file = write_provenance(resolved, study)
+        diagnostic_assets.finish_diagnostic_budget(resolved, configs)
     return {
         'study_dir': resolved,
         'index': index_file,

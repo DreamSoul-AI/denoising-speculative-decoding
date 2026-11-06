@@ -12908,6 +12908,184 @@
         "estimate_basis": "Two bounded real CUDA Linear and checkpoint paths after explicit seal/purge passed targeted in3.80s;10s is scheduling budget, not a performance claim.",
         "memory_requirement": "not yet estimated; actual device facts remain in per-case receipts"
       }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_study_diagnostic_budget_arithmetic_precedes_any_run_configs",
+      "target": "spec_mtp.structure.artifact.asset.tree.begin_diagnostic_budget",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_study_diagnostic_budget_pending_or_failed_cannot_resume_or_repair",
+      "target": "spec_mtp.structure.artifact.asset.tree.begin_diagnostic_budget",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_ready_study_diagnostic_budget_reuse_is_read_only_and_cannot_resize",
+      "target": "spec_mtp.structure.artifact.asset.tree.begin_diagnostic_budget",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_study_diagnostic_budget_drift_never_falls_back_to_unbounded_logging",
+      "target": "spec_mtp.structure.artifact.asset.tree.check_diagnostic_budget",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_two_independent_writers_cannot_borrow_the_other_fixed_share",
+      "target": "spec_mtp.structure.artifact.asset.tree.check_diagnostic_budget",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c2",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_seal_or_purge_never_refunds_or_reallocates_study_diagnostic_budget",
+      "target": "spec_mtp.structure.artifact.asset.tree.check_diagnostic_budget",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_absent_study_budget_keeps_existing_capture_defaults_and_creates_no_ledger",
+      "target": "spec_mtp.structure.artifact.asset.tree.begin_diagnostic_budget",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_oversized_study_ledger_fails_before_preparing_any_run_capture",
+      "target": "spec_mtp.structure.artifact.asset.tree.finish_diagnostic_budget",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_interrupted_reserved_control_stage_is_bounded_and_blocks_later_writers",
+      "target": "spec_mtp.structure.artifact.asset.tree._write_capture_control",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_write.py::test_expand_budget_admission_precedes_writes_and_ready_reuse_is_read_only",
+      "target": "spec_mtp.structure.make.write.expand_study",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_runner.py::test_budget_admission_precedes_phases_and_keeps_failure_result",
+      "target": "spec_mtp.flow.runner.FlowRunner.run",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/make/test_schedule.py::test_dispatch_checks_all_budgeted_runs_before_creating_any_worker",
+      "target": "spec_mtp.structure.make.schedule.launch_jobs",
+      "tags": [
+        "offline_cpu"
+      ],
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary"
+    },
+    {
+      "test_id": "tests/cuda/spec_mtp/flow/test_runner.py::test_fixed_study_budget_admits_cuda_flow_and_refuses_missing_reservation",
+      "target": "spec_mtp.flow.runner.FlowRunner.run",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false,
+        "estimated_device_seconds": 10,
+        "estimate_basis": "Two bounded real CUDA Flow reservation paths passed targeted;10s is a scheduling estimate, not a performance claim.",
+        "memory_requirement": "not yet estimated; actual device facts remain in the per-case receipts"
+      }
     }
   ],
   "plans": {
@@ -13529,6 +13707,10 @@
         {
           "test_id": "tests/cuda/spec_mtp/structure/system/test_factory.py::test_owned_diagnostic_retention_preserves_cuda_compute_and_checkpoint",
           "reason": "Requires a real CUDA device; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/cuda/spec_mtp/flow/test_runner.py::test_fixed_study_budget_admits_cuda_flow_and_refuses_missing_reservation",
+          "reason": "Requires a real CUDA device; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -14061,7 +14243,19 @@
         "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_purge_rejects_changed_binding_before_any_unlink",
         "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_purge_second_unlink_failure_stays_pending_and_cannot_retry",
         "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_native_capture_lease_busy_then_owned_process_exit_releases_it",
-        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_capture_bootstrap_races_leave_a_fence_and_never_publish_extra_bytes"
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_capture_bootstrap_races_leave_a_fence_and_never_publish_extra_bytes",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_study_diagnostic_budget_arithmetic_precedes_any_run_configs",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_study_diagnostic_budget_pending_or_failed_cannot_resume_or_repair",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_ready_study_diagnostic_budget_reuse_is_read_only_and_cannot_resize",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_study_diagnostic_budget_drift_never_falls_back_to_unbounded_logging",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_two_independent_writers_cannot_borrow_the_other_fixed_share",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_seal_or_purge_never_refunds_or_reallocates_study_diagnostic_budget",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_absent_study_budget_keeps_existing_capture_defaults_and_creates_no_ledger",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_oversized_study_ledger_fails_before_preparing_any_run_capture",
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_interrupted_reserved_control_stage_is_bounded_and_blocks_later_writers",
+        "tests/spec_mtp/structure/make/test_write.py::test_expand_budget_admission_precedes_writes_and_ready_reuse_is_read_only",
+        "tests/spec_mtp/flow/test_runner.py::test_budget_admission_precedes_phases_and_keeps_failure_result",
+        "tests/spec_mtp/structure/make/test_schedule.py::test_dispatch_checks_all_budgeted_runs_before_creating_any_worker"
       ],
       "exclude": []
     },
@@ -14210,7 +14404,8 @@
         "tests/studies/trajectory_observation/structure/test_pilot.py::test_training_factory_delegates_eval_once_to_session_admission_on_cuda",
         "tests/cuda/spec_mtp/flow/test_cli.py::test_cuda_cli_cleanup_cancellation_still_closes_its_real_model",
         "tests/cuda/spec_mtp/structure/system/test_factory.py::test_busy_diagnostics_do_not_block_cuda_checkpoint_integration",
-        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_owned_diagnostic_retention_preserves_cuda_compute_and_checkpoint"
+        "tests/cuda/spec_mtp/structure/system/test_factory.py::test_owned_diagnostic_retention_preserves_cuda_compute_and_checkpoint",
+        "tests/cuda/spec_mtp/flow/test_runner.py::test_fixed_study_budget_admits_cuda_flow_and_refuses_missing_reservation"
       ],
       "exclude": [],
       "resources": {

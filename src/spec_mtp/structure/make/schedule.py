@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from spec_mtp.structure.algorithm.resume import sibling_train_dependency
+from spec_mtp.structure.artifact.asset import tree as diagnostic_assets
 from spec_mtp.structure.artifact.config.io import load_config
 from spec_mtp.structure.artifact.index import load_index
 from spec_mtp.structure.artifact.layout import validate_run_directory, validate_study_root
@@ -451,6 +452,7 @@ def launch_jobs(
     if round_size < 1:
         raise ValueError('round must be >= 1')
     study_dir = validate_study_root(study_dir)
+    diagnostic_assets.check_diagnostic_budget(study_dir)
     declared = load_study_yaml(study_dir) if (study_dir / 'study.yaml').is_file() else {}
     check_frozen(study_dir, declared)
     validate_launch_jobs(study_dir, jobs)
@@ -468,6 +470,8 @@ def launch_jobs(
         validate_run_directory(run_id)
     if len(run_ids) != len(set(run_ids)):
         raise ValueError('duplicate Run in launch plan; use a new version for repeated computation')
+    for run_id in run_ids:
+        diagnostic_assets.check_diagnostic_budget(study_dir, run_id)
     codes: list[int] = []
     console_mode = resolve_console(console)
     popen_extra = job_popen_kwargs(console_mode)

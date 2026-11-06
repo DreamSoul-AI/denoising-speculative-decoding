@@ -177,3 +177,33 @@ def test_busy_managed_diagnostics_preserve_formal_flow_results(tmp_path, monkeyp
     assert result['metrics'] == {'saved_count': 1}
     assert ctx.state['logger'].failure_count >= 2
     assert ctx.state['logger'].last_error_type == 'BlockingIOError'
+
+
+@pytest.mark.parametrize('injected_logger', [False, True])
+def test_budget_admission_precedes_phases_and_keeps_failure_result(tmp_path, monkeypatch, injected_logger):
+    from spec_mtp.flow import runner as implementation
+    from spec_mtp.structure.artifact.asset import tree
+
+    ctx = _io_context(tmp_path)
+    if injected_logger:
+        ctx.state['logger'] = Logger(ctx.layout.assets_dir, managed=True)
+    primary = ValueError('fixed diagnostic reservation is incomplete')
+    checked, phases = [], []
+
+    def rejected(study, run_id=None):
+        checked.append((study, run_id))
+        raise primary
+
+    def phase(current):
+        phases.append(current)
+
+    monkeypatch.setattr(tree, 'check_diagnostic_budget', rejected, raising=False)
+    monkeypatch.setattr(implementation, 'import_module', lambda name: SimpleNamespace(run=phase))
+    monkeypatch.setattr(implementation, 'run_study_phase', lambda *a, **k: None)
+    with pytest.raises(ValueError) as caught:
+        FlowRunner(phases=['execute']).run(ctx)
+    assert caught.value is primary and checked and phases == []
+    assert all(binding == (ctx.study_dir, 'r1') for binding in checked)
+    result = load_result(ctx.layout.result_path)
+    assert result['status'] == 'failed' and result['error'] == f'ValueError: {primary}'
+    assert result['metrics'] == {'saved_count': 1}

@@ -52,6 +52,31 @@ def test_worker_environment_pins_actual_package_and_repository_before_inherited_
     assert os.environ['PYTHONPATH'] == str(inherited)
 
 
+@pytest.mark.parametrize('blocked_run', ['first', 'second'])
+def test_dispatch_checks_all_budgeted_runs_before_creating_any_worker(saved_plan, monkeypatch, blocked_run):
+    from spec_mtp.structure.artifact.asset import tree
+
+    primary = ValueError('selected Run lacks its fixed reservation')
+    visits = []
+
+    def check(study, run_id=None):
+        assert study == saved_plan.study
+        visits.append(run_id)
+        if run_id == blocked_run:
+            raise primary
+
+    def forbidden(*args, **kwargs):
+        pytest.fail('all selected reservations must be admitted before the first Popen')
+
+    monkeypatch.setattr(tree, 'check_diagnostic_budget', check, raising=False)
+    monkeypatch.setattr(schedule.subprocess, 'Popen', forbidden)
+    before = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in saved_plan.study.rglob('*') if p.is_file()}
+    with pytest.raises(ValueError) as caught:
+        schedule.launch_jobs(saved_plan.study, saved_plan.jobs, console='shared')
+    assert caught.value is primary and visits == [None, 'first', *(['second'] if blocked_run == 'second' else [])]
+    assert {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in saved_plan.study.rglob('*') if p.is_file()} == before
+
+
 def test_launch_uses_shared_worker_once_and_preserves_shared_console(saved_plan, monkeypatch):
     calls = []
 

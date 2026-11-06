@@ -15,6 +15,8 @@ from typing import Any, Iterator
 
 CAPTURE_MAX_BYTES = 64 * 1024 * 1024
 CAPTURE_WINDOW = timedelta(days=7)
+DIAGNOSTIC_BUDGET_OVERHEAD = 8192
+DIAGNOSTIC_RUN_OVERHEAD = 16384
 
 
 def list_asset_files(assets_dir: Path | str) -> list[str]:
@@ -222,6 +224,14 @@ def _write_capture_control(path: Path, body: dict[str, Any], *, exclusive: bool 
 
     text = json.dumps(body, ensure_ascii=True, allow_nan=False, sort_keys=True, separators=(',', ':')) + '\n'
     if len(text) > 4096: raise ValueError('capture control exceeds 4096 bytes')
+    required = path.parent / '.diagnostic-capture.json'
+    reserved = (path.name == '.diagnostic-budget.json' or 'reservation' in body
+                or (_capture_exists(required) and _read_capture_control(required).get('schema') == 2))
+    if reserved:
+        if any(_capture_exists(path.parent / name) for name in
+               ('.diagnostic-budget.json.stage', '.diagnostic-capture.json.stage',
+                '.diagnostic-capture.seal.json.stage', '.diagnostic-capture.purge.json.stage')):
+            raise FileExistsError('diagnostic reservation has an unfinished control write')
     if exclusive:
         with path.open('x', encoding='utf-8', newline='\n') as stream:
             stream.write(text)
@@ -229,7 +239,15 @@ def _write_capture_control(path: Path, body: dict[str, Any], *, exclusive: bool 
             os.fsync(stream.fileno())
     else:
         _capture_identity(path)
-        atomic_write_text(path, text)
+        if reserved:
+            stage = path.with_name(path.name + '.stage')
+            with stage.open('x', encoding='utf-8', newline='\n') as stream:
+                stream.write(text)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(stage, path)  # Failure leaves the bounded stage as a permanent refusal fence.
+        else:
+            atomic_write_text(path, text)
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
@@ -239,10 +257,22 @@ def _diagnostic_lease(anchor: Path | str, *, initialize: bool = False) -> Iterat
     paths = _capture_controls(anchor)
     def marker():
         body = _read_capture_control(paths['required'])
-        if (set(body) != {'schema', 'state', 'assets'} or type(body['schema']) is not int
-                or body['schema'] != 1 or body['state'] not in ('pending', 'ready', 'closed')
+        reserved = body.get('schema') == 2
+        if (set(body) != {'schema', 'state', 'assets'} | ({'reservation'} if reserved else set())
+                or type(body['schema']) is not int or body['schema'] not in (1, 2)
+                or body['state'] not in ('pending', 'ready', 'closed')
                 or body['assets'] != str(anchor.parent.parent.resolve())):
             raise ValueError('invalid capture ownership marker')
+        if reserved:
+            reservation = body['reservation']
+            if (not isinstance(reservation, dict)
+                    or set(reservation) != {'ledger_sha256', 'max_bytes', 'policy_sha256'}
+                    or type(reservation['max_bytes']) is not int
+                    or not 4096 <= reservation['max_bytes'] <= CAPTURE_MAX_BYTES
+                    or any(not isinstance(reservation[key], str)
+                           or re.fullmatch('[0-9a-f]{64}', reservation[key]) is None
+                           for key in ('ledger_sha256', 'policy_sha256'))):
+                raise ValueError('invalid diagnostic reservation binding')
         return body
     initial = marker()
     expected_lock = None
@@ -285,6 +315,7 @@ def diagnostic_write_guard(anchor: Path | str) -> Iterator[bool]:
     anchor = Path(anchor)
     controls = _capture_controls(anchor)
     if not any(_capture_exists(path) for path in controls.values()):
+        _check_capture_reservation(anchor, None)
         yield False
         return
     if _read_capture_control(controls['required']).get('state') == 'closed':
@@ -293,6 +324,7 @@ def diagnostic_write_guard(anchor: Path | str) -> Iterator[bool]:
         if (marker['state'] != 'ready' or _capture_exists(controls['seal'])
                 or _capture_exists(controls['journal'])):
             raise PermissionError('diagnostic capture is not writable')
+        _check_capture_reservation(anchor, marker)
         yield True
 
 
@@ -301,19 +333,219 @@ def check_diagnostic_binding(anchor: Path | str, owned: bool) -> None:
         raise BlockingIOError('diagnostic ownership changed; reopen the Logger')
 
 
-def prepare_diagnostic_capture(anchor: Path | str) -> dict[str, str]:
+def prepare_diagnostic_capture(anchor: Path | str, *, reservation: dict[str, Any] | None = None) -> dict[str, str]:
     anchor = _capture_anchor(anchor)
     paths = _capture_controls(anchor)
     if _capture_exists(anchor.parent) or any(_capture_exists(path) for path in paths.values()):
         raise FileExistsError('capture ownership requires a new diagnostic directory')
+    if reservation is None:
+        _check_capture_reservation(anchor, None)
     anchor.parent.parent.mkdir(parents=True, exist_ok=True)
     body = {'schema': 1, 'state': 'pending', 'assets': str(anchor.parent.parent.resolve())}
+    if reservation is not None:
+        body.update(schema=2, reservation=reservation)
     _write_capture_control(paths['required'], body, exclusive=True)
     with _diagnostic_lease(anchor, initialize=True) as marker:
         if marker['state'] != 'pending': raise ValueError('capture is not pending')
         anchor.parent.mkdir()  # An ordinary writer winning this race leaves the pending fence intact.
         _write_capture_control(paths['required'], {**body, 'state': 'ready'})
     return {'state': 'ready'}
+
+
+def _budget_declaration(study: Path) -> int | None:
+    from spec_mtp.structure.make.expand import load_study_yaml
+
+    if not _capture_exists(study / 'study.yaml'):
+        return None
+    body = load_study_yaml(study)
+    if 'diagnostic_budget_bytes' not in body:
+        return None
+    value = body['diagnostic_budget_bytes']
+    if type(value) is not int or value <= 0:
+        raise ValueError('diagnostic_budget_bytes must be a positive integer')
+    return value
+
+
+def _budget_share(budget: int, count: int) -> int:
+    if type(count) is not int or count <= 0:
+        raise ValueError('diagnostic reservations require a finite nonempty Run set')
+    share = min(CAPTURE_MAX_BYTES, (budget - DIAGNOSTIC_BUDGET_OVERHEAD
+                                   - count * DIAGNOSTIC_RUN_OVERHEAD) // count)
+    if share < 4096:
+        raise ValueError('diagnostic budget cannot reserve every Run and its controls')
+    return share
+
+
+def _budget_digest(path: Path) -> str:
+    from spec_mtp.structure.artifact.provenance import file_sha256
+
+    before = _capture_identity(path)
+    digest = file_sha256(path)
+    if _capture_identity(path) != before:
+        raise ValueError('diagnostic budget input changed while read')
+    return digest
+
+
+def check_diagnostic_budget(study_dir: Path | str, run_id: str | None = None) -> int | None:
+    """Validate an immutable reservation; closed/purged Runs remain charged."""
+    from spec_mtp.structure.artifact.layout import validate_run_directory
+
+    study = Path(study_dir).absolute()
+    ledger = study / '.diagnostic-budget.json'
+    budget = _budget_declaration(study)
+    if budget is None and not _capture_exists(ledger):
+        if run_id is not None:
+            validate_run_directory(run_id)
+            required = study / 'runs' / run_id / 'assets' / '.diagnostic-capture.json'
+            if _capture_exists(required) and 'reservation' in _read_capture_control(required):
+                raise ValueError('required diagnostic budget is missing')
+        source = study / 'study_source.json'
+        if _capture_exists(source):
+            # A removed declaration must not erase the frozen required-budget identity.
+            binding = json.loads(source.read_text(encoding='utf-8'))
+            if binding['files']['study.yaml'] != _budget_digest(study / 'study.yaml'):
+                raise ValueError('frozen diagnostic declaration changed')
+        return None
+    if study.resolve() != study:
+        raise ValueError('diagnostic budget requires its canonical Study root')
+    body = _read_capture_control(ledger)
+    if _capture_exists(ledger.with_name(ledger.name + '.stage')):
+        raise ValueError('diagnostic budget has an unfinished control write')
+    if (set(body) != {'schema', 'state', 'study', 'budget_bytes', 'run_count', 'max_bytes',
+                     'study_sha256', 'base_sha256', 'source_sha256', 'index_sha256', 'runs'}
+            or type(body['schema']) is not int or body['schema'] != 1 or body['state'] != 'ready'
+            or body['study'] != str(study) or type(body['budget_bytes']) is not int
+            or body['budget_bytes'] != budget or budget is None or not isinstance(body['runs'], dict)
+            or type(body['run_count']) is not int or body['run_count'] != len(body['runs'])
+            or type(body['max_bytes']) is not int
+            or body['max_bytes'] != _budget_share(budget, body['run_count'])):
+        raise ValueError('diagnostic budget is incomplete or changed')
+    for name, key in (('study.yaml', 'study_sha256'), ('experiment_config.yaml', 'base_sha256'),
+                      ('study_source.json', 'source_sha256'), ('index.json', 'index_sha256')):
+        if _budget_digest(study / name) != body[key]:
+            raise ValueError('diagnostic budget source binding changed')
+    if run_id is not None and run_id not in body['runs']:
+        raise ValueError('Run has no diagnostic reservation')
+    for name in ([run_id] if run_id is not None else body['runs']):
+        validate_run_directory(name)
+        if _budget_digest(study / 'runs' / name / 'config.yaml') != body['runs'][name]:
+            raise ValueError('diagnostic reservation config changed')
+        anchor = study / 'runs' / name / 'assets' / 'logs' / 'events.jsonl'
+        controls = _capture_controls(anchor)
+        marker = _read_capture_control(controls['required'])
+        binding = marker.get('reservation')
+        if (type(marker.get('schema')) is not int or marker['schema'] != 2
+                or marker.get('assets') != str(anchor.parent.parent)
+                or marker.get('state') not in ('ready', 'closed')
+                or not isinstance(binding, dict) or binding.get('max_bytes') != body['max_bytes']
+                or binding.get('ledger_sha256') != _budget_digest(ledger)):
+            raise ValueError('diagnostic Run reservation binding changed')
+        if _capture_identity(controls['lock'])[3] != 0:
+            raise ValueError('diagnostic reservation lock changed')
+        if any(_capture_exists(path.with_name(path.name + '.stage'))
+               for key, path in controls.items() if key != 'lock'):
+            raise ValueError('diagnostic reservation has an unfinished control write')
+        if marker['state'] == 'ready':
+            policy = read_capture_policy(anchor, datetime.now(timezone.utc))
+            if (policy is None or policy[0] != body['max_bytes']
+                    or _budget_digest(anchor.with_name('events.policy.json')) != binding.get('policy_sha256')):
+                raise ValueError('diagnostic reservation policy changed')
+    return body['max_bytes']
+
+
+def begin_diagnostic_budget(study_dir: Path | str, run_count: int) -> bool:
+    """Fence a new explicit external Study before any Run config is written."""
+    from spec_mtp.structure.artifact.layout import check_study_snapshot, _reject_source_checkout
+
+    study = Path(study_dir).absolute()
+    budget = _budget_declaration(study)
+    ledger = study / '.diagnostic-budget.json'
+    if _capture_exists(ledger):
+        check_diagnostic_budget(study)
+        if _read_capture_control(ledger)['run_count'] != run_count:
+            raise ValueError('diagnostic reservation Run set changed')
+        return True
+    if budget is None:
+        return False
+    if study.resolve() != study or not _capture_exists(study / 'study_source.json'):
+        raise ValueError('diagnostic budget requires a new materialized external Study')
+    _reject_source_checkout(study)
+    check_study_snapshot(study)
+    maximum = _budget_share(budget, run_count)
+    if _capture_exists(study / 'index.json') or (study / 'runs').exists() and any((study / 'runs').iterdir()):
+        raise FileExistsError('diagnostic budget cannot adopt existing Runs')
+    _write_capture_control(ledger, {'schema': 1, 'state': 'pending', 'study': str(study),
+                                  'budget_bytes': budget, 'run_count': run_count, 'max_bytes': maximum}, exclusive=True)
+    return False
+
+
+def finish_diagnostic_budget(study_dir: Path | str, configs: list[Path]) -> None:
+    """Reserve all fixed shares before publishing ready; failures remain fenced."""
+    from spec_mtp.structure.artifact.index import load_index
+    from spec_mtp.structure.artifact.layout import validate_run_directory
+
+    study = Path(study_dir).absolute()
+    ledger = study / '.diagnostic-budget.json'
+    budget = _budget_declaration(study)
+    if budget is None and not _capture_exists(ledger):
+        return
+    pending = _read_capture_control(ledger)
+    if (budget is None or pending.get('state') != 'pending' or pending.get('study') != str(study)
+            or pending.get('budget_bytes') != budget or pending.get('run_count') != len(configs)
+            or pending.get('max_bytes') != _budget_share(budget, len(configs))):
+        raise ValueError('diagnostic budget cannot be resumed or resized')
+    runs = {}
+    for config in configs:
+        config = Path(config).absolute()
+        name = config.parent.name
+        validate_run_directory(name)
+        if config != study / 'runs' / name / 'config.yaml' or name in runs:
+            raise ValueError('diagnostic reservation requires unique canonical Runs')
+        runs[name] = _budget_digest(config)
+    index = load_index(study)
+    indexed = [row for experiment in index['experiments'] for row in experiment['runs']]
+    if {row['run_dir'] for row in indexed} != set(runs) or len(indexed) != len(runs):
+        raise ValueError('diagnostic budget index differs from its finite Run set')
+    body = {**pending, 'state': 'ready', 'runs': runs}
+    for name, key in (('study.yaml', 'study_sha256'), ('experiment_config.yaml', 'base_sha256'),
+                      ('study_source.json', 'source_sha256'), ('index.json', 'index_sha256')):
+        body[key] = _budget_digest(study / name)
+    # Serialize before preparing any Run; oversized ledgers leave only the pending fence.
+    payload = json.dumps(body, ensure_ascii=True, allow_nan=False, sort_keys=True, separators=(',', ':')) + '\n'
+    if len(payload) > 4096:
+        raise ValueError('diagnostic budget control exceeds 4096 bytes')
+    ledger_sha = hashlib.sha256(payload.encode('utf-8')).hexdigest()
+    now = datetime.now(timezone.utc)
+    policy = {'schema': 1, 'owner': 'run_operator', 'max_bytes': pending['max_bytes'],
+              'created_at': now.isoformat().replace('+00:00', 'Z'),
+              'write_until': (now + CAPTURE_WINDOW).isoformat().replace('+00:00', 'Z')}
+    policy_payload = json.dumps(policy, ensure_ascii=True, allow_nan=False, sort_keys=True, separators=(',', ':')) + '\n'
+    policy_sha = hashlib.sha256(policy_payload.encode('utf-8')).hexdigest()
+    for name in runs:
+        anchor = study / 'runs' / name / 'assets' / 'logs' / 'events.jsonl'
+        prepare_diagnostic_capture(anchor, reservation={'ledger_sha256': ledger_sha,
+                                   'max_bytes': pending['max_bytes'], 'policy_sha256': policy_sha})
+        with anchor.open('xb'):
+            pass
+        _write_capture_control(anchor.with_name('events.policy.json'), policy, exclusive=True)
+    _write_capture_control(ledger, body)
+    check_diagnostic_budget(study)
+
+
+def _check_capture_reservation(anchor: Path, marker: dict[str, Any] | None) -> None:
+    assets = anchor.parent.parent.absolute()
+    run = assets.parent
+    reservation = marker.get('reservation') if marker is not None else None
+    if assets.name != 'assets' or run.parent.name != 'runs':
+        if reservation is not None:
+            raise ValueError('diagnostic reservation is outside its Run')
+        return
+    study = run.parent.parent
+    maximum = check_diagnostic_budget(study, run.name)
+    if maximum is None and reservation is None:
+        return
+    if maximum is None or not isinstance(reservation, dict):
+        raise ValueError('diagnostic reservation is missing or changed')
 
 
 def _sealed_diagnostic_files(anchor: Path) -> list[dict[str, Any]]:

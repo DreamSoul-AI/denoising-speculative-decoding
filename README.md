@@ -91,6 +91,8 @@ epoch预算与早停另有独立进程CUDA对照，固定评估分数只用于�
 
 诊断日志以 `assets/logs/events.jsonl` 为稳定锚点，每段到4MiB后另建 `events.000001.jsonl` 等递增段，旧字节不覆盖、不删除。状态与logs命令按全段读取，报告日志链接指末段；旧 `run.log` 保持只读兼容。JSONL逐条有界读取，状态摘要流式归约；缺段、链接别名和损坏尾记录拒绝，完整输出的UTC排序仍占用选中记录内存。宿主托管Logger隔离自身诊断故障，Flow与System复用同一实例；默认直接API仍严格报错，业务Tracker/checkpoint/Result错误不吞。失败操作计数不等于丢失条数，stderr仅安全类别与完整性未知。新空托管日志以events.policy.json冻结64MiB累计配额（含policy与全部诊断段）和实际UTC起点后的7天追加窗口；重开不续期，旧非空/legacy无policy不补签，到限停止追加并报告本实例suppressed_records。14个Study独立创建点已显式采用managed=True，14项构造绑定与配对报告、CUDA smoke故障入口分别验收；完整协议执行范围按实际回执区分。五个保存件绘图flow在owned Figure释放成功后复核输入/来源并发布新completion，保留原异常及figure_cleanup_error。office/fair/fresh/preforward四个模型flow也按本函数首错关闭一次，关闭后复核来源；office/fair/preforward的完成件复用既有publisher，fresh已写summary保留为数据、不新增完成标记。旧文件不删除。物理保留期、跨Run全盘总量/到期清理与OSIO硬超时仍是缺口；最低Python3.10及全部依赖组合尚未实机验证。
 
+显式新外置Study可在study.yaml顶层声明 `diagnostic_budget_bytes: 1048576`：make在派发前为有限Run集合固定分配，只有全部份额与配置/index绑定完成才发布ready。每Study预留8192控制字节、每Run预留16384，剩余平均分配（每Run最少4096、最多64MiB）；例如两Run各503808字节，含policy及全部JSONL。控制单件最多4096，固定stage失败后拒绝重入。声明只适用于新 `--run-root`，不收编旧根；无声明沿用原行为。重开不续7天窗口，失败/取消/崩溃/封存/purge不退款或挪用份额，源或绑定漂移及未完成初始化严格拒绝。它约束协议具名诊断文件的逻辑字节，不保证文件系统块、业务输出、外部写入或硬I/O超时；历史根与未知成员保持拒绝处置。
+
 只读盘点使用 `python -m studies._shared.flow.cli logs <外部Study运行根> --inventory`，输出每个index Run的精确诊断家族JSON；重复run_id或规范Run目录拒绝，避免同一家族重复计量或同名串身份。不加flag仍输出原事件文本。`bytes`计已知JSONL、policy和legacy文本的实际总字节，`capture_bytes`仅计受采集配额约束的JSONL与policy，不包含legacy。无policy保`unbound`，未知配额/起点/期限为`null`；已知追加状态为`within_limits`、`expired`或`capacity`，全部`disposition=retain`，到期不表示任务停止或可删。列举、身份及metadata读取失败不填假零，准入/读取/构造失败返回2、stdout为空，stderr只给安全异常类别。入口不建来源锁或Run，不读诊断正文、不改原字节；不承诺stdout故障时的原子输出，也不提供物理清理、跨Run配额或硬IO超时。
 
 托管Logger构造/追加对进程内写锁只作一次非阻塞准入；锁忙沿既有诊断失败计数与安全应急提示处理，业务继续。严格Logger仍等待并序列化写入。竞争可能形成诊断缺口；构造被拒的实例不会自动补建日志根，后续可保持unbound。该合同只消除锁排队，前置callback、当前writer和console仍同步，不提供物理清理、跨Run配额或OS级硬I/O超时。
@@ -140,6 +142,6 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 宿主CPU安全合同运行 `python -m pytest tests/spec_mtp`，真实CUDA合同运行 `python -m pytest tests/cuda/spec_mtp`；两根分别完整镜像源码相对路径，`python -m pytest tests` 仍收集两者。GPU入口先核CUDA可用并记录实际设备，保留设备、RNG、模型与张量断言，不提供无GPU回退。未知方法拒绝等纯结构guard留在CPU根，现有workflow命令不变，也不通过收集过滤或skip选择资源。
 
-登记1041函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别887/525/142/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1113参数、CUDA根281参数；本轮新增14函数69参数，分别为CPU67与CUDA2，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
+登记1054函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别899/537/143/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根1155参数、CUDA根283参数；本轮新增13函数44参数，分别为CPU42与CUDA2，旧参数、断言和计划成员保留。native BF16主树超时已用同源码、同用例和原90秒门限完成缓存配置对照：全新可写缓存及已生成缓存只读复验均完整通过；重复源码编译是本次可复现超时的主要开销，无须改调度或放宽门限。上轮主树失败与隔离通过的环境缓存值未完整冻结，历史差异不反推补签；范围与原失败由运行记录第五十九节保留。实际源码/提交和结果从运行记录定位，旧72项观测模型矩阵继续暂停。
 
 已有Kalman/EMA的P0 CUDA核验按独立参考区分递推、状态时序与研究收益：EMA闭式历史、标量Joseph、逐维/残差与对角增益各自验证；Online/Aligned每轮首commit，Hybrid last为实际末commit（截断时不保证bonus）。已修非有限噪声参数准入与forget=1除零，端点关闭Q/R自适应而P/F仍更新。局部正确性不证明Kalman建模最优或真实模型加速，成果与来源缺口见唯一研究计划。

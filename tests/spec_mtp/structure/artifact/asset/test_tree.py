@@ -551,3 +551,282 @@ def test_capture_bootstrap_races_leave_a_fence_and_never_publish_extra_bytes(tmp
             logger.info('marker wins the final write admission race')
     assert observed and logger.failure_count + logger.suppressed_records >= 1
     assert _capture_state(assets) == observed['state']
+
+
+
+@pytest.fixture
+def diagnostic_budget_case(tmp_path):
+    from types import SimpleNamespace
+    from spec_mtp.structure.artifact.layout import materialize_study
+    from spec_mtp.structure.make.expand import load_study_yaml
+    from spec_mtp.structure.make.write import write_run_configs, write_study_index
+
+    def create(budget=49152, count=2, *, ready=True):
+        source = tmp_path / 'budget-source'
+        (source / 'structure').mkdir(parents=True)
+        declaration = {'study': 'budget-fixture', 'recipe': 'structure/recipe.py',
+                       'provenance': {'include': ['experiment_config.yaml']}}
+        if budget is not None: declaration['diagnostic_budget_bytes'] = budget
+        (source / 'study.yaml').write_text(json.dumps(declaration), encoding='utf-8')
+        (source / 'experiment_config.yaml').write_text('experiment: budget-fixture\nseed: 0\n', encoding='utf-8')
+        (source / 'structure/recipe.py').write_text('def register(ctx):\n    return None\n', encoding='utf-8')
+        study = materialize_study(source, tmp_path / 'budget-runtime')
+        case = SimpleNamespace(source=source, study=study, count=count, configs=[])
+        def configs():
+            case.configs = write_run_configs(study, [{'seed': index} for index in range(count)])
+            write_study_index(study, load_study_yaml(study), case.configs)
+            return case.configs
+        case.write_configs = configs
+        if ready:
+            assert asset_tree.begin_diagnostic_budget(study, count) is False
+            asset_tree.finish_diagnostic_budget(study, configs())
+        return case
+    return create
+
+
+@pytest.mark.parametrize('count,budget,expected', [
+    (1, 8192 + 16384 + 4096, 4096),
+    (3, 8192 + 3 * 16384 + 3 * 6001 + 2, 6001),
+    (2, 8192 + 2 * 16384 + 2 * (64 * 1024 * 1024 + 123), 64 * 1024 * 1024),
+    (2, 8192 + 2 * 16384 + 2 * 4096 - 1, None),
+    (2, True, None), (2, -1, None), (2, 1.5, None), (0, 49152, None),
+], ids=['minimum', 'floor_remainder', 'capture_ceiling', 'insufficient',
+        'boolean_budget', 'negative_budget', 'float_budget', 'zero_run_count'])
+def test_study_diagnostic_budget_arithmetic_precedes_any_run_configs(diagnostic_budget_case, count, budget, expected):
+    import hashlib
+    case = diagnostic_budget_case(budget, count, ready=False)
+    before = _capture_state(case.study)
+    if expected is None:
+        with pytest.raises(ValueError): asset_tree.begin_diagnostic_budget(case.study, count)
+        assert _capture_state(case.study) == before and not (case.study / 'runs').exists()
+        return
+    assert asset_tree.DIAGNOSTIC_BUDGET_OVERHEAD == 8192 and asset_tree.DIAGNOSTIC_RUN_OVERHEAD == 16384
+    assert asset_tree.begin_diagnostic_budget(case.study, count) is False
+    ledger = case.study / '.diagnostic-budget.json'
+    pending = json.loads(ledger.read_bytes())
+    assert pending['state'] == 'pending' and pending['max_bytes'] == expected
+    assert not (case.study / 'runs').exists()
+    asset_tree.finish_diagnostic_budget(case.study, case.write_configs())
+    body = json.loads(ledger.read_bytes())
+    assert body['state'] == 'ready' and body['budget_bytes'] == budget and body['run_count'] == count
+    assert body['max_bytes'] == expected and len(body['runs']) == count
+    assert asset_tree.check_diagnostic_budget(case.study) == expected
+    ledger_sha = hashlib.sha256(ledger.read_bytes()).hexdigest()
+    for config in case.configs:
+        assert asset_tree.check_diagnostic_budget(case.study, config.parent.name) == expected
+        assets = config.parent / 'assets'
+        marker = json.loads((assets / '.diagnostic-capture.json').read_bytes())
+        policy = assets / 'logs/events.policy.json'
+        assert marker['schema'] == 2 and marker['reservation'] == {
+            'ledger_sha256': ledger_sha, 'max_bytes': expected,
+            'policy_sha256': hashlib.sha256(policy.read_bytes()).hexdigest()}
+        assert json.loads(policy.read_bytes())['max_bytes'] == expected
+
+
+@pytest.mark.parametrize('fault', ['pending', 'failed', 'partial_finish'])
+def test_study_diagnostic_budget_pending_or_failed_cannot_resume_or_repair(diagnostic_budget_case, monkeypatch, fault):
+    case = diagnostic_budget_case(49152, ready=False)
+    assert asset_tree.begin_diagnostic_budget(case.study, case.count) is False
+    ledger = case.study / '.diagnostic-budget.json'
+    if fault == 'failed':
+        body = json.loads(ledger.read_bytes())
+        body['state'] = 'failed'
+        ledger.write_text(json.dumps(body), encoding='utf-8')
+    if fault == 'partial_finish':
+        configs = case.write_configs()
+        actual = asset_tree.prepare_diagnostic_capture
+        calls = []
+        failure = OSError('second reservation preparation failed')
+        def prepare(*args, **kwargs):
+            calls.append(args[0])
+            if len(calls) == 2: raise failure
+            return actual(*args, **kwargs)
+        with monkeypatch.context() as patch:
+            patch.setattr(asset_tree, 'prepare_diagnostic_capture', prepare)
+            with pytest.raises(OSError) as caught: asset_tree.finish_diagnostic_budget(case.study, configs)
+            assert caught.value is failure
+        assert len(calls) == 2 and json.loads(ledger.read_bytes())['state'] == 'pending'
+    before = _capture_state(case.study)
+    with pytest.raises((ValueError, FileExistsError)):
+        asset_tree.begin_diagnostic_budget(case.study, case.count)
+    with pytest.raises(ValueError): asset_tree.check_diagnostic_budget(case.study)
+    assert _capture_state(case.study) == before
+
+
+@pytest.mark.parametrize('resize', [False, True], ids=['same_root_readonly', 'changed_run_count'])
+def test_ready_study_diagnostic_budget_reuse_is_read_only_and_cannot_resize(diagnostic_budget_case, resize):
+    case = diagnostic_budget_case()
+    before = _capture_state(case.study)
+    stamps = {path: path.stat().st_mtime_ns for path in case.study.rglob('*') if path.is_file()}
+    if resize:
+        with pytest.raises(ValueError): asset_tree.begin_diagnostic_budget(case.study, case.count + 1)
+    else:
+        assert asset_tree.begin_diagnostic_budget(case.study, case.count) is True
+        assert asset_tree.check_diagnostic_budget(case.study) == 4096
+    assert _capture_state(case.study) == before
+    assert {path: path.stat().st_mtime_ns for path in stamps} == stamps
+
+
+@pytest.mark.parametrize('fault', ['source_binding', 'study', 'base', 'index', 'config', 'policy',
+                                  'deleted_ledger', 'unknown_run', 'ledger_hardlink',
+                                  'decl_and_ledger_removed', 'unknown_run_after_double_delete'])
+def test_study_diagnostic_budget_drift_never_falls_back_to_unbounded_logging(diagnostic_budget_case, tmp_path, fault):
+    from spec_mtp.structure.system.logger import Logger
+    case = diagnostic_budget_case()
+    config = case.configs[0]
+    run_id = config.parent.name
+    assets = config.parent / 'assets'
+    ledger = case.study / '.diagnostic-budget.json'
+    selected = {'source_binding': case.study / 'study_source.json', 'study': case.study / 'study.yaml',
+                'base': case.study / 'experiment_config.yaml', 'index': case.study / 'index.json',
+                'config': config, 'policy': assets / 'logs/events.policy.json'}
+    if fault in selected:
+        path = selected[fault]
+        path.write_bytes(path.read_bytes() + b' ')
+    elif fault == 'deleted_ledger': ledger.unlink()
+    elif fault == 'ledger_hardlink':
+        outside = tmp_path / 'ledger-copy.json'
+        outside.write_bytes(ledger.read_bytes())
+        ledger.unlink()
+        os.link(outside, ledger)
+    elif fault in ('decl_and_ledger_removed', 'unknown_run_after_double_delete'):
+        declaration_path = case.study / 'study.yaml'
+        declaration = json.loads(declaration_path.read_bytes())
+        del declaration['diagnostic_budget_bytes']
+        declaration_path.write_text(json.dumps(declaration), encoding='utf-8')
+        ledger.unlink()
+        if fault == 'unknown_run_after_double_delete':
+            run_id = 'unknown-unreserved-run'
+            assets = case.study / 'runs' / run_id / 'assets'
+    else:
+        run_id = 'unknown-unreserved-run'
+        assets = case.study / 'runs' / run_id / 'assets'
+    before = _capture_state(case.study)
+    with pytest.raises((ValueError, FileNotFoundError)):
+        asset_tree.check_diagnostic_budget(case.study, run_id)
+    logger = Logger(assets, managed=True)
+    logger.info('invalid reservation must not create or append diagnostics')
+    assert logger.failure_count + logger.suppressed_records >= 1
+    assert _capture_state(case.study) == before
+
+
+@pytest.mark.parametrize('filled_run', [0, 1])
+@pytest.mark.parametrize('execution', ['in_process', 'independent_process'])
+def test_two_independent_writers_cannot_borrow_the_other_fixed_share(diagnostic_budget_case, filled_run, execution):
+    from spec_mtp.structure.system.logger import Logger
+    case = diagnostic_budget_case()
+    first = case.configs[filled_run].parent
+    second = case.configs[1 - filled_run].parent
+    ledger = case.study / '.diagnostic-budget.json'
+    raw_ledger = ledger.read_bytes()
+    if execution == 'in_process':
+        first_logger, second_logger = Logger(first / 'assets', managed=True), Logger(second / 'assets', managed=True)
+        for _ in range(24): first_logger.info('bounded writer ' + 'x' * 240)
+        assert first_logger.suppressed_records > 0 and first_logger.stop_reason == 'capacity'
+        second_logger.info('independent remaining allocation')
+        assert second_logger.failure_count == second_logger.suppressed_records == 0
+    else:
+        import subprocess
+        import sys
+        script = ("import json,sys;sys.path.insert(0,sys.argv[3]);"
+                  "from spec_mtp.structure.system.logger import Logger;"
+                  "log=Logger(sys.argv[1],managed=True);"
+                  "[log.info('bounded writer '+'x'*240) for _ in range(int(sys.argv[2]))];"
+                  "print(json.dumps({'failures':log.failure_count,'suppressed':log.suppressed_records,'stop':log.stop_reason}))")
+        reports = []
+        repository = Path(__file__).resolve().parents[5]
+        for run, count in ((first, 24), (second, 1)):
+            process = subprocess.run([sys.executable, '-c', script, str(run / 'assets'), str(count),
+                                      str(repository / 'src')], capture_output=True, text=True,
+                                     cwd=repository, timeout=15)
+            assert process.returncode == 0, process.stderr
+            reports.append(json.loads(process.stdout.splitlines()[-1]))
+        assert reports[0]['failures'] == 0 and reports[0]['suppressed'] > 0 and reports[0]['stop'] == 'capacity'
+        assert reports[1]['failures'] == reports[1]['suppressed'] == 0
+    for run in (first, second):
+        anchor = run / 'assets/logs/events.jsonl'
+        total = sum(path.stat().st_size for path in diagnostic_files(anchor)) + anchor.with_name('events.policy.json').stat().st_size
+        assert total <= 4096 and asset_tree.check_diagnostic_budget(case.study, run.name) == 4096
+    assert sum(sum(path.stat().st_size for path in diagnostic_files(run / 'assets/logs/events.jsonl'))
+               + (run / 'assets/logs/events.policy.json').stat().st_size for run in (first, second)) <= 8192
+    assert ledger.read_bytes() == raw_ledger
+
+
+@pytest.mark.parametrize('disposition', ['sealed', 'purged'])
+def test_seal_or_purge_never_refunds_or_reallocates_study_diagnostic_budget(diagnostic_budget_case, disposition):
+    from spec_mtp.structure.system.logger import Logger
+    case = diagnostic_budget_case()
+    first, second = [config.parent for config in case.configs]
+    ledger = case.study / '.diagnostic-budget.json'
+    raw_ledger = ledger.read_bytes()
+    second_policy = second / 'assets/logs/events.policy.json'
+    raw_policy = second_policy.read_bytes()
+    anchor = first / 'assets/logs/events.jsonl'
+    Logger(first / 'assets', managed=True).info('retained charged reservation')
+    seal_sha = asset_tree.seal_diagnostic_capture(anchor)
+    if disposition == 'purged': asset_tree.purge_sealed_diagnostics(anchor, seal_sha)
+    assert asset_tree.check_diagnostic_budget(case.study, first.name) == 4096
+    assert asset_tree.check_diagnostic_budget(case.study, second.name) == 4096
+    assert asset_tree.begin_diagnostic_budget(case.study, case.count) is True
+    assert ledger.read_bytes() == raw_ledger and second_policy.read_bytes() == raw_policy
+
+
+
+def test_absent_study_budget_keeps_existing_capture_defaults_and_creates_no_ledger(diagnostic_budget_case):
+    from spec_mtp.structure.system.logger import Logger
+    case = diagnostic_budget_case(None, ready=False)
+    before = _capture_state(case.study)
+    assert asset_tree.begin_diagnostic_budget(case.study, case.count) is False
+    assert asset_tree.check_diagnostic_budget(case.study) is None and _capture_state(case.study) == before
+    asset_tree.finish_diagnostic_budget(case.study, case.write_configs())
+    for config in case.configs:
+        assert asset_tree.check_diagnostic_budget(case.study, config.parent.name) is None
+        assets = config.parent / 'assets'
+        logger = Logger(assets, managed=True)
+        logger.info('unchanged legacy default')
+        assert logger.failure_count == logger.suppressed_records == 0
+        assert json.loads((assets / 'logs/events.policy.json').read_bytes())['max_bytes'] == 64 * 1024 * 1024
+        assert not (assets / '.diagnostic-capture.json').exists()
+    assert not (case.study / '.diagnostic-budget.json').exists()
+
+
+
+def test_oversized_study_ledger_fails_before_preparing_any_run_capture(diagnostic_budget_case):
+    count = 50
+    case = diagnostic_budget_case(8192 + count * (16384 + 4096), count, ready=False)
+    assert asset_tree.begin_diagnostic_budget(case.study, count) is False
+    configs = case.write_configs()
+    with pytest.raises(ValueError, match='4096'): asset_tree.finish_diagnostic_budget(case.study, configs)
+    assert json.loads((case.study / '.diagnostic-budget.json').read_bytes())['state'] == 'pending'
+    assert all(not (config.parent / 'assets/logs').exists() for config in configs)
+    assert all(not (config.parent / 'assets/.diagnostic-capture.json').exists() for config in configs)
+
+
+@pytest.mark.parametrize('failure_type', [OSError, KeyboardInterrupt, SystemExit])
+def test_interrupted_reserved_control_stage_is_bounded_and_blocks_later_writers(diagnostic_budget_case, monkeypatch, failure_type):
+    from spec_mtp.structure.system.logger import Logger
+    case = diagnostic_budget_case()
+    assets = case.configs[0].parent / 'assets'
+    anchor = assets / 'logs/events.jsonl'
+    logger = Logger(assets, managed=True)
+    assert json.loads((assets / '.diagnostic-capture.json').read_bytes())['schema'] == 2
+    marker = assets / '.diagnostic-capture.json'
+    stage = marker.with_name(marker.name + '.stage')
+    actual = os.replace
+    failure = failure_type('control replacement interrupted')
+    def interrupted(source, target, *args, **kwargs):
+        if Path(target) == marker: raise failure
+        return actual(source, target, *args, **kwargs)
+    with monkeypatch.context() as patch:
+        patch.setattr(os, 'replace', interrupted)
+        with pytest.raises(failure_type) as caught: asset_tree.seal_diagnostic_capture(anchor)
+        assert caught.value is failure
+    assert json.loads(marker.read_bytes())['state'] == 'ready' and 0 < stage.stat().st_size <= 4096
+    before = _capture_state(assets)
+    logger.info('a leftover stage must fence the existing writer')
+    reopened = Logger(assets, managed=True)
+    reopened.info('a leftover stage must fence new writers')
+    with pytest.raises((ValueError, PermissionError, FileExistsError)):
+        asset_tree.seal_diagnostic_capture(anchor)
+    assert _capture_state(assets) == before
+    assert [path.name for path in assets.glob('*.stage')] == [stage.name]
