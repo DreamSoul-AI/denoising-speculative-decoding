@@ -11870,6 +11870,101 @@
         "network": false,
         "model_download": false
       }
+    },
+    {
+      "test_id": "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_baseline_figure_cleanup_is_part_of_completion",
+      "target": "studies.input_mask_baseline.flow.write.run.write_plot",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_output_space_prerequisite_figure_cleanup_is_part_of_completion",
+      "target": "studies.output_space_prerequisite.flow.write.run.write_plot",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/output_space_small_matrix/flow/write/test_small_matrix_plots.py::test_output_space_small_matrix_figure_cleanup_is_part_of_completion",
+      "target": "studies.output_space_small_matrix.flow.write.run.write_plots",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/output_space_cross_task/flow/write/test_cross_task_plot.py::test_output_space_cross_task_figure_cleanup_is_part_of_completion",
+      "target": "studies.output_space_cross_task.flow.write.run.write_plot",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/smoke/flow/write/test_smoke_plot.py::test_historical_smoke_figure_cleanup_is_part_of_completion",
+      "target": "studies.smoke.flow.write.run.write_plot",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
     }
   ],
   "plans": {
@@ -12948,7 +13043,12 @@
         "tests/spec_mtp/structure/system/test_logger.py::test_capture_policy_bytes_alone_can_exhaust_the_frozen_budget",
         "tests/spec_mtp/flow/test_runner.py::test_capture_limits_do_not_change_a_successful_business_result",
         "tests/spec_mtp/structure/system/test_logger.py::test_initial_policy_failure_never_creates_authority_or_repairs_an_anchor",
-        "tests/spec_mtp/test_structure_flow_gates.py::test_study_logger_constructors_wire_managed_capture_for_every_dedicated_entry"
+        "tests/spec_mtp/test_structure_flow_gates.py::test_study_logger_constructors_wire_managed_capture_for_every_dedicated_entry",
+        "tests/studies/input_mask_baseline/flow/write/test_input_mask_plot_entry.py::test_input_mask_baseline_figure_cleanup_is_part_of_completion",
+        "tests/studies/output_space_prerequisite/flow/write/test_prerequisite_plot_entry.py::test_output_space_prerequisite_figure_cleanup_is_part_of_completion",
+        "tests/studies/output_space_small_matrix/flow/write/test_small_matrix_plots.py::test_output_space_small_matrix_figure_cleanup_is_part_of_completion",
+        "tests/studies/output_space_cross_task/flow/write/test_cross_task_plot.py::test_output_space_cross_task_figure_cleanup_is_part_of_completion",
+        "tests/studies/smoke/flow/write/test_smoke_plot.py::test_historical_smoke_figure_cleanup_is_part_of_completion"
       ],
       "exclude": []
     },

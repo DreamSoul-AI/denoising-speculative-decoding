@@ -39,13 +39,21 @@ def write_plot(input_path,input_sha256,output_root,*,repository=None,commit=None
         image=output/'tiny_acceptance.png'
         with image.open('xb') as stream:figure.savefig(stream,format='png',dpi=160)
         verify()
-        record={'schema':1,'scope':'historical CPU saved scalars only; no GPU comparison or new execution',
-            'implementation_commit':protocol.IMPLEMENTATION_COMMIT,
-            'runtime_input':{'path':str(primary),'sha256':input_sha256},'historical_input':historical,
-            'sources':sources,'image':{'path':image.name,'sha256':provenance.file_sha256(image)}}
-        publish_new_completion(output/'plot_complete.json',json.dumps(record,indent=2,allow_nan=False)+'\n')
-        return image
-    finally:figure.clear()
+    except BaseException as error:
+        try:
+            figure.clear()
+        except BaseException as cleanup:
+            setattr(error, 'figure_cleanup_error', cleanup)
+        raise
+    figure.clear()
+    record={'schema':1,'scope':'historical CPU saved scalars only; no GPU comparison or new execution',
+        'implementation_commit':protocol.IMPLEMENTATION_COMMIT,
+        'runtime_input':{'path':str(primary),'sha256':input_sha256},'historical_input':historical,
+        'sources':sources,'image':{'path':image.name,'sha256':provenance.file_sha256(image)}}
+    payload=json.dumps(record,indent=2,allow_nan=False)+'\n'
+    verify()
+    publish_new_completion(output/'plot_complete.json',payload)
+    return image
 
 
 def main(argv=None):

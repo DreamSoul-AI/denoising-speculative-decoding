@@ -15,6 +15,7 @@ def write_plot(input_path, repository, commit, input_git_sha256, output_root):
     from spec_mtp.structure.artifact.paths import validate_output_root
     from spec_mtp.structure.artifact.provenance import file_sha256, read_historical_bytes
     from studies.input_mask_baseline.structure import plots
+    from studies._shared.flow.write.run import publish_new_completion
 
     primary, repository = Path(input_path).resolve(strict=True), Path(repository).resolve(strict=True)
     output = validate_study_root(validate_output_root(output_root, primary.parent, repository))
@@ -29,6 +30,8 @@ def write_plot(input_path, repository, commit, input_git_sha256, output_root):
         raise ValueError('input-mask report lacks its original passing source/quality identity')
     sources = {Path(__file__).resolve(): file_sha256(__file__),
                Path(plots.__file__).resolve(): file_sha256(plots.__file__)}
+    completion_source = Path(publish_new_completion.__code__.co_filename).resolve()
+    sources[completion_source] = file_sha256(completion_source)
 
     def verify():
         if file_sha256(primary) != input_sha or any(file_sha256(path) != digest for path, digest in sources.items()):
@@ -45,25 +48,30 @@ def write_plot(input_path, repository, commit, input_git_sha256, output_root):
         with target.open('xb') as stream:
             figure.savefig(stream, format='png', dpi=180)
         verify()
-        import matplotlib
-        result = {
-            'schema': 1, 'scope': 'fixed q171 saved scalar bars and sums/counts means; no model forwards or tensor analysis',
-            'source_digest': data['source_digest'],
-            'historical_input': {'commit': commit, 'path': EXECUTION_MEMBER, 'sha256': input_git_sha256},
-            'runtime_input': {'path': str(primary), 'sha256': input_sha},
-            'rendering_sources': {str(path): digest for path, digest in sources.items()},
-            'rendering_environment': {'matplotlib': matplotlib.__version__, 'backend': 'Agg', 'dpi': 180,
-                'canvas': type(figure.canvas).__module__ + '.' + type(figure.canvas).__name__},
-            'figure': {'path': target.name, 'sha256': file_sha256(target)},
-        }
-        if 'source_binding' in data:
-            result['original_source_binding'] = data['source_binding']
-        payload = json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + '\n'
-        with (output / 'plot_complete.json').open('x', encoding='utf-8', newline='\n') as stream:
-            stream.write(payload)
-        return target
-    finally:
-        figure.clear()
+    except BaseException as error:
+        try:
+            figure.clear()
+        except BaseException as cleanup:
+            setattr(error, 'figure_cleanup_error', cleanup)
+        raise
+    figure.clear()
+    import matplotlib
+    result = {
+        'schema': 1, 'scope': 'fixed q171 saved scalar bars and sums/counts means; no model forwards or tensor analysis',
+        'source_digest': data['source_digest'],
+        'historical_input': {'commit': commit, 'path': EXECUTION_MEMBER, 'sha256': input_git_sha256},
+        'runtime_input': {'path': str(primary), 'sha256': input_sha},
+        'rendering_sources': {str(path): digest for path, digest in sources.items()},
+        'rendering_environment': {'matplotlib': matplotlib.__version__, 'backend': 'Agg', 'dpi': 180,
+            'canvas': type(figure.canvas).__module__ + '.' + type(figure.canvas).__name__},
+        'figure': {'path': target.name, 'sha256': file_sha256(target)},
+    }
+    if 'source_binding' in data:
+        result['original_source_binding'] = data['source_binding']
+    payload = json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + '\n'
+    verify()
+    publish_new_completion(output / 'plot_complete.json', payload)
+    return target
 
 
 def main(argv=None):

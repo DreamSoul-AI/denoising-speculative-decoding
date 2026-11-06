@@ -55,21 +55,27 @@ def write_plot(execution, canonical, repository, commit, execution_git_sha256, c
         with target.open('xb') as stream:
             figure.savefig(stream, format='png', dpi=170)
         verify()
-        import matplotlib
-        receipt = {'schema': 1, 'scope': 'CPU saved native counts and separate canonical q241 comparison',
-            'historical_inputs': [{'role': role, 'commit': commit, 'path': MEMBERS[role], 'sha256': hashes[role]}
-                                  for role in actual],
-            'runtime_inputs': {role: {'path': str(path), 'sha256': digests[role]} for role, path in actual.items()},
-            'original_canonical_binding': {key: bodies['canonical'][key]
-                for key in ('raw_report_sha256', 'raw_tensor_sha256', 'analysis_sha256') if key in bodies['canonical']},
-            'rendering_sources': {str(path): digest for path, digest in sources.items()},
-            'rendering_environment': {'matplotlib': matplotlib.__version__, 'backend': 'Agg', 'dpi': 170},
-            'figure': {'path': target.name, 'sha256': provenance.file_sha256(target)}}
-        payload = json.dumps(receipt, ensure_ascii=False, indent=2, allow_nan=False) + '\n'
-        publish_new_completion(output / 'plot_complete.json', payload)
-        return target
-    finally:
-        figure.clear()
+    except BaseException as error:
+        try:
+            figure.clear()
+        except BaseException as cleanup:
+            setattr(error, 'figure_cleanup_error', cleanup)
+        raise
+    figure.clear()
+    import matplotlib
+    receipt = {'schema': 1, 'scope': 'CPU saved native counts and separate canonical q241 comparison',
+        'historical_inputs': [{'role': role, 'commit': commit, 'path': MEMBERS[role], 'sha256': hashes[role]}
+                              for role in actual],
+        'runtime_inputs': {role: {'path': str(path), 'sha256': digests[role]} for role, path in actual.items()},
+        'original_canonical_binding': {key: bodies['canonical'][key]
+            for key in ('raw_report_sha256', 'raw_tensor_sha256', 'analysis_sha256') if key in bodies['canonical']},
+        'rendering_sources': {str(path): digest for path, digest in sources.items()},
+        'rendering_environment': {'matplotlib': matplotlib.__version__, 'backend': 'Agg', 'dpi': 170},
+        'figure': {'path': target.name, 'sha256': provenance.file_sha256(target)}}
+    payload = json.dumps(receipt, ensure_ascii=False, indent=2, allow_nan=False) + '\n'
+    verify()
+    publish_new_completion(output / 'plot_complete.json', payload)
+    return target
 
 
 def main(argv=None):

@@ -84,3 +84,49 @@ def test_cross_task_plot_cli_requires_every_explicit_history_argument(tmp_path, 
     with pytest.raises(SystemExit) as caught:
         writer.main([p for k, v in values.items() if k != missing for p in (k, v)])
     assert caught.value.code == 2
+
+
+@pytest.mark.parametrize('fault', ['cleanup_only', 'body_plus_cleanup', 'cleanup_mutates_input'])
+def test_output_space_cross_task_figure_cleanup_is_part_of_completion(case, monkeypatch, fault):
+    from studies.output_space_cross_task.structure import plots
+
+    before = {path: path.read_bytes() for path in list(case.paths.values())}
+    fake_source = case.output.parent / 'cleanup-rendering-source.py'
+    fake_source.write_bytes(b'# initial rendering source\n')
+    monkeypatch.setattr(plots, '__file__', str(fake_source))
+    source_before = fake_source.read_bytes()
+    primary = OSError('injected Figure body failure')
+    cleanup = RuntimeError('injected Figure cleanup failure')
+    calls = []
+
+    class Figure:
+        canvas = object()
+        def savefig(self, stream, **kwargs):
+            calls.append('save')
+            stream.write(b'partial PNG retained')
+            if fault == 'body_plus_cleanup':
+                raise primary
+        def clear(self):
+            calls.append('clear')
+            if fault == 'cleanup_mutates_input':
+                case.paths['canonical'].write_bytes(b'changed during Figure cleanup')
+            else:
+                raise cleanup
+
+    monkeypatch.setattr(plots, 'acceptance_figure', lambda *args, **kwargs: Figure())
+    expected = ValueError if fault == 'cleanup_mutates_input' else OSError if fault == 'body_plus_cleanup' else RuntimeError
+    with pytest.raises(expected) as caught:
+        _write(case)
+    if fault == 'body_plus_cleanup':
+        assert caught.value is primary and caught.value.figure_cleanup_error is cleanup
+    elif fault == 'cleanup_only':
+        assert caught.value is cleanup
+    else:
+        assert 'changed' in str(caught.value)
+    assert calls == ['save', 'clear']
+    assert (case.output / 'acceptance_v1.png').read_bytes() == b'partial PNG retained'
+    assert not (case.output / 'plot_complete.json').exists()
+    if fault != 'cleanup_mutates_input':
+        assert {path: path.read_bytes() for path in before} == before
+    if fault != 'cleanup_mutates_source':
+        assert fake_source.read_bytes() == source_before

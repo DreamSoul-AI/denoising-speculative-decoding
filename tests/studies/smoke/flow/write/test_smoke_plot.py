@@ -34,3 +34,46 @@ def test_historical_smoke_plot_refuses_drift_and_never_publishes_partial_complet
         write_plot(source,'0'*64 if fault=='hash' else expected,output)
     assert not (output/'plot_complete.json').exists()
     if fault!='figure_failure':assert not output.exists()
+
+
+@pytest.mark.parametrize('fault', ['cleanup_only', 'body_plus_cleanup', 'cleanup_mutates_input'])
+def test_historical_smoke_figure_cleanup_is_part_of_completion(tmp_path, historical_file, monkeypatch, fault):
+    # Copy the already-bound fixture into this case's input root, never mutate its original Git material.
+    source = tmp_path / 'inputs/report.json'
+    source.parent.mkdir()
+    source.write_bytes(historical_file('studies/smoke/docs/delivery_validation.json').read_bytes())
+    before = source.read_bytes()
+    expected_sha = file_sha256(source)
+    output = tmp_path / 'render'
+    primary = OSError('injected Figure body failure')
+    cleanup = RuntimeError('injected Figure cleanup failure')
+    calls = []
+
+    class Figure:
+        def savefig(self, stream, **kwargs):
+            calls.append('save')
+            stream.write(b'partial PNG retained')
+            if fault == 'body_plus_cleanup':
+                raise primary
+        def clear(self):
+            calls.append('clear')
+            if fault == 'cleanup_mutates_input':
+                source.write_bytes(b'changed during Figure cleanup')
+            else:
+                raise cleanup
+
+    monkeypatch.setattr(protocol, 'historical_cpu_figure', lambda data: Figure())
+    expected = ValueError if fault == 'cleanup_mutates_input' else OSError if fault == 'body_plus_cleanup' else RuntimeError
+    with pytest.raises(expected) as caught:
+        write_plot(source, expected_sha, output)
+    if fault == 'body_plus_cleanup':
+        assert caught.value is primary and caught.value.figure_cleanup_error is cleanup
+    elif fault == 'cleanup_only':
+        assert caught.value is cleanup
+    else:
+        assert 'changed' in str(caught.value)
+    assert calls == ['save', 'clear']
+    assert (output / 'tiny_acceptance.png').read_bytes() == b'partial PNG retained'
+    assert not (output / 'plot_complete.json').exists()
+    if fault != 'cleanup_mutates_input':
+        assert source.read_bytes() == before

@@ -20,6 +20,7 @@ def write_plots(kind, input_path, repository, commit, input_git_sha256, output_r
     from spec_mtp.structure.artifact.paths import validate_output_root
     from spec_mtp.structure.artifact.provenance import file_sha256, read_historical_bytes
     from studies.output_space_small_matrix.structure import plots
+    from studies._shared.flow.write.run import publish_new_completion
 
     if kind not in MEMBERS:
         raise ValueError('plot kind must be acceptance or windows')
@@ -72,6 +73,8 @@ def write_plots(kind, input_path, repository, commit, input_git_sha256, output_r
             raise ValueError('scale report is not bound to the actual window report and original tensors/model')
     sources = {Path(__file__).resolve(): file_sha256(__file__),
                Path(plots.__file__).resolve(): file_sha256(plots.__file__)}
+    completion_source = Path(publish_new_completion.__code__.co_filename).resolve()
+    sources[completion_source] = file_sha256(completion_source)
 
     def verify():
         if any(file_sha256(path) != digest for path, digest in (inputs | sources).items()):
@@ -89,26 +92,31 @@ def write_plots(kind, input_path, repository, commit, input_git_sha256, output_r
         with target.open('xb') as stream:
             figure.savefig(stream, format='png', dpi=180)
         verify()
-        import matplotlib
-        result = {
-            'schema': 1, 'kind': kind, 'scope': 'saved scalar rendering; no model forwards or numerical recomputation',
-            'source_digest': SOURCE_DIGEST, 'historical_inputs': historical,
-            'archival_annotations': archival_annotations,
-            'runtime_inputs': {str(path): digest for path, digest in inputs.items()},
-            'original_source_bindings': {str(path): report['source_binding']
-                for path, report in ((primary, data), (scale, companion))
-                if report is not None and 'source_binding' in report},
-            'rendering_sources': {str(path): digest for path, digest in sources.items()},
-            'rendering_environment': {'canvas': type(figure.canvas).__module__ + '.' + type(figure.canvas).__name__,
-                                      'matplotlib': matplotlib.__version__, 'backend': 'Agg', 'dpi': 180},
-            'figure': {'path': target.name, 'sha256': file_sha256(target)},
-        }
-        payload = json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + '\n'
-        with (output / 'plot_complete.json').open('x', encoding='utf-8', newline='\n') as stream:
-            stream.write(payload)
-        return target
-    finally:
-        figure.clear()
+    except BaseException as error:
+        try:
+            figure.clear()
+        except BaseException as cleanup:
+            setattr(error, 'figure_cleanup_error', cleanup)
+        raise
+    figure.clear()
+    import matplotlib
+    result = {
+        'schema': 1, 'kind': kind, 'scope': 'saved scalar rendering; no model forwards or numerical recomputation',
+        'source_digest': SOURCE_DIGEST, 'historical_inputs': historical,
+        'archival_annotations': archival_annotations,
+        'runtime_inputs': {str(path): digest for path, digest in inputs.items()},
+        'original_source_bindings': {str(path): report['source_binding']
+            for path, report in ((primary, data), (scale, companion))
+            if report is not None and 'source_binding' in report},
+        'rendering_sources': {str(path): digest for path, digest in sources.items()},
+        'rendering_environment': {'canvas': type(figure.canvas).__module__ + '.' + type(figure.canvas).__name__,
+                                  'matplotlib': matplotlib.__version__, 'backend': 'Agg', 'dpi': 180},
+        'figure': {'path': target.name, 'sha256': file_sha256(target)},
+    }
+    payload = json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + '\n'
+    verify()
+    publish_new_completion(output / 'plot_complete.json', payload)
+    return target
 
 
 def main(argv=None):
