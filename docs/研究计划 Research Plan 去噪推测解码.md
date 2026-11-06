@@ -350,7 +350,26 @@ provider构造setup在外，prompt初始化/EMA递推/Kalman实际Python标量P/
 | 计时与判读 | 同步generate包括实际累计FP64统计、重拟合、共同选行/bonus因果核查与内存事件；online特有refit同步保留计时，K快照只保张量引用，生成后落盘，不含模型/K载入、setup、哈希、审计/IO。报告每rep的16题流接受总数/时长总和，主点判据用3次流总量中位数：接受online>static且时长online<static；全部rep结果、每题轨迹/τ另列。状态跨题耦合，不做qid独立bootstrap、不把3rep当独立数据，不宣称稳定区间或完整语义加速 |
 | 来源/预算/停止 | round80只写D:/Grok Bot/tmp/sd；clean HEAD、计划、原字节/bridge/driver/协议/输入/模型14清单先冻结，CUDA具名，无CPU回退。正式内部1200/父1260秒，原工程90/300秒不改；仅剩预算能覆盖到22:07Z前才启动，否则登记未执行。正负或失败均停，不扫ridge/refit阈值/长度或追正；不改合作者/本仓生产源码 |
 
-**预正式状态**：真实8token三臂准入已完成，24提交全T0、完整输出/实际接受/trace一致，online消费延迟标签且无refit、K不变、pending清空。正式执行前只新增v2驱动的实际matmul/cudnn TF32与float32_matmul_precision三项只读环境回执；原驱动/准入来源路径与字节原样保留，算法、输入、判据、预算及adapter不变，正式尚未执行。若后续核动态K跨实现边界，只在明确必要且剩余预算足够时另冻结最小合同，不自动新增臂或改旧实验。
+**R80实测**：原三臂24提交准入通过；正式在5eebdb0/clean与只读环境回执v2上执行，96项/12288提交T0全过，三repeat均online1203pairs/4refits、static0/0。16题流总量三次中位数：static823接受/46.283122秒，online836/46.212222秒，Δ接受+13、Δ墙钟−.070900秒、速度1.001534×。H80预设点门通过；该速度优势很小，跨题状态耦合、无CI，不称稳定或普遍增益。actual TF32 matmul=false/cudnn=true、float32 precision=highest；原驱动/准入及v1字节保留，v2只增三项实际旗标，算法/判据不变。每refit与末K、实际退出0和CUDA FP64统计已落盘，独立IO复核另列。若后续核动态K跨实现边界，只在明确必要且剩余预算足够时另冻结最小合同，不自动新增臂或改旧实验。
+
+## （二十二）R81：原decoder在线K与本仓保存流的有界同一性
+**微观假设H81**：不改原d91ed75闭包27文件，直接执行原SpecDecoder的online=true，能与R80同初始K/同16题有序流得到同一完整提交链、实际接受和prompt末动态K。R67只覆盖静态K；本项补动态状态生存期边界，不是新的速度或收益复测。
+
+固定R80 actualexit0后原件及其SHA、16输入/128/noEOS/3rep、原ESP base、ridge=.3/refit256/初始K₀，每rep新原decoder跨16qid；独立2token预热一次不带入状态。新原侧48项/6144提交，原RecorderTap只读重建每个实际提交的验证argmax，原core/model/spec实际import origin记录且27件Git blob/SHA核完。必须与R80逐qid/repeat wholecommitted、实际/legacy接受、共同accepted_nodes/committed_tokens trace、每commit的forward/owner/token/argmax、累计pairs/refits和prompt末FP32 K存储位相同，任一差异即停、不放宽或重试。每题128提交至多127延迟label，故每题至多一次refit；保存prompt末K不冒充精确refit回调瞬间快照。
+
+实际Torch/GPU、matmul/cudnn TF32、float32 precision和模型config/backend须与R80回执相同，未记或不符则拒绝。外层仅配置与原observer，不改原算法函数、gain公式或返回值。原模型无close API，撤原recorder/gain和外层观察hook、释放引用/GC、末核模型文件，并要求父进程实际退出0；不声称立即显存全释放。内部900/父960秒，只在21:52Z前启动；所有临时材料round81，TEMP/TMP为外部根。缺失的完整draft tree与全部selected tensors不在本项比较，也不支持采样分布、语义或全域等价。**状态**：预注册、未执行。
+
+## （二十三）R82：零残差同head对照，定位学得frontier映射的净贡献
+**微观假设H82**：完整K相对完全零K，在相同dense u@K和首mask单行LM-head重算路径下增加实际接受并降低同步generate时长。ESP为无重算背景；它分离“学得非零残差”与“仅换读出路径”，不做相对独立AR的BF16算子机理排查。原R75 full/最佳常量对照已支持条件化映射，仍未覆盖零K路径，本项不是扫参或新算法。
+
+| **冻结项** | **协议与验收** |
+| --- | --- |
+| 数据/臂 | 逐字复用R75固定32题inputs 4ad97bc2…，math401–408→translation161–168→summary248–255→rag481–488；ESP/zero/full三臂共288正式、每臂2token预热一次排除、3rep Latin。这些题已见，仅为固定机制消融，不称新独立或全局盲测。128/noEOS/T0/seed123、原模板、Qwen3-4B BF16/eager/RTX5090 D v2、K2/BC30/dynamic-pruned/naive及ESP mean_prompt λ=.1/update不变 |
+| 唯一处理与来源 | 既有R65 adapter未改；ESP无校正，zero/full都走同dense+单行head路径。full复用17b62c5f…；zero 2561×2560 FP32所有系数（含截距）严格0，输入准备在CUDA完成，保存SHA b8aa5fee…，无拟合。新reuse冻结adapter/full/zero/model，GPU矩阵存储位与文件始末不变、无训练pair。原代码/宿主生产不改 |
+| 主门/分析 | 全288×128提交/来源/T0/close/末核/实际退出0；每qid/arm取3次中位数，full−zero平均实际接受>0且平均同步墙钟<0才支持H82点门。CUDA FP64四任务各8题分层配对bootstrap10000次、seed8201，报告探索性95%区间/胜负平/τ/legacy与输出重复一致。full/ESP与zero/ESP仅背景诊断，不把效应相加，不能从T0推出语义等质或独立AR一致。分析脚本SHA预先绑定 |
+| 计时/停止 | 同R75同步generate，含相同内存证据/校正/head，setup/加载/哈希/审计/磁盘不计；无校准成本。新round82内部1200/父1260秒，正式最迟21:54Z启动，否则未执行；正负/失败均停，不改K、ridge、长度、题量或筛子集。原工程90/300秒门保持，全部TEMP/TMP外部根、输出/cache只在sd |
+
+**状态**：预注册，候选经只读审查，zero输入已准备但尚无模型输出；在R81有界执行退出后直接接本项，若超过最迟启动时刻则明确延期，不等确认或挤掉交付验证。
 
 # 五、历史Run收束与判读合同
 | **材料** | **当前状态与收束** |
