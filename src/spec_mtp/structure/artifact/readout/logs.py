@@ -64,6 +64,8 @@ def inventory_logs(study_dir: Path | str) -> dict[str, Any]:
     index = load_index(study_dir)
     now = datetime.now(timezone.utc)
     rows: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    seen_roots: set[Path] = set()
     for experiment in index.get('experiments') or []:
         for run in experiment.get('runs') or []:
             run_dir = run.get('run_dir') or run.get('id')
@@ -74,6 +76,10 @@ def inventory_logs(study_dir: Path | str) -> dict[str, Any]:
             logs_dir = run_root / 'assets' / 'logs'
             if run_root.resolve() != run_root or logs_dir.resolve() != logs_dir:
                 raise ValueError('inventory Run paths must retain their canonical identity')
+            if run_id in seen_ids or run_root in seen_roots:
+                raise ValueError('duplicate inventory Run identity')
+            seen_ids.add(run_id)
+            seen_roots.add(run_root)
             raw = run.get('log')
             if raw is not None:
                 if not isinstance(raw, str) or not raw:

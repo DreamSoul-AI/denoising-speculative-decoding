@@ -101,3 +101,71 @@ def test_kv_crop_and_keep_block_positions(cuda_tiny_model, cuda_decode, record_p
     assert kv_cache.cache_len(cache) == 6
     kv_cache.crop(cache, 3)
     assert kv_cache.cache_len(cache) == 3
+
+
+@pytest.mark.parametrize('owned', [True, False])
+@pytest.mark.parametrize('fault', ['eval', 'config'])
+def test_failed_session_constructor_respects_real_cuda_model_ownership(
+        monkeypatch, cuda_decode, record_property, owned, fault):
+    from transformers import AutoModelForCausalLM, LlamaConfig, LlamaForCausalLM
+
+    device = cuda_decode.device
+    assert torch.cuda.is_available(), 'real CUDA required; no CPU fallback'
+    print(f'constructor ownership device={device} name={torch.cuda.get_device_name(device)} owned={owned} fault={fault}')
+    with torch.random.fork_rng(devices=[device.index]), torch.device(device):
+        native = LlamaForCausalLM(LlamaConfig(vocab_size=16, hidden_size=8, intermediate_size=16,
+            num_hidden_layers=1, num_attention_heads=2, num_key_value_heads=1,
+            max_position_embeddings=32, tie_word_embeddings=True))
+    with torch.no_grad():
+        logits = native(input_ids=torch.tensor([[1, 2]], device=device)).logits
+    assert logits.device == device and torch.isfinite(logits).all()
+    values = {name: value.detach().clone() for name, value in native.state_dict().items()}
+    pointers = {name: value.data_ptr() for name, value in native.state_dict().items()}
+    assert values and all(value.device == device for value in values.values())
+    primary = RuntimeError('injected post-acquisition admission failure')
+    original_config = native.config
+    sessions, close_calls = [], []
+
+    def reject_eval():
+        raise primary
+
+    class Config:
+        @property
+        def vocab_size(self):
+            raise primary
+
+    if fault == 'eval':
+        monkeypatch.setattr(native, 'eval', reject_eval)
+    else:
+        native.config = Config()
+    # The loader boundary is controlled; its returned model and pre-fault forward are real CUDA.
+    monkeypatch.setattr(AutoModelForCausalLM, 'from_pretrained', lambda *args, **kwargs: native)
+
+    class Session(kv_cache.HFCausalLM):
+        def __init__(self, **kwargs):
+            sessions.append(self)
+            super().__init__(**kwargs)
+
+        def close(self):
+            close_calls.append(True)
+            super().close()
+
+    try:
+        with pytest.raises(RuntimeError) as caught:
+            Session(**({'name_or_path': 'controlled-local-loader'} if owned else {'module': native}))
+        assert caught.value is primary and len(sessions) == 1
+        assert close_calls == [True] and sessions[0].closed is True
+        assert sessions[0].hf is (None if owned else native)
+        current = native.state_dict()
+        assert current.keys() == values.keys()
+        for name, value in current.items():
+            assert value.device == device and value.data_ptr() == pointers[name]
+            assert torch.equal(value, values[name])
+        record_property('ownership', 'owned_reference_released' if owned else 'borrowed_native_preserved')
+        record_property('native_tensor_count', len(current))
+        record_property('actual_forward_device', str(logits.device))
+        record_property('failure_stage', fault)
+    finally:
+        native.config = original_config
+        for session in sessions:
+            kv_cache.HFCausalLM.close(session)

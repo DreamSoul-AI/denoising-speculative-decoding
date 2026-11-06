@@ -169,10 +169,17 @@ class HFCausalLM(nn.Module):
             except TypeError:
                 self.hf = AutoModelForCausalLM.from_pretrained(
                     name_or_path, torch_dtype=get_dtype(torch_dtype), **kwargs)
-        self.hf.eval()
-        self.config = self.hf.config
-        self.vocab_size = self.config.vocab_size
-        self.max_positions = getattr(self.config, 'max_position_embeddings', 4096)
+        try:
+            self.hf.eval()
+            self.config = self.hf.config
+            self.vocab_size = self.config.vocab_size
+            self.max_positions = getattr(self.config, 'max_position_embeddings', 4096)
+        except BaseException as primary:
+            try:
+                self.close()
+            except BaseException as cleanup:
+                setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
+            raise
 
     @property
     def embedding_table(self):

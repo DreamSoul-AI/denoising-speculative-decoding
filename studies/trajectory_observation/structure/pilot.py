@@ -89,7 +89,6 @@ def train_model(config, data, seed, device='cuda:0'):
             schedule.step()
             if step % 100 == 0 or step == train['steps'] - 1:
                 losses.append([step, float(loss.detach())])
-    native.eval()
     session = HFCausalLM(module=native)
     try:
         if not session.tied_embeddings:

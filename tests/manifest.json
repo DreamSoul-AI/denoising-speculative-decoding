@@ -12383,6 +12383,86 @@
         "network": false,
         "model_download": false
       }
+    },
+    {
+      "target": "spec_mtp.structure.model.hf_causal.HFCausalLM.__init__",
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_session_constructor_closes_only_its_acquired_model_on_admission_failure",
+      "cost_class": "c1",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "target": "spec_mtp.structure.model.hf_causal.HFCausalLM.__init__",
+      "level": "unit",
+      "type": "content",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "test_id": "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_failed_session_constructor_respects_real_cuda_model_ownership",
+      "cost_class": "c3",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "estimated_device_seconds": 4,
+        "estimate_basis": "Four tiny CUDA model ownership fault cases; scheduling estimate, not a performance measurement.",
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_inventory_logs_rejects_duplicate_run_id_or_directory_across_experiments",
+      "target": "spec_mtp.structure.artifact.readout.logs.inventory_logs",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_training_factory_delegates_eval_once_to_session_admission_on_cuda",
+      "target": "studies.trajectory_observation.structure.pilot.train_model",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false,
+        "estimated_device_seconds": 3,
+        "estimate_basis": "Three one-step tiny CUDA training admission cases; scheduling estimate, not a performance measurement."
+      }
     }
   ],
   "plans": {
@@ -12984,6 +13064,14 @@
         {
           "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_train_model_rejects_untied_cuda_session_without_destroying_native",
           "reason": "Requires a real CUDA device and a native one-step tiny-model training forward; covered by cuda-validation, no CPU fallback."
+        },
+        {
+          "test_id": "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_failed_session_constructor_respects_real_cuda_model_ownership",
+          "reason": "Requires a real CUDA model and forward pass for constructor ownership; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_training_factory_delegates_eval_once_to_session_admission_on_cuda",
+          "reason": "Requires real CUDA one-step training and session ownership fault injection; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -13494,7 +13582,9 @@
         "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_inventory_logs_binds_each_run_to_its_own_canonical_diagnostic_family",
         "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_inventory_logs_preserves_index_order_and_absent_roots_without_creating_files",
         "tests/spec_mtp/flow/test_study_cli.py::test_logs_inventory_emits_one_complete_json_or_no_partial_output",
-        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_diagnostic_inventory_io_failure_is_not_an_empty_or_zero_usage_report"
+        "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_diagnostic_inventory_io_failure_is_not_an_empty_or_zero_usage_report",
+        "tests/spec_mtp/structure/model/test_hf_causal.py::test_session_constructor_closes_only_its_acquired_model_on_admission_failure",
+        "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_inventory_logs_rejects_duplicate_run_id_or_directory_across_experiments"
       ],
       "exclude": []
     },
@@ -13638,7 +13728,9 @@
         "tests/cuda/spec_mtp/structure/algorithm/test_eval_hook.py::test_cuda_evaluation_finalizes_tracker_after_diagnostic_failure",
         "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_current_cuda_smoke_completes_with_a_failed_diagnostic_sink",
         "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_oracle_producer_lifecycle_on_cuda",
-        "tests/studies/trajectory_observation/structure/test_pilot.py::test_train_model_rejects_untied_cuda_session_without_destroying_native"
+        "tests/studies/trajectory_observation/structure/test_pilot.py::test_train_model_rejects_untied_cuda_session_without_destroying_native",
+        "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_failed_session_constructor_respects_real_cuda_model_ownership",
+        "tests/studies/trajectory_observation/structure/test_pilot.py::test_training_factory_delegates_eval_once_to_session_admission_on_cuda"
       ],
       "exclude": [],
       "resources": {

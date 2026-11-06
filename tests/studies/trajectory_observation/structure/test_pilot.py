@@ -470,3 +470,77 @@ def test_train_model_rejects_untied_cuda_session_without_destroying_native(
         for saved in provisional:
             if not saved['session'].closed:
                 saved['actual_close']()
+
+
+@pytest.mark.parametrize('fault', ['normal', 'eval_error', 'eval_and_close'])
+def test_training_factory_delegates_eval_once_to_session_admission_on_cuda(monkeypatch, record_property, fault):
+    from transformers import LlamaForCausalLM
+
+    assert torch.cuda.is_available(), 'real CUDA required; no CPU fallback'
+    device = torch.device('cuda:0')
+    print(f'factory eval device={device} name={torch.cuda.get_device_name(device)} fault={fault}')
+    record_property('cuda_device', str(device))
+    record_property('cuda_name', torch.cuda.get_device_name(device))
+    config = json.loads(json.dumps(pilot.DEFAULT))
+    config['content_vocab'] = 8
+    config['model'].update(hidden_size=8, intermediate_size=16, num_hidden_layers=1, max_position_embeddings=32)
+    config['train'].update(steps=1, batch=2)
+    data = torch.randint(0, 10, (4, 12), generator=torch.Generator(device='cpu').manual_seed(5))
+    primary, cleanup = RuntimeError('injected eval failure'), OSError('injected close failure')
+    session_factory = pilot.HFCausalLM
+    sessions, eval_calls, close_calls, forward_devices, saved = [], [], [], [], []
+
+    def watch(module, args, output):
+        if not isinstance(module, LlamaForCausalLM):
+            return
+        forward_devices.append(str(output.loss.device))
+        actual_eval = module.eval
+
+        def eval_once():
+            eval_calls.append(True)
+            if not saved:
+                saved.append((module, {name: value.detach().clone() for name, value in module.state_dict().items()},
+                              {name: value.data_ptr() for name, value in module.state_dict().items()}))
+            if fault != 'normal':
+                raise primary
+            return actual_eval()
+
+        monkeypatch.setattr(module, 'eval', eval_once)
+
+    class Session(session_factory):
+        def __init__(self, **kwargs):
+            sessions.append(self)
+            super().__init__(**kwargs)
+
+        def close(self):
+            close_calls.append(True)
+            super().close()
+            if fault == 'eval_and_close':
+                raise cleanup
+
+    hook = torch.nn.modules.module.register_module_forward_hook(watch)
+    monkeypatch.setattr(pilot, 'HFCausalLM', Session)
+    try:
+        if fault == 'normal':
+            session, losses = pilot.train_model(config, data, 5, device=str(device))
+            assert session is sessions[0] and losses and session.closed is False
+            assert session.hf.training is False and close_calls == []
+        else:
+            with pytest.raises(RuntimeError) as caught:
+                pilot.train_model(config, data, 5, device=str(device))
+            assert caught.value is primary
+            assert len(sessions) == 1 and sessions[0].closed is True and close_calls == [True]
+            assert getattr(primary, 'cleanup_errors', ()) == ((cleanup,) if fault == 'eval_and_close' else ())
+        assert eval_calls == [True] and forward_devices == [str(device)]
+        native, values, pointers = saved[0]
+        assert sessions[0].hf is native and sessions[0]._owns_model is False
+        for name, value in native.state_dict().items():
+            assert value.device == device and value.data_ptr() == pointers[name]
+            assert torch.equal(value, values[name])
+        record_property('cuda_train_forward_count', len(forward_devices))
+        record_property('eval_calls', len(eval_calls))
+        record_property('borrowed_weights_preserved', True)
+    finally:
+        hook.remove()
+        for session in sessions:
+            session_factory.close(session)

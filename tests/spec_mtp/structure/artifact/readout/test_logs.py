@@ -90,3 +90,36 @@ def test_inventory_logs_preserves_index_order_and_absent_roots_without_creating_
         if not populated: assert row['files'] == []
     assert {p.relative_to(tmp_path).as_posix(): p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()} == before_files
     assert sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob('*') if p.is_dir()) == before_dirs
+
+
+@pytest.mark.parametrize('duplicate', ['same_id_same_dir', 'same_id_different_dir', 'different_id_same_dir'])
+def test_inventory_logs_rejects_duplicate_run_id_or_directory_across_experiments(tmp_path, duplicate):
+    first = {'id': 'id1', 'run_dir': 'r1'}
+    second = {'id': 'id2', 'run_dir': 'r2'}
+    for run_dir in ('r1', 'r2'):
+        path = tmp_path / f'runs/{run_dir}/assets/logs/events.jsonl'
+        path.parent.mkdir(parents=True)
+        path.write_text(_saved_diagnostic(run_dir), encoding='utf-8', newline='\n')
+    index_path = tmp_path / 'index.json'
+    valid = {'experiments': [{'runs': [first]}, {'runs': [second]}]}
+    index_path.write_text(json.dumps(valid), encoding='utf-8')
+    baseline = logs_readout.inventory_logs(tmp_path)
+    assert [row['run_id'] for row in baseline['runs']] == ['id1', 'id2']
+    assert all(row['disposition'] == 'retain' for row in baseline['runs'])
+    assert [row['bytes'] for row in baseline['runs']] == [
+        (tmp_path / f'runs/{run_dir}/assets/logs/events.jsonl').stat().st_size
+        for run_dir in ('r1', 'r2')]
+
+    changed = dict(second)
+    if duplicate in ('same_id_same_dir', 'same_id_different_dir'):
+        changed['id'] = first['id']
+    if duplicate in ('same_id_same_dir', 'different_id_same_dir'):
+        changed['run_dir'] = first['run_dir']
+    # Duplication crosses experiment boundaries; no missing-file or path fault is introduced.
+    index_path.write_text(json.dumps({'experiments': [{'runs': [first]}, {'runs': [changed]}]}), encoding='utf-8')
+    before = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in tmp_path.rglob('*') if p.is_file()}
+    directories = sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob('*') if p.is_dir())
+    with pytest.raises(ValueError, match='duplicate inventory Run'):
+        logs_readout.inventory_logs(tmp_path)
+    assert {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in tmp_path.rglob('*') if p.is_file()} == before
+    assert sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob('*') if p.is_dir()) == directories
