@@ -12463,6 +12463,103 @@
         "estimated_device_seconds": 3,
         "estimate_basis": "Three one-step tiny CUDA training admission cases; scheduling estimate, not a performance measurement."
       }
+    },
+    {
+      "target": "spec_mtp.structure.model.hf_causal.HFCausalLM.__init__",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      },
+      "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_pretrained_loader_propagates_first_failure_without_retry",
+      "level": "unit"
+    },
+    {
+      "target": "spec_mtp.structure.model.hf_causal.HFCausalLM.__init__",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      },
+      "test_id": "tests/spec_mtp/structure/model/test_hf_causal.py::test_invalid_local_hf_configuration_is_read_once_and_preserves_its_error",
+      "level": "integration"
+    },
+    {
+      "test_id": "tests/spec_mtp/flow/test_cli.py::test_cli_cleanup_finishes_every_resource_and_preserves_primary",
+      "target": "spec_mtp.flow.cli._decode",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostic_model_cleanup_preserves_primary_and_reverse_order",
+      "target": "studies._shared.flow.diagnostics._close_models",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cuda_cli_cleanup_cancellation_still_closes_its_real_model",
+      "target": "spec_mtp.flow.cli._decode",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "estimated_device_seconds": 5,
+        "estimate_basis": "Three tiny local-model load/forward/close probes; scheduling estimate, not a performance measurement.",
+        "network": false,
+        "model_download": false
+      }
     }
   ],
   "plans": {
@@ -13072,6 +13169,10 @@
         {
           "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_training_factory_delegates_eval_once_to_session_admission_on_cuda",
           "reason": "Requires real CUDA one-step training and session ownership fault injection; covered by cuda-validation."
+        },
+        {
+          "test_id": "tests/cuda/spec_mtp/flow/test_cli.py::test_cuda_cli_cleanup_cancellation_still_closes_its_real_model",
+          "reason": "Requires a real CUDA model forward and ownership cleanup; covered by cuda-validation."
         }
       ],
       "cpu_only": true
@@ -13584,7 +13685,11 @@
         "tests/spec_mtp/flow/test_study_cli.py::test_logs_inventory_emits_one_complete_json_or_no_partial_output",
         "tests/spec_mtp/structure/artifact/asset/test_tree.py::test_diagnostic_inventory_io_failure_is_not_an_empty_or_zero_usage_report",
         "tests/spec_mtp/structure/model/test_hf_causal.py::test_session_constructor_closes_only_its_acquired_model_on_admission_failure",
-        "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_inventory_logs_rejects_duplicate_run_id_or_directory_across_experiments"
+        "tests/spec_mtp/structure/artifact/readout/test_logs.py::test_inventory_logs_rejects_duplicate_run_id_or_directory_across_experiments",
+        "tests/spec_mtp/structure/model/test_hf_causal.py::test_pretrained_loader_propagates_first_failure_without_retry",
+        "tests/spec_mtp/structure/model/test_hf_causal.py::test_invalid_local_hf_configuration_is_read_once_and_preserves_its_error",
+        "tests/spec_mtp/flow/test_cli.py::test_cli_cleanup_finishes_every_resource_and_preserves_primary",
+        "tests/studies/_shared/flow/test_diagnostics_entry.py::test_diagnostic_model_cleanup_preserves_primary_and_reverse_order"
       ],
       "exclude": []
     },
@@ -13730,7 +13835,8 @@
         "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_oracle_producer_lifecycle_on_cuda",
         "tests/studies/trajectory_observation/structure/test_pilot.py::test_train_model_rejects_untied_cuda_session_without_destroying_native",
         "tests/cuda/spec_mtp/structure/model/test_hf_causal.py::test_failed_session_constructor_respects_real_cuda_model_ownership",
-        "tests/studies/trajectory_observation/structure/test_pilot.py::test_training_factory_delegates_eval_once_to_session_admission_on_cuda"
+        "tests/studies/trajectory_observation/structure/test_pilot.py::test_training_factory_delegates_eval_once_to_session_admission_on_cuda",
+        "tests/cuda/spec_mtp/flow/test_cli.py::test_cuda_cli_cleanup_cancellation_still_closes_its_real_model"
       ],
       "exclude": [],
       "resources": {

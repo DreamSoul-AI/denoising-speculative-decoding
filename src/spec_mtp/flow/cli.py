@@ -50,12 +50,14 @@ def _decode(args: argparse.Namespace) -> dict[str, Any]:
             if resource is not None:
                 try:
                     resource.close()
-                except Exception as error:
+                except BaseException as error:
                     failures.append(error)
         if failures:
+            failure = primary if primary is not None else failures.pop(0)
+            if failures:
+                setattr(failure, 'cleanup_failures', [*getattr(failure, 'cleanup_failures', []), *failures])
             if primary is None:
-                raise failures[0]
-            setattr(primary, 'cleanup_failures', failures)
+                raise failure
 
 
 def main(argv: list[str] | None = None) -> int:

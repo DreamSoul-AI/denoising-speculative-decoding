@@ -159,3 +159,98 @@ def test_cli_real_local_model_sources_and_read_only_audit(tmp_path, capsys, monk
     args.model_sources.write_text(json.dumps(declared), encoding='utf-8')
     assert main(command + ['--model-sources', str(args.model_sources)]) == 1
     assert not json.loads(capsys.readouterr().out)['source_integrity']
+
+
+@pytest.mark.parametrize('body_kind,sink_kind,model_kind', [
+    ('none', 'KeyboardInterrupt', 'none'),
+    ('ValueError', 'SystemExit', 'none'),
+    ('KeyboardInterrupt', 'OSError', 'SystemExit'),
+])
+def test_cuda_cli_cleanup_cancellation_still_closes_its_real_model(
+        tmp_path, monkeypatch, record_property, body_kind, sink_kind, model_kind):
+    import hashlib
+    import torch
+    from transformers import LlamaConfig, LlamaForCausalLM
+    from spec_mtp.flow.cli import _decode
+    from spec_mtp.structure.api.decode_api import DecodeResult
+    from spec_mtp.structure.algorithm.decode import loop
+    from spec_mtp.structure.artifact import observation
+    from spec_mtp.structure.model import hf_causal
+
+    assert torch.cuda.is_available(), 'real CUDA required; no CPU fallback'
+    device = torch.device('cuda:0')
+    print(f'CLI cleanup device={device} name={torch.cuda.get_device_name(device)} body={body_kind}')
+    record_property('cuda_device', str(device))
+    record_property('cuda_name', torch.cuda.get_device_name(device))
+    args = model_args(tmp_path)
+    with torch.random.fork_rng(devices=[device.index]), torch.device(device):
+        native = LlamaForCausalLM(LlamaConfig(vocab_size=16, hidden_size=8, intermediate_size=16,
+            num_hidden_layers=1, num_attention_heads=2, num_key_value_heads=1,
+            max_position_embeddings=32, tie_word_embeddings=True, attn_implementation='eager')).eval()
+    assert next(native.parameters()).device == device
+    native.save_pretrained(args.model)
+    sources = {p.relative_to(args.model).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+               for p in args.model.rglob('*') if p.is_file()}
+    args.model_sources.write_text(json.dumps(sources), encoding='utf-8')
+    kinds = {'ValueError': ValueError, 'KeyboardInterrupt': KeyboardInterrupt,
+             'SystemExit': SystemExit, 'OSError': OSError}
+    primary = kinds[body_kind]('controlled body failure') if body_kind != 'none' else None
+    sink_error = kinds[sink_kind]('controlled sink close failure')
+    model_error = kinds[model_kind]('controlled model close failure') if model_kind != 'none' else None
+    calls, sessions, sinks, forward_devices = [], [], [], []
+    original_model, original_sink = hf_causal.HFCausalLM, observation.JsonlSink
+
+    def load(*values, **options):
+        model = original_model(*values, **options).to(device)
+        assert model.device == device and model._owns_model is True
+        actual_close = model.close
+        def close():
+            calls.append('model')
+            actual_close()
+            if model_error is not None:
+                raise model_error
+        monkeypatch.setattr(model, 'close', close)
+        sessions.append(model)
+        return model
+
+    class Sink(original_sink):
+        def __init__(self, *values, **options):
+            super().__init__(*values, **options)
+            sinks.append(self)
+        def close(self):
+            calls.append('sink')
+            super().close()
+            raise sink_error
+
+    def compute(req, model, mask, sink):
+        tokens = torch.tensor([req.prompt.input_ids], device=device)
+        output = model(model.embed(tokens), torch.arange(tokens.shape[1], device=device).unsqueeze(0))
+        assert output.logits.device == device and torch.isfinite(output.logits).all()
+        forward_devices.append(str(output.logits.device))
+        if primary is not None:
+            raise primary
+        # This is an ownership probe with one real forward, not a scientific decoding result.
+        return DecodeResult('failed', 'controlled_probe', (), {}, False)
+
+    monkeypatch.setattr(hf_causal, 'HFCausalLM', load)
+    monkeypatch.setattr(observation, 'JsonlSink', Sink)
+    monkeypatch.setattr(loop, 'generate', compute)
+    try:
+        with pytest.raises(BaseException) as caught:
+            _decode(args)
+        assert caught.value is (primary if primary is not None else sink_error)
+        failures = [error for error in (sink_error, model_error) if error is not None]
+        assert getattr(caught.value, 'cleanup_failures', []) == (failures if primary is not None else failures[1:])
+        assert calls == ['sink', 'model'] and forward_devices == [str(device)]
+        assert len(sessions) == len(sinks) == 1
+        assert sessions[0].closed and sessions[0].hf is None and sinks[0].handle.closed
+        assert args.output.read_bytes() == b''
+        assert sources == {p.relative_to(args.model).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+                           for p in args.model.rglob('*') if p.is_file()}
+        record_property('actual_forward_devices', forward_devices)
+        record_property('owned_model_closed', True)
+    finally:
+        for model in sessions:
+            original_model.close(model)
+        for sink in sinks:
+            original_sink.close(sink)

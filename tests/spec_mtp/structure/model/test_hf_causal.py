@@ -84,3 +84,59 @@ def test_session_constructor_closes_only_its_acquired_model_on_admission_failure
     assert len(sessions) == 1 and eval_calls == [True]
     assert sessions[0]._owns_model is owned
     assert not hasattr(ambient, 'cleanup_errors')
+
+
+@pytest.mark.parametrize('failure', ['type_then_success', 'type_then_type', 'type_then_runtime',
+                                    'unsupported_dtype', 'value', 'cancel'])
+def test_pretrained_loader_propagates_first_failure_without_retry(monkeypatch, failure):
+    import sys
+    from types import SimpleNamespace
+    import torch
+
+    primary = (KeyboardInterrupt('cancelled loader') if failure == 'cancel' else
+               ValueError('invalid local model') if failure == 'value' else
+               TypeError("unexpected keyword argument 'dtype'") if failure == 'unsupported_dtype' else
+               TypeError('internal model configuration failure'))
+    secondary = TypeError('second load type error') if failure == 'type_then_type' else RuntimeError('second load failed')
+    calls = []
+    native = SimpleNamespace(eval=lambda: None, config=SimpleNamespace(vocab_size=16))
+
+    def load(*args, **kwargs):
+        calls.append((args, kwargs))
+        if len(calls) == 1:
+            raise primary
+        if failure in ('type_then_success', 'unsupported_dtype'):
+            return native
+        raise secondary
+
+    monkeypatch.setitem(sys.modules, 'transformers', SimpleNamespace(
+        AutoModelForCausalLM=SimpleNamespace(from_pretrained=load)))
+    with pytest.raises(type(primary)) as caught:
+        kv_cache.HFCausalLM('local-model', torch_dtype='float32', cache_dir='local-cache')
+    assert caught.value is primary
+    assert calls == [(('local-model',), {'dtype': torch.float32, 'local_files_only': True,
+                     'attn_implementation': 'eager', 'cache_dir': 'local-cache'})]
+
+
+@pytest.mark.parametrize('model_type', [[], {}], ids=['list_model_type', 'mapping_model_type'])
+def test_invalid_local_hf_configuration_is_read_once_and_preserves_its_error(tmp_path, monkeypatch, model_type):
+    import json
+    from transformers import AutoConfig
+
+    (tmp_path / 'config.json').write_text(json.dumps({'model_type': model_type}), encoding='utf-8')
+    original = AutoConfig.from_pretrained
+    errors, calls = [], []
+
+    def read_config(*args, **kwargs):
+        calls.append(args)
+        try:
+            return original(*args, **kwargs)
+        except TypeError as error:
+            errors.append(error)
+            raise
+
+    monkeypatch.setattr(AutoConfig, 'from_pretrained', read_config)
+    with pytest.raises(TypeError) as caught:
+        kv_cache.HFCausalLM(str(tmp_path), local_files_only=True)
+    assert len(calls) == len(errors) == 1
+    assert caught.value is errors[0]

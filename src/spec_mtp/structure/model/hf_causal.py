@@ -163,12 +163,8 @@ class HFCausalLM(nn.Module):
             )
             if cache_dir:
                 kwargs['cache_dir'] = cache_dir
-            try:  # transformers >= 4.56 prefers `dtype`; older only knows `torch_dtype`
-                self.hf = AutoModelForCausalLM.from_pretrained(
-                    name_or_path, dtype=get_dtype(torch_dtype), **kwargs)
-            except TypeError:
-                self.hf = AutoModelForCausalLM.from_pretrained(
-                    name_or_path, torch_dtype=get_dtype(torch_dtype), **kwargs)
+            self.hf = AutoModelForCausalLM.from_pretrained(
+                name_or_path, dtype=get_dtype(torch_dtype), **kwargs)
         try:
             self.hf.eval()
             self.config = self.hf.config

@@ -182,3 +182,53 @@ def test_diagnostics_cli_requires_explicit_execution_bindings(missing):
     with pytest.raises(SystemExit) as error:
         command.main(values)
     assert error.value.code == 2
+
+
+@pytest.mark.parametrize('primary_kind,first_kind,last_kind', [
+    ('none', 'none', 'none'),
+    ('none', 'KeyboardInterrupt', 'none'),
+    ('none', 'SystemExit', 'OSError'),
+    ('ValueError', 'KeyboardInterrupt', 'OSError'),
+    ('KeyboardInterrupt', 'OSError', 'none'),
+    ('SystemExit', 'none', 'RuntimeError'),
+], ids=['success', 'first_interrupt', 'first_exit_then_error', 'primary_then_interrupt_and_error',
+        'primary_interrupt', 'primary_exit_then_error'])
+def test_diagnostic_model_cleanup_preserves_primary_and_reverse_order(primary_kind, first_kind, last_kind):
+    kinds = {'none': None, 'ValueError': ValueError, 'KeyboardInterrupt': KeyboardInterrupt,
+             'SystemExit': SystemExit, 'OSError': OSError, 'RuntimeError': RuntimeError}
+    primary = kinds[primary_kind]('body failure') if primary_kind != 'none' else None
+    first_error = kinds[first_kind]('first reverse-close failure') if first_kind != 'none' else None
+    last_error = kinds[last_kind]('last reverse-close failure') if last_kind != 'none' else None
+    earlier = OSError('already recorded inner cleanup failure')
+    if primary is not None:
+        primary.cleanup_errors = (earlier,)
+    calls = []
+    def close(name, error):
+        calls.append(name)
+        if error is not None:
+            raise error
+    resources = [SimpleNamespace(close=lambda: close('first_created', last_error)),
+                 SimpleNamespace(close=lambda: close('last_created', first_error))]
+
+    def finish():
+        if primary is None:
+            return command._close_models(resources, None)
+        try:
+            raise primary
+        finally:
+            # Match the real owner: cleanup runs while the body's primary is propagating.
+            command._close_models(resources, primary)
+
+    failures = [error for error in (first_error, last_error) if error is not None]
+    expected = primary if primary is not None else failures[0] if failures else None
+    if expected is None:
+        assert finish() is None
+    else:
+        with pytest.raises(BaseException) as raised:
+            finish()
+        assert raised.value is expected
+        expected_cleanup = (earlier, *failures) if primary is not None else tuple(failures[1:])
+        actual_cleanup = getattr(raised.value, 'cleanup_errors', ())
+        assert len(actual_cleanup) == len(expected_cleanup)
+        assert all(actual is wanted for actual, wanted in zip(actual_cleanup, expected_cleanup))
+    assert calls == ['last_created', 'first_created']

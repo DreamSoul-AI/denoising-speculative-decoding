@@ -16,3 +16,10 @@
 
 # 四、静态校正跨prompt状态重置待核
 只读审查发现VerifyCorrectionMaskProvider在线scalar的init重置轮次标记，但未见还原拟合的k/num/den；跨prompt复用与每prompt新实例可能不同。该项尚未CUDA复现，不能据此判定旧Run失效；若必要诊断对照用到它，先按真实调用方式验证并明确状态作用域。当前Kalman/EMA独立参考不覆盖该静态校正类。
+
+# 五、native BF16主工作树launch超时待定位
+活动验收缺口：tests/studies/_shared/flow/test_cli.py::test_bf16_five_methods_and_independent_ar_native_cli在本轮主工作树两次均触发原launch子进程90秒门限，分别1失败、106.30秒和1失败、107.31秒；首次Timeout等待值89.853496秒。虽然六个Run的runtime result均为succeeded，pytest没有进入后续断言，不能按完整native通过记账。
+
+隔离baseline-cuda-checkout的7bc46b0同用例1通过、105.26秒；隔离cpu-checkout中本轮八成员逐字节相同的当前源码，同D:/anaconda3 Python、同原90秒用例1通过、104.02秒。隔离通过执行到真实固定BF16加载、六Run及后续篡改拒绝断言末尾；主树两次失败和partial事实仍保留。当前根因未定，不能称同失败preexisting、源变化已证明无因果或问题已根治。原CPU/CUDA与诊断门的通过另行记账。
+
+下一步使用同一用例、配置、门限与来源，分别定位launch启动、执行、退出及父进程等待的耗时；不提高90秒、不过滤/跳过，也不重签首红或改旧Run。输入和四次对照由同日运行记录第五十八章及D:/Grok Bot/tmp/grokbot/sd/round55的native-bf16.log/xml、native-bf16-repeat.log/xml、baseline-native-bf16.log/xml、isolated-current-native-bf16.log/xml定位；未完成定位与同根复验前保持活动。

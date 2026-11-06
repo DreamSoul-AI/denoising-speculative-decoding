@@ -68,7 +68,7 @@ def _close_models(models, primary):
     for model in reversed(models):
         try:
             model.close()
-        except Exception as cleanup:
+        except BaseException as cleanup:
             if failure is None:
                 failure = cleanup
             else:

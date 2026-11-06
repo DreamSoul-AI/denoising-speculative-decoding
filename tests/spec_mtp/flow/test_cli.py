@@ -132,3 +132,91 @@ def test_cli_rejects_model_manifest_before_constructing_model(tmp_path, monkeypa
     with pytest.raises((ValueError, OSError)):
         _decode(args)
     assert calls == [] and not args.output.exists()
+
+
+@pytest.mark.parametrize('primary_kind,sink_kind,model_kind', [
+    ('none', 'none', 'none'),
+    ('none', 'KeyboardInterrupt', 'none'),
+    ('none', 'SystemExit', 'OSError'),
+    ('none', 'OSError', 'RuntimeError'),
+    ('ValueError', 'KeyboardInterrupt', 'OSError'),
+    ('ValueError', 'SystemExit', 'none'),
+    ('KeyboardInterrupt', 'OSError', 'none'),
+    ('SystemExit', 'KeyboardInterrupt', 'RuntimeError'),
+    ('ValueError', 'none', 'OSError'),
+    ('none', 'none', 'OSError'),
+], ids=['success', 'sink_interrupt', 'sink_exit_then_model_error', 'two_close_errors',
+        'primary_then_interrupt_and_error', 'primary_then_exit', 'primary_interrupt',
+        'primary_exit_then_interrupt_and_error', 'primary_then_model_error', 'model_error'])
+def test_cli_cleanup_finishes_every_resource_and_preserves_primary(tmp_path, monkeypatch, primary_kind, sink_kind, model_kind):
+    from dataclasses import dataclass
+    from spec_mtp.flow.cli import _decode
+    from spec_mtp.structure.algorithm.decode import loop
+    from spec_mtp.structure.algorithm import mask
+    from spec_mtp.structure.artifact import observation
+    from spec_mtp.structure.model import hf_causal
+
+    kinds = {'none': None, 'ValueError': ValueError, 'KeyboardInterrupt': KeyboardInterrupt,
+             'SystemExit': SystemExit, 'OSError': OSError, 'RuntimeError': RuntimeError}
+    primary = kinds[primary_kind]('body failure') if primary_kind != 'none' else None
+    sink_error = kinds[sink_kind]('sink close failure') if sink_kind != 'none' else None
+    model_error = kinds[model_kind]('model close failure') if model_kind != 'none' else None
+    earlier = OSError('already recorded inner cleanup failure')
+    if primary is not None:
+        primary.cleanup_failures = [earlier]
+    args = model_args(tmp_path)  # Real, valid local JSON/manifest admission only.
+    calls, sinks, models = [], [], []
+    actual_sink = observation.JsonlSink
+
+    class Sink(actual_sink):
+        def __init__(self, *values, **options):
+            super().__init__(*values, **options)
+            sinks.append(self)
+        def close(self):
+            calls.append('sink')
+            super().close()
+            if sink_error is not None:
+                raise sink_error
+
+    class Model:
+        embedding_table = object()
+        def __init__(self, *values, **options):
+            models.append(self)
+        def describe(self):
+            return {'fixture': 'pure control; no model forward'}
+        def close(self):
+            calls.append('model')
+            if model_error is not None:
+                raise model_error
+
+    @dataclass
+    class Completed:
+        marker: str = 'pure-control'
+
+    generated = []
+    def generate(*values, **options):
+        generated.append(True)
+        if primary is not None:
+            raise primary
+        return Completed()
+
+    monkeypatch.setattr(observation, 'JsonlSink', Sink)
+    monkeypatch.setattr(hf_causal, 'HFCausalLM', Model)
+    monkeypatch.setattr(loop, 'generate', generate)
+    monkeypatch.setattr(mask, 'build_mask_provider', lambda *a, **k: object())
+    failures = [error for error in (sink_error, model_error) if error is not None]
+    expected = primary if primary is not None else failures[0] if failures else None
+    if expected is None:
+        assert _decode(args) == {'marker': 'pure-control'}
+    else:
+        with pytest.raises(BaseException) as raised:
+            _decode(args)
+        assert raised.value is expected
+        expected_cleanup = [earlier, *failures] if primary is not None else failures[1:]
+        actual_cleanup = getattr(raised.value, 'cleanup_failures', [])
+        assert len(actual_cleanup) == len(expected_cleanup)
+        assert all(actual is wanted for actual, wanted in zip(actual_cleanup, expected_cleanup))
+    assert generated == [True]
+    assert calls == ['sink', 'model']  # Cancellation cannot abort the remaining cleanup.
+    assert len(sinks) == len(models) == 1 and sinks[0].handle.closed
+    assert args.output.read_bytes() == b''
