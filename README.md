@@ -81,7 +81,7 @@ trajectory 真实模型专用入口为 `python -m studies.trajectory_observation
 
 bonus-aligned/output-hidden 两个专用协议使用 `python -m studies.trajectory_observation.flow.execute.hybrid_gain <bonus-aligned|output-hidden> --help`，同样必需本地模型目录、完整模型清单、SpecBench JSONL、计划 SHA、CUDA 设备和新外部输出。前者保留 465–560 切片与四臂，后者保留 209–336 切片、32 条 holdout 与六臂，校准各为 128 条模板。共同收集、落盘与会话编排归同一 flow，structure 保留纯校准与统计。逐臂核完整 qid 与 argmax 审计，收尾核来源并关闭模型后才发布 protocol_complete，旧根不续写。
 
-合成 pilot 使用 `python -m studies.trajectory_observation.flow.execute.pilot --config <完整本地JSON> --plan <研究计划> --plan-sha256 <计划SHA> --device cuda:0 --output <新外部目录>`，模式、seeds 及预算由显式冻结 config 给出，互斥模式拒绝，不因 DEFAULT 存在就自动启动 1500 步旧训练。训练、模型前向及拟合在 CUDA，CPU 只承担离散样本准备和序列化。九个旧 structure 命令已归 flow，不留反向 wrapper。当前工程验证使用微型模型、oracle、拟合与入口合同，没有运行默认训练、真实权重或旧研究矩阵。pilot两个producer从train_model返回session后保护所有权，保本函数首错/取消并关闭一次；train_model内部构造后tied检查失败的所有权路径仍待独立核验。
+合成 pilot 使用 `python -m studies.trajectory_observation.flow.execute.pilot --config <完整本地JSON> --plan <研究计划> --plan-sha256 <计划SHA> --device cuda:0 --output <新外部目录>`，模式、seeds 及预算由显式冻结 config 给出，互斥模式拒绝，不因 DEFAULT 存在就自动启动 1500 步旧训练。训练、模型前向及拟合在 CUDA，CPU 只承担离散样本准备和序列化。九个旧 structure 命令已归 flow，不留反向 wrapper。当前工程验证使用微型模型、oracle、拟合与入口合同，没有运行默认训练、真实权重或旧研究矩阵。pilot两个producer从train_model返回session后保护所有权，保本函数首错/取消并关闭一次；train_model构造session后的实际tied-storage准入也已保护，拒绝、属性错误或取消均关闭一次并保首错，成功返回不关闭。正常模型固定请求tied embeddings，未发现自然untied路径；受控storage反例不改变borrowed native所有权，也不证明借用显存已释放。
 
 checkpoint/RNG的独立合同见架构设计CR0–CR5。native `TrainAlgorithm` 将读取、准入与应用分开：先核合同、模型状态、数据游标和RNG，再改活跃训练状态；实际bundle载入前后核SHA，来源进入恢复摘要。`algorithm.config.resume_from` 显式指定文件时，缺失即失败；默认latest不存在仍可新建训练。Data子状态使用v2，冻结sampler/loader generator及其共享关系；旧v1不能自动当exact恢复，原件保留。无完整training_state的旧checkpoint继续明确警告partial。
 
@@ -130,6 +130,6 @@ Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproje
 
 宿主CPU安全合同运行 `python -m pytest tests/spec_mtp`，真实CUDA合同运行 `python -m pytest tests/cuda/spec_mtp`；两根分别完整镜像源码相对路径，`python -m pytest tests` 仍收集两者。GPU入口先核CUDA可用并记录实际设备，保留设备、RNG、模型与张量断言，不提供无GPU回退。未知方法拒绝等纯结构guard留在CPU根，现有workflow命令不变，也不通过收集过滤或skip选择资源。
 
-登记1003函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别855/493/136/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根956参数、CUDA根270参数；本轮四个模型flow的7函数26参数与pilot生命周期的4函数11参数在各自Study镜像验收，旧参数、断言和计划成员保留。实际运行及源码/提交身份从运行记录定位，旧72项观测模型矩阵继续暂停。
+登记1005函数，cpu-pr/cpu-quick/cuda-validation/cuda-native-smoke分别856/494/137/12函数，计划ID跟随实际测试位置、target仍指生产职责。宿主CPU安全根956参数、CUDA根270参数；本轮训练工厂准入的2函数9参数在Study镜像验收，旧参数、断言和计划成员保留。实际运行及源码/提交身份从运行记录定位，旧72项观测模型矩阵继续暂停。
 
 已有Kalman/EMA的P0 CUDA核验按独立参考区分递推、状态时序与研究收益：EMA闭式历史、标量Joseph、逐维/残差与对角增益各自验证；Online/Aligned每轮首commit，Hybrid last为实际末commit（截断时不保证bonus）。已修非有限噪声参数准入与forget=1除零，端点关闭Q/R自适应而P/F仍更新。局部正确性不证明Kalman建模最优或真实模型加速，成果与来源缺口见唯一研究计划。

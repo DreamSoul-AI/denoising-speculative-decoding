@@ -91,8 +91,15 @@ def train_model(config, data, seed, device='cuda:0'):
                 losses.append([step, float(loss.detach())])
     native.eval()
     session = HFCausalLM(module=native)
-    if not session.tied_embeddings:
-        raise ValueError('pilot requires tied embeddings')
+    try:
+        if not session.tied_embeddings:
+            raise ValueError('pilot requires tied embeddings')
+    except BaseException as primary:
+        try:
+            session.close()
+        except BaseException as cleanup:
+            setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
+        raise
     return session, losses
 
 

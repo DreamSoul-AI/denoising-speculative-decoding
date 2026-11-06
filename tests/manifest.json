@@ -12174,6 +12174,44 @@
         "network": false,
         "model_download": false
       }
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_train_model_session_admission_preserves_primary_and_borrowed_native",
+      "target": "studies.trajectory_observation.structure.pilot.train_model",
+      "level": "unit",
+      "type": "content",
+      "cost_class": "c1",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cpu",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 0,
+        "network": false,
+        "model_download": false
+      }
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_train_model_rejects_untied_cuda_session_without_destroying_native",
+      "target": "studies.trajectory_observation.structure.pilot.train_model",
+      "level": "integration",
+      "type": "content",
+      "cost_class": "c3",
+      "result_type": "categorical",
+      "priority": "p1",
+      "result_detail": "summary",
+      "tags": [
+        "offline_cuda",
+        "structure_cleanup"
+      ],
+      "resources": {
+        "gpu_count": 1,
+        "network": false,
+        "model_download": false
+      }
     }
   ],
   "plans": {
@@ -12771,6 +12809,10 @@
         {
           "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_oracle_producer_lifecycle_on_cuda",
           "reason": "Requires a real CUDA device and native tiny-model forward; covered by cuda-validation, no CPU fallback."
+        },
+        {
+          "test_id": "tests/studies/trajectory_observation/structure/test_pilot.py::test_train_model_rejects_untied_cuda_session_without_destroying_native",
+          "reason": "Requires a real CUDA device and a native one-step tiny-model training forward; covered by cuda-validation, no CPU fallback."
         }
       ],
       "cpu_only": true
@@ -13271,7 +13313,8 @@
         "tests/studies/trajectory_observation/flow/execute/test_pilot_preforward_entry.py::test_preforward_failed_completion_write_removes_only_its_new_marker",
         "tests/studies/trajectory_observation/structure/test_pilot.py::test_run_seed_cleanup_preserves_primary",
         "tests/studies/trajectory_observation/structure/test_pilot.py::test_run_oracle_cleanup_preserves_primary",
-        "tests/studies/trajectory_observation/structure/test_pilot.py::test_run_seed_timer_failure_still_closes_session"
+        "tests/studies/trajectory_observation/structure/test_pilot.py::test_run_seed_timer_failure_still_closes_session",
+        "tests/studies/trajectory_observation/structure/test_pilot.py::test_train_model_session_admission_preserves_primary_and_borrowed_native"
       ],
       "exclude": []
     },
@@ -13414,7 +13457,8 @@
         "tests/cuda/spec_mtp/structure/algorithm/decode/test_loop.py::test_hybrid_collect_observes_only_committed_prefix_and_finishes_each_round",
         "tests/cuda/spec_mtp/structure/algorithm/test_eval_hook.py::test_cuda_evaluation_finalizes_tracker_after_diagnostic_failure",
         "tests/studies/smoke/flow/execute/test_smoke_cuda_probe.py::test_current_cuda_smoke_completes_with_a_failed_diagnostic_sink",
-        "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_oracle_producer_lifecycle_on_cuda"
+        "tests/studies/trajectory_observation/structure/test_pilot.py::test_tiny_oracle_producer_lifecycle_on_cuda",
+        "tests/studies/trajectory_observation/structure/test_pilot.py::test_train_model_rejects_untied_cuda_session_without_destroying_native"
       ],
       "exclude": [],
       "resources": {

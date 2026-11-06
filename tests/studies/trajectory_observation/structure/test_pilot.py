@@ -290,3 +290,183 @@ def test_tiny_oracle_producer_lifecycle_on_cuda(
         for session, actual_close in owned:
             if not session.closed:
                 actual_close()
+
+
+@pytest.mark.parametrize('fault', ['normal', 'untied', 'getter_error', 'untied_and_close',
+    'getter_and_close', 'interrupt_and_close', 'ambient_success'])
+def test_train_model_session_admission_preserves_primary_and_borrowed_native(monkeypatch, fault):
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+    import sys
+
+    # Zero iterations isolate session admission; this is not an accepted Study training run.
+    config = json.loads(json.dumps(pilot.DEFAULT))
+    config['train']['steps'] = 0
+    device = SimpleNamespace(type='cuda', index=0)
+    natives, sessions, close_calls = [], [], []
+    getter_error = (KeyboardInterrupt('injected tied check interruption')
+                    if fault == 'interrupt_and_close'
+                    else RuntimeError('injected tied getter failure'))
+    cleanup = OSError('injected borrowed session close failure')
+    close_fails = fault in ('untied_and_close', 'getter_and_close', 'interrupt_and_close')
+    ambient = LookupError('ambient caller error is not a train_model primary')
+
+    class Native:
+        def __init__(self, model_config):
+            self.config = model_config
+            natives.append(self)
+
+        def to(self, target):
+            assert target is device
+            return self
+
+        def parameters(self):
+            return ()
+
+        def train(self):
+            return self
+
+        def eval(self):
+            return self
+
+    class Session:
+        def __init__(self, *, module):
+            self.hf, self.closed = module, False
+            sessions.append(self)
+
+        @property
+        def tied_embeddings(self):
+            if fault in ('getter_error', 'getter_and_close', 'interrupt_and_close'):
+                raise getter_error
+            return fault not in ('untied', 'untied_and_close')
+
+        def close(self):
+            close_calls.append(True)
+            self.closed = True
+            if close_fails:
+                raise cleanup
+
+    proxy = SimpleNamespace(
+        device=lambda value: device,
+        cuda=SimpleNamespace(is_available=lambda: True),
+        random=SimpleNamespace(fork_rng=lambda **options: nullcontext()),
+        manual_seed=lambda value: None,
+        optim=SimpleNamespace(AdamW=lambda *args, **options: object(),
+            lr_scheduler=SimpleNamespace(CosineAnnealingLR=lambda *args: object())))
+    monkeypatch.setattr(pilot, 'torch', proxy)
+    monkeypatch.setattr(pilot, 'HFCausalLM', Session)
+    monkeypatch.setitem(sys.modules, 'transformers', SimpleNamespace(
+        LlamaConfig=lambda **options: SimpleNamespace(**options), LlamaForCausalLM=Native))
+
+    if fault in ('normal', 'ambient_success'):
+        if fault == 'ambient_success':
+            try:
+                raise ambient
+            except LookupError:
+                returned, losses = pilot.train_model(config, object(), 5, device='cuda:0')
+        else:
+            returned, losses = pilot.train_model(config, object(), 5, device='cuda:0')
+        assert len(sessions) == 1 and returned is sessions[0]
+        assert losses == [] and returned.closed is False and close_calls == []
+    else:
+        expected_type = ValueError if fault in ('untied', 'untied_and_close') else type(getter_error)
+        with pytest.raises(expected_type) as caught:
+            pilot.train_model(config, object(), 5, device='cuda:0')
+        if fault in ('untied', 'untied_and_close'):
+            assert str(caught.value) == 'pilot requires tied embeddings'
+        else:
+            assert caught.value is getter_error
+        assert close_calls == [True] and sessions[0].closed is True
+        assert getattr(caught.value, 'cleanup_errors', ()) == ((cleanup,) if close_fails else ())
+    assert len(natives) == len(sessions) == 1
+    assert sessions[0].hf is natives[0]
+    assert not hasattr(ambient, 'cleanup_errors')
+
+
+@pytest.mark.parametrize('fault', ['cleanup_ok', 'cleanup_error'])
+def test_train_model_rejects_untied_cuda_session_without_destroying_native(
+        monkeypatch, record_property, fault):
+    import transformers
+
+    assert torch.cuda.is_available(), 'real CUDA required; no CPU fallback'
+    device = torch.device('cuda:0')
+    name = torch.cuda.get_device_name(device)
+    print(f'pilot admission device={device} name={name} fault={fault}')
+    record_property('cuda_device', str(device))
+    record_property('cuda_name', name)
+    config = json.loads(json.dumps(pilot.DEFAULT))
+    config.update(content_vocab=8, max_new_tokens=4,
+                  trees=[{'num_masks': 1, 'branches': [2]}])
+    config['model'].update(hidden_size=8, intermediate_size=16,
+                           num_hidden_layers=1, max_position_embeddings=64)
+    config['train'].update(sequences=16, length=12, steps=1, batch=2)
+    config['prompts'] = {'fit': 4, 'holdout': 1, 'cross': 1, 'length': 4}
+    generator = torch.Generator(device='cpu').manual_seed(5)
+    content = config['content_vocab']
+    first = pilot.make_language(content, config['branching'], config['sharpness'], generator)
+    second = pilot.make_language(content, config['branching'], config['sharpness'], generator)
+    data = torch.cat([pilot.sample(first, content, 8, 12, generator),
+                      pilot.sample(second, content + 1, 8, 12, generator)])
+    _ = transformers.LlamaConfig
+    native_factory, session_factory = transformers.LlamaForCausalLM, pilot.HFCausalLM
+    provisional, hooks, close_calls, observed = [], [], [], []
+    cleanup = OSError('injected failure after actual borrowed close')
+
+    def watch(module, args, output):
+        if isinstance(module, native_factory):
+            observed.append(str(output.loss.device))
+
+    def wrap(*, module):
+        embedding = module.get_input_embeddings().weight
+        assert embedding.device == device and module.config.tie_word_embeddings is True
+        module.get_output_embeddings().weight = torch.nn.Parameter(
+            module.get_output_embeddings().weight.detach().clone())
+        output = module.get_output_embeddings().weight
+        assert embedding.data_ptr() != output.data_ptr()
+        session = session_factory(module=module)
+        assert session.tied_embeddings is False
+        actual_close = session.close
+        provisional.append({'session': session, 'native': module,
+            'weights': (embedding, output),
+            'values': (embedding.detach().clone(), output.detach().clone()),
+            'pointers': tuple((weight.data_ptr(), weight.untyped_storage().data_ptr())
+                              for weight in (embedding, output)),
+            'actual_close': actual_close})
+
+        def close():
+            close_calls.append(True)
+            actual_close()
+            if fault == 'cleanup_error':
+                raise cleanup
+
+        monkeypatch.setattr(session, 'close', close)
+        return session
+
+    hooks.append(torch.nn.modules.module.register_module_forward_hook(watch))
+    monkeypatch.setattr(pilot, 'HFCausalLM', wrap)
+    try:
+        with pytest.raises(ValueError, match='pilot requires tied embeddings') as caught:
+            pilot.train_model(config, data, 5, device=str(device))
+        assert str(caught.value) == 'pilot requires tied embeddings'
+        assert close_calls == [True] and len(provisional) == 1
+        assert getattr(caught.value, 'cleanup_errors', ()) == (
+            (cleanup,) if fault == 'cleanup_error' else ())
+        saved = provisional[0]
+        session, native = saved['session'], saved['native']
+        assert session.closed is True and session.hf is native
+        current = (native.get_input_embeddings().weight, native.get_output_embeddings().weight)
+        for index, weight in enumerate(current):
+            assert weight is saved['weights'][index] and weight.device == device
+            assert (weight.data_ptr(), weight.untyped_storage().data_ptr()) == saved['pointers'][index]
+            assert torch.equal(weight, saved['values'][index])
+        assert observed and set(observed) == {str(device)}
+        record_property('cuda_train_forward_count', len(observed))
+        record_property('forward_devices', sorted(set(observed)))
+        record_property('borrowed_native_preserved', True)
+        record_property('session_closed', True)
+    finally:
+        for hook in hooks:
+            hook.remove()
+        for saved in provisional:
+            if not saved['session'].closed:
+                saved['actual_close']()
