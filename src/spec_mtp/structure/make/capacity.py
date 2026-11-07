@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from spec_mtp.structure.artifact import load_config
+from spec_mtp.structure.artifact.config.io import load_config
 from spec_mtp.structure.make.schedule import job_waves
 from spec_mtp.structure.control.mapping import get_setting
 
@@ -73,16 +73,21 @@ def estimate_job_bytes(cfg: dict[str, Any] | None) -> int:
     """Peak VRAM guess for one ``run-one`` process."""
     if not isinstance(cfg, dict):
         return OVERHEAD_BYTES + _MODEL['resnet18'][1] * 1024 * 1024
-    system = cfg.get('system') if isinstance(cfg.get('system'), dict) else {}
+    raw_system = cfg.get('system')
+    system = raw_system if isinstance(raw_system, dict) else {}
     measured = get_setting(system, 'vram_bytes')
     if measured is not None:
         if type(measured) is not int or measured < OVERHEAD_BYTES:
             raise ValueError(f'system.vram_bytes must be an integer >= {OVERHEAD_BYTES}')
         return measured
-    data = cfg.get('data') if isinstance(cfg.get('data'), dict) else {}
-    model = cfg.get('model') if isinstance(cfg.get('model'), dict) else {}
-    algo = cfg.get('algorithm') if isinstance(cfg.get('algorithm'), dict) else {}
-    dcfg = data.get('config') if isinstance(data.get('config'), dict) else {}
+    raw_data = cfg.get('data')
+    data = raw_data if isinstance(raw_data, dict) else {}
+    raw_model = cfg.get('model')
+    model = raw_model if isinstance(raw_model, dict) else {}
+    raw_algo = cfg.get('algorithm')
+    algo = raw_algo if isinstance(raw_algo, dict) else {}
+    raw_dcfg = data.get('config')
+    dcfg = raw_dcfg if isinstance(raw_dcfg, dict) else {}
     name = str(data.get('name') or 'CIFAR10')
     model_name = str(model.get('name') or 'linear').lower()
     batch = max(1, _as_int(dcfg.get('batch_size'), 64))
@@ -123,10 +128,14 @@ def estimate_job_seconds(cfg: dict[str, Any] | None) -> int:
     """
     if not isinstance(cfg, dict):
         return STARTUP_SECONDS
-    data = cfg.get('data') if isinstance(cfg.get('data'), dict) else {}
-    model = cfg.get('model') if isinstance(cfg.get('model'), dict) else {}
-    algo = cfg.get('algorithm') if isinstance(cfg.get('algorithm'), dict) else {}
-    dcfg = data.get('config') if isinstance(data.get('config'), dict) else {}
+    raw_data = cfg.get('data')
+    data = raw_data if isinstance(raw_data, dict) else {}
+    raw_model = cfg.get('model')
+    model = raw_model if isinstance(raw_model, dict) else {}
+    raw_algo = cfg.get('algorithm')
+    algo = raw_algo if isinstance(raw_algo, dict) else {}
+    raw_dcfg = data.get('config')
+    dcfg = raw_dcfg if isinstance(raw_dcfg, dict) else {}
     model_name = str(model.get('name') or 'linear').lower()
     batch = max(1, _as_int(dcfg.get('batch_size'), REF_BATCH))
     ratio = float(dcfg.get('test_batch_ratio') or 1)
@@ -183,9 +192,12 @@ def attach_estimates(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if job.get('seconds') is None:
             job['seconds'] = estimate_job_seconds(cfg)
         if cfg:
-            data = cfg.get('data') if isinstance(cfg.get('data'), dict) else {}
-            model = cfg.get('model') if isinstance(cfg.get('model'), dict) else {}
-            system = cfg.get('system') if isinstance(cfg.get('system'), dict) else {}
+            raw_data = cfg.get('data')
+            data = raw_data if isinstance(raw_data, dict) else {}
+            raw_model = cfg.get('model')
+            model = raw_model if isinstance(raw_model, dict) else {}
+            raw_system = cfg.get('system')
+            system = raw_system if isinstance(raw_system, dict) else {}
             job['estimate_model'] = str(model.get('name') or '')
             job['estimate_data'] = str(data.get('name') or '')
             job['device'] = str(get_setting(system, 'device') or 'cpu').lower()

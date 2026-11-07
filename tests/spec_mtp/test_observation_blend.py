@@ -3,20 +3,13 @@
 import pytest
 import torch
 
-from spec_mtp.analysis import round_split
+from spec_mtp.structure.algorithm.counts import round_split
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
-from spec_mtp.structure.algorithm.mask import (BonusSlotMaskProvider, ESPMaskProvider, ObservationBlendMaskProvider,
-                            OutputHiddenMaskProvider, PreforwardSignalCollector, apply_lowrank_delta,
+from spec_mtp.structure.algorithm.mask import (BonusSlotMaskProvider, ESPMaskProvider,
+                            PreforwardSignalCollector, apply_lowrank_delta,
                             build_mask_provider, centered_r2, fit_lowrank_delta)
-from spec_mtp.model import HFCausalLM
+from tests.conftest import fixed_tiny_model as _model
 from spec_mtp.structure.algorithm.decode.tree import DraftTree
-
-
-def _model():
-    torch.manual_seed(7)
-    return HFCausalLM(tiny_config={'vocab_size': 199, 'hidden_size': 64, 'intermediate_size': 128,
-                                   'num_layers': 2, 'num_heads': 4, 'num_kv_heads': 2,
-                                   'max_position_embeddings': 1024})
 
 
 def _spec(method, k, mode, gain=None, condition='none', form='mean'):
@@ -69,91 +62,6 @@ def test_blended_masks_keep_ar_output_and_argmax_audit(method, k, mode, gain, te
             assert stats['verification_argmax_audit']['passed'] is True
 
 
-def test_masks_follow_the_blend_and_never_write_back():
-    torch.manual_seed(0)
-    table = torch.randn(40, 6)
-    prompt = torch.randn(9, 6)
-    blend = ObservationBlendMaskProvider(ESPMaskProvider(2, table, lam=0.2), table, 0.25)
-    reference = ESPMaskProvider(2, table, lam=0.2)
-    blend.init_from_prompt(prompt)
-    reference.init_from_prompt(prompt)
-    assert torch.equal(blend.masks(), reference.masks())
-    logits = torch.randn(2, 40)
-    blend.observe_mask_logits(logits)
-    z = torch.softmax(logits, dim=-1) @ table
-    assert torch.allclose(blend.observation(), z)
-    assert torch.allclose(blend.masks(), reference.masks() + 0.25 * (z - reference.masks()))
-    assert torch.equal(blend.base.masks(), reference.masks())
-    token = torch.randn(6)
-    blend.on_token_committed(token, prompt[-1])
-    reference.on_token_committed(token, prompt[-1])
-    assert torch.equal(blend.base.masks(), reference.masks())
-    assert torch.allclose(blend.masks(), reference.masks() + 0.25 * (z - reference.masks()))
-    full = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 1)
-    full.init_from_prompt(prompt)
-    full.observe_mask_logits(logits)
-    assert torch.allclose(full.masks(), z)
-
-
-def test_owner_depth_shifts_the_observation_and_falls_back_past_k():
-    torch.manual_seed(1)
-    table = torch.randn(30, 5)
-    blend = ObservationBlendMaskProvider(ESPMaskProvider(3, table), table, 0.5)
-    blend.init_from_prompt(torch.randn(6, 5))
-    trajectory = blend.base.masks()
-    assert torch.equal(blend.masks_by_depth(), trajectory.expand(4, 3, 5))
-    blend.observe_mask_logits(torch.randn(3, 30))
-    z = blend.observation()
-    by_depth = blend.masks_by_depth()
-    for depth in range(4):
-        for slot in range(3):
-            target = depth + slot
-            expected = trajectory[slot] + 0.5 * (z[target] - trajectory[slot]) if target < 3 else trajectory[slot]
-            assert torch.allclose(by_depth[depth, slot], expected)
-    assert torch.equal(blend.masks(), by_depth[0])
-
-
-def test_rejection_condition_renormalizes_slot_one_without_child_tokens():
-    torch.manual_seed(2)
-    table = torch.randn(12, 4)
-    blend = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 0.5, condition='rejection')
-    assert blend.protocol == 'trajectory-observation-rejection-v1'
-    blend.init_from_prompt(torch.randn(5, 4))
-    trajectory = blend.base.masks()
-    logits = torch.randn(2, 12)
-    blend.observe_mask_logits(logits)
-    probs = torch.softmax(logits, dim=-1)
-    # root -> nodes 1 (token 3), 2 (token 5); node 1 -> node 3 (token 7); nodes 2, 3 are leaves.
-    tree = DraftTree(root_token=0, tokens=[3, 5, 7], depths=[1, 1, 2], parents=[0, 0, 1])
-    owners = blend.masks_for_tree(tree)
-    by_depth = blend.masks_by_depth()
-
-    def conditioned(depth, excluded):
-        p = probs[depth].clone()
-        p[excluded] = 0
-        return (p / p.sum()) @ table
-
-    assert torch.allclose(owners[0, 0], trajectory[0] + 0.5 * (conditioned(0, [3, 5]) - trajectory[0]), atol=1e-5)
-    assert torch.allclose(owners[0, 1], by_depth[0, 1])
-    assert torch.allclose(owners[1, 0], trajectory[0] + 0.5 * (conditioned(1, [7]) - trajectory[0]), atol=1e-5)
-    assert torch.allclose(owners[2], by_depth[1]) and torch.allclose(owners[3], by_depth[2])
-    marginal = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 0.5)
-    marginal.init_from_prompt(torch.randn(5, 4))
-    marginal.observe_mask_logits(logits)
-    assert torch.allclose(marginal.masks_for_tree(tree), marginal.masks_by_depth()[[0, 1, 1, 2]])
-
-
-def test_rejection_condition_falls_back_when_children_hold_all_mass():
-    table = torch.randn(6, 3)
-    blend = ObservationBlendMaskProvider(ESPMaskProvider(1, table), table, 1.0, condition='rejection')
-    blend.init_from_prompt(torch.randn(4, 3))
-    logits = torch.full((1, 6), -1e9)
-    logits[0, 2] = 0
-    blend.observe_mask_logits(logits)
-    owners = blend.masks_for_tree(DraftTree(root_token=0, tokens=[2], depths=[1], parents=[0]))
-    assert torch.equal(owners[0, 0], blend.base.masks()[0])
-    with pytest.raises(ValueError, match='condition'):
-        ObservationBlendMaskProvider(ESPMaskProvider(1, table), table, 0.5, condition='kalman')
 
 
 def test_bonus_slot_replaces_only_the_immediate_token_and_stays_lossless():
@@ -199,29 +107,6 @@ def test_bonus_slot_replaces_only_the_immediate_token_and_stays_lossless():
         build_mask_provider({**spec, 'observation': {'gain': 1}}, table)
 
 
-def test_top1_form_uses_the_most_likely_allowed_token():
-    torch.manual_seed(5)
-    table = torch.randn(12, 4)
-    logits = torch.randn(2, 12)
-    logits[0, 3], logits[0, 9], logits[1, 7] = 9.0, 8.0, 9.0
-    tree = DraftTree(root_token=0, tokens=[3, 5, 7], depths=[1, 1, 2], parents=[0, 0, 1])
-    plain = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 1.0, form='top1')
-    plain.init_from_prompt(torch.randn(5, 4))
-    plain.observe_mask_logits(logits)
-    assert plain.protocol == 'trajectory-observation-top1-v1'
-    assert torch.allclose(plain.masks(), table[[3, 7]])
-    rejecting = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 1.0, condition='rejection', form='top1')
-    rejecting.init_from_prompt(torch.randn(5, 4))
-    rejecting.observe_mask_logits(logits)
-    assert rejecting.protocol == 'trajectory-observation-top1-rejection-v1'
-    owners = rejecting.masks_for_tree(tree)
-    assert torch.allclose(owners[0, 0], table[9])
-    second = torch.softmax(logits[1], dim=-1)
-    second[7] = -1
-    assert torch.allclose(owners[1, 0], table[int(second.argmax())])
-    assert torch.allclose(owners[0, 1], table[7]) and torch.allclose(owners[2, 0], table[7])
-    with pytest.raises(ValueError, match='form'):
-        ObservationBlendMaskProvider(ESPMaskProvider(1, table), table, 0.5, form='median')
 
 
 def test_decoder_observes_prefill_and_every_continuing_round():
@@ -239,24 +124,8 @@ def test_decoder_observes_prefill_and_every_continuing_round():
     assert all(row.shape == (2, model.vocab_size) for row in seen)
 
 
-@pytest.mark.parametrize('spec_observation,match', [
-    ({'gain': 1.5}, 'gain'), ({'gain': True}, 'gain'), ({'gain': 0.5, 'K': 1}, 'only gain')])
-def test_invalid_observation_settings_are_rejected(spec_observation, match):
-    spec = {**_spec('esp', 1, 'static'), 'observation': spec_observation}
-    with pytest.raises(ValueError, match=match):
-        build_mask_provider(spec, torch.randn(10, 4))
 
 
-def test_observation_rejects_hidden_providers_and_bad_logits():
-    table = torch.randn(10, 4)
-    with pytest.raises(ValueError, match='input-embedding'):
-        ObservationBlendMaskProvider(OutputHiddenMaskProvider(1, table), table, 0.5)
-    blend = ObservationBlendMaskProvider(ESPMaskProvider(2, table), table, 0.5)
-    blend.init_from_prompt(torch.randn(3, 4))
-    with pytest.raises(ValueError, match='one logit row'):
-        blend.observe_mask_logits(torch.randn(3, 10))
-    with pytest.raises(ValueError, match='finite candidate'):
-        blend.observe_mask_logits(torch.full((2, 10), float('nan')))
 
 
 def test_scalar_kalman_step_steady_gain_and_lossless_decode():

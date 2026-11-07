@@ -3,12 +3,12 @@
 import math
 import pytest
 
-from test_window_observer import ROOT
+from tests.spec_mtp.test_window_observer import ROOT
 
 
 def test_detectability_preserves_tiny_nonzero_mass(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
-    from diagnose_rare_events import detectability
+    from studies._shared.structure.sampling_diagnostics import detectability
     result = detectability(1e-20, 4096)
     assert result['ideal_Bernoulli_probability_at_least_one'] == pytest.approx(4096e-20, rel=1e-12, abs=0.)
     assert result['ideal_trials_for_95pct_detection'] > 10**20
@@ -17,7 +17,7 @@ def test_detectability_preserves_tiny_nonzero_mass(monkeypatch):
 
 def test_zero_and_certain_mass_endpoints(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
-    from diagnose_rare_events import detectability
+    from studies._shared.structure.sampling_diagnostics import detectability
     zero, one = detectability(0, 4096), detectability(1, 4096)
     assert zero['ideal_Bernoulli_probability_at_least_one'] == 0 and zero['ideal_trials_for_95pct_detection'] is None
     assert one['ideal_Bernoulli_probability_at_least_one'] == 1 and one['ideal_trials_for_95pct_detection'] == 1
@@ -25,7 +25,7 @@ def test_zero_and_certain_mass_endpoints(monkeypatch):
 
 def test_zero_observation_upper_bound_and_detection_threshold(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
-    from diagnose_rare_events import detectability
+    from studies._shared.structure.sampling_diagnostics import detectability
     result = detectability(.001, 4096)
     n = result['ideal_trials_for_95pct_detection']
     assert 1 - .999**n >= .95 and 1 - .999**(n - 1) < .95
@@ -36,7 +36,7 @@ def test_zero_observation_upper_bound_and_detection_threshold(monkeypatch):
 @pytest.mark.parametrize('p,n', [(-.1, 64), (1.1, 64), (.1, 0)])
 def test_detectability_rejects_invalid_inputs(monkeypatch, p, n):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
-    from diagnose_rare_events import detectability
+    from studies._shared.structure.sampling_diagnostics import detectability
     with pytest.raises(ValueError):
         detectability(p, n)
 
@@ -49,7 +49,7 @@ def frame(root, count):
 
 def accounting(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT))
-    from studies.output_space_cross_task.analyze_first_delta import path_accounting
+    from studies.output_space_cross_task.structure.sampling_readout import path_accounting
     return path_accounting
 
 

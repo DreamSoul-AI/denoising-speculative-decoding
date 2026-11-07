@@ -21,7 +21,7 @@ def fit_mask_correction(m_hat, z, target, kind):
         num = (error * delta).sum(dim=0)
         den = (delta * delta).sum(dim=0).clamp_min(1e-12)
         return {'k': (num / den).tolist()}
-    design = torch.cat([delta, torch.ones(delta.shape[0], 1, dtype=delta.dtype)], dim=1)
+    design = torch.cat([delta, torch.ones(delta.shape[0], 1, dtype=delta.dtype, device=delta.device)], dim=1)
     solution = torch.linalg.lstsq(design, error).solution
     gram = design.T @ design
     rhs = design.T @ error
@@ -43,10 +43,10 @@ def fit_affine_ridge(m_hat, z, target, ridge):
     ridge = float(ridge)
     if ridge <= 0.0:
         raise ValueError('affine ridge must be positive')
-    design = torch.cat([delta, torch.ones(delta.shape[0], 1, dtype=delta.dtype)], dim=1)
+    design = torch.cat([delta, torch.ones(delta.shape[0], 1, dtype=delta.dtype, device=delta.device)], dim=1)
     gram = design.T @ design
     rhs = design.T @ error
-    penalty = torch.eye(gram.shape[0], dtype=gram.dtype)
+    penalty = torch.eye(gram.shape[0], dtype=gram.dtype, device=gram.device)
     penalty[-1, -1] = 0.0
     solution = torch.linalg.solve(gram + ridge * penalty, rhs)
     return {'A': solution[:-1].T.tolist(), 'b': solution[-1].tolist(),
@@ -233,8 +233,8 @@ def _solve_lowrank_input(delta, error, left, bias, ridge):
 
 def _affine_residual(m_hat, z, target, fit):
     delta = z.double() - m_hat.double()
-    weight = torch.tensor(fit['A'], dtype=torch.float64)
-    bias = torch.tensor(fit['b'], dtype=torch.float64)
+    weight = torch.as_tensor(fit['A'], dtype=delta.dtype, device=delta.device)
+    bias = torch.as_tensor(fit['b'], dtype=delta.dtype, device=delta.device)
     error = m_hat.double() + delta @ weight.T + bias - target.double()
     return float(error.pow(2).sum())
 

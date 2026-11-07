@@ -1,6 +1,6 @@
 """Resolve tokenized prompts and EOS ids for an RPipe Run."""
 
-from spec_mtp.data import encode_prompts, eos_ids, load_tokenizer, needs_tokenizer
+from spec_mtp.structure.data.prompts import encode_prompts, eos_ids, load_tokenizer, needs_tokenizer
 
 
 def resolve_prompts(data, model):

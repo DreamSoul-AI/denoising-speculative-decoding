@@ -40,7 +40,9 @@ class System:
     def save_checkpoint(self, payload: dict[str, Any], name: str) -> Path:
         """Publish an atomic bundle after updating its diagnostic piece mirror."""
         import json
+        import os
         import shutil
+        import tempfile
         import torch
 
         from spec_mtp.structure.artifact._atomic import atomic_replace, atomic_write_text
@@ -50,66 +52,91 @@ class System:
             raise ValueError(f'invalid checkpoint name: {name!r}')
         root = self.checkpoint_dir()
         bundle = root / f'{stem}.pt'
-        pending_bundle = root / f'.{stem}.pt.writing'
         folder = root / stem
         incomplete = root / f'.{stem}.incomplete'
-        if not bundle.is_file() and folder.is_dir() and not incomplete.exists():
-            previous = self.load_checkpoint(str(folder))
-            if previous is not None:
-                torch.save(previous, pending_bundle)
-                atomic_replace(pending_bundle, bundle)
-        torch.save(payload, pending_bundle)
-        tmp = root / f'.{stem}.writing'
-        if tmp.exists():
-            shutil.rmtree(tmp)
-        tmp.mkdir(parents=True)
-        torch_keys = ('model', 'optimizer', 'scheduler')
-        for key in torch_keys:
-            value = payload.get(key)
-            if value is not None:
-                torch.save(value, tmp / f'{key}.pt')
-        if payload.get('tracker') is not None:
-            atomic_write_text(tmp / 'tracker.json', json.dumps(payload['tracker'], indent=2, ensure_ascii=False))
-        if payload.get('logger') is not None:
-            atomic_write_text(tmp / 'logger.json', json.dumps(payload['logger'], indent=2, ensure_ascii=False))
-        meta = {
-            key: value
-            for key, value in payload.items()
-            if key not in torch_keys and key not in ('tracker', 'logger')
-        }
+        if not bundle.is_file() and folder.exists() and not incomplete.exists():
+            raise FileExistsError('legacy checkpoint mirror requires explicit migration before overwrite')
+        pending_bundle: Path | None = None
+        tmp: Path | None = None
         try:
-            atomic_write_text(tmp / 'meta.json', json.dumps(meta, indent=2, ensure_ascii=False))
-        except TypeError:
-            torch.save(meta, tmp / 'meta.pt')
-        # ponytail: one writer per Run/stem; concurrent writers need separate staging and locking.
-        incomplete.touch()
-        folder.mkdir(exist_ok=True)
-        for part in ('model.pt', 'optimizer.pt', 'scheduler.pt', 'tracker.json', 'logger.json', 'meta.json', 'meta.pt', 'payload.pt'):
-            source, target = tmp / part, folder / part
-            if source.is_file():
-                atomic_replace(source, target)
+            handle = tempfile.NamedTemporaryFile(mode='wb', prefix=f'.{stem}.', suffix='.pt.writing',
+                                                 dir=root, delete=False)
+            pending_bundle = Path(handle.name)
+            try:
+                torch.save(payload, handle)
+                handle.flush()
+                os.fsync(handle.fileno())
+            except BaseException as primary:
+                try:
+                    handle.close()
+                except BaseException as cleanup:
+                    setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
+                raise
             else:
-                target.unlink(missing_ok=True)
-        atomic_replace(pending_bundle, bundle)
-        try:
-            incomplete.unlink()
-            tmp.rmdir()
-        except OSError:
-            pass  # The bundle is committed; leftover diagnostics cannot turn this into a failed save.
+                handle.close()
+            tmp = Path(tempfile.mkdtemp(prefix=f'.{stem}.', suffix='.writing', dir=root))
+            torch_keys = ('model', 'optimizer', 'scheduler')
+            for key in torch_keys:
+                value = payload.get(key)
+                if value is not None:
+                    torch.save(value, tmp / f'{key}.pt')
+            if payload.get('tracker') is not None:
+                atomic_write_text(tmp / 'tracker.json', json.dumps(payload['tracker'], indent=2, ensure_ascii=False))
+            if payload.get('logger') is not None:
+                atomic_write_text(tmp / 'logger.json', json.dumps(payload['logger'], indent=2, ensure_ascii=False))
+            meta = {key: value for key, value in payload.items()
+                    if key not in torch_keys and key not in ('tracker', 'logger')}
+            try:
+                serialized_meta = json.dumps(meta, indent=2, ensure_ascii=False)
+            except TypeError:
+                torch.save(meta, tmp / 'meta.pt')
+            else:
+                atomic_write_text(tmp / 'meta.json', serialized_meta)
+            # One writer per Run/stem; the bundle replacement is the sole commit point.
+            incomplete.touch()
+            folder.mkdir(exist_ok=True)
+            for part in ('model.pt', 'optimizer.pt', 'scheduler.pt', 'tracker.json', 'logger.json', 'meta.json', 'meta.pt', 'payload.pt'):
+                source, target = tmp / part, folder / part
+                if source.is_file():
+                    atomic_replace(source, target)
+                else:
+                    target.unlink(missing_ok=True)
+            atomic_replace(pending_bundle, bundle)
+        except BaseException as primary:
+            for path in (pending_bundle, tmp):
+                if path is not None:
+                    try:
+                        shutil.rmtree(path) if path.is_dir() else path.unlink(missing_ok=True)
+                    except BaseException as cleanup:
+                        setattr(primary, 'cleanup_errors', (*getattr(primary, 'cleanup_errors', ()), cleanup))
+            raise
+        assert tmp is not None
+        for path in (incomplete, tmp):
+            try:
+                path.rmdir() if path.is_dir() else path.unlink(missing_ok=True)
+            except Exception:
+                pass  # Committed bundle identity survives diagnostic cleanup failure.
         return bundle
 
-    def load_checkpoint(self, name: str) -> dict[str, Any] | None:
-        """Read a ``.pt`` bundle, a checkpoint directory, or a path."""
-        import json
-        import torch
-
+    def checkpoint_path(self, name: str) -> Path:
+        """Resolve committed checkpoint material without creating output directories."""
         raw = str(name)
-        candidate = Path(raw)
+
+        def published(path: Path) -> Path:
+            if any(part.startswith('.') and part.endswith('.writing')
+                   for value in (path, path.resolve()) for part in value.parts):
+                raise OSError('unpublished checkpoint staging material is not a committed checkpoint')
+            return path
+
+        candidate = published(Path(raw))
         path = candidate
         if not (candidate.suffix.lower() == '.pt' or candidate.is_file() or candidate.is_dir() or '/' in raw or '\\' in raw):
             stem = raw.replace('/', '_').replace('\\', '_')
-            bundle = self.checkpoint_dir() / f'{stem}.pt'
-            folder = self.checkpoint_dir() / stem
+            from spec_mtp.structure.artifact.asset import kinds
+
+            root = Path(self.assets_dir) / kinds.CHECKPOINTS
+            bundle = root / f'{stem}.pt'
+            folder = root / stem
             if bundle.is_file():
                 path = bundle
             elif folder.is_dir():
@@ -123,6 +150,14 @@ class System:
                 path = bundle
             elif (folder.parent / f'.{folder.name}.incomplete').exists():
                 raise OSError(f'incomplete checkpoint without a committed bundle: {folder}')
+        return published(path)
+
+    def load_checkpoint(self, name: str) -> dict[str, Any] | None:
+        """Read a ``.pt`` bundle, a checkpoint directory, or a path."""
+        import json
+        import torch
+
+        path = self.checkpoint_path(name)
         if path.is_dir():
             payload_path = path / 'payload.pt'
             if payload_path.is_file():
@@ -161,13 +196,16 @@ class System:
 
 class SystemFactory:
     @staticmethod
-    def build(system_config: SystemConfig, assets_dir: Path | str) -> System:
-        return _build_native(system_config, Path(assets_dir))
+    def build(system_config: SystemConfig, assets_dir: Path | str, *, logger: Logger | None = None) -> System:
+        return _build_native(system_config, Path(assets_dir), logger=logger)
 
 
-def _build_native(system_config: SystemConfig, assets_dir: Path) -> System:
+def _build_native(system_config: SystemConfig, assets_dir: Path, *, logger: Logger | None = None) -> System:
     device = str(system_config.setting('device', 'cpu'))
-    logger = Logger(assets_dir)
+    if isinstance(logger, Logger) and logger.assets_dir.resolve() != assets_dir.resolve():
+        raise ValueError('injected diagnostic logger belongs to another Run')
+    if logger is None:
+        logger = Logger(assets_dir, managed=True)
     deterministic = bool(system_config.setting('deterministic', False))
     return System(
         device=device,

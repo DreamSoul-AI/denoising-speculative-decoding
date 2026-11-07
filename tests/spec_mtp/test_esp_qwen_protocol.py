@@ -1,18 +1,11 @@
-import importlib.util
+from studies.esp_table1_bf16_qwen_protocol.structure import readout
 from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 
-def load(name, path):
-    spec = importlib.util.spec_from_file_location(name,path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
 def test_protocol_aggregation_keeps_call_weighting_and_quality():
-    report = load('esp_protocol_report',ROOT/'studies/esp_table1_bf16_qwen_protocol/analyze_results.py')
+    report = readout
     rows = [{'category':'a','committed':4,'decode_calls':4,'accepted':0,'exact':False},
             {'category':'a','committed':4,'decode_calls':2,'accepted':2,'exact':True},
             {'category':'b','committed':9,'decode_calls':3,'accepted':6,'exact':True}]
@@ -24,7 +17,7 @@ def test_protocol_aggregation_keeps_call_weighting_and_quality():
 
 
 def test_protocol_primary_cannot_be_selected_from_tau():
-    report = load('esp_protocol_roles',ROOT/'studies/esp_table1_bf16_qwen_protocol/analyze_results.py')
+    report = readout
     cells = report.ordered_cells({(60,1):{'pooled_tau':1.1},(60,2):{'pooled_tau':3.}})
     assert [(c['BC'],c['num_masks']) for c in cells]==[(10,1),(30,1),(60,1),(60,2)]
     assert cells[2]['role']=='primary' and cells[3]['role']=='control'
@@ -35,22 +28,32 @@ def test_protocol_primary_cannot_be_selected_from_tau():
 
 @pytest.mark.parametrize('failure',[False,True])
 def test_launch_once_restores_native_scheduler(monkeypatch,failure):
-    launch = load('launch_once_test',ROOT/'studies/_shared/flow/launch_once.py')
-    original = launch.spec_mtp.flow.cli.launch_jobs
+    from studies._shared.flow import launch_once as launch
+    from studies._shared.flow.cli import main as study_main
+    import spec_mtp.flow.study_cli as host_cli
+    from studies._shared.flow import cli as shared_cli
+    assert launch.main is study_main
+    original = host_cli.launch_jobs
     def native(argv):
         assert argv==['launch','study']
-        patched=launch.spec_mtp.flow.cli.launch_jobs
-        assert patched.func is original and patched.keywords=={'retry_failed':False}
+        assert host_cli.launch_jobs is original
         if failure:
             raise RuntimeError('injected launcher failure')
         return 7
-    monkeypatch.setattr(launch,'native_main',native)
+    monkeypatch.setattr(shared_cli, 'write_lock_for', lambda argv: None)
+    monkeypatch.setattr(host_cli, 'main', native)
     if failure:
         with pytest.raises(RuntimeError,match='injected launcher failure'):
             launch.main(['launch','study'])
     else:
         assert launch.main(['launch','study'])==7
-    assert launch.spec_mtp.flow.cli.launch_jobs is original
+    assert host_cli.launch_jobs is original
+
+
+def test_launch_scheduler_does_not_retry_failed_runs_by_default():
+    import inspect
+    from spec_mtp.structure.make.schedule import launch_jobs
+    assert inspect.signature(launch_jobs).parameters['retry_failed'].default is False
 
 
 def test_corrected_studies_keep_full_coverage_and_mask_update():

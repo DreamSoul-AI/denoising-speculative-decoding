@@ -1,4 +1,3 @@
-import importlib.util
 from itertools import combinations
 from pathlib import Path
 from PIL import Image
@@ -9,10 +8,10 @@ STUDY = Path(__file__).resolve().parents[2]/'studies/qwen3_4b_bf16_five_methods'
 
 @pytest.fixture
 def plotter():
-    spec = importlib.util.spec_from_file_location('bf16_paired_plot', STUDY/'plot_results.py')
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    from types import SimpleNamespace
+    from studies.qwen3_4b_bf16_five_methods.structure import plots
+    from studies.qwen3_4b_bf16_five_methods.flow.write.run import write_plot
+    return SimpleNamespace(LABELS=plots.LABELS, pair_matrix=plots.pair_matrix, write_plot=write_plot)
 
 
 def fixture_body(plotter):

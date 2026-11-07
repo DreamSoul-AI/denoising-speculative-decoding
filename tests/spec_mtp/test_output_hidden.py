@@ -8,7 +8,7 @@ import torch
 from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
 from studies._shared.structure.config import _convert
-from spec_mtp.model import HFCausalLM
+from spec_mtp.structure.model.hf_causal import HFCausalLM
 
 
 @pytest.fixture(scope='module')

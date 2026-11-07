@@ -7,9 +7,7 @@ recipe: recipe.py
 freeze: true
 provenance:
   include:
-  - paired_repeat.py
   - docs/source_refs.json
-  - paired_admission.py
   project_plan:
     commit: acaa68cd182225622f7f430a7e56cc7b8d1aae83
     path: docs/研究计划 Denoising Speculative Decoding.md

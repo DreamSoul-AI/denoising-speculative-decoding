@@ -1,12 +1,13 @@
 """First-fork and float32-control helpers. The command stays on office_traj."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import hashlib
 import json
 import math
 import statistics
 
-from studies.trajectory_observation.structure.office_qwen8b import QWEN3_8B
 from studies.trajectory_observation.structure.office_traj import _file
 from studies.trajectory_observation.structure.office_tree import read_rows
 
@@ -258,11 +259,13 @@ def fill_fp32_rows(model, tokenizer, prompts, rows_by_name, limit, generate):
         updated[name] = arm_rows
     return updated
 
-def _load_fp32_model():
+def _load_fp32_model(model_root=None):
+    if model_root is None:
+        raise ValueError('an explicit local model root is required for fp32 replay')
     import torch
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
 
-    path = QWEN3_8B
+    path = Path(model_root).resolve()
     if not path.is_dir():
         raise RuntimeError('Qwen3-8B weights are not at the local 8B directory')
     if not torch.cuda.is_available():

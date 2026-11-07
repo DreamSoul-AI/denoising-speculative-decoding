@@ -1,30 +1,51 @@
 **去噪推测解码 开发计划**
-更新日期：2026年11月4日。本文只登记工程工作和验收。研究问题、假设和停止规则在 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。最近的计时分离在 [2026-11-01 计时失败不再改写计数](<开发记录 Development Record/2026-11-01 计时失败不再改写计数.md>)。此前的包拆分和文档重整在 [2026-10-31 工程重构与文档重整](<开发记录 Development Record/2026-10-31 工程重构与文档重整.md>)。
+更新日期：2026年11月6日。职责依据 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，科学问题由 [研究计划](<研究计划 Research Plan 去噪推测解码.md>) 独立维护。
 
-# 一、已经完成、不必再排期
-科学包 `spec_mtp` 在 2026-11-03 之前按 CLI、数据、模型、解码、mask、树、审计和分析落在扁平模块。该布局现在是冻结遗留。目标目录改为 `structure` / `flow` 两柱，规则在 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)。Study 通过 `studies/_shared` 调用解码器。K Study 的 `postcommit-final-norm-v1` 夹具能在合成输入上拟合和拒绝错误协议名。τ 的零调用口径已收束到 `prompt_tau`。时钟或设备同步失败时，解码仍返回 token 和接受计数，并且不补写 0 时长。文档入口已按职责分开。
+# 一、当前范围
+工程清理收尾，基线fec57c2。按Enmao经main转达的最新方向，只完成手上调度返回码错位，不再新开清理项；后续回到以论文为目标的training-free speculative decoding研究。既有EMA/Kalman结案保持原证据范围，新的研究问题与GPU假设/指标由唯一研究计划承接，本拍不启动研究。
 
-# 二、剩余工程项
-2026年11月3日的目录规则已经写入代码结构设计。步骤 0 是文档和 CPU 门禁，已经完成。步骤 1 已把 `contracts.py` 迁到 `structure/api/decode_api.py`，旧路径再导出已删除，不改数学。步骤 2 已把 `tree.py` 拆到 `structure/algorithm/decode/`，旧路径再导出已删除。步骤 3 已把 `masks.py` 拆到 `structure/algorithm/mask/`，顶层再导出已删除。步骤 4 已把 `decode.py` 迁到 `structure/algorithm/decode/loop.py`，顶层再导出已删除。步骤 5–7（data/model/audit/analysis、trajectory_observation、cli）尚未开始。步骤 8 里测试镜像改路径和 `.importlinter` 按两柱重写仍未做。那些步骤只搬位置，不改数学。本计划不因为文档改了就授权后续搬迁。
+当前唯一假设：同一组内，可派发Run与因train依赖失败而被阻止的Run混合时，launch_jobs仍按组内输入顺序返回各自退出码。有／无deadline及blocked在前／在后都须保序；blocked不得启动进程，已有Result、config和输入字节/mtime保全。只在既有组执行器按已准入Run顺序归位结果，保持train/eval屏障、原失败判定、显式retry及异常清理不变。
 
-| **事项** | **原因** | **验收** |
+预估55分钟：合同核对10、最小修复20、CPU/CUDA与独审15、交付10。验收先真实旧源RED，再原CPU门及真实CUDA、诊断、原native12；90/300秒预算、旧用例及计划不改，无CI/过滤/跳过掩盖。TEMP/TMP、cache及回执只D:/Grok Bot/tmp/grokbot/sd/round63，复用已核CPU环境，无bootstrap/pip/下载。完整后代/硬I/O、回执保留与动态预算仍未交付，不把本次保序修复扩大为这些保证。
+
+# 二、六类核对与落实
+| **类别** | **已有实现条件** | **仍需完成的具体差距** |
 | --- | --- | --- |
-| 会议方法的 CPU 合成检查 | 已完成。top1 确认未通过，oracle 空间全在槽 1，停止在合成设置上换形式 | 见运行记录 |
-| observation 上的仿射 K | 研究计划把完整 K 与仅 bias 列为对照 | 合成检查有结论后再定 z→Az+b 的拟合数据 |
-| 飞书规范正文 | 用户令牌过期时只读了索引和参考仓 | 下次能读取时核对冲突段落，不预先改写成“已符合全文” |
-| 下一高信息实验的逐臂墙钟 | 研究计划「结论总表」已写入 `office-8b-traj-wall-v1`。`office_traj.py` 已逐臂记录 `wall_seconds`，缺失不写成 0。外层打印仍不进入比较 | 已跑。接受数 `direction` 为 positive，`wall_direction` 为 shorter，两区间都不含 0。见 [2026-11-04 Qwen3-8B trajectory墙钟](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory墙钟.md>)。次项 B `office-8b-traj-failset-v1` 已分析，见 [2026-11-04 Qwen3-8B trajectory失败子集](<运行记录 Run Record/2026-11-04 Qwen3-8B trajectory失败子集.md>) |
-| 独立 AR 不一致的只读分类 | 研究计划「结论总表」`office-ar-inconsistency-v1`。已有行含 `ar_equal`、`output_sha256`、`argmax_passed`、`accepted`、`tau`。没有首分叉下标、共同前缀长度或两侧 token。八组与墙钟 jsonl 在运行记录所指目录 | 已完成。`classify_pair` 与 `classify_archive` 在 `office_traj.py`。旧行缺字段保持缺失。结论见开发记录 |
-| 首分叉与 fp32 参照 | 研究计划「结论总表」`office-ar-first-fork-v1`。助手在 `office_traj_fork.py`，命令仍在 `office_traj.py` | 已跑。见 [2026-11-04 Qwen3-8B 首分叉](<运行记录 Run Record/2026-11-04 Qwen3-8B 首分叉.md>) |
-| BF16 AR 自决定 | 研究计划「结论总表」`office-ar-bf16-determinism-v1`。助手在 `office_traj_determinism.py`。`prompt_tokenwise` 在 `loop.py` 的 `ar_generate` | 已跑。见 [2026-11-04 Qwen3-8B BF16自决定](<运行记录 Run Record/2026-11-04 Qwen3-8B BF16自决定.md>) |
-| 墙钟按长度 | 研究计划「结论总表」`office-8b-traj-wall-by-length-v1`。助手在 `office_traj_length.py`。`draft_seconds` 与 `verify_seconds` 在 `loop.py` | 已跑。见 [2026-11-04 Qwen3-8B 墙钟按长度](<运行记录 Run Record/2026-11-04 Qwen3-8B 墙钟按长度.md>)。结构步骤 5 本次仍不搬迁 |
-| observation 增益扫描 | 研究计划「结论总表」已写入 `office-8b-traj-g-scan-v1`。四臂只改 `spec.observation.gain`，g 为 0、0.25、0.5、0.75。逻辑在 `office_traj.py` 的 `--protocol gscan` | 已跑。三对相对 g=0 的接受数方向都是 negative。见 [2026-11-04 Qwen3-8B observation增益扫描](<运行记录 Run Record/2026-11-04 Qwen3-8B observation增益扫描.md>) |
+| 目录结构 | 宿主和Study按structure/flow分工，薄入口调用实际部件；配置和tracker装配复用既有工厂，不另建facade | 冻结顶层legacy保持为空；父包仅标识职责，普通部件使用canonical leaf导入。仍需核其余科学子包公开面与尚未镜像的测试，不推广本次范围 |
+| 配置与支持版本 | 文件 SHA256 统一使用 provenance.file_sha256 的有界流式读取，去除 Python 3.11 专属 file_digest 依赖 | Python 3.10 尚未实机运行，test_package 的 tomllib importorskip 会阻断该版本的严格计划，需确定测试兼容策略；不可据模拟缺 API 测试声称全版本支持 |
+| 入口脚本 | 共用 launch_once 委托 shared CLI，fingerprint/profile 归统一 diagnostics flow；专用入口包含 fresh、office、fair、pilot/preforward 和 hybrid_gain | 已登记顶层遗留、structure命令及直接盘符清单均为空；旧配置、拼接路径与间接装配仍须逐消费者审查，不据清单归零宣称全项目合规 |
+| 日志与输出 | 诊断JSONL有界/分段与托管隔离保持；新空policy冻结单Run64MiB/7天追加窗口，logs --inventory只读盘点已实现，旧文本只读 | 显式外部根、输出独占与源码/输入核验保持。14个Study创建点已采用managed，wiring与实际入口回归分开登记；新owned家族已提供显式封存/清除、跨进程互斥与新外置Study固定诊断预算；自动保留期、旧/未接管根、动态/跨Study共享预算及同步OSIO硬超时仍缺 |
+| 测试 | 新增行为和失败用例逐项登记，归细 target 与层级，静态直接反向导入清单归零；真实 CUDA 计划成本标 C3 并声明单卡及时间估计 | 其余用例仍大量继承 integration，target 较宽；numeric和测量粒度的空/缺/无效结果门及终态已实现，纯测量不计质量通过；批次Markdown报告及同run/plan/HEAD证据核验已实现；附件式原始证据和更细结果协议仍待按实际需求裁剪；read_plan按实际枚举与被选计划核成本/资源语义；显存需求仍待估计，需逐用例复核，不能只以字段存在认定合规 |
+| 文档 | 九类文档保持职责，研究问题和工程待办分开；设计与实际差距、日期记录和固定来源分别定位 | 提供固定 Git 原件只读接口，槽位与followup分析已迁入两柱；其余完整分析器仍依赖旧工具/计划映射，原 helper 身份存在未知，不能替换路径冒充同一来源 |
 
-不新增插件注册、通用校正框架或第二套测试运行器。
+表中当前源码状态与对应实际验证从 [开发记录](<开发记录 Development Record/2026-11-05 宿主结构收束.md>)、[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>) 定位。没有把完整原生重放或整个规范的落地写成已完成。
 
-2026年11月3日，同节点预算的额外分支按研究计划里已写定的 `extra-branch-replace-v1` 执行。这次只比较接受数，不测速，不下载模型。运行产物留在源码树外。
+# 三、工程收尾与后续路由
+当前返回码修复通过原门禁、独审并普通推送后，工程清理停止；第五章仅保留未完成事实和恢复所需输入，不自动开启下一项。后续研究按唯一研究计划逐个定义清晰假设、GPU预算及加速比/接受率/质量验收，正负结果均回写原计划，不以工程门绿替代研究结论。
 
-# 三、RPipe 来源（B2 作废）
-2026年11月1日 Enmao 决定：仓库不再内嵌 `src/rpipe/`，顶层不再有 `tools/`。Study 流程由 `spec_mtp.flow` 与 `spec_mtp.structure` 自己实现，目录以 https://github.com/DreamSoul-AI/RPipe 为结构模板持续对齐。此前“继续固定 v0.3.1”的默认假设作废。来源提交 `7a15c46b75c5eb951cccd60ed7b9fc3463db90f5` 只说明被吸收的那一版流程代码从哪来，不再是本仓的固定副本。
+先核当前工作分支/提交、真实调用方、对应设计与最新运行回执，按第五章的输入和停止条件选一个具体工程缺口；已验收的构造准入、inventory唯一性、日志隔离/分段、发布收尾、loader误重试与取消关闭循环不重复派发；native启动按README核实际缓存配置并保留原门限，已关闭经过从日期记录定位。保留默认入口、原参数及门禁，纯控制/IO用CPU快速验收，真实数值用可用CUDA并记录设备，不以skip、过滤或CPU回退求绿。每步完成受影响的完整门与独审后再按当前授权普通推送，不将旧回执记为新HEAD结果。
 
-# 四、明确不做
-不下载模型，不恢复范数矩阵、配对矩阵和 ESP 长矩阵，不恢复 BF16 相对独立 AR 的算子数值机理排查，不合并 `main`，不改 Actions 和仓库保护，不把运行产物提交进 Git。`office-ar-first-fork-v1`、`office-ar-bf16-determinism-v1`、`office-8b-traj-wall-by-length-v1` 和 `office-8b-traj-g-scan-v1` 的 GPU 都已经跑完，数字在对应运行记录。结构步骤 5 本次仍不搬迁。除此以外的 GPU 测量、GPU 测速和复跑仍须另行批准。
+Tracker曲线读取与调度新鲜度的两条ponytail成本说明继续有效，按实际负载触发后再优化；稳定公开薄入口和泛型Registry/Config不因相似就当冗余。限定盘点没有可安全删除的过期TODO或facade，不为凑数造清单。Python3.10仅核已关联现成环境，未就绪保未知，不扩扫描或安装。
+
+当前研究结论、数据/模型协议、原件缺口与恢复条件只由唯一研究计划维护，开发计划不复制其数字或预算。工程绿不构成研究收益或新实验授权；没有已授权的具体缺口就停止扩展，技术债、已知问题与冻结研究分别按第五章路由。
+
+# 四、交付边界
+已有真实权重EMA比较与Kalman受测合同的实际CUDA结果见唯一研究计划和日期运行记录，本轮不改。此次GPU执行只验证保全的工程合同，CPU/GPU结果分别绑定本次测试源码、环境和提交；不把既往结果或工程通过转述为研究收益。
+
+临时材料仅用户指定D:/Grok Bot/tmp内的SD任务目录，制品不入Git。普通推本分支维护Draft PR106到dev，不改main/dev，不合并、强推、autoMerge或绕过检查；只读远端运行结果，不动Actions/workflow、设置、规则、凭据及禁区，不联系外部人员。
+
+# 五、周末工程接手路线
+以下复用现有计划与缺陷入口，当前暂停继续清理，只保留真实缺口及以后恢复所需输入，不产生删除、研究或新派发授权。未来恢复工程工作时再明确硬I/O决策及具体消费者；输入不足即保缺口，不重复派发已交付固定份额、取消首错及既有研究。已完成项从日期记录定位，不另设交接正本。
+
+| **顺序与类别** | **输入、下一步与验收** | **停止条件** |
+| --- | --- | --- |
+| P1 技术债：后代归属与完整硬I/O（延期） | 已有显式冻结Run的直接worker期限与中断回执。接手者先定义执行前后代归属、父调度器阻塞时的独立执行owner及partial制品处置，再验调用者返回/停止派发/全部纳管writer退出/实际文件变化 | 直接child退出或有限稳定采样不能证明所有后代/OS/远端写入停止；缺一项仍unknown、不自动重试。不得以后台线程、future超时或PID标签替代停止证明 |
+| P1 技术债：中断回执保留与消费 | 新回执最多64KiB/件、仅异常路径追加；需要真实保留期/总量或自动消费者时先定引用与归属，再选处置授权和验收。只有receipt.json为发布件，partial/缺件保持未知 | 不将回执当科学完成、全进程树停写或删除许可；不覆盖旧attempt、不自动清理、迁移或据缺件推成功 |
+| P1 技术债：自动保留期与旧根迁移（延期） | 新owned家族的显式prepare/seal/purge已提供。自动到期或历史根另须给出处置授权、引用审查、可确认的writer协议与停止证据，未知保持retain；验收保全模型/数据/checkpoint/原snapshot | 不把policy owner、expired/capacity、成功Result或进程内锁当旧根可删依据；不收编已有logs，不把手动新家族处置写成全盘/自动TTL完成 |
+| P1 技术债：动态/跨Study预算（延期） | 81e81d5已提供新外置Study固定份额，保留其已验证边界。仅有具体动态/共享消费者时才定义增减、退款的原子责任与崩溃恢复，既有份额不作为重复复核任务 | 不以inventory后追加冒充一致配额；不迁移历史根、不自动重签部分初始化、不删除旧Run腾空间；控制留量以单件4KiB及固定stage拒重入为界 |
+| 技术债：取得hf前及异常引用 | 固定版本loader的TypeError误重试和两处取消清理已完成；输入仍限既有有限pre-session CUDA探针与真实owner，第三方loader/训练内部帧及外部引用不保证即时释放，按实际场景核验 | 单一受控故障不推广所有路径；不据probe的clear_frames加入生产清帧或宣称自然泄漏/即时显存释放 |
+| P2 技术债：兼容与元数据 | 只用已关联现成Python3.10环境，完整收集并执行必需合同且无skip才记该版本通过；逐实际target/level/cost及显存需求核声明，两条有效成本注释按真实负载触发 | 无现成环境则保缺口，不扫描/下载/安装；不降成本资源或批量改断言求绿 |
+| 已知问题：缺陷记录入口 | native缓存配置与原90秒门按README执行，旧失败和本轮对照保在日期记录；最低版本、证据缺口、Restricted与跨prompt待核沿活动缺陷入口 | 旧隔离缓存环境未冻结则不补签；不抬门限/过滤/改签首红，不绕过策略，不把静态怀疑记为旧Run失效，真实模型诊断先有明确授权 |
+| 研究转交：唯一研究计划 | 按最新方向转回training-free speculative decoding，以denoising、Kalman和EMA为基本要件；先在唯一研究计划冻结一个假设及GPU预算，分别验加速比、接受率与质量。既有结案、原件未知及实际正负证据保持原范围 | 本拍未执行新研究；工程门绿不构成科学收益，不自动重开已关闭256扩展、512/β或旧矩阵，不补造缺失原字节 |
+
+调度新鲜度与Tracker曲线整读的成本说明继续有效；没有具体消费者与收益证据，不新增泛化框架或facade清理任务。

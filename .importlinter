@@ -18,11 +18,33 @@ source_modules =
     spec_mtp.structure.api.decode_api
     spec_mtp.structure.algorithm.decode.tree
     spec_mtp.structure.algorithm.decode.tree_attention
-    spec_mtp.data
+    spec_mtp.structure.data.prompts
     spec_mtp.structure.algorithm.decode.loop
     spec_mtp.structure.algorithm.mask
-    spec_mtp.audit
-    spec_mtp.analysis
+    spec_mtp.structure.artifact.observation
+    spec_mtp.structure.algorithm.counts
 forbidden_modules =
-    spec_mtp.cli
-    spec_mtp.model
+    spec_mtp.flow.cli
+    spec_mtp.structure.model.hf_causal
+
+[importlinter:contract:structure_without_flow]
+name = structure does not import flow
+type = forbidden
+source_modules =
+    spec_mtp.structure
+forbidden_modules =
+    spec_mtp.flow
+
+[importlinter:contract:api_without_siblings]
+name = api does not import other structure sublayers
+type = forbidden
+source_modules =
+    spec_mtp.structure.api
+forbidden_modules =
+    spec_mtp.structure.control
+    spec_mtp.structure.data
+    spec_mtp.structure.model
+    spec_mtp.structure.algorithm
+    spec_mtp.structure.system
+    spec_mtp.structure.artifact
+    spec_mtp.structure.make

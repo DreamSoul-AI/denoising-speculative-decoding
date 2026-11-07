@@ -5,16 +5,18 @@ from pathlib import Path
 
 import pytest
 
+from studies.trajectory_observation.flow.execute.office import main
+
 from studies.trajectory_observation.structure.office_traj import (
-    EVAL, PROTOCOL_WALL, _formal, _smoke, main, round_config,
+    EVAL, PROTOCOL_WALL, _formal, _smoke, round_config,
 )
 
 
 def test_command_rejects_a_missing_destination():
     with pytest.raises(SystemExit):
-        main([])
-    with pytest.raises(RuntimeError, match='already exist'):
-        main(['--dest', str(Path('missing-office-traj-output')), '--only', 'smoke'])
+        main(['traj'])
+    with pytest.raises(SystemExit):
+        main(['traj', '--dest', str(Path('missing-office-traj-output')), '--only', 'smoke'])
 
 
 def test_xcat_round_keeps_the_cross_category_names():
@@ -193,7 +195,7 @@ def test_formal_stops_when_warmup_sync_or_argmax_fails(tmp_path, monkeypatch):
 
     monkeypatch.setattr(
         'studies.trajectory_observation.structure.office_tree.arm_row', both_arms)
-    monkeypatch.setattr('spec_mtp.model.sync_device', fail_sync)
+    monkeypatch.setattr('spec_mtp.structure.model.hf_causal.sync_device', fail_sync)
     with pytest.raises(RuntimeError, match='sync failed'):
         _formal(type('Model', (), {'device': 'cpu'})(), _Tokenizer(), _prompts()[:1], (), 'digest', tmp_path, cfg)
     assert events == ['arm', 'arm', 'sync']

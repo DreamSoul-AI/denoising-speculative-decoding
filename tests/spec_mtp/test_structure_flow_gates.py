@@ -21,21 +21,13 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 ALLOWLIST_DIR = Path(__file__).resolve().parent / 'legacy_allowlists'
 UPSTREAM = 'src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/upstream/'
-HOST_TOP = frozenset({'__init__.py', '__main__.py'})
+HOST_TOP = frozenset({'__init__.py', '__main__.py', 'cli.py'})
 STUDY_TOP = frozenset({'__init__.py', 'recipe.py'})
 SUBLAYERS = frozenset({
     'api', 'control', 'data', 'model', 'algorithm', 'system', 'artifact', 'make',
 })
 DRIVE = re.compile(r"(?<![A-Za-z])[A-Za-z]:(?:\\\\|\\|/)[^\s'\"<>|]*")
 MAIN_GUARD = re.compile(r"""^\s*if\s+__name__\s*==\s*['"]__main__['"]\s*:""", re.M)
-# Commands moved out of flow/execute into the structure module that already owns
-# the protocol. The allowlist cannot grow, so this set is closed.
-FOLDED_STRUCTURE_COMMANDS = frozenset({
-    'studies/trajectory_observation/structure/fresh_replace.py',
-    'studies/trajectory_observation/structure/office_qwen8b.py',
-    'studies/trajectory_observation/structure/office_traj.py',
-    'studies/trajectory_observation/structure/office_tree.py',
-})
 
 
 def _posix(path: Path) -> str:
@@ -230,14 +222,11 @@ def _has_argparse(tree: ast.AST) -> bool:
 
 
 def structure_scripts() -> list[str]:
-    """``structure/`` must not be a script bin: no main guard and no argparse.
-
-    The four folded trajectory_observation commands are a closed exception.
-    """
+    """``structure/`` must not be a script bin: no main guard and no argparse."""
     found: list[str] = []
     for path in _py_files(ROOT / 'src' / 'spec_mtp', ROOT / 'studies'):
         rel = _posix(path)
-        if '/structure/' not in rel or _under_upstream(rel) or rel in FOLDED_STRUCTURE_COMMANDS:
+        if '/structure/' not in rel or _under_upstream(rel):
             continue
         text = _read(path)
         if MAIN_GUARD.search(text):
@@ -486,3 +475,35 @@ def test_structure_flow_has_no_unlisted_drive_letter_paths():
 
 def test_structure_flow_has_no_unlisted_import_time_environ_mutation():
     assert_frozen('import_environ.json', import_time_environ())
+
+
+@pytest.mark.parametrize('relative,function_name', [('studies/input_mask_baseline/flow/write/run.py', 'write_plot'), ('studies/output_space_cross_task/flow/write/run.py', 'write_plot'), ('studies/output_space_small_matrix/flow/write/run.py', 'write_plots'), ('studies/output_space_prerequisite/flow/write/run.py', 'write_plot'), ('studies/_shared/flow/write/run.py', 'write_paired_report'), ('studies/_shared/flow/diagnostics.py', 'run'), ('studies/smoke/flow/execute/run.py', 'run'), ('studies/smoke/flow/write/run.py', 'write_plot'), ('studies/trajectory_observation/flow/execute/fair_branch.py', 'run'), ('studies/trajectory_observation/flow/execute/fresh_replace.py', 'run'), ('studies/trajectory_observation/flow/execute/hybrid_gain.py', 'run'), ('studies/trajectory_observation/flow/execute/office.py', 'main'), ('studies/trajectory_observation/flow/execute/pilot.py', 'run'), ('studies/trajectory_observation/flow/execute/preforward_signal.py', 'run')])
+def test_study_logger_constructors_wire_managed_capture_for_every_dedicated_entry(tmp_path, monkeypatch, relative, function_name):
+    from spec_mtp.structure.system.logger import Logger
+    source = ROOT / relative
+    tree = ast.parse(source.read_text(encoding='utf-8'))
+    owners = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == function_name]
+    assert len(owners) == 1
+    calls = [node for node in ast.walk(owners[0]) if isinstance(node, ast.Call)
+             and isinstance(node.func, ast.Name) and node.func.id == 'Logger']
+    assert len(calls) == 1, 'each declared dedicated entry must have one real diagnostic constructor'
+    output = tmp_path / 'new-output'
+    expression = ast.Expression(body=calls[0])
+    logger = eval(compile(expression, str(source), 'eval'), {'Logger': Logger, 'output': output, 'dest': output})
+    assert isinstance(logger, Logger) and logger.managed is True
+    assert logger.path == output / 'assets/logs/events.jsonl'
+    policy = json.loads(logger.path.with_name('events.policy.json').read_bytes())
+    assert policy['schema'] == 1 and policy['owner'] == 'run_operator'
+    assert policy['max_bytes'] > 0 and policy['created_at'] != policy['write_until']
+    primary = PermissionError('diagnostic sink unavailable')
+    native_open = Path.open
+    def opened(path, *args, **kwargs):
+        if path == logger.path: raise primary
+        return native_open(path, *args, **kwargs)
+    before = logger.path.read_bytes()
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, 'open', opened)
+        logger.info('wiring acceptance only; no Study protocol execution')
+    assert logger.failure_count == 1 and logger.last_error_type == 'PermissionError'
+    assert logger.path.read_bytes() == before
+    assert logger.suppressed_records == 0

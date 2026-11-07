@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 from transformers import LlamaConfig, LlamaForCausalLM
-from spec_mtp.model import HFCausalLM
+from spec_mtp.structure.model.hf_causal import HFCausalLM
 from studies.k_affine_residual.structure import recipe, evaluation
 from studies.k_affine_residual.structure.correction import FrozenCorrection
 from studies.k_affine_residual.flow.collect.run import read_report, run as collect

@@ -1,19 +1,7 @@
-"""Register existing sources and the new read-only resource/input guards."""
-from studies._shared.structure.recipe import register as native_register, register_sources
-from revalidation_contract import RevalidationEval, admitted_build
-from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
-from spec_mtp.structure.model.factory import ModelRegistry
-
-
-def register_overrides():
-    ModelRegistry.register('hf_causal', 'spec_mtp', admitted_build)
-    AlgorithmRegistry.register('eval', 'spec_mtp', RevalidationEval)
-
-
-register_sources()
-register_overrides()
+"""Native source admission followed by explicit ESP execution policy binding."""
+from studies._shared.structure.recipe import register as native_register, register_esp
 
 
 def register(ctx):
     native_register(ctx)
-    register_overrides()
+    register_esp(ctx.study_dir, admission_assets=ctx.assets_dir, kind='revalidation')

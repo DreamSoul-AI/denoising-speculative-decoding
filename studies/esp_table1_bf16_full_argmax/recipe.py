@@ -1,10 +1,7 @@
-"""Native registrations plus only this Study's untimed/direct-placement adapters."""
-from studies._shared.structure.recipe import register as native_register, register_sources
-from untimed_bf16 import register_overrides
-register_sources()
-register_overrides()
+"""Native source admission followed by explicit ESP execution policy binding."""
+from studies._shared.structure.recipe import register as native_register, register_esp
 
 
 def register(ctx):
     native_register(ctx)
-    register_overrides()
+    register_esp(ctx.study_dir, admission_assets=ctx.assets_dir, kind='argmax')

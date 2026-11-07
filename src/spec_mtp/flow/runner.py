@@ -6,7 +6,9 @@ import os
 from importlib import import_module
 from pathlib import Path
 
-from spec_mtp.structure.artifact.result import STATUS_FAILED, STATUS_SUCCEEDED, write_result
+from spec_mtp.structure.artifact.asset import tree as diagnostic_assets
+from spec_mtp.structure.artifact.result.format import STATUS_FAILED, STATUS_SUCCEEDED
+from spec_mtp.structure.artifact.result.io import write_result
 from spec_mtp.flow.context import FlowContext
 from spec_mtp.flow.study import run_study_phase
 from spec_mtp.structure.artifact.provenance import check_frozen
@@ -34,6 +36,7 @@ class FlowRunner:
         logger.info(f'start phases={",".join(self.phases)} pid={os.getpid()}')
         current = None
         try:
+            diagnostic_assets.check_diagnostic_budget(ctx.study_dir, ctx.layout.root.name)
             study = load_study_yaml(ctx.study_dir) if (ctx.study_dir / 'study.yaml').is_file() else {}
             if study_phases_enabled(study):
                 check_frozen(ctx.study_dir, study)
@@ -58,7 +61,7 @@ class FlowRunner:
             return existing
         from spec_mtp.structure.system.logger import Logger
 
-        logger = Logger(ctx.layout.assets_dir)
+        logger = Logger(ctx.layout.assets_dir, managed=True)
         ctx.state['logger'] = logger
         return logger
 
@@ -82,7 +85,7 @@ class FlowRunner:
         process failure must not overwrite an already-written succeeded result.
         """
         try:
-            from spec_mtp.structure.artifact.result import load_result
+            from spec_mtp.structure.artifact.result.io import load_result
 
             if preserve_success and ctx.layout.result_path.is_file():
                 existing = load_result(ctx.layout.result_path)

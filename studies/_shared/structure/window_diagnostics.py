@@ -1,16 +1,15 @@
 """Library helpers folded from one-shot structure scripts."""
+
+from spec_mtp.structure.artifact.provenance import file_sha256
 from spec_mtp.structure.algorithm.mask import build_mask_provider
-import hashlib
-import json
-import subprocess
-from pathlib import Path
 from unittest.mock import patch
+from typing import Any
 SEMANTIC_KEYS = ('accepted', 'new_tokens', 'committed', 'decode_calls', 'hit_context_limit', 'attempt_by_depth', 'accept_by_depth')
 TRACE_KEYS = ('root_position', 'cache_before', 'cache_after', 'accepted_nodes', 'committed_tokens', 'stopped')
 
-def margin(logits, target):
+def margin(logits, target, *, device=None):
     import torch
-    row = logits.detach().float().cpu()
+    row = logits.detach().float().to('cpu' if device is None else device)
     top = row.topk(2)
     probs = torch.softmax(row, dim=-1)
     best_other = top.values[1] if int(top.indices[0]) == target else top.values[0]
@@ -28,7 +27,9 @@ def observe(model, prompt, spec, eval_cfg, eos, reference, targets, seed=124):
     assert k == 2 and spec['tree']['branches'] == [1, 1] and (not spec['tree']['pruning'])
     expected = {t['root_position']: t for t in reference['stats']['trace']}
     assert set(targets) <= set(expected)
-    active, latest_norm, latest_state, previous_seed, samples = ({}, {}, {}, {}, {})
+    active: dict[str, Any] = {}
+    previous_seed: dict[str, Any] = {}
+    latest_norm, latest_state, samples = ({}, {}, {})
     calls = 0
     original = OutputHiddenMaskProvider.masks_per_owner
 
@@ -86,22 +87,8 @@ def observe(model, prompt, spec, eval_cfg, eos, reference, targets, seed=124):
     assert actual_trace == expected_trace and sorted(samples) == sorted(targets)
     return (samples, {'replayed_output_equal': True, 'semantic_trace_equal': True, 'decode_calls': stats['decode_calls'], 'observer_target_forward_calls': calls, 'expected_target_forward_calls': 1 + stats['decode_calls']})
 
-def file_hash(path):
-    path = Path(path)
-    if path.exists():
-        with path.open('rb') as handle:
-            return hashlib.file_digest(handle, 'sha256').hexdigest()
-    root = Path(__file__).resolve().parents[3]
-    relative = path.resolve().relative_to(root).as_posix()
-    manifest = json.loads((root / 'docs/research/plan-consolidation-manifest.json').read_text(encoding='utf-8'))
-    item = next((x for x in manifest['plans'] if x['source_path'] == relative), None)
-    if item is None:
-        raise FileNotFoundError(path)
-    blob = subprocess.check_output(['git', 'show', item['source_commit'] + ':' + relative], cwd=root)
-    assert hashlib.sha256(blob).hexdigest() == item['git_blob_sha256']
-    candidates = (blob, blob.replace(b'\n', b'\r\n'))
-    assert item['source_sha256'] in {hashlib.sha256(data).hexdigest() for data in candidates}
-    return item['source_sha256']
+file_hash = file_sha256
+
 
 def transfer(model, prompt, spec, eval_cfg, eos, reference, donor, original_masks, root, targets, placebo=False, seed=124):
     import torch
@@ -110,7 +97,11 @@ def transfer(model, prompt, spec, eval_cfg, eos, reference, donor, original_mask
     assert spec['num_masks'] == 2 and spec['tree']['branches'] == [1, 1] and (not spec['tree']['pruning'])
     expected = reference['stats']['trace']
     intervention_call = next((i + 1 for i, t in enumerate(expected) if t['root_position'] == root))
-    active, state, previous, samples, intervention = ({}, {}, {}, {}, {})
+    active: dict[str, Any] = {}
+    state: dict[str, Any] = {}
+    previous: dict[str, Any] = {}
+    intervention: dict[str, Any] = {}
+    samples = {}
     calls = provider_calls = 0
     original = OutputHiddenMaskProvider.masks_per_owner
 

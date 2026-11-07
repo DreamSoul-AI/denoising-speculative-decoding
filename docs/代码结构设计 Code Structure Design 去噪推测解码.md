@@ -1,329 +1,218 @@
 **去噪推测解码 代码结构设计**
-更新日期：2026年11月4日。状态：目标布局改为 `structure` / `flow` 两柱。行为合同由 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 维护。按下面第四节分步搬迁，现有违反冻结在该节的 legacy 清单里。步骤 1 已把解码合同放到 `structure/api/decode_api.py`，`contracts.py` 已删除。步骤 2 已把树拆到 `structure/algorithm/decode/`，`tree.py` 已删除。步骤 3 已把 `masks.py` 拆到 `structure/algorithm/mask/`，顶层再导出已删除。步骤 4 已把 `decode.py` 迁到 `structure/algorithm/decode/loop.py`，顶层再导出已删除。步骤 5–8 未做。
+更新日期：2026年11月6日。当前选定的源码方向。行为与质量合同见 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>)，实施差距与验收见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)，历史目录演进见 [开发记录](<开发记录 Development Record/INDEX.md>)。
 
-# 一、目录原则与范围
-`spec_mtp` 与每个 `studies/<name>/` 都按 RPipe 的两柱组织：`structure/` 定义一次 Run 由什么组成，`flow/` 运行 Study 的阶段链。除 `__init__.py`、`__main__.py` 与薄入口外，`src/spec_mtp/` 和 `studies/<name>/` 的顶层不得再有其他 `.py` 文件。`studies/__init__.py` 只做 Study 包标记。依赖下限保持 Python 3.10 与已固定的 Transformers，目录调整不授权升级依赖。
+# 一、划分依据
+研究者需要替换算法而保持输入、模型会话、验证观测及统计口径可比。因此科学合同、数据、模型、计算和产物分别拥有自己的状态，运行协调统一放在 flow。结构参考 RPipe，采用其 structure/flow 两柱，不复制参考仓库整套实现，不引入第二套运行器。
 
-**规则（硬性）**：所有新增的机制、函数、类、脚本，必须位于 `structure/` 或 `flow/` 之内。顶层不得新增模块；不得以“临时脚本”“分析脚本”“pilot”为名在 structure/flow 之外，或在 `structure/` 里放独立 `main()` 脚本。唯一例外是薄入口：只做参数解析并转调 `flow` 的函数，不含算法、不含统计、不含数据读写，且不超过约 30 行。要放宽这条规则，先改本文，再改代码。
+| **质量场景** | **必要职责** | **缺少时的后果与维护成本** |
+| --- | --- | --- |
+| Enmao 替换算法，历史观测仍能审计 | 计算与观测格式分开，依赖明确合同 | 改算法会牵动历史读端。维护版本化观测与对应反例 |
+| 数据、模型替换不改变 τ 的定义 | 数据和模型各持有资源，纯统计集中 | Study 重复维护加载与统计。新增后端只需维护实际能力 |
+| 只看结果时不加载权重 | CLI 延迟装配，包初始化不加载科学栈 | help 与只读比较占用设备。保持命令级依赖和导入测试 |
+| 多个 Study 共享解码器 | 宿主不反向导入 Study，阶段链调用公共实现 | 私有实验细节污染宿主。维护少量明确入口及调用测试 |
 
-新增一段代码时依次问：
+# 二、目录与文件责任
+`spec_mtp` 与 `studies/<name>` 顶层只留包标记及薄入口。新增机制位于 structure 或 flow，按责任聚合，不能以每个函数一个文件拆碎模块。没有真实消费者的目录、接口和注册器不创建。
 
-1. 它是“怎样做一次计算/怎样组成一次 Run”吗？是 → `structure`。
-2. 它是“按阶段把很多次 Run 跑起来、收集、汇总、写出、做 Study 级处理”吗？是 → `flow`。
-3. 两者都不是 → 不加。先回到本文补定义，再写代码。
+| **位置** | **责任与状态** | **依赖边界** |
+| --- | --- | --- |
+| `src/spec_mtp/__init__.py`、`__main__.py`、`cli.py` | 包标识与命令转发 | 导入不执行研究或加载模型 |
+| `structure/api/decode_api.py` | Prompt、DecodeRequest/Result、AuditResult、ModelSession、MaskPolicy、ObservationSink 合同 | 仅标准库和合同自身，不导入实现 |
+| `structure/control/` | 配置、Run 身份、阶段生命周期所需状态 | 不依赖 flow |
+| `structure/data/prompts.py` | SpecBench、本地输入、Dolly 的读取、渲染、编码与 EOS | 显式 tokenizer，不决定研究因素 |
+| `structure/model/hf_causal.py` | 本地 HF 会话、能力、cache、forward、close 及配置构建 | 不导入解码循环，Torch 在 NumPy 前加载 |
+| `structure/algorithm/decode/` | loop.py 的生成与验证，tree.py 的树构造和编辑，tree_attention.py 的注意力映射 | 只使用注入会话与策略，不导入具体 HF 接入 |
+| `structure/algorithm/mask/` | providers.py 的策略与提交状态，fit.py 的拟合数学，factory.py 的方法装配 | 块内预测不污染长期 committed 状态 |
+| `structure/algorithm/counts.py` | τ、接受数、配对和长度比较 | 纯计算，无文件读写、模型或阶段调度 |
+| `structure/artifact/observation.py` | JSONL 写入、来源核验、提交链审计 | 验证保存表示，不补造观测、不决定 Run 终态 |
+| `structure/artifact/` 其余模块 | 配置、结果、索引、来源和历史读端；provenance.file_sha256 统一流式哈希 | 保留真实持久化边界校验，兼容声明的 Python 3.10 |
+| `structure/system/` | 设备、运行时、JSONL 诊断日志与资源 | 日志写入与原始科学证据分开，导入不配置环境或申请设备 |
+| `structure/make/` | 声明展开与构建 | 不复制科学算法 |
+| `flow/cli.py` | decode/audit/compare 参数、装配、结果呈现 | help 零 Torch/Transformers 导入，audit/compare 零载模 |
+| `flow/study_cli.py` | 既有 Study 命令与阶段协调 | 由 `studies._shared.flow.cli` 接入，与科学 CLI 分工 |
+| `flow/prepare/execute/collect/summarize/write/process/` | 默认六阶段，按声明协调 structure | structure 不反向导入 flow |
+| `studies/<name>/structure/` | Study 专属声明适配、拟合与对照 | 可调用宿主，宿主不依赖 Study |
+| `studies/<name>/flow/` | Study 阶段覆盖及命令编排 | 不复制整套宿主库 |
 
-历史 Study 声明保留在 `studies/`。第三方 ESP 树保持原字节。Study 流程在 `spec_mtp/flow` 与 `spec_mtp/structure`，以 https://github.com/DreamSoul-AI/RPipe 为结构模板，不再有内嵌 `src/rpipe/` 或顶层 `tools/`。
+共享诊断按问题集中在 window_diagnostics、extension_diagnostics、sampling_diagnostics 等现有模块，当前消费者直接导入真实模块，不维护仅再导出的 diagnose_* 文件。历史 source_binding 中的原工具路径按冻结提交解释，不用新文件代替旧哈希。output_space_extension 的槽位审计计算复用 extension_diagnostics，离线命令位于其既有 flow/process/run.py，不另设顶层分析实现。
 
-# 二、目标目录
-下面是目标布局。`structure/` 与 `flow/` 里已有的 RPipe 阶段骨架保持不动。解码合同已经在 `structure/api/decode_api.py`。树、解码循环已经在 `structure/algorithm/decode/`，mask 实现已经在 `structure/algorithm/mask/`。顶层 `contracts.py`、`tree.py`、`masks.py`、`decode.py` 已删除。其余解码模块仍在扁平路径，见第五节。
+trajectory_observation 的 fresh_replace 选句、配对统计留在 structure/fresh_replace.py；其参数、显式本地模型与来源清单、CUDA 设备、本地 Dolly 输入和新外部输出编排位于 flow/execute/fresh_replace.py，直接复用 fair_branch 的校准与执行，不保留 structure 命令或再导出。
 
-```text
-denoising-speculative-decoding/
-├── AGENTS.md
-├── README.md
-├── pyproject.toml
-├── src/
-│   ├── spec_mtp/
-│   │   ├── __init__.py                      # 包标识，导入不执行
-│   │   ├── __main__.py                      # 薄入口，转调 flow
-│   │   ├── structure/
-│   │   │   ├── api/                         # 契约与协议，不含实现
-│   │   │   ├── control/                     # Run 身份、配置、生命周期
-│   │   │   ├── data/                        # 数据源、模板、渲染、划分
-│   │   │   ├── model/                       # 模型加载与会话
-│   │   │   ├── algorithm/                   # 计算：解码、mask、拟合、指标
-│   │   │   │   └── reference/esp_reproduction_artifacts/
-│   │   │   │       ├── ORIGIN.json
-│   │   │   │       └── upstream/            # 第三方原树整体，保持现有成员及字节
-│   │   │   ├── system/                      # 设备、运行时、缓存与临时目录
-│   │   │   ├── artifact/                    # 产物写出、索引、读取、溯源
-│   │   │   └── make/                        # Recipe、注册、构建
-│   │   └── flow/
-│   │       ├── prepare/ execute/ collect/ summarize/ write/ process/
-│   │       └── cli.py                       # decode/audit/compare 的命令实现
-│   │   # 顶层仍保留 cli/data/model/audit/analysis.py；contracts、tree、loop、mask 已在 structure/，顶层 masks.py 与 decode.py 已删除
-├── studies/
-│   └── k_affine_residual/        # 合成夹具；协议 postcommit-final-norm-v1
-│       ├── study.yaml
-│       ├── experiment_config.yaml
-│       ├── structure/
-│       │   ├── __init__.py
-│       │   ├── recipe.py
-│       │   ├── correction.py
-│       │   └── evaluation.py
-│       └── flow/
-│           ├── __init__.py
-│           ├── collect/
-│           │   ├── __init__.py
-│           │   └── run.py
-│           ├── summarize/
-│           │   ├── __init__.py
-│           │   └── run.py
-│           └── process/
-│               ├── __init__.py
-│               └── run.py
-├── datasets/spec_bench/question.jsonl     # 当前原始数据，保持字节
-├── tests/
-│   ├── run.py                            # 测试选择/结果适配，不是另一 runner
-│   ├── manifest.json                     # 静态测试元数据与计划，不是运行证据
-│   ├── spec_mtp/
-│   │   ├── test_main.py
-│   │   ├── test_cli.py
-│   │   ├── test_contracts.py
-│   │   ├── test_data.py
-│   │   ├── test_model.py
-│   │   ├── test_decode.py
-│   │   ├── test_masks.py
-│   │   ├── test_tree.py
-│   │   ├── test_audit.py
-│   │   ├── test_analysis.py
-│   │   ├── test_dependencies.py
-│   │   └── test_structure_flow_gates.py   # 两柱门禁；测试路径在步骤 8 前不随源码迁移
-│   ├── studies/k_affine_residual/
-│   │   ├── structure/
-│   │   │   ├── test_recipe.py
-│   │   │   ├── test_correction.py
-│   │   │   └── test_evaluation.py
-│   │   └── flow/
-│   │       ├── collect/test_run.py
-│   │       ├── summarize/test_run.py
-│   │       └── process/test_run.py
-│   └── tools/test_run_tests.py
-└── docs/
-    ├── 通用调研 General Research 去噪推测解码.md
-    ├── 文献调研 Literature Review 去噪推测解码.md
-    ├── 架构设计 Architecture Design 去噪推测解码.md
-    ├── 代码结构设计 Code Structure Design 去噪推测解码.md
-    ├── 研究计划 Research Plan 去噪推测解码.md
-    ├── 开发计划 Development Plan 去噪推测解码.md
-    ├── 缺陷记录 Bug Report 去噪推测解码.md
-    ├── 开发记录 Development Record/
-    └── 运行记录 Run Record/
+观测写入与只读审计共用同一格式和来源规则，放在一个 observation.py，避免为转调增加 flow 包装。纯比较与统计共用 counts.py，既有训练 MetricBundle 留在 metric.py，二者计算对象不同。公开合同与必要的 package 导出保留，数据、模型、审计和统计不保留旧路径再导出。`cli.py` 保留稳定控制台 API，只转交 flow 实现，现有平台入口无需修改。
+
+科学 CLI 与 Study CLI 的实现分开，产品入口分别为 `python -m spec_mtp` 与 `python -m studies._shared.flow.cli`。flow 的包初始化只标记命名空间，调用方直接导入其使用的模块，避免通过包入口加载整个阶段链。
+
+# 三、源码依赖与测试镜像
+结果读取的严格入口仍由artifact/result/io.py维护；状态列表与聚合器的可选读取共用同一load_optional_result，不各自复制文件存在性与异常边界。缺文件、非文件及原有OSError/TypeError/ValueError返回None，非mapping的CorruptArtifactError和其它异常继续传播，严格load_result不降级。Control合同只校RunConfig/Control，不维护无消费者的第二套Result草稿门；实际写入仍使用result.format.validate_result。相应读写合同在CPU根的artifact/result镜像验证，不新增生产模块或运行器。
+
+FlowContext只以study_dir标识Study根，移除无消费者的experiment_dir旧别名。Control由prepare使用control_from_config(cfg)构造；不保未使用的run_dir参数、control_from_run_config/control_to_config转调，实际Control.to_dict仍服务summarize和失败Result。typed配置、Registry及稳定CLI薄入口保留其职责，不为减少文件数抽泛型或抹平不同合同。
+
+三个现有CPU参考测试的同配置tiny模型输入归已有conftest的fixed_tiny_model，每次调用在原位置manual_seed(7)并创建新实例；原全部模型字段和测试断言保留，不缓存模型。它与CUDA工厂的配置/状态合同不同，不强行合成可配置工厂。shared CLI直接委托本仓study_cli/FlowRunner，RPipe只保结构模板与历史来源身份，不以旧变量名或帮助文案冒充当前执行依赖。
+
+宿主测试按执行资源设两个明确根：`tests/spec_mtp/` 只承载CPU安全合同，`tests/cuda/spec_mtp/` 承载真实CUDA合同，两者都在根之后完整镜像同一源码相对路径。现有CPU工作流仍运行 `python -m pytest tests/spec_mtp`；GPU运行 `python -m pytest tests/cuda/spec_mtp`，资源声明与已有cuda-validation计划随实际函数路径同步。默认 `python -m pytest tests` 仍收集两个根，不通过skip、排除、收集钩子或配置过滤选择设备。
+
+混合测试文件按函数职责拆到对应根，保留函数名、参数、断言和实际设备前提；共用输入工厂放已有tests/conftest，不复制科学实现或新增微型助手包。未知方法等只验证拒绝的guard留CPU根，以无张量对象证明拒绝发生在张量处理前；模型、CUDA RNG、张量持久化、解码数值合同保留真实GPU。迁移前后按参数节点核对一一对应和完整执行，manifest的target继续指实际生产职责，不因资源目录改变。后文本章的structure/flow相对测试镜像在相应资源根下解释，混合职责可在两根各有同名镜像文件。
+
+flow 可以导入 structure，structure 不导入 flow。宿主不导入 rpipe 或 studies。科学合同不导入其它 structure 子层。算法核心、输入、观测和统计不导入具体模型或 CLI。api 只维护科学合同，构建由所属层工厂提供，make_tracker 放在 algorithm/tracker.py。四个旧流程 API facade 已移除，直接反向导入例外为零。宿主structure/control及普通layer父包只标包身份，真实消费者直接导入职责模块；科学状态子包另按实际公开合同审查，不能把直接静态边为零推广为全仓轻量导入。
+
+```mermaid
+flowchart TB
+    Entry[模块与控制台入口] --> CLI[flow/cli 科学装配]
+    Study[Study flow] --> Pipeline[flow/study_cli 与六阶段]
+    CLI --> Parts[structure 数据 模型 计算 产物]
+    Pipeline --> Parts
+    Parts --> Contracts[structure/api/decode_api 合同]
 ```
 
-目录树展开目标科学模块、K Study 和测试的落点。其它既有 Study 声明、诊断脚本和旧实现当前保留。纯命名空间 `__init__.py` 及固定第三方依赖不递归生成同名测试，包导入副作用由 `test_main.py` 验证。第三方路径按现有字节保留，不为标准布局移动来源。
+图表示源码依赖，运行调用与部署见架构设计。模型会话拥有物理 KV，解码器决定保留路径，树模块计算索引，三者以合同中的同一长度事实交互。
 
-不在 Study、tests 或 datasets 下规划 README、PLAN、NUMBERS 或报告。排除项与测试说明在本文和架构设计，研究安排只在唯一中文计划，运行证据放外部运行根。
+测试逐步镜像 `tests/spec_mtp/structure|flow` 与 `tests/studies/<name>/structure|flow`。每项测试在唯一 `tests/manifest.json` 声明 level、type、cost_class、result_type、priority 和 target，路径移动同步 test_id。纯包标记不机械新增测试，固定第三方原树不按本项目重新镜像测试。先复用已有行为与失败用例，不用路径快照替代行为验收。
 
-每个 Study 的目标是具备 `study.yaml`、`experiment_config.yaml`、`structure/`（仅该 Study 专属的配置与适配）和 `flow/<phase>/run.py`。顶层 `.py` 只允许 `recipe.py` 与 `__init__.py`，以 `studies/_template` 为准。`trajectory_observation` 仍然没有 `study.yaml`。仍带 `main()` 的旧测量脚本继续留在 legacy 清单里。`fresh_replace.py` 的选句、汇总和命令都在 `structure/fresh_replace.py`。Qwen3-8B 这一轮的选句、拟合、比较和命令都在 `structure/office_qwen8b.py`。同预算树形探索的选句、形状、汇总和命令都在 `structure/office_tree.py`。Qwen3-8B 的同预算树形探索复用 `structure/office_tree.py`，选句常量仍在该文件，命令加 `--model 8b`，不另建脚本。trajectory-only 的尾段与全部跨类协议都复用 `structure/office_traj.py`，不另建脚本，不增加 legacy 条目；选句常量和已冻结哈希都在该文件。`first_fork`、`ar_determinism`、`wall_by_length` 的助手在同目录的 `office_traj_fork.py`、`office_traj_determinism.py`、`office_traj_length.py`，命令仍在 `office_traj.py`。`gscan` 的四臂、冒烟、正式和汇总在 `office_traj.py`，命令是 `--protocol gscan`。
+# 四、约束与检查
+`tests/spec_mtp/test_structure_flow_gates.py` 扫描文件落点、导入方向、structure 内命令、盘符和 import 时环境写入。`legacy_allowlists` 必须与现状逐项相同，并且相对 dev 只能缩小。迁移不得靠移动违规字符串到新文件增加清单。`.importlinter` 与 CPU 依赖测试核对相同的核心边界，未运行的工具不记通过。
 
-| **protocol** | **slice** | **notes** |
-| --- | --- | --- |
-| 默认 | creative_writing 尾段 | 哈希已冻结 |
-| `xcat` | open_qa | 哈希已冻结 |
-| `xcat2` | general_qa | 哈希已冻结 |
-| `xcat3` | classification | 哈希已冻结 |
-| `xcat4` | closed_qa | 哈希已冻结 |
-| `xcat5` | brainstorming | 哈希已冻结 |
-| `xcat6` | information_extraction | 哈希已冻结 |
-| `xcat7` | summarization | 哈希已冻结。接受数归档名 `sd-office-8b-traj-xcat7` / `20261104-045236`，与墙钟产物分开 |
-| `first_fork` | 同一 summarization 128 条 | `office-ar-first-fork-v1`。助手在 `office_traj_fork.py`，命令仍在 `office_traj.py` |
-| `ar_determinism` | 上一协议里 `ar_equal` 为假的并集 | `office-ar-bf16-determinism-v1`。助手在 `office_traj_determinism.py`。`prompt_tokenwise` 在 `loop.py` 的 `ar_generate` |
-| `wall_by_length` | 同一 summarization 128 条，长度 64、256、512 | `office-8b-traj-wall-by-length-v1`。助手在 `office_traj_length.py`。`draft_seconds` 与 `verify_seconds` 在 `loop.py` |
-| `gscan` | 同一 summarization 128 条，长度 256 | `office-8b-traj-g-scan-v1`。四臂只改 `spec.observation.gain`。逻辑在 `office_traj.py` 的 `--protocol gscan`。已跑，数字在运行记录 |
+派生输出根通过 artifact.paths.validate_output_root 显式校验，与输入及 checkout 双向分离。report 必须提供 --out，旧槽位分析必须提供 --output-root，目标文件独占创建，不默认写 Study/docs。历史文本读取由 provenance.read_historical_bytes 显式接收仓库、固定完整提交、相对成员及期望 SHA256，只查本地 Git blob，不执行归档代码或猜测换行变体。旧槽位读端还必须显式接收原运行矩阵及 Git 原件摘要，两者分别校验并比较 JSON 内容，字节哈希不混用。完整运行根采用外部 Study 工作目录：make/run/launch 接收 --run-root，将声明、两柱源码、recipe 与 provenance.include 白名单冻结到该根，以此根统一生成 runs/shared/docs/index/锁与诊断。artifact/layout.py 维护建立和校验，不新增全局路径映射；命令在写锁前转交外部根。study_source.json 记录原 Study 路径、逐文件摘要及 Git 身份，原 Study 与快照改动都阻断执行，重复相同绑定只校验不重签。绝对自 Study 导入仍来自当前 checkout，因此来源校验继续覆盖原 Study；快照不承诺独立脱离宿主运行。旧 Run 保持原路径只读。单个冻结静态成员限16MiB、总量32MiB，模型与大数据只引用既有来源清单。
 
-full 胜出子集的离线描述在 `structure/office_traj.py`，选句和 SHA256 仍用该文件里已经冻结的函数。这些离线函数没有单独的 `main`，也不增加 legacy 条目。四个旧脚本的拆分仍未做。
+诊断以 assets/logs/events.jsonl 为稳定锚点，旧 run.log 只读保留。status 的单条读取与摘要归约采用流式接口；diagnostic_lines 保留原列表接口，logs 的最终UTC排序与完整输出仍按选中记录占内存。JSONL逐条最多65536字符（含末LF），截断、无效身份和晚到损坏保持拒绝，不因流式读取放宽旧splitlines边界。Logger 的运行身份在同进程实例间共用，task_id 区分 Run，异常不保存原始载荷。
 
-# 三、structure 与 flow 各装什么
-**structure（组成一次 Run）**
+日志分段由现有 system/logger.py 写端与 artifact/asset/tree.py 的文件枚举共同承担，不新增框架或生产模块。锚点与已封段保留原字节；单段到4MiB后在下一条记录前独占创建 events.000001.jsonl 等递增段，不重命名、覆盖或删除旧段。一个Run的多个同进程Logger实例共用写锁并从磁盘识别实际末段，self.path和保存状态仍指锚点；不声称支持跨进程共同写同一Run。读端按完整连续段顺序读取，日志链接指末段；缺锚点/缺段/重复编号、解析路径别名、多硬链、越界和截断严格拒绝，不能借同目录链接追加旧run.log。custom和legacy文件保持单文件选择，原新旧路径准入保留。Tracker的scalars.jsonl及checkpoint恢复偏移保持独立。物理保留期、跨Run总量与OSIO等待上界仍是开发计划中的缺口；托管累计配额与隔离按下述合同，单Run限额不冒充总磁盘限额。
 
-| **子层** | **本项目放什么** | **例子** |
-| --- | --- | --- |
-| `api` | 契约与协议，不含实现 | `MaskPolicy`、`HiddenMaskPolicy`、`ObservationSink`、`ExtraBranchPolicy` |
-| `control` | Run 身份、配置、生命周期 | 既有阶段骨架 |
-| `data` | 数据源、prompt 模板、渲染、划分 | SpecBench、Dolly、HEADS/TAILS 模板 |
-| `model` | 模型加载与会话 | `HFCausalLM`；模型路径由配置给出 |
-| `algorithm` | 一切计算，含解码算法 | `decode/`（循环、树、树编辑、树注意力）、`mask/`（ESP、EMA、Kalman、hybrid gain、bonus-aligned、output-hidden、校正）、`mask/fit.py`（K 拟合的纯数学）、`metric.py`（τ、符号检验、pooled τ 的纯公式） |
-| `system` | 设备、运行时、环境、缓存与临时目录 | 现在写死的盘符路径与 `os.environ` 改动搬到这里，且只能由配置驱动 |
-| `artifact` | 产物的写出、索引、读取、溯源 | 观测 JSONL、结果行读取、哈希/平台/commit 记录 |
-| `make` | Recipe、注册、构建 | `build_mask_provider` 的注册表 |
+`tests/run.py --plan cpu-pr --output-root <外部新验证根>` 适配 pytest，必需项缺收集、失败、跳过、缺终态、证据写失败均阻断。整批预算 420 秒，不覆盖真实权重、CUDA、测速或采样分布保证。验证产物和临时材料进入本次明确的外部任务目录。
 
-**flow（把 Study 跑起来）**
+宿主托管诊断仍由同一Logger承担，不另建proxy或运行器。严格直接API默认上抛；managed模式仅隔离Logger自身构造、格式化、序列化、文件和console诊断操作，捕Exception而不吞取消类BaseException。失败操作计数不冒称丢失条数，首次stderr只呈现安全类别与完整性未知，stderr再次失败不改变业务结果。FlowRunner建立托管实例，prepare将同一实例注入SystemFactory，避免两实例状态分叉；实际算法、Tracker保存、checkpoint发布和Result写入保持原错误。默认直接Logger API保留严格调用合同。
 
-| **阶段** | **本项目放什么** |
+托管采集policy只在新空日志family以独占方式建立events.policy.json，不覆盖旧policy，也不为旧非空/编号/legacy日志补造起点。当前工程默认schema1、owner=run_operator、累计64MiB与UTC创建后7天追加窗口；每写同锁重新读取并核4KiB上界、唯一字段/类型、UTC非未来起点、原期限及regular无alias/hardlink，累计policy+全部JSONL段+待写完整记录，strict有policy亦守限。到容量/期限或无可信旧绑定仅停止新追加，suppressed_records/stop_reason是本实例已拒记录与原因；未知IO/损坏仍计failure_count，不混为主动减少。构造不计丢失，重开不续期，path-only checkpoint状态不变。这不负责物理到期清理、跨Run预算或同步OS调用的等待上界，保留责任由Run发起人承担；业务证据和旧字节不删除。
+
+14个Study独立诊断创建点直接采用同一managed模式，不添加Study logger facade或配置分支。创建点门禁逐项定位真实调用表达式并用实际Logger核wire policy，完整入口另由原保存件和CUDA smoke故障验收；不能把AST绑定检查冒充整个研究已执行。来源快照包含新的flow字节，共享来源树成员不删，旧锁发现漂移应拒绝；SOURCE_DIGEST、固定Git原件和旧Run身份保留原义。smoke、small_matrix、prerequisite、input_mask与cross_task五个保存件绘图flow统一先完成owned Figure释放，再构造receipt、最终复核输入/源码并发布新completion；主体失败保留原异常，clear次错附figure_cleanup_error。三个新增publisher调用方将既有shared publish_new_completion的实际源码纳入前后摘要，原publisher接口与历史绑定保持。清理只覆盖本次owned Figure及本次失败新marker，旧Run、日志、数据、模型和原快照不删除；四个模型flow的控制/IO清理边界、pilot.run_seed/run_oracle从train_model返回session后的所有权与清理均已收束；train_model构造session后的实际tied-storage准入同样受保护，失败或取消关闭一次并保首错，正常返回不关闭已交付session。
+
+资源清理与诊断隔离分开：四个模型flow以显式primary保存本函数首错，except BaseException保取消与异常对象，只有普通Exception沿原logger记录；不能继承调用者正在处理的异常。owned模型关闭一次，主体错与close次错并存时附cleanup_errors；正常close失败照常上抛。office/fair/preforward在关闭后最终verify，再用既有publisher发布；该helper实际源码已由package_files的整个_shared范围冻结。fresh按原位置写replication-summary数据，最终return移到close及verify后，不新增complete marker、不删数据。pilot结构内两个producer在train_model返回session后立即进入所有权保护，使用同一本函数primary/取消/close次错规则，关闭一次；原数学try体、其它函数/类/常量由整模块AST还原证明保持，未增加清理框架。train_model构造session后、返回前的tied检查另有保护：实际storage拒绝、属性错误或取消时关闭一次，close次错附原异常；正常返回保持session可用。它关闭的是borrowed session而不销毁native或承诺释放借用显存。HFCausalLM在取得hf后保护原有eval/config/vocab/max_positions四句初始化，异常或取消时close一次、保原对象与cleanup次错，owned断开自身hf引用而borrowed保native，成功不关闭。固定Transformers 5.12.1的本地加载只调用一次from_pretrained(dtype=...)，删除TypeError旧参数回退；首次错误原样传播，不因异常重复读取配置或启动第二次加载。科学flow/cli按sink→model关闭已取得资源，shared flow/diagnostics按构造逆序关闭；两循环捕BaseException只为继续剩余close，最后保原primary或首个close原对象。CLI的cleanup_failures保已有列表内容并按实际顺序追加后续错误，diagnostics保持cleanup_errors tuple；不抽新helper、不清异常帧或ctx、不移除borrowed权重。pilot删除构造器外重复native.eval，整个模块AST除该单句外保持，初始化eval委托构造器恰一次；loader返回前、原生训练失败及外部异常帧持有对象不由此保证释放。正常模型固定请求tied embeddings，未发现自然untied路径，实际CUDA反例通过受控storage分离验证。
+
+Logger的进程内锁准入留在system/logger.py同一类的私有context，构造与_emit复用，不增加模块或调用方配置。CPU镜像验证managed/strict竞争、锁所有权及取消，FlowRunner镜像验证正式Result，CUDA system/factory镜像验证真实设备上的模型与checkpoint不被托管锁竞争阻断；原严格并发写入、policy及来源断言保留。
+
+owned诊断家族的控制状态、原生OS锁、封存清单和精确清理由既有artifact/asset/tree.py承接；system/logger.py在每次写准入复用该guard并重验bootstrap绑定。现有logs入口编排显式prepare/seal/purge，readout/logs.py只解析已登记规范Run目标，不承担删除。CPU镜像覆盖跨进程所有权与失败/取消，CUDA system/factory镜像验证封存不改计算/checkpoint；不新建通用lease框架或并行文档。
+
+P1只读小步已落实到既有logs入口的--inventory。asset/tree统一4KiB采集policy校验与64MiB/7天常量，system/logger以原私有别名保创建合同，在原写锁内调用同一校验；未增加转导出或生产模块。tree仅枚举events.jsonl、连续编号段、events.policy.json和run.log，核regular、无alias/hardlink及完整段序，前后比家族和dev/ino/nlink/size/mtime_ns，不以atime判断漂移。列举或metadata的OSError传播，不能当空家族；缺日志目录才给已知零。bytes含legacy，capture_bytes只含JSONL与policy；捕获状态为unbound/expired/capacity/within_limits，未知字段None，均retain。readout/logs按index绑定精确Run-relative路径，拒绝绝对路径、..、跨Run引用、目录alias及重复run_id/规范Run目录；唯一性只在inventory调用内核验，不改load_index/defaultlogs/写端；flow/study_cli全构造后一次输出ASCII JSON，准入/读取/构造失败为安全异常类别和退出2、无半份stdout，不承诺stdout故障原子性。默认logs及strict/managed写端原合同保持；盘点不读诊断正文、不建锁/Run、不删原件，也不承担物理TTL、跨Run配额或OSIO硬超时。实际验收从日期记录定位。
+
+# 五、源码与制品
+| **位置** | **保存内容** |
 | --- | --- |
-| `prepare` | 离线拟合并冻结 K（输入是 fit 集，输出是带模型/数据哈希的 K 文件）；准备 shared 资源 |
-| `execute` | 按臂运行解码 |
-| `collect` | 收集每块观测、接受计数、调用计数；pair 对齐 |
-| `summarize` | 单 Run / 单臂汇总（接受长度、τ） |
-| `write` | 写出证据与索引 |
-| `process` | Study 级处理：配对检验、pooled τ、跨模型/跨数据比较、画图、审计 |
-| `cli` | `decode` / `audit` / `compare` 的命令实现；薄入口转调这里 |
+| `src/spec_mtp/` | 公共实现和固定第三方来源 |
+| `studies/` | 静态声明与必要适配，不生成第二套计划和报告 |
+| `datasets/spec_bench/` | 保留原始静态输入与来源 |
+| `tests/manifest.json` | 静态元数据，实际执行证据另存 |
+| `docs/` | 当前七类工程文档及独立文献调研、研究计划，历史按日期记录 |
+| 显式外部运行根 | raw、日志、trace、输入与源码快照、验证和派生图 |
 
-`api` 不导入其他 structure 子层。`structure` 不导入 `flow`。`flow` 可以导入 `structure`。`spec_mtp` 不导入 `rpipe` 或 `studies`。
+`structure/algorithm/reference/esp_reproduction_artifacts/upstream/` 全树与旁侧 ORIGIN.json 保持字节，保留版权与许可证。历史记录中的旧路径、Run 和哈希按原执行身份解释，不回签。原始数据、模型与不明文件不因代码清理删除。
 
-# 四、历史遗留、门禁与分步迁移
-`studies/_shared/structure/` 里的 `diagnose_*` / `analyze_*` / `audit_*` / `capture_*` / `reconcile_*` 一次性 CLI 已折进 `window_diagnostics`、`extension_diagnostics`、`q178_diagnostics`、`q241_diagnostics`、`sampling_diagnostics`、`geometry_4b`、`esp_diagnostics`。旧文件名只保留导入垫片，不再带 `main` / `argparse`，`structure_scripts` 清单随之缩小。各 Study 顶层的 `analyze_*` / `plot_*` 和其他顶层 `.py` 仍视为 legacy 冻结：不再新增，不再修改逻辑。修 bug 时一并迁到 `flow/process` 或宿主 `structure/algorithm/metric`。字节保护的 ESP upstream 树不进入这些清单，门禁也不扫描它的内容。
+独立worker与专用启动/重验证入口复用shared flow的check_study_inputs纯预检，先验外部根、原源/快照、来源锁、计划与输入，再允许运行态写入。scheduler固定当前宿主的导入根，worker走shared CLI，默认不自动重试；派发异常停止新派发并只清理本次已拥有的Popen对象，保存首错。保存jobs需与当前index及规范config路径一致；已完成Run调度恢复只跳过已完成项，不能外推checkpoint/RNG等价恢复。
 
-CPU 门禁在 `tests/spec_mtp/test_structure_flow_gates.py`。清单在 `tests/spec_mtp/legacy_allowlists/`。每份清单与当时扫到的违规逐项相同：代码里多一条违规，或清单里留着已经不再违规的条目，测试都失败。清单因此只能缩小。`origin/dev` 上已经有同一份清单之后，再往清单里加条目也会失败。文件落点清单随 `contracts.py`、`tree.py`、`masks.py`、`decode.py` 的删除缩小。当前条数：
+trajectory的office三类命令集中于flow/execute/office.py，structure保留协议、纯统计与已有测量实现。新专用协议运行须显式本地模型目录/完整来源清单、Dolly JSONL、固定计划SHA和新外部输出，载模前完成来源与正式dirty检查，输入与代码读后复核；不续写历史root。它没有study.yaml，故不称通用Study快照，原协议旧prefix保留，运行绑定另记实际源码/输入/模型/设备。永久停止的BF16/独立AR机理入口拒绝新派发。
 
-| **门禁** | **清单** | **冻结条数** |
-| --- | --- | --- |
-| 文件落点：`src/spec_mtp` 顶层只有 `__init__.py` 与 `__main__.py`；`studies/<name>` 顶层只有 `recipe.py` 与 `__init__.py`；其余 `.py` 必须在 `structure/` 或 `flow/` | `file_inventory.json` | 77 |
-| 导入方向：structure 不导入 flow；api 不导入其他 structure 子层；`spec_mtp` 不导入 `rpipe` / `studies` | `import_direction.json` | 4 |
-| `structure/` 内不得有 `if __name__ == '__main__'`，也不得有 `argparse` | `structure_scripts.json` | 77 |
-| `structure/` 与 `flow/` 的代码不得出现盘符字面量 | `drive_letters.json` | 10 |
-| 宿主与 Study 的模块在 import 时不得写 `os.environ` | `import_environ.json` | 4 |
+native训练恢复沿现有职责实现，不新建恢复框架：`algorithm/base.py` 分离只读 `load_resume` 与 `apply_resume`，`algorithm/resume.py` 负责持久化状态准入与RNG校验，`algorithm/train/` 先构造合同并准入、再应用；`system/factory.py` 的 `checkpoint_path` 与读取共用只读路径规则，保存仍由原System维护。`data/factory.py` 的 `validate_training_state` 纯校验v2数据状态，`data/resume.py` 维护游标及sampler/loader generator关系。CPU准入在 `tests/spec_mtp/structure/{algorithm,data,system}/`，真实CUDA恢复在 `tests/cuda/spec_mtp/structure/{algorithm/train,data,system}/` 镜像，独立进程夹具只在测试内，不成为生产入口。当前分工对照远端RPipe main固定414ccb7的读取、准入、应用与原子快照机制，未复制其整套库或更改本仓旧编码。
 
-这 4 条导入违规都是现有 `structure/api/*_api.py` 再导出 `algorithm`、`data`、`model`、`system`。`structure` 导入 `flow` 的静态 import，以及 `spec_mtp` 导入 `rpipe` / `studies`，当前条数是 0。77 条脚本记录来自 40 个文件：40 个带 `main` 守卫，其中 37 个同时使用 `argparse`。`trajectory_observation` 的 `fresh_replace.py`、`office_qwen8b.py`、`office_tree.py`、`office_traj.py` 把原来的 `flow/execute` 命令折进已经拥有协议的 structure 模块。门禁对这四个路径闭合豁免，清单仍是 77 条，不能再加别的 structure 脚本。
+`flow/execute/fair_branch.py` 拥有原fair协议CLI与会话生命周期，`fresh_replace.py` 内的 `prepare_local_inputs` 供两条replacement flow共用本地输入预检，返回已解析的输入路径和绑定复核，不让各入口重新跟随原路径别名。`structure/fair_branch.py` 保留纯参数化的选择、校准和统计，移除main、固定模型路径与联网读件。pytest按当前pyproject使用importlib模式，入口镜像测试以 `test_fair_branch_entry.py`、`test_fresh_replace_entry.py` 区分同名结构测试。
 
-测试镜像的目标是 `tests/spec_mtp/structure|flow` 与 `tests/studies/<name>/structure|flow`，`tests/manifest.json` 的 `test_id` 随路径一起改。步骤 8 之前不改现有测试路径。新增 provider 或算法要在 `structure/algorithm/config.py` 注册配置键；该文件还没有建立，本步不建。
+pilot与preforward_signal的CLI、输出发布及会话生命周期同样归各自 `flow/execute/`。pilot显式冻结本地config、计划SHA、源码和CUDA设备；structure保留合成数据、训练及各既有模式的数学。preforward复用本地模型/输入准入，固定81–208与128条校准模板，structure只接显式rows和设备，不猜模型目录。宿主mask拟合的辅助张量与输入device一致，不依赖默认CPU；不以搬目录改变公式。
 
-搬迁分步进行。每步只搬位置，不改数学、不改默认参数。公开名在过渡期用 shim 保留。已有 Run 的源码路径以产生该结果的提交为准，不回写历史结果。ESP upstream 树不搬、不改字节。
+small_matrix 的 transfer/cross-prompt/trajectory/window 分析由现有 `flow/process/run.py` 编排，纯状态、槽位比较与诊断复用已有 `studies/_shared/structure/extension_diagnostics.py`。两套绘图由现有 `flow/write/run.py` 编排，一个 `structure/plots.py` 容纳纯 Figure 构造，避免保留两份入口、路径与输入读取。固定 Git 原件、实际报告与张量独立绑定，不执行归档源码或按当前 manifest 替换历史身份，新工具来源另记。新外部输出完整后才发布完成记录，JSON 读件不伪称 CUDA 计算，保存张量的数值检查显式使用 CUDA。
 
-| **步骤** | **内容** | **状态** |
-| --- | --- | --- |
-| 0 | 本文、架构设计、AGENTS、README，以及上表 CPU 门禁 | 已完成 |
-| 1 | `contracts.py` → `structure/api/decode_api.py`；旧路径 shim 已删除 | 已完成 |
-| 2 | `tree.py` → `structure/algorithm/decode/` 下的树与树注意力；旧路径 shim 已删除 | 已完成 |
-| 3 | `masks.py` 拆到 `structure/algorithm/mask/` 的 providers、fit、factory；顶层再导出已删除。配置键仍未单列到 `config.py` | 已完成 |
-| 4 | `decode.py` → `structure/algorithm/decode/loop.py`；顶层再导出已删除 | 已完成 |
-| 5 | `data.py`、`model.py`、`audit.py`、`analysis.py` 进入对应子层，并消除与 `structure.data` / `structure.model` 的重名 | 未做 |
-| 6 | `trajectory_observation` 补齐 Study 声明，并拆开四个旧测量脚本。这四个文件的命令已经折进对应 structure 模块，不代替这一步 | 未做 |
-| 7 | `cli.py` → `flow/cli.py`；`python -m spec_mtp` 保留薄入口 | 未做 |
-| 8 | `contracts.py`、`tree.py`、`masks.py`、`decode.py` 再导出已删；测试镜像改路径，`.importlinter` 按两柱重写 | 未做 |
+trajectory 的 bonus-aligned/output-hidden 专用命令共用一个 `flow/execute/hybrid_gain.py`，沿既有本地模型、输入与计划准入机制组织生命周期及共同收集/落盘。两份 structure 保留各自既有协议、纯校准与统计公式，共同模板和统计复用已有纯函数，不另建助手文件。原切片、arm 与预算各自冻结，收尾核来源、完整 qid 集及关闭模型后才发布新运行的完整标记，旧根不续写。测试按上述两柱职责镜像。
 
-# 五、宿主模块的目标位置
-下表是目标路径。解码合同、树和解码循环已经迁入。其余当前文件仍在“当前路径”一列。行为边界仍是现在这些模块已经承担的合同。
+共用 fingerprint/profile 命令集中到 `studies/_shared/flow/diagnostics.py`，不混入六阶段 Study CLI。两份 structure 保留显式输入的解码计算、比较、component 与报告格式，flow 拥有微型模型创建、CUDA 设备、来源/配置/计划绑定、输出和关闭。fingerprint 既有 cell 矩阵、统计和种子保持，比较须注明工作负载与设备身份，未知旧报告不自动成为可比基线。profile 的 cProfile 仅解释 CUDA 工作负载的主机侧调用耗时，不能冒称 CUDA kernel 测量或重解释旧 CPU 结果。旧 structure 不保留命令 wrapper。
 
-| **目标文件** | **当前路径** | **责任与边界** |
-| --- | --- | --- |
-| `src/spec_mtp/__init__.py` | 同左，保留 | 包标识及必要版本；导入不注册、不加载模型、不发起执行 |
-| `src/spec_mtp/__main__.py` | 同左，保留 | 薄入口，转调 `flow`，不在 import 时执行 |
-| `structure/api/decode_api.py` | 已迁入；调用方直接导入该模块 | DecodeRequest/Result、AuditResult、Prompt、Observation、ModelSession、MaskPolicy、Sink，以及显式的 `ExtraBranchPolicy`。无其它项目模块 |
-| `structure/data/` | `src/spec_mtp/data.py` | 读取本地输入、qid/顺序/大小校验、显式 tokenizer 渲染和编码。不创建模型，不决定 Study 因素 |
-| `structure/model/hf_causal.py` | `src/spec_mtp/model.py` | 打开明确本地模型或借用已构造模型、能力与 tied-storage、forward/cache、close。不调用 decode |
-| `structure/algorithm/decode/loop.py` | 已迁入；调用方直接导入该模块 | prefill、树块循环、验证/bonus、预算/EOS、mask 提交与 KV 保留。只调用注入的模型、策略和 sink |
-| `structure/algorithm/mask/` | 已迁入 `providers.py`、`fit.py`、`factory.py`；调用方直接导入该包 | 各 mask provider 与 K 拟合的纯数学。块内预测不得污染 committed 状态。本步注册表在 `factory.py`。配置键仍未单列到 `structure/algorithm/config.py` |
-| `structure/algorithm/decode/tree.py`、`tree_edit.py`、`tree_attention.py` | 已迁入 `tree.py` 与 `tree_attention.py`；顶层 shim 已删除 | 树构造、预算内的节点编辑、attention/position。不持有模型，不执行 forward |
-| `structure/artifact/observation.py`；无模型审计在 `flow/process` | `src/spec_mtp/audit.py` | 版本化 JSONL、来源与计数核验。不 import 模型 |
-| `structure/algorithm/metric.py`；跨 Run 汇总在 `flow/summarize` 或 `flow/process` | `src/spec_mtp/analysis.py` | 固定口径的 τ、配对和长度诊断。纯计算，不执行模型 |
-| `flow/cli.py` | `src/spec_mtp/cli.py` | `decode` / `audit` / `compare` 的参数、装配与结果呈现。help 不加载模型 |
+`output_space_prerequisite` 的 q171 历史图归既有 `flow/write/run.py`，一个 `structure/plots.py` 保留三臂原数值、样式与 Figure 构造。编排复用固定 Git 取件和外部根边界，输入与绘图源码前后核对，PNG 摘要及实际渲染环境进入完成记录。该 Study 没有合适的现有纯绘图模块，此文件承担必要的两柱边界，不为其余 Study 预建空壳。
 
-KV 的物理存储留在模型会话，保留哪条路径由解码循环决定，索引由树模块计算。三处共用同一长度事实。
+small_matrix 窗口重绘区分原运行件与后补归档附注。固定 Git window 仅可比原件新增顶层 `resources`、`cross_order_first_seed_masks`，scale 仅可新增 `resources`，共有字段仍须全部相等，原运行件不得多字段或缺科学字段。归档附注按固定 Git 成员单独记录，不混入原运行 JSON、source_binding 或绘图输入。observer 原字节仍必须匹配 scale 保存的 SHA，原件与旧 binding 不改写。其余报告保持完整内容等价合同。
 
-共享合同只收多个调用方真实使用的数据与最小行为，不建通用 DTO 转换层、`utils.py`、Manager、插件容器或全局可变注册表。模型加载只能发生在明确打开会话时，普通 package/help/import 不取 GPU、文件锁或网络。
+五方法配对读端由 `qwen3_4b_bf16_five_methods/structure/readout.py` 承接既有 case、逐行配对、汇总和 published 复核，`structure/plots.py` 保留配对矩阵与 Figure。正式保存报告入口归既有 `flow/process/run.py`，固定 Git 与实际报告分别绑定，复核既有 480×11 计数和 WTL；绘图归既有 write。显式原 Run 根仅能复核报告已有文件摘要，不以当前源码验证器改签历史 gate。原生 cell 读取 API 的当前来源校验保持，历史 native 重验的额外来源合同未完成时明确不支持。paired_revalidation、bias_norm_scan 与共用 geometry 直接依赖真实 readout/plots，不再按旧顶层路径动态装载。
 
-# 六、K Study 的具体文件与依赖
-| **目标文件** | **职责** | **依赖与限制** |
-| --- | --- | --- |
-| `studies/k_affine_residual/structure/recipe.py` | 从冻结因素组装 postcommit 三臂、文档划分、tiny 随机模型与载荷，向 RPipe 注册实际入口 | 只经 RPipe 公开合同、宿主 `data/model/audit/analysis/decode_api` 及本 Study correction/evaluation，提取同一因果位置 latent，不修改/调用真实投机解码器 |
-| `studies/k_affine_residual/structure/correction.py` | float64 中心化 ridge λ=.001 拟合 A/b、独立 b0，冻结参数核对及三臂应用 | `spec_mtp.structure.api.decode_api` 和必要既有数值库，不 import RPipe/模型/CLI；截距不正则，fit/apply 分开，b0 不取完整 b |
-| `studies/k_affine_residual/structure/evaluation.py` | P/y/m 及同位置 z(m)/z(y) 对齐、文档级三臂 MSE、先冻结 K/b0 再提取 holdout/cross 的合同 | 本 Study correction、宿主 `decode_api/audit/analysis`，不加载模型，不自判 Run 成功，拒绝未来 token/下一词标签与 fit/test 泄漏 |
-| `studies/k_affine_residual/flow/collect/run.py` | 将实际原始结果转换为 evaluation 所需输入，返回本 Study 指标 | RPipe 公共阶段合同与本 Study evaluation，不重复计算/生成 raw，不改因素 |
-| `studies/k_affine_residual/flow/summarize/run.py` | 把 evaluation 的完整性/科学质量结果映射到阶段结果 | 同上，缺失/失败明确拒绝，模型预测改善与研究假设支持分开 |
-| `studies/k_affine_residual/flow/process/run.py` | 核对声明三臂、拟合/测试数据隔离、冻结 K、因素和 seed 的矩阵完整性 | 同上，成功子集不能作为完整矩阵，不执行补跑 |
+ESP 四格汇总、图与独立复验消费者的计算归各 Study 必要的 structure readout/plots，编排与输出归现有 process/write。相同统计复用共同实现，BC10 的 primary/auxiliary 身份、argmax/AR 边界、四格顺序与原阈值分别保持。固定保存证据读件与原生 Run 校验分开，不运行旧矩阵或改第三方原树。
 
-所有列出的 `__init__.py` 仅命名空间或必要的 `run` 导出，不含业务逻辑。prepare、execute、write 优先复用默认阶段，只有实际框架合同无法表达时才重新评审增加适配，不能预造六阶段空壳。
+input_mask_baseline 的历史 q171 图采用既有 write 编排与一个纯 plots 模块，保留 accepted 柱、保存的 cosine sums/counts 相除及零计数不画线的语义。固定来源为其原报告身份，不套用 output-space 摘要或窗口归档附注例外；输出仍为外部新根、来源复核后的 PNG 与完成记录。
 
-tiny 随机模型可由 Study recipe 使用官方构造器按冻结配置建立，再交给宿主模型会话；该特有模型构造不反向进入科学包，也不加载预训练0.6B权重。配置、tied 实际存储与所有权均需核对。
+4B recheck、recheck_v2、holdout 与 input_control 的配对统计归同一 `studies/_shared/structure/paired_4b.py`，原生输入和各 Study 的质量、来源与计数合同分别保留。共同读件协调归 recheck_v2 既有 process，复用保存读件会话，仅覆盖本组源码范围；另外三条 process 选择对应协议并保留六阶段导出。holdout 与 recheck_v2 的中文报告、Figure 共用 `studies/_shared/structure/paired_report.py`，既有 shared write 负责固定报告身份、真实输入链接与外部输出，并为两类图共用完成记录失败清理。三个相同统计模块及两份相同报告不各自继续演进；不能因合并统计而混同主批次、留出批次或 EMA 对照。不另建转调文件。
 
-输入资产与运行根由明确执行方案和 RPipe 接入处理。K 文件不是全局可变参数，绑定模型/表示空间、fit IDs/hash 和协议，先保存 full K 与独立 b0，评价前后核 SHA，不原地重拟合。当前起点是已提交位置的 postcommit replacement：m=mean(E[P]) 为连续 embedding，y 为已提交 token，同位置比较 soft(m)/E[y] 最终 normalized hidden；不是实际未来槽或真实命中率实验。完整数据/模型/指标定义见研究计划第五章，本轮没有执行或下载。
+cross_task 的 first-delta、sampling-expansion 和 continuation 按同一采样路径问题归入 `structure/sampling_readout.py`，保留原 trace、净差分解、逐单位汇总与判读公式，命令由既有 process 调度。历史 acceptance 图由既有 write 与一个纯 plots 模块承接，保留原 q241–244 与单独 q241 计数口径。固定 Git 原件、实际输入及当前工具身份分开，读件前后复核，新完成标记最后发布；其余张量/模型协议不借此次入口收束重启。
 
-# 七、源码依赖
-## （一）允许方向
-目标方向：`flow` 可以导入 `structure`；`structure` 不导入 `flow`；`structure/api` 不导入其他 structure 子层；解码通过注入的模型会话进入具体接入，源码不导入 HF 实现的反向依赖。`spec_mtp` 不导入 `rpipe` 或 `studies`。Study 可以导入宿主公共模块。宿主没有 Study 路径，也不反向注册。
+cross_task 其余原生导出、H1/H3 判读与 canonical 审计按同一原生证据问题归 `structure/native_readout.py`，三条命令由一个 `flow/process/native.py` 协调。局部状态扩展、状态因素、采样 owner 与捕获深度的纯审计共用 `structure/state_readout.py`，显式读件与 CUDA 生命周期归一个 `flow/process/state.py`。既有 process/run.py 只协调三个问题组并保留原六阶段 callable，不为每条命令另建文件或恢复兼容 facade。新增两组各替代多个旧入口，其持续成本由独立输入合同和镜像失败用例承担；共享来源、路径和发布仍复用既有机制。
 
-扁平模块在搬迁完成前仍然存在。`decode_api`、`decode/tree`、`decode/tree_attention`、`decode/loop`、`mask` 与仍在扁平路径的 `data/audit/analysis` 不导入 `cli` 与具体 `model`。模型反向不导入解码。
+continuation 的完整验证必须区分原历史材料与工程夹具。实际历史审计须逐一核旧选择、输入清单、数据、上下文张量和原 tool/plan 字节，原件不齐不得用新源码或换行变体补签。工程 CUDA 夹具可覆盖六单位、三类固定 draw-bank 统计及损坏反例，但不称历史重验或新的采样实验。
 
-依赖规则同时约束静态 import、类型引用和动态加载。静态工具不能证明全部运行关系。数据泄漏、owner 对齐、cache 或取消正确性由行为测试验证。
-## （二）现在执行的检查与迁完后的 Import Linter
-`.importlinter` 现在仍混有扁平模块：整个 `spec_mtp` 禁止 `rpipe` 与 `studies`，核心模块禁止 `cli` 与 `model`。已删除的 `contracts`、`tree`、`masks`、`decode` 已换成 `decode_api`、`decode.tree`、`decode.tree_attention`、`decode.loop` 和 `mask`。两柱方向由第四节的 pytest 门禁执行，遗留的 api 再导出记在 `import_direction.json`。步骤 8 再把 `.importlinter` 改成下面的目标合同。在那之前替换整份合同会把尚未搬走的 api 再导出判成新失败。
+状态数值审计的 FP32/FP64 概率和 margin 数学保持，实际计算设备单独记录。新 CUDA FP64 结果使用对应设备字段，旧 CPU FP64 字段仅随固定历史分析原件作为参考保留，未提供原件时记未知，不用当前 CUDA 值冒名旧 CPU 测量，也不承诺两设备逐位相同。
 
-```ini
-[importlinter]
-root_package = spec_mtp
-include_external_packages = True
+paired_revalidation 和 bias_norm_scan 的配对、复用端点及深度计数继续使用五方法 readout 和既有 geometry；参数解析、来源读取和新输出归各自已有 process。norm 专属纯深度/分组聚合确需独立职责时归其一个 `structure/readout.py`，不为 paired 再复制一份统计库。真实调用方直接导入纯模块，旧顶层分析入口删除。保存报告复核与原生 Run 重新验收分别给出范围，缺少原来源链时拒绝受影响路径，不拿当前源码重签。
 
-[importlinter:contract:science_without_framework]
-name = Scientific package has no Study or RPipe dependency
-type = forbidden
-source_modules =
-    spec_mtp
-forbidden_modules =
-    rpipe
-    studies
+native/state 的历史验证复用现有角色索引及每成员固定提交，不新建归档执行器。实际保存件、原 tool/plan、EOS 和上下文分别锁定，当前读端只执行本仓实现；数学和原科学判据保持，历史未知与新诊断差异进入独立回执，不用目录迁移改变结果。
 
-[importlinter:contract:structure_without_flow]
-name = structure does not import flow
-type = forbidden
-source_modules =
-    spec_mtp.structure
-forbidden_modules =
-    spec_mtp.flow
+四个 output_space_4b Study 共用既有部件：UntimedEval 归 `_shared/structure/algorithm.py`，CUDA 直接物化工厂归既有 model.py，显式适配注册归既有 recipe.py。Study recipe 在 register(ctx) 通过原准入后选择该适配，导入模块不再全局注册。四份相同 untimed_4b 删除，计时零占位、warmup 禁止和完整 token/argmax 语义保持，不新建四份转调文件。
 
-[importlinter:contract:api_without_siblings]
-name = api does not import other structure sublayers
-type = forbidden
-source_modules =
-    spec_mtp.structure.api
-forbidden_modules =
-    spec_mtp.structure.control
-    spec_mtp.structure.data
-    spec_mtp.structure.model
-    spec_mtp.structure.algorithm
-    spec_mtp.structure.system
-    spec_mtp.structure.artifact
-    spec_mtp.structure.make
-```
+资源观察、纯 capacity 判定和准入服务集中于一个 `_shared/structure/resource_admission.py`，调用方显式提供 capacity 与 observer，区分原 nonofficial/norm/paired 政策，不临时改写模块全局观察器。完整校准生命周期归 norm_scan 的单个 `flow/execute/capacity.py`，显式本地模型/完整清单、冻结输入/计划/配置、CUDA 与新外部根，关闭模型和最终来源复核后才发布完成记录。原 q295、1500 输入、256 输出及 template/scale2 协议保持，工程修复只让当前显式 mask_policy 真正接入原观察钩子，不重签旧 capacity。
 
-这组目标合同只覆盖 `spec_mtp`。Study 侧的同类方向由同一 pytest 门禁扫描。不能因工具没有扫到动态加载就声称全部跨树约束通过。
+资源准入自身的观察、标量预算、显式observer与等待政策在 `tests/studies/_shared/structure/test_resource_admission.py` 同一镜像验证，不按旧Study出处分散。capacity三处原条件及普通direction拒绝使用显式控制流，异常类、消息、短路及NaN语义保持，优化Python也不能删除这些门；这不构成整个宿主支持优化模式。模拟观察器、JSON与优化子进程属于CPU内容/IO测试，不因字段写有CUDA而虚标GPU；真实模型控制另用CUDA。
 
-# 八、具体测试镜像与单一信号
-下表的测试文件是当前路径。源码迁到两柱之后，测试改到镜像的 `tests/spec_mtp/structure|flow` 与 `tests/studies/<name>/structure|flow`，`tests/manifest.json` 的 `test_id` 一起改。步骤 8 之前不改这些路径。
+配对与方向控制复用现有 shared 两柱：配对执行与方向生命周期归 `structure/algorithm.py`，方向向量的原公式归 `geometry_4b.py`，输入准入归 `validation.py`，注册归 `recipe.py`。普通与 recovery 的准入策略显式区分，等待记录使用实际资产根；不得用模块全局替换串改另一协议。随机方向保留原 CPU generator 的种子序列与随后到目标设备的转换，不能在目录整理时改成另一随机过程。三个旧顶层控制入口不保留 facade，norm/paired 的实际消费者直接依赖所属部件。
 
-| **当前源文件** | **当前测试文件** | **主要合同与重点反例** |
-| --- | --- | --- |
-| `src/spec_mtp/__main__.py` | `tests/spec_mtp/test_main.py` | package 导入/help 零注册/载模/网络，入口转发和退出 |
-| `src/spec_mtp/cli.py` | `tests/spec_mtp/test_cli.py` | decode 参数到假会话完整旅程、audit/compare 零执行、坏路径及中文空格 |
-| `structure/api/decode_api.py` | `tests/spec_mtp/test_contracts.py` | 请求/结果版本、有限数值、缺失语义、真实需要的能力与错误字段；公开名从该模块解析 |
-| `src/spec_mtp/data.py` | `tests/spec_mtp/test_data.py` | qid/顺序/输入边界、template/EOS/context、坏文件和重复记录 |
-| `src/spec_mtp/model.py` | `tests/spec_mtp/test_model.py` | 假 HF forward/cache、实际 tied-storage、能力拒绝与 close 再失败 |
-| `structure/algorithm/decode/loop.py` | `tests/spec_mtp/test_decode.py` | 可枚举 token 链、prefill/bonus/EOS、取消派发、拒绝路径/KV 和 audit sink 故障 |
-| `structure/algorithm/mask/` | `tests/spec_mtp/test_masks.py` | 初始化、冻结、β/γ、零范数/NaN、proxy 不改 committed，逐方法参数独立 |
-| `structure/algorithm/decode/tree.py`、`tree_edit.py`、`tree_attention.py` | `tests/spec_mtp/test_tree.py` | static/dynamic 预算、父/深度/owner/position、错路径和 attention 可见性；公开名从这些模块解析 |
-| `src/spec_mtp/audit.py` | `tests/spec_mtp/test_audit.py` | token/argmax/owner/来源漂移、坏半行/截断/混 Run、原子写失败、AR 只诊断 |
-| `src/spec_mtp/analysis.py` | `tests/spec_mtp/test_analysis.py` | pooled/均值与 prefill 口径、缺 prompt/长度差、胜平负/负例及不可比 |
-| 稳定宿主依赖合同 | `tests/spec_mtp/test_dependencies.py` | 按单条禁止边参数化，隔离执行，核心不导入具体模型/框架或 Study |
-| 两柱布局与 legacy 清单 | `tests/spec_mtp/test_structure_flow_gates.py` | 文件落点、导入方向、structure 内的 main/argparse、盘符字面量、import 时写环境变量；清单与现状逐项相同，只减不增 |
-| K `structure/recipe.py` | `tests/studies/k_affine_residual/structure/test_recipe.py` | 三臂装配和冻结配置、一次公共载荷调用，拒绝未知臂/失配来源 |
-| K `structure/correction.py` | `tests/studies/k_affine_residual/structure/test_correction.py` | 合成已知 A/b、零残差、三臂、错误维度/非有限、冻结后不拟合 |
-| K `structure/evaluation.py` | `tests/studies/k_affine_residual/structure/test_evaluation.py` | m/y/owner 错位、未来标签泄漏、拟合/测试重叠、冻结 K 跨集身份和完整配对 |
-| K `flow/collect/run.py` | `tests/studies/k_affine_residual/flow/collect/test_run.py` | 原始样本到指标的适配，不补算/补生成，缺数据保留 |
-| K `flow/summarize/run.py` | `tests/studies/k_affine_residual/flow/summarize/test_run.py` | 数学/来源/冻结失败阻断，纯测量与假设结论不混同 |
-| K `flow/process/run.py` | `tests/studies/k_affine_residual/flow/process/test_run.py` | 三臂/数据集/seed 缺失、重复、子集拒绝，不发起补跑 |
-| `tests/run.py` | `tests/tools/test_run_tests.py` | 按清单先选后导入、逐参数/attempt 落盘、必需项缺失/超时/写失败非零 |
+ESP preflight、numerics、reduction_check 与 shape_check 的相同 4B untimed 适配沿用已有共享 algorithm/model/recipe，特殊数值与 shape 合同仍由各自部件承担。导入不注册，只有原 Study 来源门通过后的显式 register 才装配；配置删除旧 include，旧 Run、锁和原字节来源身份保持。此归并不恢复已停止的 BF16/独立 AR 机理排查，不产生新的性能数字。
 
-每行细分多个单信号用例，level/type/cost_class/result_type/priority 为标签与静态元数据。源码镜像不增加 `unit/integration/e2e` 一级目录。pytest 使用仓库根、`src` 和明确的 import 模式，镜像目录不加入产品模块搜索路径，避免同名测试目录遮蔽 `spec_mtp`。
+ESP 的后端状态作用域与模型局部 Linear 作用域集中到唯一 `_shared/structure/esp_controls.py`：三份相同 NumericsEval 和依赖它的 ShapeEval、rowwise_linear 共用原实现，显式注册选择最终执行类。此模块隔离特有后端控制，避免 evaluate 与 algorithm 循环依赖，也不把三份副本搬成三份小模块；代价是维护一个作用域及其成功/异常恢复合同。原数值公式、状态恢复顺序和输出字段保持，调用方直接导入该模块。
 
-`__init__.py` 纯命名空间不逐个测自身，第三方树不生成本仓逐文件逻辑测试，已有旧消费者在实际改造时按稳定合同迁移，不把旧字符串快照当科学规则。共享 fake/合成数据先放用例附近，至少多个真实调用方复用时才提取 `tests/_helpers`，不用大 fixture 目录预铺空壳。
+norm、paired repeat 与 continuation 控制继续复用上述 shared 职责：初始 bias 的纯观察归 geometry，三个执行类归 algorithm，来源表、固定 Git 计划和配对矩阵合同归 validation，recipe 在原门之后显式绑定运行根、已核原源、Run assets 和准入策略。Continuation 保留自身加 norm 的原来源链，采用 paired 的 observer 与 norm capacity，不额外混入 paired 来源门。三份顶层实现删除，容量入口和保存读件冻结实际新部件，原 refs/Run/计划身份另留，不能以路径变化绕过原锁。
 
-# 九、验证入口与产物界限
-`tests/run.py` 只适配现有 pytest 的选择、运行和结果回调。唯一 `tests/manifest.json` 保存静态元数据与计划，执行前列必需项、条件、资源、预算及排除理由，执行结果逐项写独立外部验证根。失败、收集缺失、取消与结果落盘失败不能把必需计划记为通过，详细字段与阻断条件见架构设计第七章。
+ESP full/Qwen 的 numeric policy、full_argmax 的独立提交链观察及非官方复验继续归已有 esp_controls；四份 untimed、两份相同 argmax 与非官方 contract 不各自维护副本。NumericPolicyEval、ArgmaxEval 与 RevalidationEval 分别承接原作用域与附加门，recipe 显式选择，实际来源表/固定 Git 计划的共同校验归 validation。非官方模型摘要、480 条原输入、逐 prompt 准入和完整数量门独立保留，audit 独占创建、异常时移除 hook 并恢复原调用，不把原 AR exact 与 argmax 两类质量定义混合。
 
-| **位置** | **内容与规则** |
-| --- | --- |
-| `src/spec_mtp/` | 公共科学实现及完整保护的第三方来源子树，运行不回写 |
-| `spec_mtp/flow`、`spec_mtp/structure` | 宿主与 Study 的目标两柱；流程由本仓实现，结构对齐 RPipe 模板。解码合同、树、解码循环和 mask 实现已经搬入，调用方直接导入这些路径。其余解码模块仍在扁平路径。不再内嵌副本 |
-| `studies/` | 静态研究声明和有职责薄适配，不生成长期报告/图/证据快照 |
-| `datasets/spec_bench/` | 当前原始静态数据，保留来源与字节，不当运行缓存删 |
-| `tests/manifest.json` | 静态计划和用例元数据，可入 Git，不与同名运行 manifest 混用 |
-| 显式外部运行/验证根 | 冻结输入、K、raw token/审计/trace、日志、逐项结果及可重建报告，不进源树 Git |
-| `docs/` | 唯一当前入口；历史测量在运行记录，演进在开发记录 |
+full 的完整 AR 读件及中文报告由一个必要的 `structure/readout.py` 承接，既有 `flow/process/run.py` 负责显式输入根、执行源码根、新外部输出和最终发布。计数复用 full_argmax 的纯统计，四格声明作为显式参数传入，默认 argmax 角色不变；full 的 BC10 auxiliary 与完整 AR 不一致仍按其原判据报告。来源和输入先核、读取后再核，完整观测与质量通过分别记录，不以相邻协议的质量门筛掉旧负结果，也不为一个旧命令新建转调文件。
 
-第三方 upstream 的八份来源成员（README、四份 code、三份 results）以及 `ORIGIN.json` 属来源完整性例外，仍保留其原位置和字节。
+smoke 的 cell/trace/比较合同及历史 CPU Figure 共用一个 `structure/validation.py`，当前 tiny CUDA 的模型、36 格流程和发布归 `flow/execute/run.py`，历史图的显式输入/输出归既有 `flow/write/run.py`。删除两个旧顶层入口，不保归档布局 fallback 或依源码行号的 sys.settrace。原 CPU 报告按原身份只读；新 CUDA 版本冻结输入、模型、矩阵、RNG、dtype/backend 与设备，比较先校可比身份，不能把跨设备结果当原 CPU bitwise 迁移证明。T0 完整 argmax 为门，采样 AR 一致仅诊断，保原三 variant、四 prompt、三温度与种子/预算。
 
-# 十、当前差距与实施检查
-两柱搬迁完成了步骤 0、步骤 1、步骤 2、步骤 3 和步骤 4。解码合同、树、解码循环和 mask 的调用方分别导入 `structure/api/decode_api.py`、`structure/algorithm/decode/` 与 `structure/algorithm/mask/`。第五节其余目标路径还没有对应的新文件。下面这些是另外的职责残留：
+extension 的 numerics、kernel、operator 保存张量审计集中到一个 `structure/saved_diagnostics.py`，命令及读件生命周期归既有 process。复用既有角色索引准入，只通过可选 session 类型切换实际读端来源范围，默认 cross-task 行为不变；原 tool/plan/common 与报告按各自旧字段精确绑定，不执行归档源码。共同 slot/margin 仅新增显式 device 参数，默认旧 CPU 语义不变，当前保存张量计算显式 CUDA，当前CUDA FP32 margin与旧CPU参考分身份记录。删除四个旧入口；已停止的真实模型加载/profiler 不提供当前派发 API，必要保存张量检查保留，未使用的live专属助手删除，原 common 路径只作固定 Git 历史成员。
 
-- 成功路径的 `prefill_time` / `decode_time` 仍留在解码统计里，因为已有读端用 0 表示“本次不计时”。时钟或同步失败时这两个键缺席，计数照常返回，汇总也不把缺席写成 0 时长。
-- `studies/_shared/structure/evaluate.py` 仍负责预热、计时和 CSV。它调用宿主解码器，不再自己计算 τ。
-- B2 已作废：没有内嵌 RPipe 副本。结构模板见开发计划第三节。
-- 2026年10月31日会议的联合 mask 已有默认实现和合成测量。合成形式搜索已停止，见研究计划第七章。
+父包只标识职责边界，普通部件消费者依赖实际leaf模块，不经structure/control及各layer父包间接装配工厂或加载Torch。control.layers不另保四种配置类型的facade，配置直接来自algorithm/data/model/system.config；make的展开并写入Study生命周期归已有make/write.py，包父入口不保实现。保留必要包文件与默认六阶段，不给移除的再导出加lazy wrapper。此取舍减少导入副作用和循环依赖，代价是同步本仓所有真实符号消费者并公开当前导入位置。
 
-旧 `spec-mtp make/launch/process` 会明确拒绝并指向 `python -m studies._shared.flow.cli`。删除历史 Study、第三方树或原始数据不在本次范围。
+旧配置兼容只承接实际decoder输入，不保无生产调用的第二套文件读取或覆盖命令。spec_for每次返回独立的树配置，单次branches覆盖不得改变后续默认；YAML配置入口区分空文档与false/0/空序列等非法非mapping，持久化坏输入不得静默归为空配置。验证使用镜像纯配置/IO用例，数值路径仍由CUDA计划覆盖。
 
-## 已经落位的部分
-科学 CLI 不再代理研究调度。Study 共享接入在 `studies/_shared/`。K 的三个科学函数和 collect/summarize/process 仍在该 Study 的 `structure/` 与 `flow/`。`structure/algorithm/reference` 只保留不可改的 ESP 来源树。只读来源 manifest 覆盖科学包与被复用的 `_shared` 接入。步骤 5–8 还没有开始。
+测量结果合同仍由既有tests/run.py及tests/test_run.py承担，不新增生产模块。numeric或明确请求metrics/samples的用例先声明唯一metric_specs（name/unit/statistic），经record_property提交同名测量，核有限实数、单位与口径、正样本数、非负暖机、数据规模/环境/测量边界及本轮支持的inline raw_samples；不建立附件执行器。重复property、空/缺采集、无call或阶段不完整不能覆盖成成功。有效numeric终态为测量完成，质量判定保持未评估，不混入categorical质量通过；categorical原断言合同保持。每个参数结果独立保存，失败测量保留已发生事实，整批仍严格阻断。
 
-`.importlinter` 仍检查扁平模块。两柱方向由 `tests/spec_mtp/test_structure_flow_gates.py` 执行；工具未跑 Import Linter 时，不把那份目标合同写成已经生效。`tests/manifest.json` 声明函数级元数据并展开 pytest 参数 ID，`tests/run.py` 将每个参数/阶段/attempt 的证据写到外部新目录。历史读端测试通过 `tests/conftest.py` 的共享 `historical_file` fixture，从固定 `b8b20b5ada7fd860894114cbf224ce749af430cf` 按需读取不可变 Git blob 到测试临时目录，逐对象及写入字节校验；缺对象明确失败。原15个参数项恢复为必需覆盖，现清单没有历史排除；分析器与校验门仍执行当前源码，旧源码仅作来源哈希输入，不导入执行，不重跑历史模型。其余收集项无遗漏才执行。
+当前声明文档入口与冻结历史来源各有职责：只有实际消费者用作当前导航的引用可跟随唯一中文文档入口；历史source_path/member/commit/blob/hash随原协议保留，不能因路径改名重签或根据同名猜原件。新make必须冻结实际声明，旧Run与来源锁不写回。
+
+批次报告仍由既有tests/run.py与tests/test_run.py维护，不新增生产模块或独立报告CLI。运行根保存本次有效声明/计划与environment快照、selection、phase/result；render_report(root)从实际落盘证据生成report.md。报告分开执行、测量、质量、成本与未验证范围，保source/level/type/priority/cost汇总、预算/设备/时间及证据定位；未知资源不填零，不从研究计数推性能。原始longrepr只留诊断证据，正文只显示错误类别，不扩散敏感载荷。
+
+summary为最后完成依据：先保存pending、生成报告并绑定SHA，再发布正式summary；报告或证据写失败只能失败。缺收集或CUDA不可用也保明确未执行范围和失败报告；不把未枚举参数当已完成。报告核声明、环境、选择和终态的一致身份/计数，拒绝漂移或把numeric改为质量通过，不用派生报告重新签原事实。只读重建函数不覆盖旧文件，不新增附件/基准框架。
+
+测试公共子进程拥有关系只用已有_process_tree，避免conftest重复装载同一helper。纯phase派发镜像归宿主flow/study，continuation保存声明/计数检查归已有norm读件镜像；默认六阶段及停止的研究协议不改。
+
+shared CLI 的 native smoke 与其参数/调用性质共同归 `tests/studies/_shared/flow/test_cli.py`，按 NS0–NS4 独立定义 CUDA 验证身份。设备初始化适配只存在于测试复制的 recipe，生产模型工厂及原 Study 声明不因此改写；实际输入、模型摘要和后端随原采集链冻结。纯来源性质归已有 `structure/test_sources.py`、配置性质归已有 `structure/test_config.py`，来源门和声明因子性质归实际 `structure/test_validation.py`；测试直接调用真实所属部件，不保混合 properties 文件或 flow facade。每个原性质、Hypothesis 参数规模、失败判据及历史排除仍分别维护。
+
+Run与Study门分别由 `_shared/flow/summarize/run.py` 和 `flow/process/run.py` 承担，纯验证归 `structure/validation.py`，不设 `flow/checks.py` 转导出层。对应测试分别镜像到summarize/process，纯验证合已有validation镜像；保存件revalidation共用一个真实 `flow/test_revalidate.py`。四个合成保存件工厂复用既有 `tests/conftest.py`，依赖惰性导入，每次创建独立config/assets/study，不缓存可变证据或复制助手文件。异常保持宿主observation的同一class，默认六阶段必要run导出保留。
+
+alignment保存计数测试以最终门为主信号，collect构造有效基线，放summarize镜像；实际张量计算在有界CUDA上下文中验证，另记当前设备，不改保存JSON的旧标签。普通JSON/配置/来源拒绝仍是纯IO检查。当前来源树删除兼容文件会改变新manifest，历史锁与Run按原字节保留，不能通过排除成员或补签摘要继续旧执行。
+
+CSV指标仍由既有 `structure/csv_logger.py` 的Logger维护，其真实镜像为 `tests/studies/_shared/structure/test_csv_logger.py`。文件固定首个有效header的有序列，逐次核header及末LF追加边界（含CRLF）；同schema重排列值正确，schema/header/目标状态变化写前拒绝。已有零字节文件仅首次可建header，已有行不清洗或重写；无文件stdout保原动态格式。该模块不承担诊断JSONL、Tracker、科学gate或并发/原子提交职责，不新增持久化框架。
+
+配对报告的纯文本与Figure归 `structure/paired_report.py`，镜像归 `_shared/structure/test_paired_report.py`；文件、固定原件绑定、绘图及完成发布链归 `flow/write/run.py`，镜像为 `_shared/flow/write/test_run.py`。真实Agg渲染和轻量解析/发布spy分开定成本，两个Study wrapper到共同入口的身份契约保一个参数化用例，不添微型转调文件。writer取得Figure后负责错误与清理：主体失败保原异常，清理次错附其figure_cleanup_error；正常释放成功后构造receipt，再复核输入和来源，最后独占发布。纯渲染公式、原SHA、实际字节与Git字节身份及publish_new_completion接口保持，不增加发布框架或回签旧source catalog。
+
+来源manifest及load_lock镜像归 `_shared/structure/test_sources.py`，写锁命令路径归 `_shared/flow/test_cli.py`；GPU进程名/上下文分类与XML解析归 `_shared/structure/test_gpu_admission.py`，mask设置归已有config镜像。它们按真实unit/integration与成本登记，GPU字段的标量检查仍是CPU内容验证，不触发硬件观察。宿主初始化AST合同合现有parent_imports镜像；仓库级安装/console配置合同仍由test_package承担，不为其建无职责科学leaf。tomllib导入和打包前置条件只约束实际依赖它的测试，不能连带阻断独立来源/CLI合同收集。
+
+typed request镜像为 `tests/spec_mtp/structure/api/test_decode_api.py`，审计归 `structure/artifact/test_observation.py`，科学CLI归 `flow/test_cli.py`，生成/AR/选择器归CUDA根的 `structure/algorithm/decode/test_loop.py`。共用输入构造和注入session/sink/run复用已有tests/conftest：decode_request只创建标准库API值，decode_fixture(device)惰性加载数值实现；不从测试文件导入另一测试，也不为每个对象新建助手模块。CUDA fixture只为实际数值用例启用，显式核tensor/model设备、只登记一次诊断属性并在call结束前定稿，teardown不改已验事实。真实本地loader委托及模型forward在测试内核CUDA，生产CLI能力和默认接口保持。
+
+loop镜像不保模块级CPU session或张量。无效prompt通过纯device工厂在用例内构造，保形状、dtype、值和独立参数身份；tensor/full/Generator与期望张量均显式设备。生成、AR、SpecDecoder输入准入及选择器分别定位实际target，unit与integration按真实调用边界声明，实际GPU一律C3/GPU1。选择器记录实际logits设备，零forward只记录已有CUDA输入/embedding，不生成假forward；显式Generator的状态合同核全局CPU/CUDA RNG字节和defaultdevice未变，不用恢复掩盖意外变更。
+
+tree与attention各有真实leaf镜像 `decode/test_tree.py`、`decode/test_tree_attention.py`；mask的providers与factory分别用 `mask/test_providers.py`、`mask/test_factory.py`，不为少一个测试文件错置实际owner。SpecDecoder cache选择属loop，KV类型/裁剪/选槽归已有model/test_hf_causal，不另造混合边界模块。跨组真实模型只复用conftest的cuda_tiny_model工厂，显式CUDA初始化与配置，fork_rng/设备上下文保持调用者状态，finally关闭所有owned session，teardown不改已验property。原有函数与新验证范围分别声明，不将同文件旧用例自动视为CUDA已验。
+
+Hypothesis attention属性保原max_examples、策略、dtype/BC/seed范围及每example新建cache。device fixture不可变，设备证据仅append，function-scoped healthcheck的局部豁免须与该生命周期一起解释；不豁免真实数据失败或缩例掩盖成本。空树、整数预算、缓存容量与不支持类型为CPU纯合同，真实概率/掩码/模型/Generator用CUDA并核设备。naive/cache等值只比较同次输入，CPU和CUDA随机初始化不当作相同模型或树的字节复现。
+
+CUDA模型镜像 `tests/cuda/spec_mtp/structure/model/test_hf_causal.py` 中借用所有权和具体KV选槽沿用原函数与参数ID，数值接入已有cuda_decode，未增加生产模块或共享夹具。借用模型保原LlamaConfig全部实参与默认配置，在CUDA上下文创建并验证CPU/selected CUDA RNG及默认设备恢复；不借用会改变原配置的tiny工厂。关闭后保native对象、embedding Parameter与完整state_dict 12项持久化张量的值/存储身份，原closed异常仍在native forward之前拒绝；不扩大为training模式或非持久buffer不变。KV在cache.update前保存独立CUDA克隆，核两层prefix2与block[0,2]保留原位置[0,1,2,4]，防别名掩盖原值破坏。两项按真实target的unit/content/C3/GPU1登记，后两项既有函数、conftest和生产源码保持。
+
+保存数字导出的5函数15参数归 `tests/spec_mtp/structure/artifact/readout/test_report.py`，只读Study质量门1参数合既有 `_shared/flow/process/test_run.py`，真实make/launch/report链1参数合既有 `_shared/flow/test_cli.py`；原混合test_readout_report删除。一个必要artifact镜像承载同一write_numbers职责，不按断言拆文件；process用例内联原最小三文件输入，避免测试间导入或改变失败刺激。CLI复用原CUDA Study工厂，在本用例临时recipe挂真实forward设备观察，不改共享recipe常量、原smoke或conftest。声明/源码与外部运行根分开，make后来源绑定新CUDAversion/Run，报告仍只读。
+
+mask provider行为和factory真实张量选择/准入分别由 `tests/cuda/spec_mtp/structure/algorithm/mask/test_providers.py` 与同根的 `test_factory.py` 镜像；未知方法纯拒绝归CPU根的同名factory镜像。providers核ESP/EMA初始化、冻结与提交状态，以及observation的blend/depth/rejection/top1和logits准入；factory核配置选择、非法字段及构造后的真实对象。非法配置保完整有效基底，避免删字段改变拒绝原因。两类职责按实际资源保留完整源码镜像，不按单个函数增文件，不从旧混合测试导入helper或模块级CPU PROMPTS。已有Kalman/EMA的独立CUDA参考也归providers镜像：EMA闭式历史、标量/逐维/残差Joseph与增益回归、first/last/frozen和reset；factory核非有限噪声准入，loop镜像核真实裁剪后commit/finish顺序。参考在GPU以独立FP64计算，期望不调用生产私有更新助手；工程正确性与研究效益分开。
+
+参与数值的表、prompt、logits及预期/输出显式使用CUDA；固定seed用局部Generator，原未指定seed的输入通过selected CUDA fork_rng隔离，不额外指定seed。全局CPU/CUDA RNG与默认设备恢复通过状态断言取证，属性只记录实际参与张量。拒绝用例记录真实输入与异常，factory未生成mask时只记输入/对象归属，不补成功输出或模型forward。文件内fixture只服务实际消费者，简单构造就地表达，不增加共享转发层。镜像按真实方法的unit/content/C3/GPU1登记；纯I/O与配置合同及完整CLI旅程分别按其成本/层级选择，未授权的模型矩阵不随测试归位派发。
+
+固定预留继续由artifact/asset/tree.py维护：Study required预算、有限Run份额与原字节绑定，复用现有原子控制写入和每Run原生锁。make/write.py先建立pending再完成全部份额后发布ready；runner及make/schedule.py在执行前重验，Logger在同一写锁内重验份额与policy。默认无预算根不新增文件；不新增配额模块、后台writer或Study树。
+
+make/schedule.py拥有本次成功登记的Popen直接worker句柄；取消回收在原_run_groups内完成，不新增统一进程管理门面。清理次错含BaseException，按原异常的cleanup_errors保留顺序，不再通过同步console报告而阻断剩余回收。CPU同源镜像覆盖再次取消及首错身份，CUDA make/test_schedule镜像核真实worker计算、退出及受控日志停止观察；后代进程树与硬I/O中断仍是独立未实现合同。
+
+中断组的运行控制回执继续由make/schedule.py私有publisher维护，落在外部Study的`scripts/launch-attempts/<attempt_id>/receipt.json`；它不写activity/jobs/Run Result或诊断日志，不计为科学完成或诊断固定份额。先清理所有已登记句柄，再x写partial.json、flush/fsync和发布；单件最多64KiB，失败余件保留不重试、不覆盖。仅成功发布后在原异常附cleanup_receipt_path，回执内只保存本组的派发前摘要、请求/直接退出事实与安全错误类别；未知停止不补零。回执发布本身不引入新模块或存储门面，原测试预算与5秒清理升级等待保持。
+
+显式Run预算复用SystemConfig.config和RunConfig身份哈希；make/schedule.py统一准入worker_timeout_seconds、绑定config摘要，并在预算组观察循环内只做进程poll/非阻塞wait和单调计时。默认无预算保原serial wait。监控先观察退出、再查仍运行者的最早期限，固定短间隔不超过最近余量；超时事实补入既有中断回执，直接退出仍独立确认，三项unknown不提升。共享launch及生成PS/Bash已委托同一launch_jobs，不新增CLI参数、dataclass、线程/进程管理模块或Study；direct run/run-one/FlowRunner只消费配置、不提供该launcher监控。

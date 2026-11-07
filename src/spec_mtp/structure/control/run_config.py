@@ -6,12 +6,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from spec_mtp.structure.control.hashing import compute_run_id
-from spec_mtp.structure.control.layers import (
-    AlgorithmConfig,
-    DataConfig,
-    ModelConfig,
-    SystemConfig,
-)
+from spec_mtp.structure.algorithm.config import AlgorithmConfig
+from spec_mtp.structure.data.config import DataConfig
+from spec_mtp.structure.model.config import ModelConfig
+from spec_mtp.structure.system.config import SystemConfig
 from spec_mtp.structure.control.merge import deep_merge
 
 # Legacy keys that must not affect run id / are not RunConfig fields.

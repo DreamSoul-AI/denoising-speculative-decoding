@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from matplotlib.artist import Artist
 
 from spec_mtp.flow.process.aggregate import collect_from_index, load_curve_series, summarize_curve_series
 from spec_mtp.structure.artifact.paths import DOCS_DIRNAME
-from spec_mtp.structure.artifact.result import STATUS_SUCCEEDED
+from spec_mtp.structure.artifact.result.format import STATUS_SUCCEEDED
 
 FIGURES_DIRNAME = 'figures'
 LEARNING_CURVES_NAME = 'learning_curves.png'
@@ -69,7 +72,7 @@ def write_learning_curves(
     """Write ``docs/figures/learning_curves.png``. None if no report observations or history."""
     study_dir = Path(study_dir)
     groups = collect_curve_groups(study_dir, index)
-    panels = {}
+    panels: dict[tuple[str, str, str], list[tuple[str, dict[str, Any]]]] = {}
     for group in groups:
         for split, name, _title in _PANELS:
             series = [
@@ -114,7 +117,7 @@ def write_learning_curves(
             if name == 'Accuracy':
                 ax.set_ylim(0.0, 102.0)
                 ax.set_ylabel('Accuracy (%)')
-    handles = {}
+    handles: dict[str, Artist] = {}
     for ax in fig.axes:
         lines, labels = ax.get_legend_handles_labels()
         handles.update(zip(labels, lines))

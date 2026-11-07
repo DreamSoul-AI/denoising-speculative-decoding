@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from spec_mtp.flow.context import FlowContext
 from spec_mtp.structure.artifact.asset import ensure_assets, list_asset_files
-from spec_mtp.structure.artifact.result import write_result
+from spec_mtp.structure.artifact.result.io import write_result
 
 
 def run(ctx: FlowContext) -> None:

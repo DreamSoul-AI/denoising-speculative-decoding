@@ -8,10 +8,8 @@ freeze: true
 provenance:
   include:
   - docs/source_refs.json
-  - norm_control.py
-  - norm_admission.py
   - docs/capacity_calibration_v1.json
-  - calibrate_capacity.py
+  - flow/execute/capacity.py
   project_plan:
     commit: 085722e30c5bb30387f65f268648b58321aa9146
     path: docs/研究计划 Denoising Speculative Decoding.md

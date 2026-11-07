@@ -3,8 +3,8 @@
 RPipe's ``provenance.json`` hashes the installed ``rpipe`` package and the Study
 two columns only. ``spec_mtp`` is an external project package, so its sources
 are not covered by Study auto-discovery. This module hashes ``spec_mtp/**/*.py``,
-records the git head / dirty flag of the checkout and the installed RPipe
-commit, and gives the freeze check for those files.
+records the package checkout Git identity and the external template reference,
+and gives the freeze check for those files. Failed Git reads remain unknown.
 
 - make writes the Study lock ``spec_mtp_sources.json`` (gitignored);
 - every Run copies the live manifest into ``assets/spec_mtp_sources.json``;
@@ -50,13 +50,20 @@ def files_digest(files: dict[str, str]) -> str:
 
 
 def _git(root: Path) -> dict[str, Any]:
+    root = root.resolve()
+    checkout = next((path for path in (root, *root.parents) if (path / '.git').exists()), None)
+    if checkout is None:
+        return {}
+    command = ['git', '-c', 'safe.directory=' + str(checkout), '-C', str(root)]
     try:
-        head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, capture_output=True, text=True, timeout=10)
-        if head.returncode != 0:
+        head = subprocess.run([*command, 'rev-parse', 'HEAD'], capture_output=True, text=True, timeout=10)
+        if head.returncode != 0 or not head.stdout.strip():
             return {}
         dirty = subprocess.run(
-            ['git', 'status', '--porcelain', '--', '.'], cwd=root, capture_output=True, text=True, timeout=30,
+            [*command, 'status', '--porcelain', '--', '.'], capture_output=True, text=True, timeout=30,
         )
+        if dirty.returncode != 0:
+            return {}
         return {'head': head.stdout.strip(), 'package_dirty': bool(dirty.stdout.strip())}
     except (OSError, subprocess.SubprocessError):
         return {}
@@ -93,8 +100,8 @@ def write_lock(study_dir: Path | str) -> Path:
     path = lock_path(study_dir)
     old = load_lock(study_dir)
     if old is not None and (changed_files(old, body) or old.get('rpipe') != body.get('rpipe') or old.get('inputs') != body.get('inputs')):
-        from spec_mtp.structure.artifact.config import load_config
-        from spec_mtp.structure.control import experiment_config_from_mapping, run_config_from_merge
+        from spec_mtp.structure.artifact.config.io import load_config
+        from spec_mtp.structure.control.run_config import experiment_config_from_mapping, run_config_from_merge
         from spec_mtp.structure.make.expand import expand_patches, load_study_yaml
 
         study = load_study_yaml(Path(study_dir))
@@ -159,8 +166,8 @@ def check_frozen(study_dir: Path | str, study: dict[str, Any], current: dict[str
 
 def declared_inputs(study_dir: Path) -> dict[str, str]:
     """Freeze local prompt/model files already available at make, without downloading."""
-    from spec_mtp.structure.artifact.config import load_config
-    from spec_mtp.structure.control import experiment_config_from_mapping, run_config_from_merge
+    from spec_mtp.structure.artifact.config.io import load_config
+    from spec_mtp.structure.control.run_config import experiment_config_from_mapping, run_config_from_merge
     from spec_mtp.structure.make.expand import expand_patches, load_study_yaml
     from studies._shared.structure.evidence import file_hash
 

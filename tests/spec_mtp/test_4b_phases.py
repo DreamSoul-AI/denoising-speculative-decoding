@@ -1,7 +1,7 @@
 import importlib.util
 import sys
 import pytest
-from test_window_observer import ROOT
+from tests.spec_mtp.test_window_observer import ROOT
 
 
 @pytest.mark.parametrize('study',['output_space_4b_recheck_v2','output_space_4b_holdout','output_space_4b_input_control',

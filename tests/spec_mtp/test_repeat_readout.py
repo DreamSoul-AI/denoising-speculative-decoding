@@ -1,8 +1,8 @@
 """Independent-repeat readout retains AR diagnostics and complete argmax coverage."""
-import importlib.util
 import json
 from pathlib import Path
-import sys
+import hashlib
+from spec_mtp.structure.artifact.provenance import file_sha256
 
 import pytest
 
@@ -10,17 +10,17 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def reader(monkeypatch):
-    monkeypatch.setattr(sys, 'path', sys.path.copy())
-    path = ROOT / 'studies/esp_table1_nonofficial_revalidation/analyze_results.py'
-    spec = importlib.util.spec_from_file_location('sd_repeat_readout', path)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
+    from studies.esp_table1_nonofficial_revalidation.structure import readout
+    return readout
+
+
+def read_json(path):
+    return json.loads(path.read_text(encoding='utf-8'))
 
 
 def example(m):
     ids, output, ar = [1, 2], [1, 2, 3, 4, 5], [1, 2, 3, 7, 5]
-    token_hash = lambda x: m.hashlib.sha256(json.dumps(x).encode()).hexdigest()
+    token_hash = lambda x: hashlib.sha256(json.dumps(x).encode()).hexdigest()
     audit = {'passed': True, 'checked_committed_tokens': 3,
         'input_sha256': token_hash(ids), 'output_sha256': token_hash(output),
         'committed': [{'chosen': token, 'argmax': token} for token in output[2:]]}
@@ -98,8 +98,8 @@ def test_input_contract_uses_real_old_run_eos_and_derived_device(monkeypatch):
 @pytest.mark.parametrize("budget", [10, 30])
 def test_completed_checkpoint_reconciles_all480_pairs(monkeypatch, budget, historical_file):
     m = reader(monkeypatch)
-    snapshot = m.read(historical_file(f'studies/esp_table1_nonofficial_revalidation/docs/bc{budget}_checkpoint_v1.json'))
-    old = next(c for c in m.read(historical_file('studies/esp_table1_bf16_full_argmax/docs/protocol_evidence_v1.json'))['cells']
+    snapshot = read_json(historical_file(f'studies/esp_table1_nonofficial_revalidation/docs/bc{budget}_checkpoint_v1.json'))
+    old = next(c for c in read_json(historical_file('studies/esp_table1_bf16_full_argmax/docs/protocol_evidence_v1.json'))['cells']
                if c['BC'] == budget and c['num_masks'] == 1)
     assert snapshot['native_status'] == 'succeeded' and snapshot['validation_policy'] == 'verifier-argmax-v1'
     assert len(snapshot['rows']) == len(snapshot['token_audits']) == 480
@@ -113,13 +113,12 @@ def test_completed_checkpoint_reconciles_all480_pairs(monkeypatch, budget, histo
 
 
 def test_cross_checkout_pending_readout_writes_only_separate_output(monkeypatch, tmp_path):
-    m = reader(monkeypatch)
-    monkeypatch.syspath_prepend(str(ROOT / 'studies/esp_table1_nonofficial_revalidation'))
-    import revalidation_contract
+    import importlib
+    revalidation_contract = importlib.import_module('studies.esp_table1_nonofficial_revalidation.flow.process.run')
     from spec_mtp.structure.artifact import provenance
     from spec_mtp.structure.make import expand
     from studies._shared.structure import sources
-    monkeypatch.setattr(revalidation_contract, 'check_refs', lambda: None)
+    monkeypatch.setattr(revalidation_contract, 'check_refs', lambda *args: None)
     monkeypatch.setattr(provenance, 'check_frozen', lambda *args: None)
     monkeypatch.setattr(sources, 'check_frozen', lambda *args: None)
     monkeypatch.setattr(sources, 'manifest', lambda: {})
@@ -128,7 +127,7 @@ def test_cross_checkout_pending_readout_writes_only_separate_output(monkeypatch,
     study, base, output = execution / 'studies/repeat', tmp_path / 'baseline', tmp_path / 'readout'
     (study / 'docs').mkdir(parents=True)
     (base / 'docs').mkdir(parents=True)
-    monkeypatch.setattr(m, 'BASE', base)
+    (base / 'runs').mkdir(parents=True)
     for path, value in [(base / 'docs/protocol_evidence_v1.json', {'cells': [
             {'BC': bc, 'role': 'primary'} for bc in (10, 30, 60)]}),
             (base / 'docs/prompts_manifest.json', {'rendered_prompts': [{}] * 480}),
@@ -142,8 +141,8 @@ def test_cross_checkout_pending_readout_writes_only_separate_output(monkeypatch,
     (study / 'index.json').write_text(json.dumps({'experiments': entries}))
     before = {p.relative_to(study): p.read_bytes() for p in study.rglob('*') if p.is_file()}
     monkeypatch.chdir(execution)
-    m.main(study_dir=study, output_dir=output)
-    body = m.read(output / 'repeat_pending.json')
+    revalidation_contract.analyze(study, output, baseline_dir=base, baseline_runs=base / 'runs', execution_root=execution)
+    body = read_json(output / 'repeat_pending.json')
     assert body['complete'] is False and body['execution_root'] == str(execution)
     assert [c['BC'] for c in body['cells']] == [10, 30, 60]
     assert all(c['complete'] is False for c in body['cells'])
@@ -151,21 +150,20 @@ def test_cross_checkout_pending_readout_writes_only_separate_output(monkeypatch,
     assert before == {p.relative_to(study): p.read_bytes() for p in study.rglob('*') if p.is_file()}
     monkeypatch.chdir(tmp_path)
     with pytest.raises(AssertionError, match='frozen execution checkout root'):
-        m.main(study_dir=study, output_dir=output)
+        revalidation_contract.analyze(study, output, baseline_dir=base, baseline_runs=base / 'runs', execution_root=tmp_path)
 
 
 def test_cpu_acceptance_checkpoint_matches_completed_cells_and_published_pairs(monkeypatch, historical_file):
-    m = reader(monkeypatch)
-    proof = m.read(historical_file('studies/esp_table1_nonofficial_revalidation/docs/cpu_acceptance_checkpoint_v1.json'))
+    proof = read_json(historical_file('studies/esp_table1_nonofficial_revalidation/docs/cpu_acceptance_checkpoint_v1.json'))
     assert not proof['complete_8b_matrix'] and proof['no_model_forward'] and proof['no_timing']
     assert [c['BC'] for c in proof['table1_cells'] if c['complete']] == [10, 30]
     for cell in proof['table1_cells'][:2]:
         path = historical_file(cell['checkpoint'])
-        assert m.sha(path) == cell['checkpoint_sha256']
-        original = m.read(path)
+        assert file_sha256(path) == cell['checkpoint_sha256']
+        original = read_json(path)
         assert cell['pooled_tau'] == original['totals']['pooled_tau']
         assert cell['paired'] == {k: v for k, v in original['vs_original'].items() if k != 'rows'}
-    paired = m.read(historical_file('studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json'))
+    paired = read_json(historical_file('studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json'))
     recheck = proof['four_b_published_reaggregation']
     assert (recheck['cells_checked'], recheck['pairs_checked']) == (11, 20)
     assert recheck['cells'] == {k: v['totals'] for k, v in paired['cells'].items()}

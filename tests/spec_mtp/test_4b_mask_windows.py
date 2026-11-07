@@ -60,7 +60,7 @@ def test_local_factorial_keeps_native_first_and_shifts_only_declared_formula(mon
 
 @pytest.mark.parametrize('template', [False, True])
 def test_fixed_window_uses_native_control_and_predicts_after_bonus(monkeypatch, template):
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
     from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
     from studies._shared.structure.config import _convert
     m = tool('diagnose_4b_mask_windows', monkeypatch)
@@ -130,7 +130,7 @@ def test_template_and_zero_controls_keep_same_updated_mean(monkeypatch):
 
 
 def test_reverse_swap_replays_actual_input_path_and_preserves_native_control(monkeypatch):
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
     from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
     from studies._shared.structure.config import _convert
     m = tool('diagnose_4b_mask_windows', monkeypatch)

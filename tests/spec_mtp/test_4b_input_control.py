@@ -1,7 +1,7 @@
 import json
 import pytest
 import yaml
-from test_window_observer import ROOT
+from tests.spec_mtp.test_window_observer import ROOT
 from studies._shared.structure.config import spec_for
 
 

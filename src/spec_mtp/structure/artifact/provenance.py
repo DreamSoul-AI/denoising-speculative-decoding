@@ -22,8 +22,52 @@ def provenance_path(study_dir: Path | str) -> Path:
     return Path(study_dir) / PROVENANCE_NAME
 
 
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def file_sha256(path: Path | str) -> str:
+    """Hash the actual file in bounded chunks on every supported Python."""
+    digest = hashlib.sha256()
+    with Path(path).open('rb') as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+
+def read_historical_bytes(
+    repo_root: Path | str, commit: str, relative: Path | str, expected_sha256: str,
+) -> bytes:
+    """Read a pinned local Git member, at most 16 MiB, without filters or lazy fetch."""
+    if (not isinstance(commit, str) or len(commit) != 40
+            or any(char not in '0123456789abcdef' for char in commit)):
+        raise ValueError('historical source requires a full lowercase commit SHA')
+    if (not isinstance(expected_sha256, str) or len(expected_sha256) != 64
+            or any(char not in '0123456789abcdef' for char in expected_sha256)):
+        raise ValueError('historical source requires a lowercase SHA256')
+    if not isinstance(relative, (str, Path)):
+        raise ValueError('historical member must be a repository-relative path')
+    member = Path(relative)
+    name = member.as_posix()
+    if (not member.parts or member.is_absolute() or member.anchor or member.drive or '..' in member.parts
+            or ':' in name or '\\' in name or any(ord(char) < 32 for char in name)):
+        raise ValueError('historical member must be a repository-relative path')
+    root = Path(repo_root).resolve(strict=True)
+    command = ['git', '--no-lazy-fetch', '--no-replace-objects', '-c', 'safe.directory=' + str(root),
+               '-C', str(root)]
+    options: dict[str, Any] = {'timeout': 20, 'stderr': subprocess.DEVNULL}
+    top = subprocess.check_output(command + ['rev-parse', '--show-toplevel'],
+                                  text=True, encoding='utf-8', **options).strip()
+    if Path(top).resolve() != root:
+        raise ValueError('repo_root must identify the Git top-level directory')
+    kind = subprocess.check_output(command + ['cat-file', '-t', commit], **options).strip()
+    if kind != b'commit':
+        raise ValueError('historical source object must be a commit')
+    source = commit + ':' + name
+    size = int(subprocess.check_output(command + ['cat-file', '-s', source], **options))
+    if not 0 <= size <= 16 * 1024 * 1024:
+        raise ValueError('historical member exceeds the 16 MiB bound')
+    data = subprocess.check_output(command + ['cat-file', 'blob', source], **options)
+    if len(data) != size or hashlib.sha256(data).hexdigest() != expected_sha256:
+        raise ValueError('historical member SHA256 mismatch')
+    return data
 
 
 def _inside(study_dir: Path, raw: str) -> Path:
@@ -35,20 +79,11 @@ def _inside(study_dir: Path, raw: str) -> Path:
     return path
 
 
-def source_files(study_dir: Path | str, study: dict[str, Any]) -> dict[str, str]:
-    """Library and Study two-column sources, declarations, recipe, and extra inputs."""
-    import spec_mtp
+def study_source_paths(study_dir: Path | str, study: dict[str, Any]) -> dict[str, Path]:
+    """Declared static Study members, resolved inside their source root."""
     from spec_mtp.structure.make.recipe import study_phase_files
 
     study_dir = Path(study_dir).resolve()
-    package = Path(spec_mtp.__file__).resolve().parent
-    owned = []
-    for folder in ('flow', 'structure'):
-        for path in sorted((package / folder).rglob('*.py')):
-            if '__pycache__' in path.parts or 'reference' in path.parts:
-                continue
-            owned.append(path)
-    out = {'spec_mtp/' + path.relative_to(package).as_posix(): _sha256(path) for path in owned}
     names = list(DECLARATION_FILES)
     names.extend(path.relative_to(study_dir).as_posix() for path in study_phase_files(study_dir, study))
     for folder in ('flow', 'structure'):
@@ -64,10 +99,28 @@ def source_files(study_dir: Path | str, study: dict[str, Any]) -> dict[str, str]
         if not matched:
             raise FileNotFoundError(f'provenance.include matched nothing: {pattern}')
         names.extend(path.relative_to(study_dir).as_posix() for path in matched if path.is_file())
+    out = {}
     for name in names:
         path = _inside(study_dir, name)
         if path.is_file():
-            out[path.relative_to(study_dir).as_posix()] = _sha256(path)
+            out[path.relative_to(study_dir).as_posix()] = path
+    return out
+
+
+def source_files(study_dir: Path | str, study: dict[str, Any]) -> dict[str, str]:
+    """Library and Study two-column sources, declarations, recipe, and extra inputs."""
+    import spec_mtp
+
+    study_dir = Path(study_dir).resolve()
+    package = Path(spec_mtp.__file__).resolve().parent
+    owned = []
+    for folder in ('flow', 'structure'):
+        for path in sorted((package / folder).rglob('*.py')):
+            if '__pycache__' in path.parts or 'reference' in path.parts:
+                continue
+            owned.append(path)
+    out = {'spec_mtp/' + path.relative_to(package).as_posix(): file_sha256(path) for path in owned}
+    out.update({name: file_sha256(path) for name, path in study_source_paths(study_dir, study).items()})
     return out
 
 
@@ -77,13 +130,13 @@ def plan_files(study_dir: Path | str) -> dict[str, str]:
     index = study_dir / paths.INDEX_NAME
     if not index.is_file():
         return {}
-    out = {paths.INDEX_NAME: _sha256(index)}
+    out = {paths.INDEX_NAME: file_sha256(index)}
     body = json.loads(index.read_text(encoding='utf-8'))
     for experiment in body.get('experiments') or []:
         for run in experiment.get('runs') or []:
             config = study_dir / paths.RUNS_DIRNAME / str(run['id']) / paths.CONFIG_NAME
             if config.is_file():
-                out[config.relative_to(study_dir).as_posix()] = _sha256(config)
+                out[config.relative_to(study_dir).as_posix()] = file_sha256(config)
     return out
 
 

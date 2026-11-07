@@ -10,11 +10,15 @@ from spec_mtp.structure.artifact.errors import CorruptArtifactError
 
 
 def decode_config(text: str) -> dict[str, Any]:
-    data = yaml.safe_load(text) or {}
+    data = yaml.safe_load(text)
+    if data is None:
+        return {}
     if not isinstance(data, dict):
         raise CorruptArtifactError('Config must be a mapping')
     return data
 
 
 def encode_config(data: dict[str, Any]) -> str:
+    if not isinstance(data, dict):
+        raise CorruptArtifactError('Config must be a mapping')
     return yaml.safe_dump(data, sort_keys=False, allow_unicode=True)

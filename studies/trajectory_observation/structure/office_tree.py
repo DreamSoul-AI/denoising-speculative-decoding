@@ -2,13 +2,12 @@
 
 ``office-tree-shape-v1`` is the finished Qwen3-4B slice. ``office-8b-tree-shape-v1``
 reuses the same three shapes on a later Dolly slice. Prompt selection, the
-paired summary, and the command that loads weights live here. This module does
+paired summary live here; command coordination is in flow/execute/office.py. This module does
 not fit K. Import does not mutate the process environment.
 """
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import os
@@ -39,7 +38,6 @@ EVAL_QIDS_8B = tuple(qid for qid in range(START_8B, END_8B + 1) if qid not in SK
 MASK = {'init': 'mean_prompt', 'lam': 0.1, 'update': True}
 EVAL = {'max_new_tokens': 64, 'temperature': 0.0, 'stop_on_eos': False}
 SMOKE = {'max_new_tokens': 8, 'temperature': 0.0, 'stop_on_eos': False}
-QWEN3_4B = Path('D' + ':' + '\\') / 'models' / 'Qwen3-4B'
 ARMS = (
     ('b4', [4], 1),
     ('b22', [2, 2], 2),
@@ -288,62 +286,51 @@ def _offline_caches(dest):
 def _identity():
     head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, capture_output=True, text=True, timeout=20)
     dirty = subprocess.run(['git', 'status', '--porcelain'], cwd=ROOT, capture_output=True, text=True, timeout=30)
-    if head.returncode != 0:
+    if head.returncode != 0 or dirty.returncode != 0:
         raise RuntimeError('git head is unavailable')
     return {'git_head': head.stdout.strip(), 'dirty': bool(dirty.stdout.strip())}
 
 
-def _require_idle_gpu(minimum_free_mib=18000):
-    free = subprocess.run(
-        ['nvidia-smi', '--query-gpu=memory.free', '--format=csv,noheader,nounits'],
-        capture_output=True, text=True, timeout=20, check=False,
-    )
-    apps = subprocess.run(
-        ['nvidia-smi', '--query-compute-apps=pid,used_gpu_memory', '--format=csv,noheader'],
-        capture_output=True, text=True, timeout=20, check=False,
-    )
-    if free.returncode != 0 or apps.returncode != 0:
-        raise RuntimeError('nvidia-smi could not report GPU occupancy')
-    free_mib = int(free.stdout.strip().splitlines()[0])
-    busy = []
-    for line in apps.stdout.splitlines():
-        parts = [part.strip() for part in line.split(',')]
-        if len(parts) < 2:
-            continue
-        memory = parts[1].replace('[', '').replace(']', '')
-        if memory.isdigit():
-            busy.append(line.strip())
-    if busy or free_mib < minimum_free_mib:
-        raise RuntimeError(f'GPU is not free for 8B: free_mib={free_mib} busy={busy}')
+def _require_idle_gpu(minimum_free_mib=18000, device='cuda:0'):
+    """Check capacity on the selected CUDA device, including visibility remapping."""
+    import torch
+    free_bytes, _total = torch.cuda.mem_get_info(device)
+    free_mib = free_bytes // (1024 * 1024)
+    if free_mib < minimum_free_mib:
+        raise RuntimeError(f'GPU capacity is insufficient: device={device} free_mib={free_mib}')
     return free_mib
 
 
-def _weights(kind):
-    if kind == '4b':
-        return QWEN3_4B, '4B'
-    from studies.trajectory_observation.structure.office_qwen8b import QWEN3_8B
-    return QWEN3_8B, '8B'
+def _weights(kind, model_root):
+    if kind not in ('4b', '8b') or model_root is None:
+        raise ValueError('model label and explicit local model root are required')
+    return Path(model_root).resolve(), kind.upper()
 
 
-def _load_model(kind):
+def _load_model(kind, model_root, device='cuda:0'):
     import torch
     from transformers import AutoTokenizer
 
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
 
-    path, label = _weights(kind)
-    if kind == '8b':
-        _require_idle_gpu()
+    path, label = _weights(kind, model_root)
     if not path.is_dir():
         raise RuntimeError(f'Qwen3-{label} weights are not at the local {label} directory')
     if not torch.cuda.is_available():
         raise RuntimeError('this measurement requires CUDA')
+    if kind == '8b':
+        _require_idle_gpu(device=device)
     model = HFCausalLM(str(path), local_files_only=True, torch_dtype='bfloat16', attn_implementation='eager')
-    model.hf.to('cuda')
-    if not str(model.device).startswith('cuda') or model.dtype != torch.bfloat16:
-        raise RuntimeError(f'{label} is on {model.device} with dtype {model.dtype}')
-    tokenizer = AutoTokenizer.from_pretrained(str(path), local_files_only=True)
-    return model, tokenizer, torch.__version__
+    try:
+        model.hf.to(device)
+        if not str(model.device).startswith('cuda') or model.dtype != torch.bfloat16:
+            raise RuntimeError(f'{label} is on {model.device} with dtype {model.dtype}')
+        tokenizer = AutoTokenizer.from_pretrained(str(path), local_files_only=True)
+        return model, tokenizer, torch.__version__
+    except BaseException:
+        model.close()
+        raise
+
 
 
 def _append(path, row):
@@ -417,30 +404,3 @@ def _formal(model, tokenizer, prompts, skipped, digest, dest, protocol, prefix):
     _file(dest, 'summary', 'json', prefix).write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(summary, ensure_ascii=False), flush=True)
     return summary
-
-
-def main(argv=None):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dest', type=Path, required=True)
-    parser.add_argument('--model', choices=tuple(PREFIXES), default='4b')
-    parser.add_argument('--only', choices=('all', 'smoke', 'formal'), default='all')
-    args = parser.parse_args(argv)
-    dest = existing_output_dir(args.dest)
-    _offline_caches(dest)
-    from studies.trajectory_observation.structure.office_qwen8b import load_dolly_rows
-
-    prompts, skipped, digest, protocol = _registered(args.model, load_dolly_rows())
-    prefix = PREFIXES[args.model]
-    print(f'load {args.model}', flush=True)
-    model, tokenizer, torch_version = _load_model(args.model)
-    if args.only in ('all', 'smoke'):
-        _smoke(model, tokenizer, prompts, dest, protocol, prefix)
-    if args.only in ('all', 'formal'):
-        if _identity()['dirty']:
-            raise RuntimeError('formal run requires a clean worktree')
-        _formal(model, tokenizer, prompts, skipped, digest, dest, protocol, prefix)
-    print('torch', torch_version, flush=True)
-
-
-if __name__ == '__main__':
-    main()

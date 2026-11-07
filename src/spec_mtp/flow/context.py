@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from spec_mtp.structure.artifact.layout import ArtifactLayout
-from spec_mtp.structure.control import Control
+from spec_mtp.structure.control.control import Control
 
 
 @dataclass
@@ -23,12 +23,6 @@ class FlowContext:
     @property
     def scope(self) -> str:
         return 'run'
-
-    @property
-    def experiment_dir(self) -> Path:
-        """Deprecated alias for ``study_dir`` (recipe lives inside the Study)."""
-        return self.study_dir
-
 
 @dataclass
 class StudyProcessContext:

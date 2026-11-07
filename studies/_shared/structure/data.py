@@ -7,7 +7,7 @@ from pathlib import Path
 
 from spec_mtp.structure.data.factory import Data, DataRegistry
 
-from spec_mtp.data import encode_prompts, load_records, needs_tokenizer
+from spec_mtp.structure.data.prompts import encode_prompts, load_records, needs_tokenizer
 
 _REPO = Path(__file__).resolve().parents[3]
 _DEFAULT_SPECBENCH = _REPO / 'datasets' / 'spec_bench' / 'question.jsonl'
