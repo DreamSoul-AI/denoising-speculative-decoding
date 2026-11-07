@@ -6,9 +6,9 @@
 
 介观＝搞清楚合作者 speculative_mtp（d91ed75）为什么能 work、我们这边为什么不 work。先在临时目录（D:\Grok Bot\tmp\sd）隔离跑通合作者原代码，用同一模型、同一数据、同一 GPU，按源码重新校准 K，作为新实验记录；再和我们的实现逐项对照差异（配置、mask provider、EMA 和 Kalman 公式、frontier gain、解码/验证/KV、评测口径），每项用最小 CUDA 实验定位导致差距的原因，结论写进研究计划。合并进我们的分支先不做，也不改合作者代码。
 
-宏观与介观沿用 Owner 和巡检给定的原文；当前微观R93已在新授权时窗执行G16原q433–448，96正式＋6预热完成并退出释放。冻结K相对ESP接受均值+4.0625、描述generate时长比1.020094×；两臂均14原参考匹配/1不匹配/1格式NE，独立数学9直接/6有条件/1输出冲突unknown。接受/时长点方向为正，完整答案无条件等质加速仍未成立；原R90与H84/H90不改。原码隔离重跑按Owner更正不作为当前前置。
+宏观与介观沿用 Owner 和巡检给定的原文；当前微观R94只核现有EMA/Kalman负结果的机制差异，复用R74/R76/R80/R81，不启动RAG或重拟合。已完成单个Kalman提交历史路由小门的CPU准备：裸调用与原frontier包装路径、固定张量、内部240/父300秒；当前无新GPU授权，数值与真实混合分支尚未执行。R93接受/描述计时正点与共同质量缺口、旧失败均保持；原码隔离重跑按Owner更正取消。
 
-1. **本拍R93固定G16 CUDA与质量收尾**：沿R92事前rubric与科学协议执行，源/T0、模型关闭/14件末核及actualexit0完成；新释放后只做CPU原件与数学审查。保全16题及所有三重复，不改prompt/解析/单位规则或追跑。结果与限制见第二十六节，未来不自动续GPU。
+1. **本拍R94单点差分**：先分开已核递推、provider分布变化与host同步成本，只待验裸Kalman/frontier包装路径是否严格消费实际提交历史。事前预期/来源/零容差/预算及CPU拒绝门已准备，见第二十七节；需新GPU交接才执行，不改公式、参数、臂/长度或历史评分。
 2. **此前R75–R77有界执行已收束**：32题冻结K复核通过预设稳定门，16题直接组合两法均负，四题质量批全部无EOS、语义未闭合；结果见第二章及第十七至十九节。三批已退出，不改原码/生产或扩研究树。
 3. **此前R68–R74逐因素对照已收束**：R67同K对照已通过，R68已完成固定401对的ridge对照，点方向通过但区间跨无效值；R69固定λ=.3的两条校准输入加入对照亦已完成，R69b配对边界对照已完成，R70/R71 provider与anchor、R72常量/完整frontier、R73计时口径与R74现有Kalman对照均已完成；本小时队列收束，不自动加臂/扫参/扩长度。每项先冻结协议、再CUDA执行并记录正负结果，临时输出只在D:/Grok Bot/tmp/sd的本拍子目录，原代码保持原字节。
 4. **按已验证范围判断可用性**：分开 EMA、各具体 Kalman 递推与静态仿射 K；受测状态、时序、重置与数值合同已核，未覆盖范围不写成通过。
@@ -603,6 +603,33 @@ q433两臂三次均输出`### Final answer:`再换行84，明确数学解30−9=
 
 **释放与处置**：UTC17:02:17.797762（上海01:02:17）已核owned PID49940实际退出、NVIDIA无该PID、owned扫描空；发布本批新`GPU-RELEASE-final.json`并立即向协调会话回报GPU子任务完成。随后只做CPU审计/数学/文档，不等待回信、不再派卡。当前批结束，未改K/格式追好结果；完整答案质量缺口仍需另行明确评价问题，不自动重跑/扩题/加臂。协议/summary保留的R92描述标签（scope末尾no current GPU dispatch、STAGE92、CPU准入model_rows0）已在`inherited-metadata-disclosure.json`公开为继承元数据；R93真实102执行、授权/源/退出原件优先，没有修改或重签冻结文件，不能把旧标签当零执行。
 
+## （二十七）R94：标量Kalman的实际提交历史路由合同
+**问题与采用状态**：R74的标量Kalman与R76的冻结K直接组合均较基线接受少、时间长。先排除一个可能导致这些现象的集成解释：decoder或原frontier包装器是否把拒绝草稿、裁尾后的逻辑bonus传入Kalman状态，或漏/重复实际提交。当前为**CPU准备已完成、CUDA待验且未授权**；不预设存在bug，不重做已核公式或收益矩阵。历史R75/R76的RAG类别只保原记录，本批不另开RAG/任务或改合作者代码。
+
+| **与负结果直接相关的差异** | **已有证据能回答什么** | **不能据此认定什么** |
+| --- | --- | --- |
+| 作用空间与观测 | EMA是输入embedding差分外推；R74 Kalman以实际提交embedding为观测、共享P/Q/R/K更新输入level。静态frontier K校正首mask的final-normalized hidden残差；R80/81是原类FP64累计统计与在线refit，不是P/Q/R Kalman | 不能把静态ridge或原在线refit的正点转为本仓Kalman成功 |
+| EMA与Kalman公式 | R70的ESP/EMA外生轨迹逐状态对齐；既有CUDA加权历史、Joseph/噪声floor/reset预期通过。R74/R76冻结Kalman类与当前AST相同 | 代数吻合不能解释为何接受更低，也不证明滤波假设/收益 |
+| frontier/bonus时序 | 原静态/在线frontier有R67/R81提交链及末K对齐；EMA已有混合接受/拒绝历史测试；Hybrid已有EOS/预算裁尾callback测试 | 上述不是本标量Kalman经R76包装路径的独立历史回放；R74/R76原件主要是全T0和末态有限/范围检查 |
+| 拟合与应用provider | R76固定ESP校准K后只换EMA-last或Kalman，full两组合为负；真实provider分布改变是已知设计条件 | 缺完整保存frontier特征向量，未量化分布偏移或证明它独占因果；本拍不重新拟合/调参 |
+| host标量同步 | Kalman初始化variance及每_step innovation均将CUDA标量转Python float；prompt逐token扫描与这些同步计入R74/R76 generate | 来源支持存在成本，但不能把全部墙钟增加归给同步，更不能用它解释接受下降 |
+
+**单一假设H94（集成排除，不是收益假设）**：在固定的实际decoder边界刺激下，只改变裸`KalmanMaskProvider`与R76原`FrontierPolicy`包装路由，二者callback序列都等于独立预期的实际提交前缀；最终BF16 level/masks与host P/Q/R/K/t等于脱离decoder、只喂该预期历史的同公式回放。若失败，提交历史接线仍是候选原因；若通过，只排除所测路由/裁尾条件的污染，不把分布错配或同步成本升级为唯一解释，不声称Kalman收益。
+
+| **固定项** | **事前协议、验收与责任** |
+| --- | --- |
+| 来源与改动 | 当前clean源码基线0cb4276；R74/R76实际source_snapshot中的Kalman类与当前AST一致，原R80/R81原件复用。原R76 adapter逐字复制SHA `0654c3ada23c43c7188ec5e2575b0c1b3440edec3eed2ea3deae3015d6db8dda`；117个实际宿主/配置/fixture依赖文件SHA冻结，无生产或第三方代码改动 |
+| 模型与张量 | 不加载真实模型或14权重。复用tests/conftest.py的显式设备FakeSession骨架；8×8 identity embedding/BF16、固定20I输出head、固定9×8 FP32零K，只让包装路径保持同读出作路由控制。零K不是新拟合或收益臂，不能当原真实K制品；全部张量和运算必须CUDA并记录实际设备 |
+| 独立刺激 | prompt token[1,2,3]；所有实际owner验证规则为(position+2)mod8，故提交前缀独立预期[4,5,6,7,0,1,2]。mixed刺激只在交替forward的首mask读出移一token，owner验证规则不变，必须真实出现接受与拒绝。另budget2裁尾、EOS6裁尾、budget1仅prefill；每项fresh base/wrapper同R74/R76工厂实际用法，不造未使用的跨prompt复用bug |
+| 唯一因素与数量 | bare与frontier_zero_control两条路由，4个固定边界共8 case；K2、naive、static branches[1,1]/不剪枝、T0、seed123，现有online/forget=.95/r_min=1e-6/q_min=1e-8/q_scale=.01均不改。此小fixture验证共享callback循环，不冒充原BC30 dynamic真实模型全域验证 |
+| 预期/零容差 | 每case实际完整提交必须为上述预期按预算/EOS6截断；回调(new,prev)严格逐一对齐且_t=prompt3+实际提交数。拒绝/被裁尾的未提交bonus不得出现。BF16 level/masks存储位与host标量对同provider提交历史回放要求完全相等；两路由同结果/状态/顺序。回放独立于decoder历史派发，但复用同公式，**不称独立代数oracle**；代数依据复用旧Joseph等测试 |
+| 有效刺激与原件 | mixed必须确有accepted与zero-accepted轮；两裁尾case必须真的在逻辑bonus前截断，否则刺激无效而失败。保存全部request/raw/result、完整实际提交argmax/source审计、level/PQRKt及回调序列、K未改、退出/partial，不用T0代替状态门 |
+| 资源、deadline与取消 | 内部240/父300秒，另明确60秒退出余量；启动前新窗口须覆盖300+60及新鲜owned退出/停派交接，原observe(initial=True)在Torch前通过。父是实际worker owner，以PID/create_time/argv限制300秒强停；内部每case及generate取消检查deadline，失败保partial且finally关闭fixture会话，实际进程退出后才确认释放。没有CPU替代或自动重试/放宽/扩case |
+| CPU准备与尚未覆盖 | 两脚本compile，6类元数据漂移拒绝；父/worker在false授权下均退出2且未入Popen/Torch/资源门，独立整数前缀及回调多/少/额外负例通过。第一次给不存在tests/__init__.py列源被拒，已保首错，只绑定真实namespace依赖。实际CUDA fixture可达性、混合分支/裁尾有效性、BF16 exact回放与完整T0均待验，不能记通过 |
+| GPU待验与停止 | CPU根D:/Grok Bot/tmp/sd/round94，冻结提交后protocol.json与计划快照/来源绑定，false授权保原样。准备完成即向协调会话回报CUDA待验就绪；未来新授权后用未占用新Run/root（候选round95）只适配授权/窗口/提交身份。拒绝或窗不足保未派发；执行失败不重跑，真实退出释放先回报GPU子任务，再CPU记录/最终交付，不等待回信占卡 |
+
+**与论文受限主张的关联**：R93的1.020094×、接受+4.0625和14/1/1仍是该批描述，q433格式NE、q438共同单位冲突以及440/446条件保持。它们不自动算方法相对质量退化，也不替R94签状态正确。H94通过只使“这组负结果由所测callback污染造成”的解释缺少支持；未通过先查真实接线/fixture与冻结来源，不更改Kalman方程或借静态K正结果改签。原件与CPU准备过程见运行记录第九十三节，本文仍是唯一研究计划。
+
 # 五、历史Run收束与判读合同
 | **材料** | **当前状态与收束** |
 | --- | --- |
@@ -637,7 +664,7 @@ T0门是每个实际提交token对应验证前向argmax，覆盖prefill、bonus�
 实际加速需同质量、同输出条件完整计时，冻结预热、CUDA同步、加载边界、臂顺序与资源。缺计时不填零，host-clock、cProfile及关闭计时占位不是速度证据。工程tiny模型、小张量、重绘与计数复核只证明对应合同，不产生新真实模型收益结论。
 
 # 六、停止与下一步
-R93固定G16已执行、审计并实际退出释放；接受/描述计时点方向正，质量仍有共同格式NE、百分数终行冲突及条件语义，不由小切片1.020094×推广等质稳定加速。本批结束，当前无后续CUDA派发；下一步先由本次16题证据决定论文可报告的受限主张和实际评价缺口，若要新实验须另列可改变判断的问题、对照/预算与明确GPU协调，不能为追全绿复跑、换格式、加臂或扩题。R92原CPU准备及R91审查、R90原5/2/1与H84/H90失败不改；旧EMA/Kalman/256与合作原480cfg/K/CSV及四项原字节缺口按原范围保持，不用G16补签。
+R94已完成一个标量Kalman历史路由小门的CPU准备与事前协议；先回报CUDA待验就绪，当前无新GPU授权、不探资源抢卡。若获明确新交接，只执行240/300秒固定小门，失败/拒绝保留，实际退出先回报释放，再写结论；若本拍未获交接，则交付CPU准备及未验状态，不用等待制造新实验。R93已退出释放及其接受/描述计时正点、共同格式/单位/条件缺口保持；不重开RAG、旧矩阵或原码隔离，不重拟合、改方程/参数/格式追正。既往EMA/Kalman/256与R90/H84/H90失败及合作正表/历史字节拒绝按原范围保留。
 
 
 研究问题、对照或预算变化时更新本文，不另建平行计划。新算法不是已有结案的等待条件。工程只处理直接阻塞当前结论或来源保全的具体缺口，其余事项见开发计划。
