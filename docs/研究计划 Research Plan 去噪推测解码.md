@@ -410,6 +410,10 @@ provider构造setup在外，prompt初始化/EMA递推/Kalman实际Python标量P/
 
 **实际状态：资源阻塞，尚无模型质量结果。** 事前提交e6f6de5/7efdfce，19项评分与8项独立字符串自检通过。北京时间07:05后只读核对dayan的37份owned退出原件和不再派发声明；原observe(initial=True)于UTC23:06:40拒绝：无foreign CUDA进程、free VRAM20507MiB/util5%，但主机available10291404800+workerRSS768827392=11060232192字节，低于原peak17305047040+reserve2147483648=19452530688字节。R84父进程实际exit1/非超时，模型未加载、请求0，无T0/答案/速度；R85依准入顺序未派发。没有重试、放宽预算、改资源门或改用CPU跑模型。NVIDIA实际型号RTX5090 D v2；这不是完成一次BF16模型验证。下次须资源真正满足原门并用新运行身份，不覆盖此次拒绝；原q414失败和全部历史结论保持。完整回执见运行记录第八十六节。TEMP/TMP恒D:/Grok Bot/tmp；全部临时/cache/output仅D:/Grok Bot/tmp/sd。合作原表cfg/K/CSV与历史raw-byte缺口保持未知；本轮不清理重构、不重跑已对齐机制。
 
+**资源变化后的新执行预注册：R87/R88（2026年11月7日20:49）**。本轮沿H84/H85原问题与固定控制继续：新round87先q417两臂各一次，真实EOS/全文数字/原gold正确及source/T0/close/末核/实际退出0全部成立才派round88的425–432两臂三rep Latin/48请求；64、非思考模板、EOS、seed123、Qwen3-4B BF16/eager、ESP与固定K/adapter均保持原字节。v3评分器c6bcc7b4…不改；独立审计新增真实ID的非EOS特殊token拒绝，4项新增读端边界通过；未变27/36项不重跑。新driver只迁移身份/读端/协调与日志，科学函数和常量AST与旧版本相同，执行前绑定当前clean HEAD、本文、driver/parent/audit/scorer/输入/refs/K及模型14件；旧R84拒绝与所有失败保留。
+
+本轮以dayan最新停派安排及r3c_20261107_1933/GPU-RELEASE-final.json实际owned退出原件为协调来源，接卡前重新只读确认；worker在torch/CUDA初始化前执行未改的observe(initial=True)，维持原18.12GiB/VRAM/foreign门。每批启动时协调证据须≤120秒且原件SHA相同；不以巡检快照代实际准入。新启动预算为本日20:49–21:25（上海），最晚父预算21:31内退出，留收尾时间；开发内部180/父240秒、正式300/父360秒均不变，失败/准入不通过即止，不换题、扩长度或重试。现有执行未覆盖载模全过程RSS监测，当前4B加载峰值保unknown，不另开容量实验或改门。评分/参考/数学unknown、完整提交T0、接受/τ与变长EOS描述计时仍按上表分列；结束保实际worker退出、GPU释放和不再派发回执。此为新运行身份预注册，尚未取得模型结果。
+
 # 五、历史Run收束与判读合同
 | **材料** | **当前状态与收束** |
 | --- | --- |
