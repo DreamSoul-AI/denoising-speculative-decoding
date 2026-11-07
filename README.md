@@ -7,7 +7,7 @@
 
 截至2026年10月21日的 8B 非官方 Table 1 独立复验已经完成，论文目标未复现。数字和原件在 [历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>)。提交 token 的验证前向 argmax 自检与独立 AR 一致率分别报告，τ 是提交数与解码调用数之比，不能据此认定实际速度收益。
 
-当前微观R96已在唯一研究计划收口合作者机制与接受主指标，保留旧冻结Run判据；正准备固定静态先验K前/后的在线滤波空间顺序对照。只完成CPU准备，当前无新GPU授权，不重拟合或新增RAG任务；已完成H94合同不再重复探测。
+当前微观R96已在唯一研究计划收口合作者机制与接受主指标，保留旧Run判据；当前H96-v2只比较固定K前后估计自适应噪声/gain哪个更合适，预先说明可交换条件、预期接受关系和方法决定。四题三臂各一次的12请求仍仅CPU候选，原v1只读封存；没有新GPU授权，不重拟合、扩RAG或重复H94。
 
 微观：R78–R82b已在RTX5090 D v2完成质量与frontier机制核验。非思考八题两臂各7正确/1未完成；原online K流接受823→836，速度点值1.001534×且2/3次更慢；动态K/提交链与原decoder一致。同布局零残差对照full/zero为1.107204×、每题接受+8.187500，H82点门通过。条件与当前结论见唯一 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)。
 
@@ -128,7 +128,7 @@ profile 在 CUDA 工作负载上使用 cProfile，component 是主机侧 self-ti
 
 native shared CLI 的 smoke 测试按架构 NS0–NS4 使用独立 CUDA 验证身份。测试复制原声明到外部新根，显式绑定 system/eval 设备，微型模型在 CUDA 初始化并记录实际输入、权重摘要、dtype/backend和运行种子；CPU只准备固定离散token及做纯IO拒绝检查。T0以完整提交链argmax验收，独立AR与接受数为诊断，旧CPU的27/31/8不作CUDA基线。原CPU Study声明、旧Run和历史图保持原义，不因测试迁移重签。
 
-运行前先将TEMP/TMP设为当次指定的外部任务目录，再将 `PYTHONPYCACHEPREFIX` 设为该目录下可写的缓存子目录；正常启动允许Python读写字节码缓存，所有制品仍留在任务目录。不要同时给全新空前缀和 `PYTHONDONTWRITEBYTECODE=1` 或给每个worker加 `-B`：这会绕开安装目录已有缓存并让独立进程反复编译。PowerShell可用 `Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue` 移除禁写设置；用 `python -c "import sys; print(sys.dont_write_bytecode, sys.pycache_prefix)"` 核实际子解释器配置。原native launch的90秒门限、完整断言和失败退出保持；缓存行为见[Python官方说明](https://docs.python.org/3.13/library/sys.html#sys.pycache_prefix)。
+CPU纯检查的临时材料可放已ignore的`.tmp/<任务名>/`；正式Run输出仍通过`validate_output_root`与源码/输入根隔离，使用本次明确的新外部任务根。历史外部原件只读。运行前将TEMP/TMP设为当前任务目录下的临时子目录，再将 `PYTHONPYCACHEPREFIX` 设为同一任务下可写的缓存子目录；正常启动允许Python读写字节码缓存，所有制品仍留在任务目录。不要同时给全新空前缀和 `PYTHONDONTWRITEBYTECODE=1` 或给每个worker加 `-B`：这会绕开安装目录已有缓存并让独立进程反复编译。PowerShell可用 `Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue` 移除禁写设置；用 `python -c "import sys; print(sys.dont_write_bytecode, sys.pycache_prefix)"` 核实际子解释器配置。原native launch的90秒门限、完整断言和失败退出保持；缓存行为见[Python官方说明](https://docs.python.org/3.13/library/sys.html#sys.pycache_prefix)。
 
 native CLI 验证使用独立测试计划：`python tests/run.py --plan cuda-native-smoke --output-root <另一外部新验证目录>`，单卡、300秒预算，包含11个原smoke数值入口路径及1个报告launch，共12项；不并入原cuda-validation预算。两组GPU验证依次执行，实际设备与来源保存到各自回执，纯配置/来源拒绝仍由cpu-quick选择。该计划不运行真实权重或旧研究矩阵。
 
