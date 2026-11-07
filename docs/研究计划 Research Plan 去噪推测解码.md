@@ -419,6 +419,24 @@ provider构造setup在外，prompt初始化/EMA递推/Kalman实际Python标量P/
 
 **R87实测与本批处置**：6f3a50d/clean为事前执行身份；原18.12GiB/VRAM/foreign门实测通过后，在RTX5090 D v2 CUDA0/BF16/eager完成q417两臂。两条64-token前缀完全相同，均继续解释相对速度并在预算处截断，无EOS。v3评分每臂correct0/wrong0/NE1；128提交完整T0、115源/模型14件及K始末绑定、模型close/末核、actualexit0、同步原件审计通过。**H84不获完整答案准入支持，R88依协议未派发，八题质量仍未测**。实际接受ESP23/full24，τ1.575000/1.615385，同步generate1.894166/1.444316秒；单开发题/无预热/固定ESP先后，只保描述值。UTC13:01:03已核owned PID22092退出并发布round87/GPU-RELEASE-final.json，next_batch_planned=false。本批不续长、换题、加臂或扫参；旧q414与R84拒绝保持。完整答案评价恢复须新协议选择和事前登记，不将当前未完成前缀拼接成已答对或速度收益。具体命令/UTC/SHA见运行记录第八十八节。
 
+## （二十五）R89–R90：解释与显式终行答案的完整解答协议
+**问题与取舍**：R87实际同时有64预算截断与旧全文数字格式未遵循，不能归为纯预算不足；其H84失败/R88未派发保持。旧提示只允许一个数字且无解释后的答案标记。为避免把解释中任意末数字当答案，本版保原题干/模型/模板/ESP与冻结K，只把末尾指令一次替换为：`You may explain your solution. End with exactly one final line of the form Final answer: <decimal number>. Put no units or formatting on that line, and write nothing after it.`。提示、512上限与终行判读是一个整体探索，不拆成预算或格式的已证因果，不试提示网格。
+
+**H89开发假设**：固定已见开发q417，两臂各一次能在512内以真实EOS终止，并给出唯一机械可评分的最终数值。开发准入要求完整/source/T0/close/模型末核/实际退出0及两臂都可评分；**correct或wrong均可准入，gold不用于选协议**，NE阻断正式派发。q417不是独立质量样本，正/负/未执行都保留。
+
+| **冻结项** | **新协议与判读** |
+| --- | --- |
+| 输入/对照 | 原题干不变，新末尾指令如上，enable_thinking=False及空闭合think输入prefix不变；开发417，输入89token/SHAa0c788bf38f3…；原参考/gold不变，只更新新提示摘要绑定，refs9db840b4203e…。Qwen3-4B BF16/eager、K2/BC30/dynamic-pruned/naive、ESP mean_prompt λ=.1/update、固定K17b62…与adapter0654…、seed123/greedy、max512/EOS=true，无新拟合/扫参/预热 |
+| 唯一答案边界 | 仅去真实终端EOS后的raw正文须与解码正文一致，其它生成控制token按既有v3规则拒绝。正文中去空白后以大小写精确`Final answer:`开头的行恰有一行，且它必须是最后非空行；标签后仅一个十进制数，可符号、规范千位逗号、小数与空白。原文和全部提交token保留，绝不扫描全文最后数字 |
+| 单位/歧义/未完成 | 单位可在解释中出现，最终行含单位/百分号/等式/分式/指数记法/boxed/Markdown/多值/备选均NE，不换算或选其一；重复记录即使同值也NE，记录后有正文也NE。无实际EOS/截断先记NE，缺行/未派发/来源失败保unknown而不补假零。生成新role/thought或隐藏特殊token仍按既有v3规则拒绝 |
+| 新检查与身份 | 新parser 5e20953cb8cb…与同步独立raw-ID读端绑定，11项新parser/4项新读端边界通过；旧EOS/隐藏token检查AST沿用，不重跑无变化旧套件。新round89冻结clean HEAD、计划/driver/parent/audit/scorer/输入/refs/K及模型14件，不覆盖R84–R88 |
+| 开发预算/停止 | 两请求、ESP后full、每臂最多512，内部180/父240秒；H89失败即停，不补题/延长/改提示追通过。旧工程90/300秒门保持；新开发不是续写R87 |
+| 条件正式R90 | 只有H89完整可评分且窗口足够时，另提交并冻结同一协议正式版，原固定425–432、两臂三rep Latin/48请求、每臂max512，内部1200/父1260秒。最晚上海22:08启动以22:29前完成父预算并留退出/末核；不足则正式待验，不缩科学门赶时间。当前未派发，不能把旧R88直接当已准入 |
+| 正式评价边界 | 每臂24请求、独立8qid；重复与答案/接受稳定性分列。原参考匹配C/W/NE与数学质量分开，q428 reference defect的数学unknown保8题分母；解释推理正确性不由数值匹配自动证明。T0、最终答案质量、实际接受/τ与变长EOS描述计时分开，同正确数不证明语义非劣，不拼旧128固定预算速度 |
+| GPU错峰 | 上海本日22:05前不启动CUDA。22:05后核dayan本轮新owned退出与停派原件，协调证据≤120秒、SHA一致，worker先过未改18.12GiB/VRAM/foreign门再初始化CUDA；旧r3c释放及到点/低利用率无效。GPU窗口22:05–22:35，开发最迟22:26启（父240秒至22:30），正式最迟22:08启；留自然退出/末核，未知不抢卡/不杀他人。本批结束留owned退出、GPU释放和停派回执，不另发其它对话消息 |
+
+当前为CPU预注册准备，未取得新模型结果；TEMP/TMP=D:/Grok Bot/tmp，临时/cache/output仅D:/Grok Bot/tmp/sd/round89（正式若获准再建round90），无下载/升级/生产重构或原码隔离重跑。
+
 # 五、历史Run收束与判读合同
 | **材料** | **当前状态与收束** |
 | --- | --- |
