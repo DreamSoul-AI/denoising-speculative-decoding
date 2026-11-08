@@ -17,12 +17,12 @@
 # 四、静态校正跨prompt状态重置待核
 只读审查发现VerifyCorrectionMaskProvider在线scalar的init重置轮次标记，但未见还原拟合的k/num/den；跨prompt复用与每prompt新实例可能不同。该项尚未CUDA复现，不能据此判定旧Run失效；若必要诊断对照用到它，先按真实调用方式验证并明确状态作用域。当前Kalman/EMA独立参考不覆盖该静态校正类。
 
-# 五、R104四题收集薄绑定的冷导入失败
+# 五、R104观察入口修复后的真实worker待验
 
-状态：待修复，阻塞q85–88观察收集，已撤回此前的收集CPU就绪判断。旧矩校准参数与只读影子数学合同不受此入口缺陷影响；新预测、接受与完整T0仍未执行。
+状态：新版本CPU修复已核，待真实worker验证。旧R104入口及其就绪撤回保留；R105新版本仅恢复工厂创建时、替换NativeObservation之前导入真实观察器的语义，未改owner、Job或作者源码。旧矩校准与只读影子合同不变，新四题预测、接受与T0仍未执行。
 
-真实worker在`collect_entry.observer_factory`返回工厂后，原`r101_entry.worker`已将`eval_native_observer.NativeObservation`替换为该函数；工厂的construct此时才导入cost_observer→causal_native，后者执行`class CausalObservation(NativeObservation)`，基类已是函数，触发`TypeError: function() argument 'code' must be code, not str`。此前FakeObserver测试替换了整个cost_observer模块，漏验真实冷导入。原入口在创建工厂时提前导入，新增薄绑定将它延后，是本缺陷的直接原因。
+原失败及导入链归运行记录第一百一十一节。当前回归已在独立CPU冷进程中，以真实cost_observer→causal_native类图复现旧源TypeError，再核新源真实观察器构造、基类身份、绑定还原及未授权早拒；没有用FakeObserver替换模块。decoder明确为禁止构造边界，未执行实际SpecDecoder／模型构造、生成或设备查询，因此不能据CPU通过宣称完整worker通过。
 
-最小修复建议：在**worker获准后创建observer_factory时**导入原CausalObservation，早于替换基类；不得移到入口模块顶层而破坏未授权时不导torch的门。先用隔离CPU进程覆盖真实模块冷导入及基类身份，不用FakeObserver替代这条回归；同时保留未授权CLI在torch/child/resource前拒绝与作用域还原检查。无需更改算法、Job owner、模型或时间／资源门。
+剩余验收：巡检独立核新入口／禁执行协议／来源冻结和CPU消费环境，再另交接资源与有限授权，验证真实worker的观察器接线及原四包/T0/退出释放。无-B、任务内缓存、null环境键删除及原时间／资源门保持；不应再改导入位置、科学参数或用其它观察器替代回归。
 
-本批只登记原因与验收，冻结失败入口未修改。后续修复须保留旧源码／协议，使用新版本与新Run根，重新核来源和入口后再评有限授权；不得复用失败根、旧grant或自动重试。实际v1/v2及释放证据见[运行记录第一百一十一节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+旧源码／协议／失败根不修改、不复用；新版本和新Run根的authority及新接收标志仍为false。修复CPU证据见[运行记录第一百一十二节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)，此前v1/v2按各自原身份保留。
