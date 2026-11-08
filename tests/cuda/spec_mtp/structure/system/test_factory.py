@@ -1,0 +1,360 @@
+"""Checkpoint selection is read-only and prefers an existing committed bundle."""
+
+from types import SimpleNamespace
+
+from pathlib import Path
+
+import pytest
+
+from spec_mtp.structure.system.factory import System
+
+@pytest.fixture
+def cuda_checkpoint(tmp_path):
+    import torch
+
+    assert torch.cuda.is_available(), 'checkpoint tensor integration requires an available CUDA device'
+    device = torch.device('cuda', torch.cuda.current_device())
+    print(f'checkpoint persistence device={device} name={torch.cuda.get_device_name(device)}')
+    system = System(device=str(device), logger=SimpleNamespace(), assets_dir=tmp_path, meta={})
+
+    def payload(value, *, tensor_meta=False):
+        body = {'model': {'weight': torch.tensor([value, value + 1.], device=device)},
+                'optimizer': {'step': value, 'buffer': torch.tensor([2. * value], device=device)},
+                'scheduler': {'last_epoch': value}, 'tracker': {'history': [value]},
+                'logger': {'fixture': True}, 'epoch': value}
+        if tensor_meta:
+            body['metadata_tensor'] = torch.tensor([value], device=device)
+        return body
+
+    return SimpleNamespace(system=system, payload=payload, device=device)
+
+def _failure(monkeypatch, system, phase):
+    import os
+    import tempfile
+    import torch
+    from spec_mtp.structure.artifact import _atomic
+
+    primary = (TypeError if phase == 'meta_writer_type' else OSError)(f'injected checkpoint {phase} failure')
+    original_save, original_text, original_replace = torch.save, _atomic.atomic_write_text, _atomic.atomic_replace
+    bundle, folder = system.assets_dir / 'checkpoints/latest.pt', system.assets_dir / 'checkpoints/latest'
+
+    def save(value, target, **options):
+        path = Path(target) if isinstance(target, (str, Path)) else None
+        if phase == 'serialization' and path is None:
+            target.write(b'partial uncommitted bundle')
+            raise primary
+        if path is not None and ((phase == 'piece' and path.name == 'model.pt')
+                                 or (phase == 'meta_pt' and path.name == 'meta.pt')):
+            path.write_bytes(b'partial diagnostic piece')
+            raise primary
+        return original_save(value, target, **options)
+
+    def text(path, *args, **options):
+        if Path(path).name == {'tracker': 'tracker.json', 'meta_json': 'meta.json',
+                              'meta_writer_type': 'meta.json'}.get(phase):
+            raise primary
+        return original_text(path, *args, **options)
+
+    def replace(source, target):
+        if ((phase == 'mirror_publish' and Path(target) == folder / 'optimizer.pt')
+                or (phase == 'bundle_publish' and Path(target) == bundle)):
+            raise primary
+        return original_replace(source, target)
+
+    monkeypatch.setattr(torch, 'save', save)
+    monkeypatch.setattr(_atomic, 'atomic_write_text', text)
+    monkeypatch.setattr(_atomic, 'atomic_replace', replace)
+    if phase == 'fsync':
+        monkeypatch.setattr(os, 'fsync', lambda fd: (_ for _ in ()).throw(primary))
+    if phase == 'flush':
+        original_temporary = tempfile.NamedTemporaryFile
+
+        class FailedFlush:
+            def __init__(self, *args, **options):
+                self.stream = original_temporary(*args, **options)
+
+            def __getattr__(self, name):
+                return getattr(self.stream, name)
+
+            def __enter__(self):
+                self.stream.__enter__()
+                return self
+
+            def __exit__(self, *args):
+                return self.stream.__exit__(*args)
+
+            def flush(self):
+                raise primary
+
+        monkeypatch.setattr(tempfile, 'NamedTemporaryFile', FailedFlush)
+    return primary
+
+@pytest.mark.parametrize('phase', ['serialization', 'flush', 'fsync', 'piece', 'tracker',
+                                  'meta_json', 'meta_writer_type', 'meta_pt', 'mirror_publish', 'bundle_publish'])
+def test_checkpoint_precommit_failure_preserves_committed_cuda_bundle(cuda_checkpoint, monkeypatch, phase):
+    import torch
+
+    case = cuda_checkpoint
+    previous = case.payload(1)
+    bundle = case.system.save_checkpoint(previous, 'latest')
+    original_bytes = bundle.read_bytes()
+    failure = _failure(monkeypatch, case.system, phase)
+    with pytest.raises(type(failure)) as caught:
+        case.system.save_checkpoint(case.payload(2, tensor_meta=phase == 'meta_pt'), 'latest')
+    assert caught.value is failure and bundle.read_bytes() == original_bytes
+    for reference in ('latest', str(bundle.with_suffix('')), str(bundle)):
+        assert case.system.checkpoint_path(reference) == bundle
+        restored = case.system.load_checkpoint(reference)
+        assert restored['epoch'] == 1 and restored['model']['weight'].device == case.device
+        assert torch.equal(restored['model']['weight'], previous['model']['weight'])
+
+@pytest.mark.parametrize('phase', ['mirror_publish', 'bundle_publish'])
+def test_first_write_partial_mirror_cannot_be_selected_as_committed_checkpoint(cuda_checkpoint, monkeypatch, phase):
+    case = cuda_checkpoint
+    _failure(monkeypatch, case.system, phase)
+    with pytest.raises(OSError):
+        case.system.save_checkpoint(case.payload(1), 'latest')
+    bundle = case.system.assets_dir / 'checkpoints/latest.pt'
+    assert not bundle.exists() and (bundle.parent / '.latest.incomplete').is_file()
+    for reference in ('latest', str(bundle.with_suffix('')), str(bundle)):
+        with pytest.raises(OSError, match='incomplete checkpoint'):
+            case.system.load_checkpoint(reference)
+
+@pytest.mark.parametrize('phase', ['serialization', 'meta_json', 'mirror_publish', 'bundle_publish', 'none'])
+def test_failed_write_never_promotes_unknown_legacy_mirror_to_bundle(cuda_checkpoint, monkeypatch, phase):
+    import json
+    import torch
+
+    case = cuda_checkpoint
+    folder = case.system.assets_dir / 'checkpoints/latest'
+    folder.mkdir(parents=True)
+    torch.save(case.payload(1)['model'], folder / 'model.pt')
+    (folder / 'meta.json').write_text(json.dumps({'epoch': 1}), encoding='utf-8')
+    before = {path.name: path.read_bytes() for path in folder.iterdir()}
+    if phase != 'none':
+        _failure(monkeypatch, case.system, phase)
+    with pytest.raises(FileExistsError, match='explicit migration'):
+        case.system.save_checkpoint(case.payload(2), 'latest')
+    assert not folder.with_suffix('.pt').exists()
+    assert not (folder.parent / '.latest.incomplete').exists()
+    assert before == {path.name: path.read_bytes() for path in folder.iterdir()}
+
+@pytest.mark.parametrize('cleanup', ['marker', 'staging'])
+@pytest.mark.parametrize('error_kind', [OSError, RuntimeError])
+def test_committed_cuda_checkpoint_survives_diagnostic_cleanup_failure(cuda_checkpoint, monkeypatch, cleanup, error_kind):
+    case = cuda_checkpoint
+    case.system.save_checkpoint(case.payload(1), 'latest')
+    original_unlink, original_rmdir = Path.unlink, Path.rmdir
+
+    def unlink(path, *args, **options):
+        if cleanup == 'marker' and path.name == '.latest.incomplete':
+            raise error_kind('injected committed marker cleanup failure')
+        return original_unlink(path, *args, **options)
+
+    def rmdir(path, *args, **options):
+        if cleanup == 'staging' and path.name.startswith('.latest.') and path.name.endswith('.writing'):
+            raise error_kind('injected committed staging cleanup failure')
+        return original_rmdir(path, *args, **options)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, 'unlink', unlink)
+        patch.setattr(Path, 'rmdir', rmdir)
+        bundle = case.system.save_checkpoint(case.payload(2), 'latest')
+    assert bundle.is_file() and case.system.load_checkpoint('latest')['epoch'] == 2
+
+def test_checkpoint_bundle_is_fsynced_before_publication_and_tensor_meta_roundtrips(cuda_checkpoint, monkeypatch):
+    import os
+    import torch
+    from spec_mtp.structure.artifact import _atomic
+
+    case = cuda_checkpoint
+    events = []
+    original_sync, original_replace = os.fsync, _atomic.atomic_replace
+
+    def sync(fd):
+        events.append('fsync')
+        return original_sync(fd)
+
+    def replace(source, target):
+        if Path(target).name == 'latest.pt':
+            assert events == ['fsync']
+            events.append('commit')
+        return original_replace(source, target)
+
+    monkeypatch.setattr(os, 'fsync', sync)
+    monkeypatch.setattr(_atomic, 'atomic_replace', replace)
+    payload = case.payload(3, tensor_meta=True)
+    bundle = case.system.save_checkpoint(payload, 'latest')
+    restored = case.system.load_checkpoint(str(bundle))
+    assert events == ['fsync', 'commit']
+    assert torch.equal(restored['metadata_tensor'], payload['metadata_tensor'])
+    assert (bundle.with_suffix('') / 'meta.pt').is_file()
+
+def test_failed_checkpoint_cleanup_keeps_primary_error_and_previous_cuda_bundle(cuda_checkpoint, monkeypatch):
+    case = cuda_checkpoint
+    bundle = case.system.save_checkpoint(case.payload(1), 'latest')
+    before = bundle.read_bytes()
+    primary = _failure(monkeypatch, case.system, 'serialization')
+    cleanup = OSError('injected uncommitted temporary cleanup failure')
+    original_unlink = Path.unlink
+
+    def unlink(path, *args, **options):
+        if path.name.startswith('.latest.') and path.name.endswith('.pt.writing'):
+            raise cleanup
+        return original_unlink(path, *args, **options)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, 'unlink', unlink)
+        with pytest.raises(OSError) as caught:
+            case.system.save_checkpoint(case.payload(2), 'latest')
+    assert caught.value is primary and primary.cleanup_errors == (cleanup,)
+    assert bundle.read_bytes() == before and case.system.load_checkpoint('latest')['epoch'] == 1
+
+def test_complete_but_unpublished_cuda_temporary_never_becomes_resume_source(cuda_checkpoint, monkeypatch):
+    import torch
+
+    case = cuda_checkpoint
+    _failure(monkeypatch, case.system, 'fsync')
+    original_unlink = Path.unlink
+
+    def unlink(path, *args, **options):
+        if path.name.startswith('.latest.') and path.name.endswith('.pt.writing'):
+            raise OSError('injected retained temporary')
+        return original_unlink(path, *args, **options)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, 'unlink', unlink)
+        with pytest.raises(OSError, match='fsync'):
+            case.system.save_checkpoint(case.payload(4), 'latest')
+    temporary, = (case.system.assets_dir / 'checkpoints').glob('.latest.*.pt.writing')
+    assert torch.load(temporary, map_location=case.device, weights_only=False)['epoch'] == 4
+    with pytest.raises(OSError, match='unpublished checkpoint'):
+        case.system.load_checkpoint(str(temporary))
+    assert case.system.load_checkpoint('latest') is None
+
+def test_checkpoint_serialization_error_survives_a_second_stream_close_failure(cuda_checkpoint, monkeypatch):
+    import tempfile
+    import torch
+
+    case = cuda_checkpoint
+    bundle = case.system.save_checkpoint(case.payload(1), 'latest')
+    before = bundle.read_bytes()
+    original_temporary = tempfile.NamedTemporaryFile
+    primary, cleanup = OSError('primary serialization failure'), OSError('secondary stream close failure')
+
+    class FailedClose:
+        def __init__(self, *args, **options):
+            self.stream = original_temporary(*args, **options)
+
+        def __getattr__(self, name):
+            return getattr(self.stream, name)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.close()
+
+        def close(self):
+            self.stream.close()
+            raise cleanup
+
+    def fail(value, stream, **options):
+        stream.write(b'partial serialization')
+        raise primary
+
+    with monkeypatch.context() as patch:
+        patch.setattr(tempfile, 'NamedTemporaryFile', FailedClose)
+        patch.setattr(torch, 'save', fail)
+        with pytest.raises(OSError) as caught:
+            case.system.save_checkpoint(case.payload(2), 'latest')
+    assert caught.value is primary and cleanup in primary.cleanup_errors
+    assert bundle.read_bytes() == before
+    assert case.system.load_checkpoint('latest')['epoch'] == 1
+
+@pytest.mark.parametrize('operation', ['constructor', 'emit'])
+def test_busy_diagnostics_do_not_block_cuda_checkpoint_integration(cuda_checkpoint, monkeypatch, operation):
+    import threading
+    import torch
+    from spec_mtp.structure.system.config import SystemConfig
+    from spec_mtp.structure.system.factory import SystemFactory
+    from spec_mtp.structure.system import logger as implementation
+
+    case = cuda_checkpoint
+    config = SystemConfig(config={'device': str(case.device)})
+    system = SystemFactory.build(config, case.system.assets_dir) if operation == 'emit' else None
+    with torch.random.fork_rng(devices=[case.device.index]), torch.no_grad():
+        module = torch.nn.Linear(2, 1, bias=False, device=case.device)
+        module.weight.fill_(2)
+    lock, done = threading.Lock(), threading.Event()
+    monkeypatch.setattr(implementation, '_WRITE_LOCK', lock)
+    results, failures = [], []
+    def work():
+        try:
+            current = SystemFactory.build(config, case.system.assets_dir) if system is None else system
+            current.logger.info('CUDA checkpoint integration')
+            model = current.place_module(module)
+            output = model(torch.tensor([[1., 2.]], device=case.device))
+            assert output.device == model.weight.device == case.device
+            assert torch.equal(output, torch.tensor([[6.]], device=case.device))
+            torch.cuda.synchronize(case.device)
+            path = current.save_checkpoint({'model': {'weight': model.weight.detach()}, 'logger': current.logger.state_dict()}, 'busy')
+            results.append((current, path))
+        except BaseException as exc: failures.append(exc)
+        finally: done.set()
+    worker = threading.Thread(target=work, daemon=True)
+    lock.acquire()
+    try:
+        worker.start()
+        assert done.wait(10), 'managed writer contention blocked CUDA compute/checkpoint'
+        assert lock.locked()
+    finally:
+        lock.release()
+        worker.join(5)
+    assert not worker.is_alive() and not failures
+    current, path = results[0]
+    restored = current.load_checkpoint(str(path))
+    assert restored['model']['weight'].device == case.device
+    assert torch.equal(restored['model']['weight'], module.weight)
+    assert current.logger.failure_count == (2 if operation == 'constructor' else 1)
+    assert current.logger.last_error_type == 'BlockingIOError'
+
+@pytest.mark.parametrize('retention', ['seal', 'purge'])
+def test_owned_diagnostic_retention_preserves_cuda_compute_and_checkpoint(cuda_checkpoint, retention):
+    import json
+    import torch
+    from spec_mtp.structure.artifact.asset import tree
+    from spec_mtp.structure.system.config import SystemConfig
+    from spec_mtp.structure.system.factory import SystemFactory
+
+    case = cuda_checkpoint
+    assets = case.system.assets_dir
+    anchor = assets / 'logs/events.jsonl'
+    tree.prepare_diagnostic_capture(anchor)
+    system = SystemFactory.build(SystemConfig(config={'device': str(case.device)}), assets)
+    system.logger.info('before explicit retention')
+    sentinel = assets / 'preserved-model.bin'
+    sentinel.write_bytes(b'original model sentinel')
+    seal_sha = tree.seal_diagnostic_capture(anchor)
+    if retention == 'purge':
+        assert tree.purge_sealed_diagnostics(anchor, seal_sha)['state'] == 'purged'
+    before = {p.name: p.read_bytes() for p in anchor.parent.iterdir()}
+    with torch.random.fork_rng(devices=[case.device.index]), torch.no_grad():
+        model = torch.nn.Linear(2, 1, bias=False, device=case.device)
+        model.weight.fill_(2)
+    model = system.place_module(model)
+    output = model(torch.tensor([[1., 2.]], device=case.device))
+    assert output.device == model.weight.device == case.device
+    assert torch.equal(output, torch.tensor([[6.]], device=case.device))
+    torch.cuda.synchronize(case.device)
+    system.logger.info('must stay closed while business succeeds')
+    assert system.logger.failure_count == 1 and system.logger.last_error_type == 'PermissionError'
+    path = system.save_checkpoint({'model': {'weight': model.weight.detach()}}, 'retention')
+    loaded = system.load_checkpoint(str(path))
+    assert loaded['model']['weight'].device == case.device
+    assert torch.equal(loaded['model']['weight'], model.weight)
+    assert sentinel.read_bytes() == b'original model sentinel'
+    assert before == {p.name: p.read_bytes() for p in anchor.parent.iterdir()}
+    controls = tree._capture_controls(anchor)
+    assert json.loads(controls['required'].read_text())['state'] == 'closed'
+    assert all(controls[key].is_file() for key in ('required', 'lock', 'seal'))

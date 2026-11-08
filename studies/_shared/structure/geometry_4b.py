@@ -4,12 +4,11 @@ import torch  # before numpy on Windows
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 import numpy as np
 POSITION_EDGES = (0, 32, 64, 128, 192, 256)
 
-def sha(path):
-    with Path(path).open('rb') as handle:
-        return hashlib.file_digest(handle, 'sha256').hexdigest()
+from spec_mtp.structure.artifact.provenance import file_sha256 as sha
 
 def distribution(values):
     values = np.asarray(values, dtype=float)
@@ -40,7 +39,7 @@ def summarize_geometry(capture):
     assert capture['quality_passed'] and capture['status'] == 'complete'
     methods = ('input_first', 'output_zero', 'output_first')
     metrics = ('mask_norm', 'raw_norm', 'target_norm', 'mask_target_cos', 'raw_target_cos', 'mask_target_norm_ratio', 'slot_pair_cos', 'velocity_anchor_ratio', 'real_hidden_norm', 'real_hidden_target_cos', 'predicted_hidden_real_cos', 'mask_scale_relative_error', 'reconstruction_direction_cos')
-    result = {'groups': {}, 'slot_effects': {}, 'matched_shared_prefix': {}, 'capture_cases': len(capture['cases'])}
+    result: dict[str, Any] = {'groups': {}, 'slot_effects': {}, 'matched_shared_prefix': {}, 'capture_cases': len(capture['cases'])}
     for cohort in ('all', 'shared_prefix'):
         points = [p for p in capture['points'] if cohort == 'all' or p['shared_prefix']]
         for method in methods:
@@ -50,8 +49,8 @@ def summarize_geometry(capture):
             for slot in (0, 1):
                 for depth in (None, 0, 1, 2):
                     rows = [p for p in points if p['case'] == method and p['slot'] == slot and (depth is None or p['depth'] == depth)]
-                    key = f'{cohort}/{method}/depth{depth}/slot{slot}'
-                    result['groups'][key] = {m: distribution([p[m] for p in rows if m in p]) for m in metrics}
+                    group_name = f'{cohort}/{method}/depth{depth}/slot{slot}'
+                    result['groups'][group_name] = {m: distribution([p[m] for p in rows if m in p]) for m in metrics}
     indexed = {}
     for method in methods:
         rows = [p for p in capture['points'] if p['case'] == method and p['shared_prefix']]
@@ -69,10 +68,10 @@ def summarize_geometry(capture):
 def summarize_cell(raw):
     rows, evidence = (raw['out']['rows'], raw['out']['evidence'])
     assert len(rows) == len(evidence) == 480
-    bins = [{'root_index_range': [a, b], 'calls': 0, 'accept_ge1': 0, 'accept_ge2': 0, 'accepted': 0, 'committed': 0} for a, b in zip(POSITION_EDGES, POSITION_EDGES[1:])]
+    bins: list[dict[str, Any]] = [{'root_index_range': [a, b], 'calls': 0, 'accept_ge1': 0, 'accept_ge2': 0, 'accepted': 0, 'committed': 0} for a, b in zip(POSITION_EDGES, POSITION_EDGES[1:])]
     attempts, accepts = ([0, 0, 0, 0], [0, 0, 0, 0])
     norm_min, norm_max, norm_errors, owner_diffs, scales = ([], [], [], [], [])
-    by_category = {}
+    by_category: dict[str, dict[str, int]] = {}
     for row, e in zip(rows, evidence):
         stats = e['stats']
         events = trace_metrics(e, len(e['input_ids']))
@@ -113,31 +112,24 @@ def summarize_cell(raw):
 
 def audit_saved(study, paired):
     """Recheck saved tokens and first blocks; do not re-sign native Runs."""
-    import importlib.util
-    import sys
     from studies._shared.structure import validation
+    from studies.qwen3_4b_bf16_bias_norm_scan.structure import readout as helpers
     root = Path(__file__).resolve().parents[3]
-    norm = root / 'studies/qwen3_4b_bf16_bias_norm_scan'
-    sys.path.insert(0, str(norm))
-    spec = importlib.util.spec_from_file_location('geometry_norm_helpers', norm / 'analyze_results.py')
-    helpers = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(helpers)
-    from norm_control import check_refs
-    check_refs()
+    validation.check_control_refs(root / "studies/qwen3_4b_bf16_bias_norm_scan", root, kind="norm")
     assert sha(study / 'docs/paired_evidence_v1.json') == sha(root / 'studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json')
-    prompts = helpers.read(root / 'studies/qwen3_4b_bf16_five_methods/docs/prompts_manifest.json')['rendered_prompts']
-    assert len(prompts) == 480 and set(paired['cells']) == set(helpers._pair.CASES)
+    prompts = _original.read(root / 'studies/qwen3_4b_bf16_five_methods/docs/prompts_manifest.json')['rendered_prompts']
+    assert len(prompts) == 480 and set(paired['cells']) == set(_original.CASES)
     blocks, cells, reference = ({}, {}, [])
-    for name in helpers._pair.CASES:
+    for name in _original.CASES:
         cell = paired['cells'][name]
         folder = study / 'runs' / cell['run_id']
         assert cell['native_status'] == 'succeeded'
-        from spec_mtp.audit import verify_files
+        from spec_mtp.structure.artifact.observation import verify_files
         verify_files(folder, cell['files_sha256'])
-        raw = helpers.read(folder / 'assets/decode_observations.json')['out']['evidence']
+        raw = _original.read(folder / 'assets/decode_observations.json')['out']['evidence']
         rows = cell['rows']
         assert len(raw) == len(rows) == len(prompts) == 480
-        assert helpers._pair.summarize(rows, name == 'AR') == cell['totals']
+        assert _original.summarize(rows, name == 'AR') == cell['totals']
         checked = 0
         for item, prompt, row in zip(raw, prompts, rows):
             assert item['input_ids'] == prompt['input_ids'] and row['question_id'] == prompt['question_id']
@@ -162,12 +154,12 @@ def audit_saved(study, paired):
                 output = item['output_ids'][len(item['input_ids']):]
                 assert row['AR_exact'] == (output == ar) and row['AR_new_tokens'] == len(ar)
                 assert row['AR_model_calls'] == calls and row['calls_delta_vs_AR'] == row['model_calls'] - calls
-                assert row['first_new_difference_index'] == helpers._pair.first_difference(output, ar)
+                assert row['first_new_difference_index'] == _original.first_difference(output, ar)
             blocks[name] = helpers.depth_rows(raw, prompts)
         cells[name] = dict(run_id=cell['run_id'], files_sha256=cell['files_sha256'], raw_argmax_checked_tokens=checked)
     pairs = [dict(first=p['first'], second=p['second'], first_block=helpers.first_block_compare(blocks[p['first']], blocks[p['second']])) for p in paired['pairs']]
     assert len(pairs) == 20
-    return dict(cells=cells, pairs=pairs, raw_files_checked=sum((len(c['files_sha256']) for c in cells.values())), raw_argmax_checked_tokens=sum((c['raw_argmax_checked_tokens'] for c in cells.values())), shared_AR_tokens=sum((len(ids) for ids, _ in reference)), helpers_sha256=sha(norm / 'analyze_results.py'), math_checker_sha256=sha(validation.__file__), limitations='Saved token/owner/hash evidence only; no logits recomputation, new forward or source re-signing. First-block ties do not imply zero velocity.')
+    return dict(cells=cells, pairs=pairs, raw_files_checked=sum((len(c['files_sha256']) for c in cells.values())), raw_argmax_checked_tokens=sum((c['raw_argmax_checked_tokens'] for c in cells.values())), shared_AR_tokens=sum((len(ids) for ids, _ in reference)), helpers_sha256=sha(helpers.__file__), math_checker_sha256=sha(validation.__file__), limitations='Saved token/owner/hash evidence only; no logits recomputation, new forward or source re-signing. First-block ties do not imply zero velocity.')
 
 def velocity_geometry(anchor, velocity):
     a, v = (anchor.float(), velocity.float())
@@ -178,7 +170,7 @@ def velocity_geometry(anchor, velocity):
     return {'velocity_over_anchor': float(v.norm() / a.norm()), 'radial_signed_over_velocity': float(v @ a / (a.norm() * v.norm())), 'tangent_over_velocity': float(tangent.norm() / v.norm()), 'normalized_movement_retention': float(normalized_move.norm() / (v.norm() / a.norm())), 'raw_slot_norm_ratio': float((a + v).norm() / a.norm())}
 
 def transition_counts(evidence):
-    result = {str(d): {'transitions': 0, 'next_accept_d1': 0, 'next_accept_d2': 0} for d in (0, 1, 2)}
+    result: dict[str, dict[str, Any]] = {str(d): {'transitions': 0, 'next_accept_d1': 0, 'next_accept_d2': 0} for d in (0, 1, 2)}
     for e in evidence:
         trace_metrics(e, len(e['input_ids']))
         for previous, current in zip(e['stats']['trace'], e['stats']['trace'][1:]):
@@ -237,18 +229,15 @@ def plot_results(report, path):
         ax.set_xticks(range(len(qids)), [f"q{q}\nR{indexed[q, 'zero']['root_index']}" for q in qids])
         for i, j in np.ndindex(values.shape):
             ax.text(j, i, str(values[i, j]), ha='center', va='center', color='red', fontsize=11)
-        fig.colorbar(chart, ax=ax, shrink=0.8, **{'ticks': [0, 1, 2]} if values is accepted else {})
+        fig.colorbar(chart, ax=ax, shrink=0.8, ticks=[0, 1, 2] if values is accepted else None)
     fig.savefig(path, dpi=160)
     plt.close(fig)
-import importlib.util
 import ast
 ROOT = Path(__file__).resolve().parents[3]
 BASE = ROOT / 'studies/qwen3_4b_bf16_five_methods'
 STUDY = ROOT / 'studies/qwen3_4b_bf16_directions'
 RECOVERY = ROOT / 'studies/qwen3_4b_bf16_directions_recovery'
-_spec = importlib.util.spec_from_file_location('original_five_method_readout', BASE / 'analyze_results.py')
-_original = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_original)
+from studies.qwen3_4b_bf16_five_methods.structure import readout as _original
 load_cell, compare_rows = (_original.load_cell, _original.compare_rows)
 NAMES = ('template', 'random0', 'random1', 'random2', 'zero', 'content')
 
@@ -269,6 +258,34 @@ def compare(first, second):
         r['tau'] = 'win' if diff > 0 else 'loss' if diff < 0 else 'tie'
     result['tau'] = {s: sum((r['tau'] == s for r in result['rows'])) for s in ('win', 'tie', 'loss')}
     return result
+
+
+def verify_paired_repeat(body, prior):
+    """Reaggregate published counters only; preserve AR diagnostics and every paired tau outcome."""
+    if not __debug__:
+        raise RuntimeError('saved paired counters require Python assertions enabled')
+    from itertools import combinations
+    assert body['complete'] and body['argmax_is_gate_AR_is_diagnostic'] and body['timing_disabled']
+    assert set(body['cells']) == set(_original.CASES)
+    reference = [(row['question_id'], row['category']) for row in body['cells']['AR']['rows']]
+    assert len(reference) == len(set(reference)) == 480
+    versus = []
+    for name in _original.CASES:
+        cell = body['cells'][name]
+        assert cell['native_status'] == 'succeeded'
+        assert [(row['question_id'], row['category']) for row in cell['rows']] == reference
+        assert _original.summarize(cell['rows'], name == 'AR') == cell['totals']
+        if name != 'AR':
+            assert all(row['argmax_checked_tokens'] == row['new_tokens'] == row['committed']+1
+                       and row['model_calls'] == row['decode_calls']+1 for row in cell['rows'])
+            assert cell['category_mean_pooled_tau'] == category_mean(cell['rows'])
+            versus.append(dict(first='original/'+name, second=name,
+                               **compare(prior['cells'][name]['rows'], cell['rows'])))
+    expected = [dict(first=f'{bc}/{a}', second=f'{bc}/{b}',
+        **compare(body['cells'][f'{bc}/{a}']['rows'], body['cells'][f'{bc}/{b}']['rows']))
+        for bc in (30, 60) for a, b in combinations(_original.METHODS, 2)]
+    assert body['pairs'] == expected and body['versus_original'] == versus
+    return {'cells_checked': len(body['cells']), 'pairs_checked': len(expected), 'versus_original_checked': len(versus)}
 
 def require_resource_failure(previous, error):
     assert previous['native_status'] == 'failed', 'Never replace a completed or running factor'
@@ -508,6 +525,8 @@ def intervention_masks(shadow, proxies, zero):
 
 def walk(tree, logits):
     from spec_mtp.structure.algorithm.decode.loop import select_token
+    accepted: list[int]
+    chosen: list[int]
     owner, accepted, chosen = (0, [], [])
     while True:
         token = select_token(logits[owner], 0.0, None)
@@ -578,6 +597,9 @@ def capture_window(model, prompt, spec, eval_cfg, eos, seed, minimum=8):
     from studies._shared.structure.config import _convert
     original_build, original_tree = (build_mask_provider, decoding.build_tree)
     original_observe, original_masks = (OutputHiddenMaskProvider.observe_committed, OutputHiddenMaskProvider.masks_per_owner)
+    active: dict[str, Any]
+    packet: dict[str, Any]
+    generated: list[Any]
     active, packet, generated = ({}, {}, [])
 
     def build(*args, **kwargs):
@@ -638,6 +660,9 @@ def capture_input_window(model, prompt, spec, eval_cfg, eos, seed, minimum):
     from studies._shared.structure.config import _convert
     original_tree = decoding.build_tree
     shadows = [OutputHiddenMaskProvider(2, model.embedding_table, order=i, beta=0.9, beta_prime=0.99) for i in (0, 1)]
+    active: dict[str, Any]
+    packet: dict[str, Any]
+    generated: list[Any]
     active, packet, generated = ({}, {}, [])
 
     def tree_builder(*args, **kwargs):
@@ -686,7 +711,7 @@ def capture_input_window(model, prompt, spec, eval_cfg, eos, seed, minimum):
 @torch.no_grad()
 def probe_window(model, packet, spec, reference, variants=VARIANTS, control='zero'):
     import spec_mtp.structure.algorithm.decode.loop as decoding
-    from spec_mtp import model as kv_cache
+    from spec_mtp.structure.model import hf_causal as kv_cache
     from spec_mtp.structure.algorithm.decode.tree_attention import DynamicTreeAttentionCache, mask_indices_of
     from studies._shared.structure.config import _convert
     tree, baseline = (packet['tree'], packet['baseline'])
@@ -739,62 +764,61 @@ def probe_window(model, packet, spec, reference, variants=VARIANTS, control='zer
             row['seed_logits_equal_input_first'] = torch.equal(local[row['variant']]['seed_logits'], local['input_first']['seed_logits'])
     assert next((r for r in rows if r['variant'] == control))['next_verified_chain_equals_reference'], 'Native control differs from old Run; stop, no numerical study'
     return (rows, local)
-import sys
-STUDY__audit_4b_norm_queue = ROOT / 'studies/qwen3_4b_bf16_bias_norm_scan'
-READER = STUDY__audit_4b_norm_queue / 'analyze_results.py'
 
-def sha__audit_4b_norm_queue(path):
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
-def audit_once(data_root, output_dir, continuation_study=None):
-    output = Path(output_dir)
-    output.mkdir(parents=True, exist_ok=True)
-    entries = read(STUDY__audit_4b_norm_queue / 'index.json')['experiments']
-    assert len(entries) == 8 and all((len(e['runs']) == 1 for e in entries))
-    continuation = Path(continuation_study).resolve() if continuation_study else None
-    selected = [(STUDY__audit_4b_norm_queue, e) for e in entries]
-    if continuation:
-        newer = read(continuation / 'index.json')['experiments']
-        assert len(newer) == 7
-        selected = [(STUDY__audit_4b_norm_queue, entries[0]), *[(continuation, e) for e in newer]]
-    done, failed = ([], [])
-    for cell_study, entry in selected:
-        run = entry['runs'][0]['id']
-        cfg = entry['factors']['algorithm.config']
-        path = cell_study / 'runs' / run / 'result.json'
-        result = read(path) if path.exists() else {}
-        item = dict(run_id=run, case=f"{cfg['direction']}/{cfg['spec']['ema']['step_scale']:g}")
-        if result.get('status') == 'succeeded':
-            done.append(dict(item, result_sha256=sha__audit_4b_norm_queue(path)))
-        elif result.get('status') == 'failed':
-            failed.append(item)
-    state = dict(complete=False, native_completed=len(done), total=8, completed=done, failed=failed, no_model_forward=True, no_timing=True, audited_cells=[])
-    signature = hashlib.sha256(json.dumps([done, sha__audit_4b_norm_queue(READER), sha__audit_4b_norm_queue(STUDY__audit_4b_norm_queue / 'docs/source_refs.json'), sha__audit_4b_norm_queue(continuation / 'docs/source_refs.json') if continuation else None], sort_keys=True).encode()).hexdigest()
-    latest = output / 'ledger.json'
-    previous = read(latest) if latest.exists() else {}
-    if previous.get('signature') == signature and previous.get('failed') == failed:
-        return previous
-    if done and (not failed):
-        process = (continuation or STUDY__audit_4b_norm_queue) / 'process.json'
-        if len(done) == 8 and (not process.exists() or not read(process).get('complete')):
-            state['phase'] = 'waiting_for_native_study_process'
+def direction_control(provider, mode, start, info):
+    """Replace only velocity construction, retaining native mean/anchor/EMA code."""
+    assert mode in ('template', 'random0', 'random1', 'random2', 'content')
+    assert not provider.normalize and not provider.extrapolate_ema and provider.level_mode == 'order0'
+    original_init, original_commit = provider.init_from_prompt, provider.on_token_committed
+
+    def initialize(embeds, generator=None):
+        original_init(embeds, generator=generator)
+        full_mean, template = provider._level.clone(), (embeds[1] - embeds[0]).clone()
+        content_start = start() if callable(start) else start
+        if mode == 'content':
+            assert 0 <= content_start < len(embeds) - 1
+            original_init(embeds[content_start:])
+            provider._level = full_mean
+        elif mode == 'template':
+            provider._velocity = template
         else:
-            target = output / f"{len(done):02d}-{done[-1]['run_id']}-{signature[:8]}"
-            target.mkdir(parents=True, exist_ok=False)
-            env = dict(os.environ, PYTHONUTF8='1', PYTHONPATH=str(ROOT / 'src'), CUDA_VISIBLE_DEVICES='', OMP_NUM_THREADS='1', MKL_NUM_THREADS='1', MPLBACKEND='Agg')
-            with (target / 'audit.stdout.log').open('w') as stdout, (target / 'audit.stderr.log').open('w') as stderr:
-                subprocess.run([sys.executable, str(READER), '--data-root', str(Path(data_root).resolve()), '--study-dir', str(STUDY__audit_4b_norm_queue), '--output-dir', str(target), *(['--continuation-study', str(continuation)] if continuation else [])], cwd=ROOT, env=env, stdout=stdout, stderr=stderr, check=True)
-            body = read(target / ('norm_evidence_v1.json' if len(done) == 8 else 'norm_pending.json'))
-            assert body['complete'] == (len(done) == 8)
-            for item in done:
-                cell = body['cells'][item['case']]
-                assert cell['native_status'] == 'succeeded' and cell['run_id'] == item['run_id']
-                assert len(cell['rows']) == 480
-                totals = cell['totals']
-                assert totals['argmax_checked_tokens'] == totals['new_tokens']
-                state['audited_cells'].append(dict(item, totals=totals, files_sha256=cell['files_sha256']))
-            state.update(complete=body['complete'], phase='accepted_completed_cells', signature=signature, readout_dir=str(target), readout_sha256=sha__audit_4b_norm_queue(target / ('norm_evidence_v1.json' if body['complete'] else 'norm_pending.json')))
-    if not done or failed:
-        state.update(phase='native_failure' if failed else 'waiting_for_first_complete_cell', signature=signature)
-    latest.write_text(json.dumps(state, indent=2, allow_nan=False) + '\n', encoding='utf-8')
-    return state
+            seed = int(mode[-1])
+            vector = torch.randn(embeds.shape[-1], generator=torch.Generator().manual_seed(seed))
+            vector *= template.float().norm().cpu() / vector.norm()
+            provider._velocity = vector.to(device=embeds.device, dtype=embeds.dtype)
+            assert abs(float(provider._velocity.float().norm() / template.float().norm()) - 1) < .01
+        v = provider._velocity.float()
+        info.update(mode=mode, content_start=content_start if mode == 'content' else None,
+            velocity_norm=float(v.norm()), template_norm=float(template.float().norm()),
+            norm_ratio=float(v.norm() / template.float().norm()),
+            cosine_to_template=float(torch.nn.functional.cosine_similarity(v, template.float(), dim=0)),
+            full_prompt_mean_preserved=bool(torch.equal(provider._level, full_mean)),
+            velocity_sha256=hashlib.sha256(provider._velocity.detach().cpu().view(torch.uint8).numpy().tobytes()).hexdigest())
+        assert info['full_prompt_mean_preserved']
+
+    def commit(new, previous):
+        velocity = provider._velocity
+        original_commit(new, previous)
+        if mode != 'content':
+            provider._velocity = velocity
+
+    provider.init_from_prompt, provider.on_token_committed = initialize, commit
+    return provider
+
+
+def observe_initial_bias(provider, mode, info):
+    direction_control(provider, mode, None, info)
+    initialize = provider.init_from_prompt
+
+    def init(embeds, generator=None):
+        initialize(embeds, generator=generator)
+        step = provider._step_vector(provider._velocity, provider._ref_norm)
+        masks = provider.masks()
+        info.update(step_scale=provider.step_scale, initial_mean_norm=float(provider._level.float().norm()),
+            effective_step_norm=float(step.float().norm()),
+            rounded_slot_displacement_norms=(masks.float() - provider._level.float()).norm(dim=-1).tolist())
+        assert all(torch.isfinite(x).all() for x in (step, masks))
+
+    provider.init_from_prompt = init
+    return provider

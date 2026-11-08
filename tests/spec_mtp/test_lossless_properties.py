@@ -15,7 +15,7 @@ from spec_mtp.structure.algorithm.decode.loop import SpecDecoder, ar_generate
 from studies._shared.structure.paper_variants import PAPER_VARIANTS
 from studies._shared.structure.smoke_variants import VARIANTS
 from studies._shared.structure.config import _convert
-from spec_mtp.model import HFCausalLM
+from spec_mtp.structure.model.hf_causal import HFCausalLM
 
 # The alignment_probe preset only configures masks for the probe (no tree, no SpecDecoder).
 PRESETS = sorted(k for k in {**VARIANTS, **PAPER_VARIANTS} if not k.endswith('/alignment_probe'))

@@ -1,5 +1,5 @@
 **去噪推测解码 通用调研**
-更新日期：2026年11月3日。研究范围是免训练多 token 预测、ESP、输入/输出掩码和接受验证。本文维护机制、方案、直接来源和当前判断。历史数字在 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，职责在 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>)，待检验问题在 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。学术阅读深度在 [文献调研](<文献调研 Literature Review 去噪推测解码.md>)。
+更新日期：2026年11月5日。研究范围是免训练多 token 预测、ESP、输入/输出掩码和接受验证，以及支撑证据保全的运行机制。本文维护机制、方案、直接来源和当前判断。历史数字在 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，职责在 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>)，待检验问题在 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。学术阅读深度在 [文献调研](<文献调研 Literature Review 去噪推测解码.md>)。
 
 # 一、核心问题与结论
 本项目要回答：没有辅助训练或额外起草模型时，怎样从同一目标模型获得多个候选，哪些掩码与树结构能提高接受效率，以及什么证据足以支持正确性和收益判断。
@@ -8,7 +8,7 @@
 
 # 二、方法地图与已有实现
 ## （一）起草方式是主要分类轴
-自回归逐 token 生成先得到一个可靠参照。推测解码再把“提出多个候选”和“按目标模型确认候选”分开，让一次目标前向覆盖更多可能续写。Leviathan 等的原论文研究辅助模型与保持目标分布的采样方法，Chen 等采用修正拒绝采样，二者的分布论证都有算法与数值前提。本文此次只重读摘要，没有重证其理论。[Leviathan v2](https://arxiv.org/abs/2211.17192v2)、[Chen v1](https://arxiv.org/abs/2302.01318v1)
+自回归逐 token 生成先得到一个可靠参照。推测解码再把“提出多个候选”和“按目标模型确认候选”分开，让一次目标前向覆盖更多可能续写。Leviathan 等的原论文研究辅助模型与保持目标分布的采样方法，Chen 等采用修正拒绝采样，二者的分布论证都有算法与数值前提。本文对两篇的阅读范围为摘要，理论推导未复核。[Leviathan v2](https://arxiv.org/abs/2211.17192v2)、[Chen v1](https://arxiv.org/abs/2302.01318v1)
 
 | **路线** | **候选来自哪里** | **主要成本与限制** | **本项目位置与直接来源** |
 | --- | --- | --- | --- |
@@ -37,7 +37,7 @@ flowchart LR
     Forward --> Audit[关联 logits 行、owner 和提交审计]
 ```
 
-图为本地机制分析，箭头是数据和处理顺序，所有框首先在同一解码进程。prefill 先计算首 token 与首棵树的 seed；后续每步验证接受路径并产生下一棵树 seed。被拒 draft 不能进入长期 mask 历史，bonus 在下一步作为 root，步后 `cache_len == root_pos`。验证、缓存剪裁和下一步 seed 归属必须一起核对。[当前解码器](../src/spec_mtp/structure/algorithm/decode/loop.py)、[KV 操作](../src/spec_mtp/model.py)
+图为本地机制分析，箭头是数据和处理顺序，所有框首先在同一解码进程。prefill 先计算首 token 与首棵树的 seed；后续每步验证接受路径并产生下一棵树 seed。被拒 draft 不能进入长期 mask 历史，bonus 在下一步作为 root，步后 `cache_len == root_pos`。验证、缓存剪裁和下一步 seed 归属必须一起核对。[当前解码器](../src/spec_mtp/structure/algorithm/decode/loop.py)、[KV 操作](../src/spec_mtp/structure/model/hf_causal.py)
 
 # 三、掩码状态、观测与验证语义
 ## （一）输入 embedding 的零阶与一阶
@@ -47,7 +47,7 @@ flowchart LR
 ## （二）输出隐藏状态的预测与映射
 当前 `OutputHiddenMaskProvider` 观察 final normalized hidden，内部 anchor/velocity 以 FP32 保存，模型前向与最终 mask 可为 BF16。已提交真实隐藏状态更新长期 anchor，速度衰减 β；块内 proxy 以 β′ 模拟 owner 状态，生成不同深度的预测。临时 proxy 不能写回长期 committed 状态。[providers.py](../src/spec_mtp/structure/algorithm/mask/providers.py)
 
-其映射为 `Φ(z)=s·z/||z||`，`s` 为输入 embedding 表平均行范数，拒绝非有限或零范数。tied embedding 与输出 head 的实际共享存储是现有输出路径前提，不能只看模型配置的布尔标记，也不能把归一化映射叫逆模型。序列/owner 对齐错一位，就可能用错 proxy 预测下一树，即使类型形状相同。[providers.py](../src/spec_mtp/structure/algorithm/mask/providers.py)、[模型接入](../src/spec_mtp/model.py)
+其映射为 `Φ(z)=s·z/||z||`，`s` 为输入 embedding 表平均行范数，拒绝非有限或零范数。tied embedding 与输出 head 的实际共享存储是现有输出路径前提，不能只看模型配置的布尔标记，也不能把归一化映射叫逆模型。序列/owner 对齐错一位，就可能用错 proxy 预测下一树，即使类型形状相同。[providers.py](../src/spec_mtp/structure/algorithm/mask/providers.py)、[模型接入](../src/spec_mtp/structure/model/hf_causal.py)
 
 EMA 可平滑历史变化，但这本身不提供噪声观测模型、协方差、Kalman 增益或最优估计证明。“去噪推测解码”是项目名称。本仓没有 diffusion 去噪模型。输出隐藏上的对角混合卡尔曼 `output-hidden-hybrid-kalman-v1` 已作为负结果消融关闭：它没有同时超过 ESP 和 output hidden 原版，0.6B 的接受数下降来自 output hidden 轨迹本身。嵌入空间里、节点数与 ESP 相同的替换比较随后也没有在 SpecBench 新切片和 Dolly 上让 4B 与 0.6B 一起通过。输出一阶仍要由配对结果检验，不能由公式名称认定成立。
 
@@ -64,15 +64,14 @@ EMA 可平滑历史变化，但这本身不提供噪声观测模型、协方差�
 
 # 四、实现来源、取舍与当前证据链
 ## （一）三类实现严格分开
-本仓的 `spec_mtp` 是非作者官方研究实现；第三方 HF 代码固定为 `ad76f8da29f3bfc7faa20488193c6aa83a9f708c`，原 README、四份 code 和三份 results 全部保留，来源清单为 [ORIGIN.json](../src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/ORIGIN.json)。该来源历史未附 LICENSE，许可状态保留未确认，不据此扩大使用许可。2026年10月21日直开 HF 固定页失败，本轮未更新该远端状态。[HF 固定来源](https://huggingface.co/datasets/Harshvardhan-Mestha/esp-reproduction-artifacts/tree/ad76f8da29f3bfc7faa20488193c6aa83a9f708c)
+本仓的 `spec_mtp` 是非作者官方研究实现；第三方 HF 代码固定为 `ad76f8da29f3bfc7faa20488193c6aa83a9f708c`，原 README、四份 code 和三份 results 全部保留，来源清单为 [ORIGIN.json](../src/spec_mtp/structure/algorithm/reference/esp_reproduction_artifacts/ORIGIN.json)。该固定来源未附 LICENSE，许可状态保留未确认，不据此扩大使用许可。[HF 固定来源](https://huggingface.co/datasets/Harshvardhan-Mestha/esp-reproduction-artifacts/tree/ad76f8da29f3bfc7faa20488193c6aa83a9f708c)
 
-历史作者入口核查未取得可运行原生代码，后续已明确停止追找。2026年10月21日重读论文与代表方法公开入口用于技术调研，没有重启作者入口搜寻、下载模型或执行第三方算法。不能由“未核验到”断言作者从未开源。
+来源分类以实际取得的原件为准，不能由未取得可运行原码断言作者从未开源。论文主张、第三方复现和本仓测量分别定位到文献与运行记录。
 ## （二）当前源码职责与目标差距
-当前 CLI/Study recipe 注册 RPipe 的 Data、Model 和 Algorithm，默认 prepare/execute 复用库，专项 collect/summarize/write/process 计算和核验证据。RPipe 通用 provenance 不直接覆盖 Study 外的 `spec_mtp`，专项 `sources.py` 为其记录额外源码锁。模型输入、权重 digest、tokenizer/runtime 和原始输出在最终验收前复核。[来源锁](../studies/_shared/structure/sources.py)、[证据](../studies/_shared/structure/evidence.py)、[验收门](../studies/_shared/flow/summarize/run.py)
+Study recipe 注册宿主的 Data、Model 和 Algorithm，默认 prepare/execute 复用阶段实现，专项 collect/summarize/write/process 计算和核验证据。专项 `sources.py` 记录被复用宿主与共享适配的源码锁。模型输入、权重 digest、tokenizer/runtime 和原始输出在最终验收前复核。[来源锁](../studies/_shared/structure/sources.py)、[证据](../studies/_shared/structure/evidence.py)、[验收门](../studies/_shared/flow/summarize/run.py)
 
-这些是当前代码事实，不意味着分层已符合目标。科学代码、Rpipe 接入和运行证据目前交叉在 `structure/flow`，目标要把科学包与执行框架隔离。设计保留现有算法语义与固定 pin，避免为了目录改造引入另一执行器、状态库或插件系统。
+科学合同、数据、模型、计算与产物按 structure 职责分开，flow 装配并协调执行。RPipe 作为结构参考，流程由本仓实现。实现差距见开发计划。
 
-离线核验 P01：2026年10月21日仅取 `tools/diagnose_output_windows.py:file_hash` 的 AST，在隔离命名空间以禁止子进程的假调用检查。原数据哈希正常，旧计划路径触发已删除 `plan-consolidation-manifest.json` 的 `FileNotFoundError`，子进程/模型/GPU 调用均为0。这确认清理后的旧消费者确有未迁移项，没有修改实现或把预期失败记成全量通过。
 ## （三）设计输入
 | **约束** | **为什么保留** | **最小设计响应** |
 | --- | --- | --- |
@@ -82,25 +81,31 @@ EMA 可平滑历史变化，但这本身不提供噪声观测模型、协方差�
 | 质量与进度分开 | execute 完成、来源完整、数学自检、论文目标分别可能失败 | 多维结果不压成一个 success/complete |
 | 先满足当前研究规模 | 尚无远程伸缩或多后端平台需求 | 单机模块和一个执行协调者，不建服务与通用插件市场 |
 
-# 五、历史测量的位置
-8B 非官方 Table 1、4B 五方法、方向与范数、探索失败，以及 H01–H09 的哈希和恢复边界，已迁入 [2026-10-31 历史证据归位](<运行记录 Run Record/2026-10-31 历史证据归位.md>)。那些数字保持原口径和原件链接。本文只保留机制判断：固定条件下可以比较接受数与调用数；BC30/60 未达到论文目标；输入一阶在已完成的 4B 五方法里总量最好；同范数随机方向也能高于零偏置。τ 不是实测加速。
-
-# 七、来源、阅读范围与未验证事项
-公开资料实际访问日期为2026年10月21日。下表分别说明原文阅读、源码分析和历史引用，不把成功抓取页面当作全文精读。
+# 五、来源、阅读范围与未验证事项
+下表维护来源版本和实际阅读范围，原文、源码及历史测量分别解释；逐次访问与执行事实从日期记录追溯。
 
 | **来源** | **版本与阅读范围** | **用途与限制** |
 | --- | --- | --- |
 | [ESP 原文](https://arxiv.org/html/2603.17942v2) | v2，2026年5月28日，针对性读 §2/3、Algorithm 1、Table 1 与 G.2 定位，未全文重证附录 | 最近方法与论文合同，不能据作者性能数直接认定本仓速度 |
-| [Leviathan 原论文](https://arxiv.org/abs/2211.17192v2) | v2，2023年5月18日，本轮摘要与版本核对 | 辅助起草和分布目标，未重新证明采样论证 |
-| [Chen 原论文](https://arxiv.org/abs/2302.01318v1) | v1，2023年2月2日，本轮摘要 | 拒绝采样路线，与本仓 T0 门有范围差异 |
-| [Medusa 原论文](https://arxiv.org/abs/2401.10774v3) | v3，2024年6月14日，本轮摘要和两种训练范围 | 比较多头路线，未读/运行完整实现 |
+| [Leviathan 原论文](https://arxiv.org/abs/2211.17192v2) | v2，2023年5月18日，摘要与版本核对 | 辅助起草和分布目标，未重新证明采样论证 |
+| [Chen 原论文](https://arxiv.org/abs/2302.01318v1) | v1，2023年2月2日，摘要 | 拒绝采样路线，与本仓 T0 门有范围差异 |
+| [Medusa 原论文](https://arxiv.org/abs/2401.10774v3) | v3，2024年6月14日，摘要和两种训练范围 | 比较多头路线，未读/运行完整实现 |
 | [EAGLE 官方](https://github.com/SafeAILab/EAGLE#readme) | 滚动 README，针对性读特征外推与官方实现身份，未固定源码 commit | 说明公开实现路线，不声称基准条件相同 |
 | [PLD 原作者项目](https://github.com/apoorvumang/prompt-lookup-decoding#readme) | 滚动 README，概念与示例入口，未运行 notebook | 说明无额外模型的检索起草，不承诺宿主兼容版本 |
 | [Spec-Bench 官方](https://github.com/hemingkx/Spec-Bench#readme) | 滚动 README、数据目录和项目许可入口 | Benchmark 责任与数据来源，本地历史数据 commit 未确认，原数据字节另有 SHA；组成数据许可未逐项核查 |
 | 本仓源码及 H01–H09 | 固定基线 `b8b20b5`，读取入口、mask、decoder、来源/验收和相关历史报告 | 源码分析/历史测量，不是本轮模型或全仓审计 |
 | DreamSoul 架构方法四资料 | 本地2026年10月21日版：主报告、大纲、端侧案例、来源索引全文 | 采用质量场景、黑盒合同、源码/运行视图、状态唯一归属、取消与简约取舍；未重读全部原标准 |
-| CPU 内存清理样板 | `6938f10447b250958856a845fc5448aa1185b52d` 的 AGENTS 与三文档 | 采用文档粒度与证据/目标分离，不借用其 Windows 产品模块 |
+| [RPipe固定main](https://github.com/DreamSoul-AI/RPipe/tree/414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6) | AGENTS、README、train.py、resume.py、artifact/checkpoint.py全文 | 读取、准入、应用与快照提交机制；没有运行其测试或复制编码/API |
 
-2026年10月31日重读了本仓入口、当前源码和两份参考仓当时可取得的版本，记录在开发记录。飞书规范正文和会议逐字稿因用户令牌过期没有读到，不能把索引或会议摘要写成已经核对过的规范或结论。10月21日对论文和历史证据的阅读深度仍然有效，本轮没有重新打开这些论文。
+资料读取与环境访问的逐次事实从 [开发记录](<开发记录 Development Record/2026-11-05 宿主结构收束.md>) 追溯，不以历史认证状态推定当前资料是否可读。论文阅读范围仍从文献调研定位。
 
-尚未完成：作者输入与聚合合同、论文 τ 差距归因、范数完整曲线、采样分布保证、独立 AR 等价、真实速度，以及 trajectory 与 observation 的公式和实验。没有升级依赖，也没有把固定 RPipe 换成参考仓的新树。
+后续研究范围由当前研究计划维护。既有 trajectory/observation 公式与测量按固定历史协议解释，已观察数据不能充当新算法的独立确认集。采样分布保证仍未完成。工程目录调整保持依赖版本和历史科学语义。
+
+# 六、训练快照的提交边界
+远端RPipe main固定为 `414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6`。实际阅读其AGENTS、README、train/resume与checkpoint源码：structure描述科学部件和持久化，flow拥有生命周期；训练状态读取、准入和应用分开，快照以文件原子替换为可见提交边界。其实现先将payload写入同目录独占临时文件，flush/fsync后替换目标；提交前失败保留旧文件，并保留首错及清理错误。[固定训练实现](https://github.com/DreamSoul-AI/RPipe/blob/414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6/src/rpipe/structure/algorithm/train.py)、[固定快照实现](https://github.com/DreamSoul-AI/RPipe/blob/414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6/src/rpipe/structure/artifact/checkpoint.py)
+
+RPipe当前编码为带schema/kind/payload的snapshot并使用weights_only读取，允许值域受显式校验约束。本仓既有bundle含NumPy RNG和诊断分片，不能直接换编码并声称旧格式兼容。采用同目录临时文件、完整文件同步及最后替换的机制，保留当前数据合同；分片仅供诊断，不能因文件存在就补签完整bundle。提交后诊断清理失败与提交前写入失败须分开处理。文件同步与原子替换不能单独证明硬件掉电场景的全部持久性，也不提供同Run/stem并发写入保证。[当前System](../src/spec_mtp/structure/system/factory.py)、[恢复准入](../src/spec_mtp/structure/algorithm/resume.py)
+
+历史读件的来源判定与当前工具身份分开。RPipe固定main的readout前95行校验保存的RunRef、索引及其manifest自身摘要，明确读件不依赖当前源码文件；CLI前95行将写入命令与显式外部运行根关联，不隐式迁移旧Study。本仓旧分析器应将原Git成员、运行时报告与张量分别核字节及内容，当前tool/helper摘要另记，不能要求新源码manifest等于旧报告digest，也不能把未取得的原helper字节标为已核验。[固定readout](https://github.com/DreamSoul-AI/RPipe/blob/414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6/src/rpipe/structure/artifact/readout.py)、[固定CLI](https://github.com/DreamSoul-AI/RPipe/blob/414ccb7be5d4eb3739ccc09a4774cad7e8e1a9e6/src/rpipe/flow/cli.py)
+
+复合证据的每个成员应独立携带固定 commit、原路径和摘要。报告归档与工具演进是不同事件，单一归档提交不保证仍含原生产工具；按当前路径猜测旧成员会把目录变化误判成证据消失。读端按角色核允许的真实原路径及其字节，输入冻结后只读已解析目标，发布前再次复核。[固定 Git 读取合同](../src/spec_mtp/structure/artifact/provenance.py)、[角色读件实现](../studies/output_space_cross_task/flow/process/run.py)

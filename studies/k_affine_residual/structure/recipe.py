@@ -103,7 +103,7 @@ def run_pilot(session, documents, positions, assets_dir, *, seed, extract=extrac
 
 
 def _data_builder(config, assets_dir, seed=None):
-    from spec_mtp.structure.api.data_api import Data
+    from spec_mtp.structure.data.factory import Data
 
     del assets_dir
     docs = config.config['documents']
@@ -111,14 +111,18 @@ def _data_builder(config, assets_dir, seed=None):
 
 
 def _model_builder(config, assets_dir, data_meta=None):
-    from spec_mtp.structure.api.model_api import Model
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.factory import Model
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
     from transformers import LlamaConfig, LlamaForCausalLM
+    from collections.abc import Callable
+    from typing import Any, cast
 
     del assets_dir
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(data_meta['seed'])
-        native = LlamaForCausalLM(LlamaConfig(**config.config, attn_implementation='eager')).to('cpu').eval()
+        attention: dict[str, Any] = {'attn_implementation': 'eager'}
+        constructor = cast(Callable[[LlamaConfig], torch.nn.Module], LlamaForCausalLM)
+        native = constructor(LlamaConfig(**config.config, **attention)).to('cpu').eval()
     session = HFCausalLM(module=native)
     if not session.tied_embeddings:
         raise ValueError('tiny model must use tied input/output storage')
@@ -126,9 +130,10 @@ def _model_builder(config, assets_dir, data_meta=None):
 
 
 def register(ctx):
-    from spec_mtp.structure.api.algorithm_api import Algorithm, AlgorithmRegistry
-    from spec_mtp.structure.api.data_api import DataRegistry
-    from spec_mtp.structure.api.model_api import ModelRegistry
+    from spec_mtp.structure.algorithm.base import Algorithm
+    from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+    from spec_mtp.structure.data.factory import DataRegistry
+    from spec_mtp.structure.model.factory import ModelRegistry
 
     cfg = ctx.config
     if cfg['algorithm'].get('mode') != 'eval' or cfg['algorithm'].get('source') != SOURCE:

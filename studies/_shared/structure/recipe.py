@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from spec_mtp.structure.make.recipe import RecipeContext
 
+from studies._shared.structure.validation import source_study_root
+
 SOURCE = 'spec_mtp'
 FLASH_ATTENTION = ('flash_attention_2', 'flash_attention_3')
 
@@ -46,11 +48,11 @@ def validate(config: dict[str, Any]) -> dict[str, Any]:
     Returns a small description of the checked Run. Only conditions the
     decoder already requires are checked here; nothing is relaxed or added.
     """
-    from spec_mtp.structure.control.layers import AlgorithmConfig
+    from spec_mtp.structure.algorithm.config import AlgorithmConfig
 
     from studies._shared.structure.algorithm import TASKS, effective_spec, task_name
     from studies._shared.structure.config import _convert
-    from spec_mtp.data import dataset_names
+    from spec_mtp.structure.data.prompts import dataset_names
 
     data, model, algorithm = (_layer(config, name) for name in ('data', 'model', 'algorithm'))
     if algorithm.get('source') != SOURCE:
@@ -98,6 +100,76 @@ def register_sources() -> None:
     register_algorithms()
 
 
+def register_untimed(study_root) -> None:
+    """Opt this explicitly supplied Study into the native untimed/direct-CUDA adapters."""
+    from pathlib import Path
+    from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+    from spec_mtp.structure.model.factory import ModelRegistry
+    from studies._shared.structure.algorithm import UntimedEval
+    from studies._shared.structure.model import build_cuda
+
+    root = Path(study_root).resolve(strict=True)
+    if not root.is_dir() or not (root/'study.yaml').is_file():
+        raise ValueError('untimed registration requires an explicit Study root containing study.yaml')
+    ModelRegistry.register('hf_causal', SOURCE, build_cuda)
+    AlgorithmRegistry.register('eval', SOURCE, UntimedEval)
+
+
+def register_pairing(study_root) -> None:
+    from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+    from spec_mtp.structure.model.factory import ModelRegistry
+    from studies._shared.structure.algorithm import PairedUntimedEval
+    from studies._shared.structure.model import build_cuda
+
+    bound_root = source_study_root(study_root)
+    if not bound_root.is_dir() or not (bound_root/'study.yaml').is_file():
+        raise ValueError('pairing registration requires an explicit Study root containing study.yaml')
+    class BoundPairedEval(PairedUntimedEval):
+        pairing_root = bound_root
+    ModelRegistry.register('hf_causal', SOURCE, build_cuda)
+    AlgorithmRegistry.register('eval', SOURCE, BoundPairedEval)
+
+
+def register_direction(study_root, *, admission_assets, pairing_root=None, execution_root=None, recovery=False) -> None:
+    from functools import partial
+    from pathlib import Path
+    from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+    from spec_mtp.structure.model.factory import ModelRegistry
+    from studies._shared.structure.algorithm import DirectionEval
+
+    bound_study = Path(study_root).resolve(strict=True)
+    source = source_study_root(bound_study)
+    bound_execution = Path(execution_root).resolve(strict=True) if execution_root is not None else source.parents[1]
+    bound_pairing = Path(pairing_root).resolve(strict=True) if pairing_root is not None else bound_execution/'studies/qwen3_4b_bf16_five_methods'
+    bound_admission = Path(admission_assets).resolve()
+    bound_admission.relative_to(bound_study)
+    if (not bound_study.is_dir() or not (bound_study/'study.yaml').is_file()
+            or not bound_pairing.is_dir() or not (bound_pairing/'study.yaml').is_file()
+            or not bound_execution.is_dir() or type(recovery) is not bool):
+        raise ValueError('direction registration requires explicit Study, paired Study, execution roots and a boolean policy')
+    recovery_policy = bool(recovery)
+    class BoundDirectionEval(DirectionEval):
+        study_root = bound_study
+        pairing_root = bound_pairing
+        execution_root = bound_execution
+        recovery = recovery_policy
+    ModelRegistry.register('hf_causal', SOURCE, partial(_build_direction_cuda,
+        study_root=bound_study, execution_root=bound_execution, admission_assets=bound_admission, recovery=recovery_policy))
+    AlgorithmRegistry.register('eval', SOURCE, BoundDirectionEval)
+
+
+def _build_direction_cuda(model_config, assets_dir, data_meta=None, *, study_root, execution_root, admission_assets, recovery):
+    from studies._shared.structure.validation import check_direction_refs
+    from studies._shared.structure.resource_admission import direction_admission
+    from studies._shared.structure.model import build_cuda
+    check_direction_refs(study_root, execution_root)
+    check = direction_admission(admission_assets, initial=True, wait=recovery)
+    check_direction_refs(study_root, execution_root)
+    model = build_cuda(model_config, assets_dir, data_meta)
+    model.meta['direction_admission'] = check
+    return model
+
+
 def register(ctx: RecipeContext) -> None:
     from spec_mtp.structure.make.expand import load_study_yaml
 
@@ -127,3 +199,87 @@ def register(ctx: RecipeContext) -> None:
     (ctx.assets_dir / RUN_ASSET_NAME).write_text(
         json.dumps(current, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     register_sources()
+
+
+def register_control(study_root, *, admission_assets, kind) -> None:
+    """Bind norm/repeat/continuation execution without mutable module-wide Study paths."""
+    from functools import partial
+    from pathlib import Path
+    from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+    from spec_mtp.structure.model.factory import ModelRegistry
+    from studies._shared.structure.algorithm import NormEval, PairedRepeatEval, ContinuationEval
+    from studies._shared.structure.resource_admission import wait_for_admission
+    from studies._shared.structure import gpu_admission
+    classes = {'norm': NormEval, 'paired': PairedRepeatEval, 'continuation': ContinuationEval}
+    if kind not in classes:
+        raise ValueError('unknown paired/norm control protocol')
+    runtime = Path(study_root).resolve(strict=True)
+    source = source_study_root(runtime)
+    if not (runtime/'study.yaml').is_file() or not (source/'study.yaml').is_file():
+        raise ValueError('control registration needs an explicit Study declaration')
+    execution = source.parents[1]
+    pairing = execution/'studies/qwen3_4b_bf16_five_methods'
+    if not (pairing/'study.yaml').is_file():
+        raise ValueError('control registration needs its original paired Study')
+    assets = Path(admission_assets).resolve()
+    assets.relative_to(runtime)
+    capacity = execution/'studies/qwen3_4b_bf16_bias_norm_scan/docs/capacity_calibration_v1.json'
+    waiter = partial(wait_for_admission, capacity=capacity,
+                     observer=None if kind == 'norm' else gpu_admission.observe)
+    bound = type("BoundControlEval", (classes[kind],), {
+        "study_root": runtime, "execution_root": execution, "pairing_root": pairing,
+        "admission_wait": staticmethod(waiter)})
+    ModelRegistry.register('hf_causal', SOURCE, partial(_build_control_cuda,
+        study_root=runtime, execution_root=execution, admission_assets=assets, kind=kind, waiter=waiter))
+    AlgorithmRegistry.register('eval', SOURCE, bound)
+
+
+def _build_control_cuda(model_config, assets_dir, data_meta=None, *, study_root, execution_root,
+                        admission_assets, kind, waiter):
+    from studies._shared.structure.validation import check_control_refs
+    from studies._shared.structure.model import build_cuda
+    check_control_refs(study_root, execution_root, kind=kind)
+    admission = waiter(admission_assets, initial=True)
+    check_control_refs(study_root, execution_root, kind=kind)
+    model = build_cuda(model_config, assets_dir, data_meta)
+    model.meta['paired_repeat_admission' if kind == 'paired' else 'norm_scan_admission'] = admission
+    return model
+
+
+def register_esp(study_root, *, admission_assets, kind) -> None:
+    """Bind full ESP policy/audit adapters after the native recipe source gate."""
+    from functools import partial
+    from pathlib import Path
+    from spec_mtp.structure.algorithm.factory import AlgorithmRegistry
+    from spec_mtp.structure.model.factory import ModelRegistry
+    from studies._shared.structure.esp_controls import NumericPolicyEval, ArgmaxEval, RevalidationEval
+    from studies._shared.structure.model import build_cuda
+    classes = {'policy': NumericPolicyEval, 'argmax': ArgmaxEval, 'revalidation': RevalidationEval}
+    if kind not in classes:
+        raise ValueError('unknown ESP execution policy')
+    runtime = Path(study_root).resolve(strict=True)
+    source = source_study_root(runtime)
+    if not (runtime/'study.yaml').is_file() or not (source/'study.yaml').is_file():
+        raise ValueError('ESP registration requires an explicit Study declaration')
+    execution = source.parents[1]
+    assets = Path(admission_assets).resolve()
+    assets.relative_to(runtime)
+    bound = type('BoundEspEval', (classes[kind],), {'study_root': runtime, 'execution_root': execution,
+        'baseline_root': execution/'studies/esp_table1_bf16_full_argmax'})
+    builder = partial(_build_esp_revalidation_cuda, study_root=runtime, execution_root=execution,
+                      admission_assets=assets) if kind == 'revalidation' else build_cuda
+    ModelRegistry.register('hf_causal', SOURCE, builder)
+    AlgorithmRegistry.register('eval', SOURCE, bound)
+
+
+def _build_esp_revalidation_cuda(model_config, assets_dir, data_meta=None, *, study_root, execution_root, admission_assets):
+    from studies._shared.structure.validation import check_source_refs
+    from studies._shared.structure.resource_admission import wait_for_admission
+    from studies._shared.structure.model import build_cuda
+    check_source_refs(study_root, execution_root)
+    admission = wait_for_admission(admission_assets, initial=True)
+    print('Initial host-RAM/GPU admission', json.dumps(admission), flush=True)
+    check_source_refs(study_root, execution_root)
+    model = build_cuda(model_config, assets_dir, data_meta)
+    model.meta['initial_resource_admission'] = admission
+    return model

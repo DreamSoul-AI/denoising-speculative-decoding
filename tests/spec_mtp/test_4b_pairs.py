@@ -1,10 +1,8 @@
 import pytest
-from test_window_observer import ROOT
 
 
 def test_4b_pairing_retains_gains_losses_ties_and_main_calls(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT/'studies/output_space_4b_recheck'))
-    from analyze_results import paired_summary
+    from studies._shared.structure.paired_4b import paired_summary
     rows=[{'cells':{'input':{'accepted':a,'model_calls':c},'zero':{'accepted':b,'model_calls':d}}}
           for a,b,c,d in ((3,5,8,6),(4,2,6,8),(1,1,4,4))]
     result=paired_summary(rows,'input','zero')
@@ -14,7 +12,6 @@ def test_4b_pairing_retains_gains_losses_ties_and_main_calls(monkeypatch):
 
 
 def test_missing_pair_is_rejected_not_imputed_zero(monkeypatch):
-    monkeypatch.syspath_prepend(str(ROOT/'studies/output_space_4b_recheck'))
-    from analyze_results import paired_summary
+    from studies._shared.structure.paired_4b import paired_summary
     with pytest.raises(KeyError):
         paired_summary([{'cells':{'input':{'accepted':1,'model_calls':3}}}],'input','zero')

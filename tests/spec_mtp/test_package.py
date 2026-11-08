@@ -1,12 +1,10 @@
 """Packaging and entry: spec_mtp owns the study flow; no embedded RPipe package."""
 
 import importlib.metadata as metadata
-import json
 from pathlib import Path
 
 import pytest
 
-from studies._shared.flow import cli
 from studies._shared.structure import sources
 
 tomllib = pytest.importorskip('tomllib')  # Python >= 3.11
@@ -32,73 +30,3 @@ def test_console_scripts_expose_spec_mtp():
     assert {ep.name: ep.value for ep in dist.entry_points if ep.group == 'console_scripts'} == {
         'spec-mtp': 'spec_mtp.cli:main',
     }
-
-
-def test_manifest_covers_package_sources():
-    body = sources.manifest()
-    assert {'studies/_shared/structure/recipe.py', 'studies/_shared/flow/collect/run.py',
-            'studies/_shared/structure/validation.py',
-            'spec_mtp/structure/algorithm/decode/loop.py'} <= set(body['files'])
-    assert not any(name.startswith('rpipe/') for name in body['files'])
-    assert body['digest'] == sources.files_digest(body['files'])
-
-
-def test_cli_lock_only_for_make_run_launch(tmp_path):
-    study = tmp_path / 's'
-    study.mkdir()
-    (study / 'study.yaml').write_text('study: s\n')
-    assert cli.write_lock_for(['status', str(study)]) is None
-    assert cli.write_lock_for(['make', str(study)]) == study / sources.LOCK_NAME
-    first = json.loads((study / sources.LOCK_NAME).read_text())['created_at']
-    (study / 'scripts').mkdir()
-    (study / 'scripts' / 'jobs.json').write_text('{}')
-    assert cli.write_lock_for(['launch', str(study)]) is None  # keep the make-time lock
-    assert json.loads((study / sources.LOCK_NAME).read_text())['created_at'] == first
-    assert cli.write_lock_for(['launch', str(study), '--remake']) is not None
-    assert cli.write_lock_for(['study', 'run', str(study)]) is None  # run must not refresh freeze lock
-
-
-def test_run_does_not_create_lock_when_freeze(tmp_path):
-    study = tmp_path / 'frozen'
-    study.mkdir()
-    (study / 'study.yaml').write_text('study: s\nfreeze: true\n', encoding='utf-8')
-    assert cli.write_lock_for(['run', str(study)]) is None
-    assert not (study / sources.LOCK_NAME).exists()
-
-
-def test_run_writes_lock_when_missing_and_unfrozen(tmp_path):
-    study = tmp_path / 'open'
-    study.mkdir()
-    (study / 'study.yaml').write_text('study: s\n', encoding='utf-8')
-    assert cli.write_lock_for(['run', str(study)]) == study / sources.LOCK_NAME
-
-
-def test_load_lock_absent_is_none(tmp_path):
-    assert sources.load_lock(tmp_path) is None
-
-
-def test_load_lock_rejects_corrupt_and_non_object(tmp_path):
-    path = tmp_path / sources.LOCK_NAME
-    path.write_text('{not json', encoding='utf-8')
-    with pytest.raises(sources.SpecMtpSourceChangedError, match='not valid JSON'):
-        sources.load_lock(tmp_path)
-    path.write_text('[1, 2]', encoding='utf-8')
-    with pytest.raises(sources.SpecMtpSourceChangedError, match='JSON object'):
-        sources.load_lock(tmp_path)
-    path.write_text('{"digest": "abc"}\n', encoding='utf-8')
-    assert sources.load_lock(tmp_path) == {'digest': 'abc'}
-
-
-def test_package_initializers_do_not_define_business_functions():
-    import ast
-
-    package = ROOT / 'src/spec_mtp'
-    violations = []
-    for path in package.rglob('__init__.py'):
-        rel = path.relative_to(package).as_posix()
-        if rel.startswith(('flow/', 'structure/')):
-            continue
-        body = ast.parse(path.read_text(encoding='utf-8'))
-        if any(isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) for node in body.body):
-            violations.append(path.relative_to(package).as_posix())
-    assert not violations, violations

@@ -1,7 +1,7 @@
 """Higher precision Phi holds the native slot/scale; RMS references hold row/weight."""
 
 import torch
-from test_window_observer import ROOT
+from tests.spec_mtp.test_window_observer import ROOT
 from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
 from transformers.models.llama.modeling_llama import LlamaRMSNorm
 

@@ -1,13 +1,12 @@
 """Qwen3-8B equal-node replacement and frozen last-token Kalman.
 
 Protocol ``office-qwen3-8b-v1``. Prompt selection, arm specs, calibration, the
-paired summary, and the command that loads weights live here. Import does not
+paired summary live here; command coordination is in flow/execute/office.py. Import does not
 mutate the process environment.
 """
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import os
@@ -29,8 +28,7 @@ EVAL_SHA256 = 'f4c5423ce250ae517abfe8ae04b3356f7bf725f66766d4f9ce323b30554766f4'
 EVAL_QIDS = (
     tuple(range(257, 289)) + tuple(range(290, 304)) + tuple(range(305, 365)) + tuple(range(366, 388))
 )
-QWEN3_8B = Path('D' + ':' + '\\') / 'models' / 'Qwen3-8B'
-MODELS = {'8b': QWEN3_8B}
+MODELS = {'8b': 'Qwen3-8B'}
 HEADS = (
     'Name the color of', 'A compiler turns', 'The Pacific Ocean is', 'After the rain',
     'Please sort these', 'An electron has', 'The word for cat in', 'When the loop ends',
@@ -330,28 +328,35 @@ def _offline_caches(dest):
 def _identity():
     head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, capture_output=True, text=True, timeout=20)
     dirty = subprocess.run(['git', 'status', '--porcelain'], cwd=ROOT, capture_output=True, text=True, timeout=30)
-    if head.returncode != 0:
+    if head.returncode != 0 or dirty.returncode != 0:
         raise RuntimeError('git head is unavailable')
     return {'git_head': head.stdout.strip(), 'dirty': bool(dirty.stdout.strip())}
 
 
-def _load_model():
+def _load_model(model_root, device='cuda:0'):
+    if model_root is None:
+        raise ValueError('an explicit local model root is required')
     import torch
     from transformers import AutoTokenizer
 
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
 
-    path = MODELS['8b']
+    path = Path(model_root).resolve()
     if not path.is_dir():
         raise RuntimeError('Qwen3-8B weights are not at the 8b table path')
     if not torch.cuda.is_available():
         raise RuntimeError('this measurement requires CUDA')
     model = HFCausalLM(str(path), local_files_only=True, torch_dtype='bfloat16', attn_implementation='eager')
-    model.hf.to('cuda')
-    if not str(model.device).startswith('cuda'):
-        raise RuntimeError(f'8b is on {model.device}')
-    tokenizer = AutoTokenizer.from_pretrained(str(path), local_files_only=True)
-    return model, tokenizer, torch.__version__
+    try:
+        model.hf.to(device)
+        if not str(model.device).startswith('cuda'):
+            raise RuntimeError(f'8b is on {model.device}')
+        tokenizer = AutoTokenizer.from_pretrained(str(path), local_files_only=True)
+        return model, tokenizer, torch.__version__
+    except BaseException:
+        model.close()
+        raise
+
 
 
 def _write_prior(path, prior):
@@ -421,8 +426,8 @@ def _smoke(model, tokenizer, replace_prior, kalman_prior, dest):
     return payload
 
 
-def _formal(model, tokenizer, replace_prior, kalman_prior, dest):
-    prompts, skipped = prompts_after_used(load_dolly_rows())
+def _formal(model, tokenizer, replace_prior, kalman_prior, dest, rows):
+    prompts, skipped = prompts_after_used(rows)
     digest = assert_registered_slice(prompts, skipped)
     paths = {name: _file(dest, name, 'jsonl') for name in ('esp', 'replace', 'kalman')}
     done = {name: {row['qid'] for row in read_rows(path)} for name, path in paths.items()}
@@ -460,26 +465,3 @@ def _formal(model, tokenizer, replace_prior, kalman_prior, dest):
     _file(dest, 'summary', 'json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(summary, ensure_ascii=False), flush=True)
     return summary
-
-
-def main(argv=None):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dest', type=Path, required=True)
-    parser.add_argument('--only', choices=('all', 'smoke', 'formal'), default='all')
-    args = parser.parse_args(argv)
-    dest = existing_output_dir(args.dest)
-    _offline_caches(dest)
-    print('load 8b', flush=True)
-    model, tokenizer, torch_version = _load_model()
-    replace_prior, kalman_prior = _fit(model, tokenizer, dest)
-    if args.only in ('all', 'smoke'):
-        _smoke(model, tokenizer, replace_prior, kalman_prior, dest)
-    if args.only in ('all', 'formal'):
-        if _identity()['dirty']:
-            raise RuntimeError('formal run requires a clean worktree')
-        _formal(model, tokenizer, replace_prior, kalman_prior, dest)
-    print('torch', torch_version, flush=True)
-
-
-if __name__ == '__main__':
-    main()

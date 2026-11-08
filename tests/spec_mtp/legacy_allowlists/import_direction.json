@@ -1,6 +1,1 @@
-[
-  "src/spec_mtp/structure/api/algorithm_api.py -> spec_mtp.structure.algorithm [api_imports_other_sublayer]",
-  "src/spec_mtp/structure/api/data_api.py -> spec_mtp.structure.data [api_imports_other_sublayer]",
-  "src/spec_mtp/structure/api/model_api.py -> spec_mtp.structure.model [api_imports_other_sublayer]",
-  "src/spec_mtp/structure/api/system_api.py -> spec_mtp.structure.system [api_imports_other_sublayer]"
-]
+[]

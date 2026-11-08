@@ -2,9 +2,9 @@
 
 import copy
 import torch
-from test_window_observer import ROOT, model as model
+from tests.spec_mtp.test_window_observer import ROOT, model as model
 from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
-from spec_mtp import model as kv_cache
+from spec_mtp.structure.model import hf_causal as kv_cache
 
 
 def test_norm_graph_native_replication_and_unchanged_state(monkeypatch):

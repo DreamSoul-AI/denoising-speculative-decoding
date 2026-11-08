@@ -5,7 +5,7 @@ from __future__ import annotations
 from spec_mtp.flow.context import FlowContext
 from spec_mtp.flow.process.aggregate import load_curve_series, run_process_path
 from spec_mtp.structure.artifact._atomic import atomic_write_text
-from spec_mtp.structure.artifact.result import load_result
+from spec_mtp.structure.artifact.result.io import load_result
 from spec_mtp.structure.artifact.result.format import encode_result
 
 
@@ -21,7 +21,8 @@ def run(ctx: FlowContext) -> None:
     if ctx.control is not None:
         run_id = ctx.control.id
     elif isinstance(result, dict):
-        control = result.get('control') if isinstance(result.get('control'), dict) else {}
+        raw_control = result.get('control')
+        control = raw_control if isinstance(raw_control, dict) else {}
         run_id = control.get('id') or ctx.layout.root.name
     else:
         run_id = ctx.layout.root.name

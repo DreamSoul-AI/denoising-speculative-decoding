@@ -3,8 +3,8 @@
 import pytest
 import torch
 
-from test_proxy_transfer import baseline
-from test_window_observer import ROOT, model as model, spec
+from tests.spec_mtp.test_proxy_transfer import baseline
+from tests.spec_mtp.test_window_observer import ROOT, model as model, spec
 
 
 def test_phi_native_endpoint_and_scope(monkeypatch):
@@ -73,7 +73,7 @@ def test_selective_cleanup_on_failure(model, monkeypatch):
 
 def test_equal_counts_do_not_hide_path_changes(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT))
-    from studies.output_space_cross_task.analyze_state_factors import trace_comparison
+    from studies.output_space_cross_task.structure.state_readout import trace_comparison
     left = {'stats': {'accepted': 1}, 'trace': [
         {'root_position': 10, 'accepted_nodes': [], 'committed_tokens': [1]},
         {'root_position': 11, 'accepted_nodes': [1], 'committed_tokens': [2, 3]}]}
@@ -89,6 +89,6 @@ def test_equal_counts_do_not_hide_path_changes(monkeypatch):
 
 def test_state_interaction_can_falsify_additivity(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT))
-    from studies.output_space_cross_task.analyze_state_factors import interaction
+    from studies.output_space_cross_task.structure.state_readout import interaction
     assert interaction({'native': 11, 'anchor': 13, 'velocity': 13, 'both': 14}) == -1
     assert interaction({'native': 12, 'anchor': 13, 'velocity': 13, 'both': 14}) == 0

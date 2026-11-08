@@ -4,8 +4,8 @@ import pytest
 import torch
 
 from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
-from test_proxy_transfer import baseline
-from test_window_observer import ROOT, model as model, spec
+from tests.spec_mtp.test_proxy_transfer import baseline
+from tests.spec_mtp.test_window_observer import ROOT, model as model, spec
 
 
 def test_canonical_prefix_state_ends_at_root_minus_one(monkeypatch):

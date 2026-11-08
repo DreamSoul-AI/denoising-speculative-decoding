@@ -7,7 +7,7 @@ from pathlib import Path
 from spec_mtp.structure.model.factory import Model, ModelRegistry
 
 from studies._shared.structure.config import _convert
-from spec_mtp.model import build_model
+from spec_mtp.structure.model.hf_causal import build_model
 
 
 def _model_cfg(model_config, model_type, assets_dir):
@@ -58,6 +58,21 @@ def _build_hf(model_config, assets_dir, data_meta=None):
         module=module,
         meta={'model_cfg': model_cfg},
     )
+
+
+def build_cuda(model_config, assets_dir, data_meta=None):
+    """Place the unchanged HF model directly on CUDA and restore the loader on every exit."""
+    from unittest.mock import patch
+    from transformers import AutoModelForCausalLM
+
+    original = AutoModelForCausalLM.from_pretrained
+    def load(*args, **kwargs):
+        assert 'device_map' not in kwargs
+        kwargs['device_map'] = 'cuda'
+        return original(*args, **kwargs)
+
+    with patch.object(AutoModelForCausalLM, 'from_pretrained', side_effect=load):
+        return _build_hf(model_config, assets_dir, data_meta)
 
 
 def register_models():

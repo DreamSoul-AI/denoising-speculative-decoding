@@ -7,7 +7,7 @@ import torch
 
 from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
 from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
-from test_window_observer import ROOT, model as model, observer, spec
+from tests.spec_mtp.test_window_observer import ROOT, model as model, observer, spec
 
 
 def baseline(model):
@@ -25,7 +25,7 @@ def baseline(model):
 @pytest.mark.parametrize('placebo', [True, False])
 def test_one_slot_scope_lossless_actual_owner_and_placebo(model, monkeypatch, placebo):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
-    from diagnose_proxy_transfer import transfer
+    from studies._shared.structure.window_diagnostics import transfer
     prompt, cfg, reference, targets, root, masks = baseline(model)
     donor = masks[0, 1].clone() if placebo else masks[0, 1].roll(1)
     samples, result, intervention = transfer(model, prompt, spec(1), cfg, [], reference,
@@ -43,7 +43,7 @@ def test_one_slot_scope_lossless_actual_owner_and_placebo(model, monkeypatch, pl
 
 def test_transfer_cleanup_after_intervention_forward_failure(model, monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / 'studies' / '_shared' / 'structure'))
-    from diagnose_proxy_transfer import transfer
+    from studies._shared.structure.window_diagnostics import transfer
     prompt, cfg, reference, targets, root, masks = baseline(model)
     original_provider = OutputHiddenMaskProvider.masks_per_owner
     original_norm = model.hf.model.norm.forward

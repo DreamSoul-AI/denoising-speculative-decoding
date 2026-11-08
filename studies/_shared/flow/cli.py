@@ -1,4 +1,6 @@
-"""Thin entry over ``spec_mtp.flow.cli``.
+"""Thin entry over ``spec_mtp.flow.study_cli``.
+
+Usage: python -m studies._shared.flow.cli --help
 
 ``make`` and ``launch --remake`` write the SpecMTP source lock. ``run`` and a
 plain ``launch`` keep an existing lock so ``freeze: true`` can see source drift
@@ -53,6 +55,9 @@ def write_lock_for(argv: list[str]) -> Path | None:
     study = _study_arg(argv)
     if study is None:
         return None
+    from spec_mtp.structure.artifact.layout import ensure_study_layout
+
+    ensure_study_layout(study)
     from studies._shared.structure.sources import load_lock, write_lock
 
     remake = command == 'launch' and '--remake' in argv
@@ -65,34 +70,48 @@ def write_lock_for(argv: list[str]) -> Path | None:
     return write_lock(study)
 
 
+def check_study_inputs(study_dir: Path | str) -> dict:
+    """Admit saved Study inputs before any launch/revalidation side effects."""
+    from spec_mtp.structure.artifact.layout import validate_study_root
+    from spec_mtp.structure.make.expand import load_study_yaml
+    from spec_mtp.structure.artifact.provenance import check_frozen as check_host
+    from studies._shared.structure.sources import check_frozen, manifest
+
+    study = validate_study_root(study_dir)
+    declared = load_study_yaml(study)
+    check_frozen(study, declared, manifest())
+    check_host(study, declared)
+    return declared
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    from spec_mtp.flow.study_cli import prepare_study_argv
+
+    argv = prepare_study_argv(argv)
+    if any(item in ('-h', '--help') for item in argv):
+        from spec_mtp.flow.study_cli import main as study_main
+        return int(study_main(argv) or 0)
     lock = write_lock_for(argv)
     if lock is not None:
         print(f'spec_mtp sources: {lock}', flush=True)
     if _command(argv) in ('run', 'launch', 'run-one', 'process', 'report'):
         study = _study_arg(argv)
         if study is not None:
-            from spec_mtp.structure.make.expand import load_study_yaml
-            from spec_mtp.structure.artifact.provenance import check_frozen as check_rpipe
-            from studies._shared.structure.sources import check_frozen, manifest
-
-            declared = load_study_yaml(study)
-            check_frozen(study, declared, manifest())
-            check_rpipe(study, declared)
+            check_study_inputs(study)
             if _command(argv) == 'report':
                 from spec_mtp.flow.context import StudyProcessContext
                 from spec_mtp.structure.artifact.readout.report import render_numbers
-                from spec_mtp.structure.artifact.result import load_result
+                from spec_mtp.structure.artifact.result.io import load_result
                 from studies._shared.flow.process.run import study_gate
 
-                # Reject stale identity before the quality gate can update the envelope.
+                # Validate saved identity before reading the scientific evidence.
                 render_numbers(study)
                 context = StudyProcessContext(study, state={'process': load_result(study / 'process.json')})
-                study_gate(context)
-    from spec_mtp.flow.cli import main as rpipe_main
+                study_gate(context, persist=False)
+    from spec_mtp.flow.study_cli import main as study_main
 
-    return int(rpipe_main(argv) or 0)
+    return int(study_main(argv) or 0)
 
 
 if __name__ == '__main__':

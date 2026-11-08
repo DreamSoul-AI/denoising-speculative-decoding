@@ -1,115 +1,1246 @@
 **去噪推测解码 研究计划**
-更新日期：2026年11月4日。这是唯一中文研究计划。本文对照当前代码写算法，并把已跑实验收成一张结论表。逐次预注册、旧英文计划和运行日志从 Git 历史与 [运行记录](<运行记录 Run Record/INDEX.md>) 取证，不在这里重写。工程待办见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。
+更新日期：2026年11月8日。唯一当前研究计划，包含当前成果与结论。工程清理已收尾，当前按 Owner 授权回到 training-free speculative decoding 的论文研究，以 denoising / Kalman filter / EMA 为基本要件。R65独立校准与R66合作者原代码隔离均获本切片正证据；R67已完成同一K跨实现对齐，R68–R74已逐项记录拟合条件、provider/anchor、frontier、计时与现有Kalman的正负结果，R64、历史结案与来源缺口保持原范围。工程实施见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。
 
-# 一、当前算法与数学
-行号对应当前 `origin/dev` 上的源码。正式办公室比较用的是 ESP 轨迹加 observation 混合；卡尔曼类是同一解码循环上的其它 mask。
+# 一、研究目标与优先级
+宏观＝围绕 training-free 的 speculative decoding 发一篇论文，以 denoising、卡尔曼滤波、EMA 为基本要件。
 
-## 解码循环
-`SpeculativeDecoder.generate`（`src/spec_mtp/structure/algorithm/decode/loop.py` 第 196–465 行）按模块文档（第 5–22 行）做两段：
+介观＝先原样复现 Jason 的做法；按其 Dolly 离线拟合、另一数据集测试、denoise 输出固定校正及原模型规模、树宽、budget 对照 ESP；以每步实际接受数为主指标；暂不推进新假设或其他验证。
 
-- **Prefill。** prompt 嵌入与 k 个 mask 拼成一次因果前向（第 231–243 行）。最后一个 prompt 位置选出第一枚提交 token，作为下一棵树的根；k 个 mask 位置的 logits 留下，用来建第一棵草稿树。mask 的 KV 随后裁掉（第 264 行）。
-- **静态树。** 每轮用上一轮 mask logits 的 softmax 建树（第 291–292 行）。正式配置走 `build_static_tree`（`src/spec_mtp/structure/algorithm/decode/tree.py` 第 75–107 行）：`branches` 的长度不超过 k；每一层只让该层概率最高的节点继续生孩子；剪枝打开时，子 token 不取父 token。`impl=efficient` 要求 `tree.mode=static`（`loop.py` 第 159–164 行）。
-- **树注意力块。** 一块的顺序是根、草稿节点、每个 owner 的 k 个 mask（`loop.py` 第 320–336 行）。块内注意力在 `tree_attention.py` 的 `block_layout`（第 8–34 行）：根只看自己；草稿节点看祖先链和自己；某个 owner 的 mask 看该 owner 的注意力集合，以及同一 owner 上排在自己前面的 mask。`efficient` 把这块结构缓存下来（第 77–83 行）。下一轮的 mask logits 取自最深接受节点；没有接受草稿时取根（`loop.py` 第 450–453 行，`mask_indices_of` 第 37–41 行）。
-- **贪心验证。** 温度 ≤ 0 时 `select_token` 取 argmax（`loop.py` 第 96–100 行）。验证从根往下走，预测 token 与某个子节点相同就接受该节点，否则停下（第 356–377 行）。停下的那一枚是 bonus。`stats['accepted']` 在 EOS 或长度截断之前累加匹配到的草稿节点（第 380–381 行）。
-- **τ。** `prompt_tau` 是提交数除以 `decode_calls`；调用数为 0 时没有 τ（`src/spec_mtp/analysis.py` 第 10–16 行）。解码循环里的 `stats['committed']` 只在解码轮写入（`loop.py` 第 394–400 行），不含 prefill 交出的第一枚 token。模块文档写的是：τ = 每个 decode call 的提交 token（接受的草稿加 bonus）（第 22 行）。办公室行用的就是 `stats['committed'] / decode_calls`（`studies/trajectory_observation/structure/office_tree.py` 第 182 行）。
+2026年11月8日收到Enmao经main转达的介观纠偏后，在线滤波／持续偏差线立即暂停，标为“待 Enmao 拍板”。不再为该线接线、影子评价、采集、申请GPU或推送；既有提交、正负结果及原件保持，32条继续封存。
 
-温度 ≤ 0 时，每个提交 token 记下当次前向的 argmax，整段生成结束后做审计（`loop.py` 第 246–250、473–484 行）。这是 T0 的 argmax 审计。它不提供采样分布保证。独立 AR 是否逐 token 相同，另计，只作诊断。
+R100原8B/480题静态仿射K的接受正结果保持。R101已完成同一固定K上的两臂四已见题CUDA：单位真实误差carry使实际接受长度0.656904→0.427536，控制shadow SSE增大，按事前表停止该配方；原始因果配对、实际候选分离和812提交T0均闭合。32条保留包已按已知登记项目使用范围限域签核，未进入生成，旧包false/null保持原身份。旧H98/R99停止及EMA既往结案保持；本次R105限定control已另签执行并收束，没有后续模型执行授权。作者历史精确材料、最终语义质量及同质量速度仍保各自缺口。
 
-## ESP 基线 mask
-`ESPMaskProvider`（`src/spec_mtp/structure/algorithm/mask/providers.py` 第 83–137 行）。默认 `init='mean_prompt'`、`lam=0.1`。
+1. **当前只承接Jason原做法复现，滤波线暂停**：R100原模板复现的正证据、R101负结果及既有诊断保留，作者正表精确配置等缺件单列；不据缺件否定方法。R103／R104／R105及后续仅b候选不再推进或推送；若拟改变介观，须标“待 Enmao 拍板”，不先派新假设或其他验证。
+2. **此前R75–R77有界执行已收束**：32题冻结K复核通过预设稳定门，16题直接组合两法均负，四题质量批全部无EOS、语义未闭合；结果见第二章及第十七至十九节。三批已退出，不改原码/生产或扩研究树。
+3. **此前R68–R74逐因素对照已收束**：R67同K对照已通过，R68已完成固定401对的ridge对照，点方向通过但区间跨无效值；R69固定λ=.3的两条校准输入加入对照亦已完成，R69b配对边界对照已完成，R70/R71 provider与anchor、R72常量/完整frontier、R73计时口径与R74现有Kalman对照均已完成；本小时队列收束，不自动加臂/扫参/扩长度。每项先冻结协议、再CUDA执行并记录正负结果，临时输出只在D:/Grok Bot/tmp/sd的本拍子目录，原代码保持原字节。
+4. **按已验证范围判断可用性**：分开 EMA、各具体 Kalman 递推与静态仿射 K；受测状态、时序、重置与数值合同已核，未覆盖范围不写成通过。
+5. **保持既有结案**：分开受测实现可运行、接受效率、实际速度与证据不足。32/256 writing 联合收益候选关闭，未完成 Run 保留原状态，不通过延长预算或扫参数追正结果。
+6. **保留有取舍价值的证据**：EMA 历史局部正结果的适用范围、Kalman 各配方已测负结果与未知、可信 ESP 基线和必要来源。低后续投入价值支线进入 [研究成果归档](<研究成果归档 Research Archive 去噪推测解码.md>)，保留负结果与来源，不删除旧 Run 或改签完成状态。
 
-- 初值：\(m_0=\frac{1}{t}\sum_j e_j\)，k 个槽共用这一条均值（第 104–107 行）。
-- 每提交一枚 token 更新一次，含 prefill 的第一枚和随后每一枚解码提交（`loop.py` 第 272–274、394–397 行）：
+文献基础与阅读范围沿用 [文献调研](<文献调研 Literature Review 去噪推测解码.md>)，机制和代价见 [通用调研](<通用调研 General Research 去噪推测解码.md>)。当前结论沿用已有文献阅读与实际运行证据。
 
-\[
-m \leftarrow (1-\lambda)m + \lambda e_{\mathrm{new}},\qquad \lambda=0.1
-\]
+# 二、当前成果与结论
+**原仓库配方复现（R110，全目标已收束）**：R110全仓原配方复现已收束：denoise 14份可运行配置及layerwise 5份本地配置均已原样运行，52份缺原模型明确登记、未下载。Denoise五组原EMA-velocity的τ／原生速度点值均低于对应ESP，七行历史K表仍缺原件。Layerwise原CPU smoke及两份原8-epoch CUDA训练完成；三test-only初跑因隔离根缺checkpoint走原随机回退，原件已保留，随后只用原码base真实epoch8产物按原默认路径完成同权重CUDA复评。内部verifier原AR相同0/64、原false_accept_rate=0.7136，不能签无损；其余同权重full验证模式为64/64相同。没有改源码、配置或参数，layerwise不混作training-free论文证据。25个所属Python子进程（19 CUDA）全部退出且新释放通过；结果见唯一研究计划R110及运行记录第一百一十七、十八节，本目标不再自动派GPU。
 
-代码写成 \(m \leftarrow m+\lambda(e_{\mathrm{new}}-m)\)（`providers.py` 第 133–137 行）。\(e_{\mathrm{new}}\) 是该 token 的输入嵌入。`update=false` 时不改 m。
+**原生参数启用K（R109）**：R109已按原仓库原生参数启用K，未改Jason d91ed75源码或基础YAML，在RTX5090 D v2直接跑完480题。使用此前由原fit脚本实际产出的独立Dolly100固定K（λ=3、6125对），不是合作者历史正表未提交的K。相对R108原始ESP，原生τ由1.564681966升至1.655533564，Δτ=+0.090851599，配对95% CI [0.084931030,0.096717314]；逐题计数480/480与我方此前同K原码复测一致。原生AR/K点值1.3337×；跨两次原生会话ESP/K仅1.004455×，不能据接受增益签同质量加速。退出、来源/模型/K末核及GPU释放通过，本批结束；历史正表τ1.746仍未精确复现。
 
-## Observation 与增益混合
-`ObservationBlendMaskProvider`（`providers.py` 第 285–398 行）包住上面的轨迹。正式臂是 `condition='none'`、`form='mean'`。
+**原始默认直接运行（R108）**：R108已从远端重新拉取Jason d91ed75，并以原始main.py＋原字节esp_bc30.yaml直接跑完480题；未改源码/YAML、未加--set或--device、未加审计/计时/输出捕获包装。仅以已有本地模型和原数据供默认相对路径读取，实际CUDA进程已核。默认配置是ESP基线、K未启用：原生τ=1.564681966，原生AR/ESP速度比1.3106×，AR逐token相同诊断236/480；480题原生计数与我方此前ESP基线全部一致。默认配置不能产出ESP+K那一列，未自行打开K或补配方。源码/配置/模型末核、退出及所属GPU进程释放通过，本批已结束。
 
-\[
-z=\sum_v p(v)\,e_v,\qquad p=\mathrm{softmax}(\ell)
-\]
+**原做法复测当前结论（R107）**：R107按原码默认Qwen3-8B／BC30／单mask／100-token配置重新跑完固定K的480题CUDA：实际A/D=16061/24252，相对既有同配置ESP的增量+0.091005，95% CI [0.084985,0.096955]；τ=1.655534，仍小于合作者历史表的1.746，最终cfg/K/CSV缺口保持。40,638提交完整T0通过，480题返回token及计数与此前同配方全部一致。另在原SpecBench前32题做无附加审计的单次同步墙钟测量，ESP/K=1.026387×；两臂输出仅14/32相同，不能签同质量加速。预选5条质量抽查看见1条完整同AR邮件和4条预算截断前缀，没有全量语义等价结论。三次实际worker均exit0并确认释放，本批结束；滤波线继续暂停。
 
-实现是 `softmax(logits.float())` 再乘嵌入表（第 343–346 行）。`form='top1'` 时 z 改成该行 argmax 的嵌入。z 只活一轮，`on_token_committed` 只转给基线，不把 z 写进轨迹（第 397–398 行）。
+**R101最新结论**：真实下一root标签及当前单位carry工程闭环已在RTX5090 D v2通过，方法收益未获支持：正式ΣA/ΣD为157/239→118/276，Δℓ=−0.229368，四题均负；控制S=−4,306,609.599396，shadow SSE增加83.7803%。有效标签与实际候选改变均满足判据，停止当前固定单位更新。范围仅本次四已见开发题，不作全部Kalman/EMA或泛化结论。详见第三十三节。
 
-混合是
+**既有控制raw的事后诊断**：235有效行的Σ〈当前误差, 实际量化修正〉=449,031.183871，修正能量Σ‖c‖²=5,204,671.967138，按2×内积−能量重现上述S。三题有同向内积但单位能量过大，另一题内积为负；支持保留“幅度与方向均需辨识”的问题，未确定新权重或接受收益。仅CPU读取已有四题，不新增模型测量；本批以观测缺口收束，不提出可派发的新滤波配方。
 
-\[
-m=(1-g)\hat m+g z=\hat m+g(z-\hat m),\qquad g\in[0,1]
-\]
+**持续分量模型当前结论**：R105在RTX5090 D v2取得q85–88固定K控制的四份因果raw，262条真实label全部保留、四题首条计入，另1条末尾label未知不补。冻结参数的M₁完整误差预测SSE为5,378,835.953234，相对M₀下降6.517305%；仅b量化影子SSE为5,365,520.884696，相对原K下降7.290845%。四题逐题及合并双门通过，事前决定为submit_next_stage_review_only。它是未参与本次参数估计、但历史静态K评价已见四题上的控制轨迹机制验证；没有施加新滤波、独立接受对照或最终语义质量证据。32条未读取／生成，旧R104失败和R101负结果保持。
 
-`g=0` 时直接返回轨迹（第 356–357 行）。**k=1 时只有根上的那个 mask 被混合。** `masks_by_depth` 的循环是 `for depth in range(k)`，`slots=k-depth`（第 359–361 行）。k=1 时 depth 只有 0，只改根的槽 0；深度 1 的草稿 owner 保持轨迹。正式运行的 `num_masks` 就是 1，所以增益只加在根 mask 上。
+**R100静态K结论**：按已提交源码模板独立复现，在原8B/480题上支持静态仿射K的接受增益方向；增幅未达到合作者历史表，带审计单次计时与未闭合的最终质量分列。完整结果及边界统一见第三十二节；不重签此前旧8B、Kalman或EMA结论。
 
-### 代码与 docstring 不一致
-类文档（第 290–292 行）写：深度 d 的槽 j 在 \(d+j\le k\) 时改用 \(z_{d+j}\)，否则保持 \(\hat m_j\)。代码用 0 起计的 depth、槽下标，只改写 `j < k-depth`，也就是 \(d+j<k\)。张量有 k+1 行 owner（第 352–355 行），深度 k 的那一行不进循环，不会被混合。
+**当前总判断**：静态仿射K已由R65/R66等小切片推进到R100的8B Dolly校准→SpecBench480评价，接受增益获得本配方的正证据；最终语义质量和同质量速度仍待闭合。EMA保留历史局部接受正结果，writing 32/256及R64幅度规则未通过各自联合收益门；Kalman各已测递推配方仍按负结果或未确认处置。下表旧8B frozen-Kalman是另一套对角冻结修正，其当时收益未确认，不能与R100完整仿射K合并判断。工程合同、接受效率、计时和质量分别报告。
 
-拒绝条件化的文档（第 296–301 行）写槽 1 使用 \(z_{d+1}\)。`masks_for_tree` 取的是 `_probs[depth]` 和 `_observation[depth]`，depth 为该 owner 的树深度，根记 0（第 373–391 行）。用的是 \(z_d\)，不是 \(z_{d+1}\)。正式八类和 g-scan 的 `condition` 都是 `none`，这条分支没有进那些比较。
+下表区分固定历史结果与近期有界运行。历史行未重签原生审计；近期真实CUDA试跑按各自源码/模型/输入/协议与完整提交链验收，不冒充旧480条复验。已退出投入的详细支线结果由 [研究成果归档](<研究成果归档 Research Archive 去噪推测解码.md>) 承接。
 
-## 卡尔曼变体（按现实现）
-都在 `providers.py`。除特别写出的槽以外，只改槽 0，其余槽仍是基线 mask。
+**R68–R74切片对齐结论**：同一K的运行时、本次外生轨迹provider递推与这批计时排序已对齐。R72完整仿射映射比最佳常量接受多9、速度1.102720×，比ESP为1.114408×；正证据属于按原码新校准的静态frontier残差修正。R71原EMA-last与R74现有online标量Kalman相对ESP分别0.904454×/0.913915×，各自联合收益不获支持。ridge、两条校准输入与prefill标签的条件效应分别记录，不相加解释全部历史差距。这些速度排除校准/加载、保留同等T0审计插桩，输出不全同；原480表cfg/K/CSV、语义质量及完整校准摊销仍缺，不冒充原表复现。
 
-| **类** | **公式** | **位置** |
+**R75–R77当前结论**：32条本次拟合/近期选择留出上，冻结完整K相对ESP为1.084824×、相对同dense路径MSE最佳常量为1.096119×，两个预设95%稳定门通过。固定16题上，直接叠加EMA-last或现有online Kalman相对fresh full分别0.878205×/0.904080×，两个联合收益假设均不获支持。452项正式运行/65536提交全T0通过；质量20项均触512预算、无EOS而不可评价，128预算24条匿名AI文本核查亦全unknown，因此当前没有语义等质或完整答案端到端加速结论。全部三模型批已实际退出，不扩参数、长度或新Study。
+
+## 合作者为什么有效：机制事实、实测支持与解释边界
+
+**机制事实——学习占位输入到真实输入的表示残差。** 令$m_t$为首mask的输入placeholder，$e(b_t)$为已揭示bonus的embedding，$z_t^p$为该mask的final-norm hidden，$d$为hidden维度。原码从相邻pass配出下一root状态$z_{t+1}^r$，构造$x_t=e(b_t)-m_t$、$r_t=z_{t+1}^r-z_t^p$。离线ridge拟合$\tilde x_t=[x_t,1]$到$r_t$的映射，罚项只含K前$d$行、截距不惩罚；原网格按剪枝后的top-14候选覆盖选λ，最后全量refit。[原配对](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/src/spec/frontier_gain.py#L150-L162)、[原拟合与选择](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/scripts/fit_frontier_gain.py#L35-L86)支持以下目标：
+
+```math
+K_s=\arg\min_K\sum_{t\in\mathrm{cal}}\|r_t-\tilde x_tK\|_2^2
+    +\lambda\|K_{1:d,:}\|_F^2,\qquad
+z_t^{\mathrm{pred}}=z_t^p+\tilde x_tK_s.
+```
+
+**机制事实——固定参数、输入相关预测。** $K_s$固定，$x_t$随当前输入和bonus改变。原更新用$z_t^{\mathrm{pred}}$重算首mask的LM head，进入下一棵draft tree；prefill初始化以已揭示root token作同式更新，verify选择与KV处理沿原路径。真实下一root hidden此时尚未出现，是离线标签而非当前额外观测。[原更新](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/src/spec/frontier_gain.py#L105-L118)、[prefill调用](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/src/spec/decoding.py#L117-L124)、[verify及后续调用](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/src/spec/decoding.py#L173-L224)。论文中training-free在此指基础LLM权重保持；离线K仍有数据校准与拟合成本。
+
+**实测支持——这一整套修正在本次迁移组合中提高接受效率。** R100冻结Dolly100所得K，在固定SpecBench480上通过接受主门，结果统一见第三十二节与[运行记录第一百零一至一百零二节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。实现给出“拟合残差—更新提议”的机制，实测给出完整配方的接受效果。原fit报告的coverage改善是候选覆盖代理，report先于最终全量refit；R72常量对照、R82b同布局零残差对照是此前各自切片的支持，不能冒作R100对条件项、偏置或prefill作用的新因果消融。R100支持完整配方，内部各项的独占贡献仍未知。
+
+**解释与类比——下一真实状态出现前的经验预测。** 用新增token信息补偿placeholder表示偏差，是源码支持的设计解释；R100没有单独识别这条中介链。$z_t^{\mathrm{pred}}$可类比下一root状态的输入条件化预测均值，“静态”只修饰参数，不修饰均值。它已经使用当前bonus信息，尚无概率先验、噪声协方差或最优Kalman估计的校准。原类`prior`实际保存离线K，供online ridge收缩，并非hidden均值；源码的“Kalman measurement”命名与本次执行的静态ridge映射分开表述。[原prior与refit](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/src/spec/frontier_gain.py#L51-L102)。
+
+| **主张** | **当前证据边界** |
+| --- | --- |
+| 模型/数据无关 | K使用当前模型的embedding与hidden坐标，并受校准数据影响；R100支持一个模型、一个Dolly→SpecBench组合，不识别跨模型或普遍分布不变性 |
+| 在线融合有效 | R100为offline K；R80/81的online ridge更新K与固定预测下的EMA/Kalman状态融合是不同操作，既有各配方结果分别保留 |
+| 同质量加速 | 接受正结果、T0合同、原AR诊断和单次计时分列；完整答案语义质量与同质量速度尚未闭合 |
+
+**历史报告与当前证据。** 上海11月7日00:53–01:21的会议中，Jason报告Dolly离线拟合后在另一数据集测试，并称纯online fit及离线后online微调未增益/略差；“模型相关、当前输入体现数据影响”也是他的解释。当时本会话尚未独立复现该Dolly路线，会上“ASR”的数据集全名及“1.5”的指标归属仍未对齐。随后R100新增了本机Dolly→SpecBench证据，未填补作者历史运行的材料缺口；最小对照清单集中在第三十二节。沿用已核限定来源：[纪要实验反馈rev3](https://dreamsoul.feishu.cn/docx/C1w6dEgcZo9Rjgx0VxZcwXGbn3d#doxcnlZ77hgy4DGnoSXD1DAG1Vb)、[纪要拟合与在线修正rev3](https://dreamsoul.feishu.cn/docx/C1w6dEgcZo9Rjgx0VxZcwXGbn3d#doxcnqEPfKpzmiWsFEC09cJ0Vnb)、[原转写rev9的offset段](https://dreamsoul.feishu.cn/docx/Sh6TdLN8XoBHsdx2WEJctqwpnAd#doxcnGrT1WZYWDjSFRB7pxove9f)（内部资源，本批未新增读取）。
+
+**R93历史接受解释**：R93 $2649/4545=0.582838\to2844/4365=0.651546$ token/decode，每题55.1875→59.25是该切片的正证据；耗时1.020094×及两臂共同14/1/1另列，原冻结判据与当时结论保持。
+
+**R93按当时冻结协议的结论（与上述新接受主指标解释分列）**：RTX5090 D v2上G16全部96正式请求真实EOS、14460提交完整T0通过，另6预热192token单列。接受55.1875→59.25、τ均值1.582356→1.652342，时长均值3.457556→3.389449秒（ESP/full1.020094×），接受14胜/1负/1平、计时12快/4慢。两臂均原参考14匹配/1不匹配/1格式NE；q433数学84受支持但格式NE保留，q438展示8%却裸终行0.08，保数值不匹配与独立语义冲突unknown。另q440/446仅条件支持。未观察到两臂间质量退化，但不能由共同缺口与小切片点值宣布完整答案等质稳定加速；未重跑、筛题或事后添CI。
+
+**R92事前结论（历史CPU准备）**：G16匿名A–P计算原文先冻结、后揭示原参考；16题参考推导在事前主读法下算术一致，10题直接、6题依赖明确条件，q440姓名拼写与q446倍数语义不据gold消歧。输入/参考/rubric/102项顺序及执行码已准备，无新模型答案或GPU结果；不能填写16个NE、0/16或16/16模型成绩。后续新Run R93见下；R92原零GPU身份及原H84/H90与R90描述结论不变。
+
+**R91独立审查结论（纯CPU）**：先只给fresh-context agent匿名A–H原题，再揭示两臂与参考；其计算先于揭示冻结，并用Fraction/Decimal核算。q426/429/430/432有明确公式支持，q431的15小时依赖顺序清扫；q425的末行格式拒绝与漏算周末分别成立，q427的40−21=29为明确算术错。q428只能给随Lylah涨幅变化的参数式，原参考推导有错也不能据此判模型正确。原`semantic_status`主要沿用数值匹配标签，不是独立推理审查。接受5胜/1负/2平、描述计时4快/4慢，净增24中22来自两题；目前支持有限机制/接受观察，完整答案等质稳定加速与泛化仍缺。
+
+**R89/R90当前结论**：新完整解答协议通过q417开发准入；固定八题正式两臂各5匹配原参考/2不匹配/1格式NE，全部真实EOS。q425两臂用`### Final answer: 28.33`，违反精确终行合同且漏算一天周末；q427均把40−21算为29；q428原参考有缺陷，数学状态仍unknown。冻结K未改变本组最终数值或评分状态，实际接受均值70.75→73.75。无预热、变长EOS计时均值4.538052→4.450941秒仅描述本八题；完整语义非劣与稳定加速仍待独立评价。
+
+**R87历史开发结论**：在原资源门通过后，固定q417的ESP与冻结K各产生相同64-token解释性前缀并触预算，无EOS；每臂为0正确/0错误/1不可评价。128提交完整T0、115源/模型14件绑定、关闭/末核与actualexit0均通过，H84完整答案准入失败，R88固定八题未派发。接受23/24、τ1.575000/1.615385及生成1.894166/1.444316秒仅为该单题未完成前缀的描述；无预热、ESP先跑，不形成完整答案质量或加速结论。
+
+**R78–R82b当前结论**：非思考八题两臂各7正确/0错误/1未完成，H79全可评分门失败。原online ridge在16题流增加13实际接受，速度点值1.001534×但2/3次更慢；动态K/提交链与原decoder已对齐。同布局零残差消融full/zero为1.107204×、每题接受+8.187500，H82点门通过，探索性95%区间同向排除无效值。这是已见32题、固定预算、相同矩阵布局/dense/单行head的机制消融；完整答案质量和独立数据泛化仍待验证。
+
+| **方案与范围** | **已有结果** | **当前结论与处置** |
 | --- | --- | --- |
-| `KalmanMaskProvider` | 标量随机游走。\(P^-=P+q\)，\(K=P^-/(P^-+R)\)，\(m\leftarrow m+K(e-m)\)。online 用 Sage–Husa 更新标量 \(q,r\)（遗忘因子默认 0.95）；frozen 锁住 prompt 结束时的 K。没有本轮 verify 的 z | 第 531–556 行 |
-| `VerifyCorrectionMaskProvider` | \(m=\hat m+K(z-\hat m)\)，z 是上一枚已提交嵌入。标量、对角、仿射 \( \hat m+(z-\hat m)A^\top+b \)、低秩 \( \hat m+(z-\hat m)V U^\top+b \) | 第 688–720 行 |
-| `OnlineVerifyKalman` | 逐维 \(K=(P+Q)/(P+Q+R)\)。full：槽 0 为 \(\hat m+K(z-\hat m)\)。trajectory 臂原样返回 ESP。observation 臂把先验换成随机游走状态 | 第 785–823 行 |
-| `AlignedResidualKalman` | 状态是标量相关系数 F。槽 0 为 \(\hat m+F\cdot\nu_{\mathrm{prev}}\)。F 朝相邻残差的余弦更新，并夹到 \([-1,1]\)。R 用余弦残差的平方更新，不减 P | 第 884–918 行 |
-| `HybridGainKalman` | \(m=\hat m+K\odot(z-\hat m)\)。创新 \((y-\hat m)-K\odot(z-\hat m)\)，步长 \(P^-\odot r/(R+P^-\odot r^{\odot 2})\)，\(P^-=P+Q\)。`observe='last'` 改到本轮 bonus 上学习 | 第 1022–1102 行 |
-| `OutputHiddenHybridKalman` | 在 output-hidden 轨迹上，\(h\leftarrow h+(z-h)\odot K\)，再按嵌入表平均范数缩放。trajectory 模式不乘 K | 第 1229–1244 行；缩放在第 74–78 行 |
+| R93：G16固定16题完整答案 | 96正式/14460提交全T0、全真实EOS；两臂各14原参考匹配/1不匹配/1格式NE；接受+4.0625、描述时长1.020094× | 接受与时长点方向正；共同格式/单位冲突及条件语义仍缺，不判无条件等质稳定加速。已退出释放，见运行记录第九十二节 |
+| R92：G16事前数学rubric与CPU准入 | 原433–448全部保留；16参考在主读法下算术一致，10直接/6有条件；96正式+6预热及源码/输入绑定已准备 | **未派发**，模型行0/CUDA0；false授权父/子均退出2。后续新Run须fresh GPU时窗/交接及原资源门；见运行记录第九十一节 |
+| R91：R90保存证据的CPU独立审查 | 匿名题干先算后揭示；完成/格式/原参考/独立数学分列，8题不删；来源与成对关系已核 | 原H90失败及5/2/1不改。模型共同错误与条件明确，G16后续准备见R92，本R91无模型/CUDA派发；见运行记录第九十节 |
+| R89/R90：解释与显式终行的完整答案 | 开发两臂可评分；正式48请求/9498提交T0，全EOS；每臂n8为5参考匹配/2不匹配/1NE | **开发通过，八题全可评分未满足**。q425格式拒绝、q427算错、q428数学unknown；接受均值+3，原件与退出见运行记录第八十九节 |
+| R87/R88：新身份完整答案准入 | 原门通过；q417两臂64预算无EOS，各0correct/0wrong/1NE；128提交T0与来源全过、actualexit0 | **H84失败，R88未派发**。固定数字指令在该开发点未形成完整可评分答案；GPU已释放，见运行记录第八十八节 |
+| R84–R85：新单数值格式/EOS质量 | 已预注册；37份owned退出原件核实，R84原准入主机内存未过、actualexit1；模型请求0，R85未派发 | **质量假设未执行，不是负质量结果**。准备与拒绝证据见运行记录第八十六节；H79/q414原失败保持 |
+| R82b：同布局zero/full、ESP背景，32题 | 288项/36864提交T0；full−zero接受+8.187500，速度1.107204×，95%[1.086110,1.127636] | H82点门通过；探索性接受95%[6.656250,9.656250]，W/L/T=[31, 0, 1]。同布局/dense/head机制消融，见运行记录第八十五节 |
+| R82原版布局混杂 | 53正式+3预热已有完整逐项，活动1未知、234未派发；非零终止、无complete | 设计中断不汇总速度；模型close/末核未知；新R82b匹配布局 |
+| R81：原decoder online与保存流 | 48项/6144提交；wholecommit/接受/共同trace/计数及prompt末K存储位全同 | 动态边界通过，覆盖完整提交链及prompt末K；见运行记录第八十四节 |
+| R80：原类online/static有序16题流 | 每rep1203pairs/4refit；接受823→836，median秒46.283122→46.212222 | 点门通过，1.001534×；2/3次更慢，速度未稳定。状态跨题耦合，见运行记录第八十三节 |
+| R78–R79：非思考256/EOS质量 | 开发两臂答600对gold1000均wrong但可评分；正式各n8为7correct/0wrong/1NE | H78通过、H79全可评分失败；q414无EOS保分母。AI审阅14pass/2unknown，见运行记录第八十二节 |
+| R77：4数学题×5臂，512/EOS有界质量覆盖 | 20项/10240提交完整T0；全部512预算无EOS。每臂correct0/wrong0/not_evaluable4，保全分母；128预算翻译/摘要24匿名AI核查全unknown | **执行完成，语义结论未闭合**。自定义数值代理不等于官方GSM8K分数，报告passed仅表示评分合同成功；不能把0/4未取得答案解释为100%答错或质量通过。见运行记录第八十一节 |
+| R76：同冻结full K上分别叠加EMA-last/Kalman，固定16题 | 144项/18432提交完整T0；相对fresh full接受−10.25/−7.0625，速度0.878205×/0.904080×，均0胜16负0平 | **两个预设联合假设不获支持**；95%速度区间[.856334,.901877]/[.883266,.924745]，97.5%区间仍低于1。更换provider改变ESP训练特征分布，仅检验冻结K直接组合；不乘32题批速度推combo/ESP。见运行记录第八十节 |
+| R75：四任务各8题的冻结K拟合留出复核 | 288项/36864提交全T0；ESP/bias/full实际接受43.28125/43.84375/51.46875，平均τ1.516491/1.527499/1.681752；合并τ1.511905/1.523238/1.673806 | **点方向及预设稳定门均通过**。full/ESP1.084824×，95%[1.065705,1.103849]，接受+8.1875；full/bias1.096119×[1.080285,1.112069]，接受+7.625，两者31/0/1。历史480已见，仅相对本次拟合/近期选择留出；不同输出/同审计的固定预算速度，语义未证。见运行记录第七十九节 |
+| R74：现有online标量Kalman与ESP | esp接受41.875/τ1.499941/秒3.138798/相对ESP1.000000×；kalman接受34.5/τ1.371887/秒3.434455/相对ESP0.913915×；48项完整T0通过 | **H74未获预注册联合收益支持：接受均差-7.375，墙钟+0.295656秒，速度0.913915×；探索性95%速度[0.867172,0.958170]、接受[-11.25,-3.75]。** CUDA state/innovation张量、Python host P/Q/R/K标量，prompt递推与同步成本均在generate内；不是合作者静态ridge K。[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十八节 |
+| R73：同一R68保存72项计时的口径核对 | 内部prefill+decode与strict sync generate都排K03<K10<ESP，8qid符号同向8/8；无新生成/模型/拟合 | K03对K10速度1.044472/1.044511×，未发生排序翻转；仅排除本批该计时口径的排序解释，不归因为异步单因。[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十七节 |
+| R72：同401对最佳常量残差与完整frontier gain | esp接受41.875/τ1.499941/秒3.175949/相对ESP1.000000×；bias接受44.25/τ1.551044/秒3.142639/相对ESP1.010600×；full接受53.25/τ1.725151/秒2.849897/相对ESP1.114408×；72项完整T0通过 | **H72按预注册点方向通过：接受均差+9，墙钟-0.292742秒，速度1.102720×；探索性95%速度[1.053091,1.159804]、接受[5.375,13]。** 同401对的最佳常量与完整条件映射比较，两者保原dense路径；不是固定full截距去A，也不是部署优化。[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十六节 |
+| R71：EMA last/order0 anchor单因素，同8qid×128×3 | ESP/last/order0接受41.875/33.125/44.125，72项完整T0通过 | **H71未获预注册联合收益支持；last−order0接受-11、墙钟+0.402614秒、速度0.887095×。探索性95%速度[0.849912,0.930506]、接受[-14.125,-7.875]。** last/order0相对ESP分别0.904454×/1.019569×；anchor子对照与ESP收益分开。[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十五节 |
+| R70：原代码与本仓provider逐状态CUDA核对 | ESP masks1032/1032，EMA-last masks/velocity/anchor/ref_norm各1032/1032存储位全同，forward/newgen/fit均0 | **两个机制子假设通过**，只限此外生ESP轨迹，不代表EMA收益或全部输入等价。[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十四节 |
+| 输入 EMA，Qwen3-4B BF16 五方法固定480条，seed123，T0，256/EOS，BC30/60 | input_first 为以order0 EMA作anchor的一阶velocity外推（method=ema_velocity、level=order0），β=.9999、λ=.1，无verify/Kalman；pooled τ 为1.511957584/1.636339710，高于 input_zero 的1.422420206/1.519108823；配对 accepted 胜:负364:81、374:70。11个历史Run已完成，10个speculative Run的809,118个提交token argmax审计通过，计时关闭 | **已有可运行实现及该协议内接受效率优势**。保留优先基线；单seed、不同后续轨迹及无计时不能证明普遍优势、纯空间因果或加速。[历史证据归位](<运行记录 Run Record/2026-10-31 历史证据归位.md>) |
+| Qwen3-4B已完成32-token CUDA试跑，SpecBench qid81–88、32 token/noEOS、naive K2/BC30 | 两臂16项、512个提交token来源/T0审计全过，8对输出token均相同。accepted总数ESP113、EMA86，EMA胜:负:平0:8:0，配对均差−3.375；同步解码墙钟均值ESP0.680310725秒、EMA0.810950813秒，配对均差+0.130640088秒 | **本次预设联合假设不获支持**：8条均更少接受且更慢。只关闭这次有界试跑，不抹掉旧480条局部正结果；本次只取writing子集，输出预算与停止条件不同，不构成旧完整480条的直接复验、独立确认或普遍速度结论。[本次运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>) |
+| 同8条256-token CUDA比较，模型/输入/参数与32-token回合相同 | 16项来源/T0、4096实际提交及8项EMA末状态门通过。原口径accepted ESP543、EMA509，均差−4.25；同步墙钟均值6.748489612/7.001628888秒，EMA−ESP为+0.253139275秒，接受与更快胜负均2:6 | **256预算联合假设仍不获支持**。EMA原accepted含1个未提交尾接受（实际提交中508），不事后改主指标。仅1对256输出相同，故这是同输入/预算下各自轨迹的实测比较，不是严格同输出加速证明；不自动续512或扫β。[本次运行](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>) |
+| R69b：同8cal/λ=.3，仅在324共同decode对后追加8个prefill标签 | R65保存值无损FP64→FP32，共同324 X/Y存储位零差；72项完整T0/9216提交通过。without/with接受51.875/53，τ1.694045/1.723797，同步秒2.898836/2.848934 | **H69b点方向通过**：with−without接受+1.125、墙钟−.049902秒、速度1.017516×，探索性95%速度[1.003445,1.036423]、接受[0,2.375]，WLT5/2/1。仅支持这8标签的加入效应，不能将多个条件效应相加归因为全部历史差距。[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十三节 |
+| R69：固定λ=.3，只加入107/247两条校准输入，324→401对 | ESP/cal8/cal10接受均值41.875/51.875/53.25，τ1.499941/1.694045/1.725151，同步秒3.122478/2.835645/2.794639；72项完整T0/9216提交通过 | **H69按预注册点方向通过，区间仍含无效值**。cal10−cal8接受+1.375、墙钟−.041006秒、速度1.014673×；探索性95%速度[.992050,1.043003]、接受[0,2.875]，W/L/T6/1/1。加入两条的效果限此切片，不称一般校准样本量规律；两规模都比ESP有正点收益。[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十二节 |
+| R68：固定原401对，仅ridge=.3/10，ESP/K03/K10各8qid×128×3 | K03的6,556,160个FP32字与原K逐位重现；72项完整T0/9216提交通过。ESP/K03/K10接受均值41.875/53.25/50.375，τ1.499941/1.725151/1.675156，同步墙钟3.138899/2.781261/2.905058秒 | **H68按预注册点方向通过，证据仍不确定**。K03相对K10接受+2.875、墙钟−0.123797秒、速度1.044511×；探索性95%速度区间[0.997400,1.088691]、接受差[−0.625,6.5]，W/L/T=4/3/1。两K相对ESP为1.128589×/1.080495×，本批没有支持“ridge10完全不work”；不据点值称λ单独解释全部历史差距。[运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十一节 |
+| R67：固定R66同一K，两端同8qid×128token各3次 | 48项完整T0/来源及6144提交通过；24/24完整输出、实际接受、完整tree/owner/裁剪trace均同，全部实际forward行argmax与frontier摘要亦同。CUDA复核1,794对frontier的5,382对BF16 placeholder/probe/head输入存储逐位相同。两端接受均值53.25、τ1.725151 | **H67获本切片支持**。同K时，本仓临时adapter与未改原d91ed75运行时离散轨迹一致；R65/R66原不同K的接受差不再构成本切片实现失败证据。后续λ/校准输入/配对边界的条件效应已由R68/R69/R69b分别记录，不能相加推广为全部成因。墙钟仅诊断，当前不判断算法速度差。[实际运行](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第七十节 |
+| R66：原d91ed75代码，10cal×64token、同8eval×128token，原ESP/full各3次 | 原fit401对、校准内原网格选λ=.3，再全10cal拟合，评价零在线更新；48项完整来源/T0及6144提交通过。ESP/full接受均值41.875/53.25、τ1.499941/1.725151、同步generate墙钟3.243978/2.893222秒 | **H66获本切片支持**：full相对原ESP1.121234×，接受+11.375、τ+0.225210、墙钟−0.350756秒；速度探索性95%区间[1.071959,1.173249]，接受差[7.875,14.75]，接受8胜0负0平。输出相同仅6/24；无AR计时/语义评分。R65/R66的ESP在24/24配对输出和接受数相同，但两批K校准/配对/选λ不同，未证明full差距原因；不是原480条正表精确复现。[原运行](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第六十九节 |
+| R65：8条校准×64token，另8条评价×128token，ESP／bias／full各3次 | 332对仅校准拟合，评价训练对0，K全程冻结；72项来源/完整T0及9216提交通过。qid级3次中位数后ESP/bias/full接受均值41.875/43.625/50.125，τ均值1.499941/1.538010/1.674861，同步墙钟3.208102/3.189781/2.936466秒 | **H65获本切片支持**。full相对ESP加速1.092504×，接受均差+8.25、τ差+0.174920、墙钟差−0.271636秒；速度探索性95%区间[1.060176,1.133017]、接受差[5.75,11.125]，8/0/0接受胜/负/平。bias为1.005744×且速度区间跨1，不据点值称确定收益。全输出相同full/bias相对ESP仅9/24、12/24；未测语义质量或AR计时，不称严格同输出/相对AR加速。共同final-norm取证开销已计入基线；不是原表复现、独立全局测试或Kalman证明。[实际运行](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)第六十八节 |
+| R64：8条非writing输入×128token，ESP／原幅度EMA／范数重标定EMA，各3次 | 72项来源/完整T0及9216主提交通过；每qid/arm先取3次中位数后，ESP/raw/norm的已提交接受均值43.875/40.25/40.25，同步墙钟均值3.073649/3.259394/3.224180秒。raw相对ESP加速比0.943012，接受均差−3.625；raw相对norm为0.989196，接受均差0 | **H64不获支持**。原幅度既未超ESP，也未取得相对范数重标定的联合优势；norm亦未超过ESP。raw-vs-ESP速度比95%探索性区间[0.916053,0.973508]、接受均差[-6.75,-0.75]；raw-vs-norm为[0.972331,1.005006]及[-0.75,0.625]，不称norm确定胜出或两者等效。三repeat在本次输出/接受计数一致，raw-vs-ESP/norm完整输出相同分别18/24、15/24；非全同输出、无计时AR或语义质量评分，非独立留出。不追加本批实验。[实际运行](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>) |
+| 合成 EMA 与 observation 联合，确认seed21/22/23，192 prompt对 | 相对较弱EMA trajectory为102:71，p=.022；相对更强ESP为88:94，p=.71 | 已在合成预定主比较中确认优于EMA自身，但未优于更强ESP，不作为超越强单侧的成功方案。[联合检查](<运行记录 Run Record/2026-11-01 联合mask检查.md>) |
+| 标量trajectory-only Kalman，合成发现与确认分离 | 发现117:59:16，p=1.5e-5；确认101:83:8，p=.210 | **收益未获独立确认**，该配方停止扩展；不推广为所有Kalman模型无效。[联合检查](<运行记录 Run Record/2026-11-01 联合mask检查.md>) |
+| OnlineVerifyKalman，合成及真实模型CUDA BF16（旧比较backend/EOS未核） | 合成确认97:86:9，p=.460；真实Qwen3-4B/0.6B各32条、16 token、k1[4]，argmax通过，但accepted胜:负:平2:24:6 / 1:28:3，τ从1.361→1.218 / 1.452→1.216 | **该协议内明确负结果**，不以同配方扩大实验；执行正确性与收益失败分列。[联合检查](<运行记录 Run Record/2026-11-01 联合mask检查.md>) |
+| AlignedResidualKalman，真实4B/0.6B小规模比较 | 两模型均5:9:18，p=.424；τ分别1.306→1.294、1.335→1.327 | 未超过ESP，作为有价值负证据收束，残差对齐未证明收益。[联合检查](<运行记录 Run Record/2026-11-01 联合mask检查.md>) |
+| Kalman observation-only工程合同，OnlineVerify/Aligned × forget=.8/1 | 四场景CUDA通过：FP32实际状态匹配独立FP64参考，观测自有状态与动态ESP基底区分，首commit更新、后续commit不重复更新及reset符合受测合同 | **所测合同已完成**，不再列为待验任务。该Run无真实模型收益/计时对照，不能从四项通过推出Kalman有效或BF16全域正确。[运行证据](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>) |
+| 8B历史命名frozen-Kalman（实际冻结对角K残差修正），office-qwen3-8b-v1，128条Dolly、64 token、T0/noEOS、k1[4] | 对ESP为51:41:36，p=.348141；accepted配对均差+.1953125，CI[-.0546875,.4453125]；pooled τ 1.343552→1.350754，argmax通过，未测速度 | **冻结校正收益未获确认**。固定原源码为hybrid_gain、mode=frozen、observe=last；校准后无在线K/P更新，不能支持真正在线滤波有效。只作为既有静态校正对照收束。[原记录](<运行记录 Run Record/2026-11-03 Qwen3-8B同预算与冻结卡尔曼.md>) |
+| 静态ridge/仿射残差K与k_affine_residual | 旧合成确认124:58:10，p=1.1e-6；真实0.6B 128条50:40:38，p=.343，未获收益。当前postcommit-final-norm-v1仅为合成工程夹具，160对数据与真实收益未执行 | **静态拟合正结果不证明Kalman有效**。保留必要诊断对照，不优先扩新矩阵。[联合检查](<运行记录 Run Record/2026-11-01 联合mask检查.md>)、[实际声明](../studies/k_affine_residual/study.yaml) |
+| Qwen3-8B observation扫描及按长度墙钟 | 均为**ESP**，不是EMA/Kalman。扫描同128条探索数据，g=.5相对g=0 accepted均差−13.1796875，p=6.388e-29，平均墙钟+.473827秒；另一次按长度比较trajectory相对full在64/256/512 token平均少.096467/.474111/1.148640秒 | 这些条件下加入该观测不划算；不把同批探索的配置选择当独立确认，不把收益归给EMA/Kalman。[扫描](<运行记录 Run Record/2026-11-04 Qwen3-8B observation增益扫描.md>)、[墙钟](<运行记录 Run Record/2026-11-04 Qwen3-8B 墙钟按长度.md>) |
+| ESP非官方8B固定480条复验 | BC30/60 pooled τ 1.563377504/1.647301264，未达论文目标1.63/1.74；完整提交链239,137 token argmax审计通过 | 保留可信的**本仓协议基线**，论文目标未复现，不为追数字重开长矩阵。[历史证据归位](<运行记录 Run Record/2026-10-31 历史证据归位.md>) |
 
-这些类都不是 `studies/k_affine_residual` 里、解码循环之外的 `postcommit-final-norm-v1`。
+EMA五方法原件固定于Git b8b20b5ada7fd860894114cbf224ce749af430cf的 studies/qwen3_4b_bf16_five_methods/docs/paired_evidence_v1.json，SHA256为8e85ac6ea9984047abf0ffd5d6653b28b6aadd74aa876139fa10465dc5bbf274。固定原件的字节核验不等于其全部原生Run重新验证。8B frozen身份另据固定原HEAD 29fc9f815fa83aae72272f4e96a831425d3f5d8c的studies/trajectory_observation/structure/office_qwen8b.py与src/spec_mtp/masks.py核对：离线校准对角K后不作在线K/P更新，观测z仍随提交变化，不表示输出mask恒定。早期first26调参结果仅作发现线索，不充当独立确认。
 
-## 正式运行配置
-八类 trajectory 消融、墙钟和 g-scan 共用（`studies/trajectory_observation/structure/office_traj.py` 第 110–133、898–910 行；`office_tree.py` 第 40、341 行）：
+## 当前阶段结案决定
+| **对象** | **已经能够判定** | **当前处置** |
+| --- | --- | --- |
+| EMA-vs-ESP：同8条writing、32/256预算 | 两次来源/T0门通过；256的实际末状态符合声明精度合同。两预算的联合收益假设均不获支持，结果限各自协议 | **关闭256-token预算扩展候选**；该切片不作为默认加速方案，不自动续512、扫β、加臂或改状态精度。保留EMA为有条件基线，旧480条局部正结果不被改签 |
+| R64微观幅度规则消融 | 新四类8条切片中，raw对ESP接受更少且更慢，对norm没有联合优势；质量仅覆盖完整验证链T0 | **本批结束**，两种现有幅度规则都不据此进入默认加速候选；不扫β、延长长度或挑子集追正。保留逐qid反例、完整正负对照与初始化几何；不推广全部EMA/Kalman无效 |
+| Kalman observation-only四场景 | 两类provider在所测输入、精度与时序下的工程合同通过；本Run没有真实模型收益比较 | **关闭这项受测合同覆盖缺口**，不重复派发。收益仍按具体旧配方的负/未确认证据判读，不写成整个Kalman方法已有效 |
+| G16固定近期留出完整答案 | 全部运行与原件链完成；接受/时长点方向正，质量缺口未闭合 | **本批结束**；保全部16题、格式NE与单位冲突，不改parser/格式追全绿，不自动扩题/加臂/重拟合或重占GPU。新研究需单独明确问题与授权 |
+| 历史正/负/未确认材料 | 原协议内的结果和已核来源能够保留；缺失原件、未覆盖域与理论假设不能据当前测试补齐 | 保留其条件与unknown，受影响读端严格拒绝；不通过补跑新数据、改门或重签，把旧Run补成已验证 |
 
-- 模型：Qwen3-8B，权重 `D:\models\Qwen3-8B`，BF16，CUDA，eager，`local_files_only`
-- mask：`method=esp`，`num_masks=1`，`init=mean_prompt`，`lam=0.1`，`update=true`
-- 树：static，`branches` [4]，剪枝开，`impl=efficient`。块复杂度 \((1+1)\times(1+4)=10\)
-- 解码：温度 0，`stop_on_eos` false
-- 数据：Dolly `databricks/databricks-dolly-15k` train。八类与墙钟按长度的 64 token 档是每条 64 token；g-scan 与墙钟的 256/512 档见下表
-- 混合：`condition=none`，`form=mean`，协议名 `trajectory-observation-blend-v1`。traj / g0 的增益是 0；八类里的 full 是 0.5
+# 三、已核实现合同与证据边界
+## （一）方案身份与数学合同
+实现见 [providers.py](../src/spec_mtp/structure/algorithm/mask/providers.py) 与 [fit.py](../src/spec_mtp/structure/algorithm/mask/fit.py)，分别核验，不能混称一个Kalman方法。
 
-# 二、结论总表
-差值方向在表内写明。胜负平是逐条符号检验的胜:负:平。p 是双侧符号检验。区间是 bootstrap 百分位，种子 0，10000 次。这些办公室比较标明探索，不另设确认线。原始 jsonl 在运行记录所指目录，不进 Git。
+| **实现** | **声明的合同** | **可得结论边界** |
+| --- | --- | --- |
+| EMA provider | v=βv+(1−β)(e_new−e_prev)，anchor/order0、步长外推、范数、block-local与实际β/λ | 平滑与外推是否按协议执行；没有协方差模型，不据此声称Kalman最优性 |
+| KalmanMaskProvider | 标量随机游走P⁻=P+Q、K=P⁻/(P⁻+R)、level与Joseph后验、噪声自适应/floor、冻结/reset | 递推是否忠实且数值有效；共享标量噪声假设另作研究判断 |
+| OnlineVerifyKalman / AlignedResidualKalman | OnlineVerify逐维P/Q/R；Aligned标量F/P/Q/R与F裁剪；观测和提交token时序 | 排除错位、未来信息和跨prompt泄漏，不等于完整embedding协方差模型 |
+| HybridGainKalman / OutputHiddenHybridKalman | 对角K参数递推、x/innovation、校准先验、在线/冻结/scratch/bonus与root对齐 | 实际变体与Run逐一对应，不同状态语义不共享收益结论 |
+| 静态scalar/diag/affine/ridge K | 拟合输入/目标、隔离单位、正则与冻结时点 | 只回答回归校正合同，不证明Kalman滤波有效 |
 
-八类的问题相同：增益 0.5 的联合 mask，是否比关掉 observation（增益 0）接受更多。设置就是上一节的正式配置，每类一条 Dolly 切片，64 token。效应是 traj 减 full 的接受数均值；τ 箭头是 full→traj。
+方案解释按状态、观测、F/H（适用时）、P/Q/R/K、更新时点、owner/bonus槽位、重置与冻结条件定位，不把身份表视为全部模式已验证。未满足线性/噪声等假设时明确模型限制，递推存在不等于最优性成立。当前实现已拒绝13个方差/噪声字段的非有限值，并修复OnlineVerify/Aligned的合法forget=1除零，实际复现与验证见日期记录。该端点沿已有scalar语义关闭Q/R自适应（包括初值低于floor时保持），P与F仍更新；这是显式no-adaptation约定，不是自适应权重在forget→1时的连续极限。旧finite且forget=.95的研究配置不因这次端点修复自动改签或失效。
 
-| **名称** | **问题** | **设置** | **效应量** | **PR** | **结论** |
-| --- | --- | --- | --- | --- | --- |
-| `office-8b-traj-ablate-v1` | 联合是否多于 trajectory-only | creative_writing 剩余 60 条 | 47:5:8，+3.616667，τ 1.267772→1.361124 | [#69](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/69) | 增益 0.5 接受更少 |
-| `office-8b-traj-xcat-v1` | 同上，换类 | open_qa 128 条 | 103:12:13，+3.2421875，τ 1.253489→1.338024 | [#70](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/70) | 同上 |
-| `office-8b-traj-xcat2-v1` | 同上 | general_qa 128 条，跳过 qid 91 | 101:17:10，+3.1484375，τ 1.265720→1.350626 | [#71](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/71) | 同上 |
-| `office-8b-traj-xcat3-v1` | 同上 | classification 128 条 | 93:23:12，+4.0546875，τ 1.243178→1.352919 | [#72](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/72) | 同上 |
-| `office-8b-traj-xcat4-v1` | 同上 | closed_qa 128 条 | 95:22:11，+2.4921875，τ 1.357949→1.431103 | [#73](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/73) | 同上 |
-| `office-8b-traj-xcat5-v1` | 同上 | brainstorming 128 条 | 95:17:16，+2.6171875，τ 1.290219→1.358632 | [#74](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/74) | 同上 |
-| `office-8b-traj-xcat6-v1` | 同上 | information_extraction 128 条 | 106:10:12，+3.046875，τ 1.326882→1.415774 | [#75](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/75) | 同上 |
-| `office-8b-traj-xcat7-v1` | 同上 | summarization 128 条 | 97:17:14，+2.6640625，τ 1.340886→1.418055 | [#76](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/76) | 同上。八个 Dolly 类到此用完 |
-| `office-8b-traj-wall-v1` | 接受数更高时墙钟是否更短 | 同一 summarization，64 token | 接受数仍 97:17:14；墙钟 traj 更短 99:29:0，差 −0.100136 秒 | [#84](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/84) | 接受数与墙钟同向，都离开 0 |
-| `office-8b-traj-failset-v1` | full 胜出的句子有没有共同长度 | 上面八组已归档 jsonl | 子集条数等于各组的负。字符均值四组更高、四组更低 | [#85](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/85) | 看不出按长度分开的失败模式 |
-| `office-ar-inconsistency-v1` | 独立 AR 不一致是口径还是正确性 | 八组已归档行，不加载模型 | 八组都重叠，argmax 全过 | [#89](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/89) | 可隔离的口径问题 |
-| `office-ar-first-fork-v1` | 不一致从哪一个 token 开始 | summarization 64 token；64 条至少一臂哈希不等 | 两臂首分叉下标与两侧 token 都相同的 35/64（0.546875）。fp32 对照未加载 | [#95](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/95) | 不贴共享参照，也不贴分叉分开 |
-| `office-ar-bf16-determinism-v1` | BF16 上 AR 自己会不会翻 | 上面 64 条，只跑 AR | 两次整段 AR 一致率 1；整段对逐 token prompt 为 0.3125；重放对归档参照为 0.5 | [#96](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/96) | 贴「AR 路径不稳定」 |
-| `office-8b-traj-wall-by-length-v1` | 墙钟差是否随长度变大 | summarization，64/256/512 | 墙钟差 −0.096467 / −0.474111 / −1.148640 秒，绝对值递增。512 的差主要在 verify | [#97](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/97) | length-dependent，分解在 verify |
-| `office-8b-traj-g-scan-v1` | 哪个 g 优于 g=0 | summarization，256 token；g=0, 0.25, 0.5, 0.75 | 接受数合计 10235 / 9467 / 8548 / 8088。τ 均值 1.460560 / 1.412226 / 1.358059 / 1.333320。相对 g0 的胜负平 21:100:7、6:121:1、5:118:5，方向都是 negative。墙钟差 +0.189740 / +0.473827 / +0.541773 秒 | [#102](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/102) | 三个 g>0 的接受数都低于 trajectory-only，g 越大越少、墙钟越长 |
-| 同预算树形 | 把 4 个节点拆成两层是否更多接受 | [2,2] 与 [3,1] 对 [4]，`num_masks=2`，64 token | 4B 与 8B 上 [2,2] 约少 1.8–1.9 个接受 token，区间离开 0。[3,1] 也是负方向，8B 区间含 0 | [#78](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/78) | 两层树更差。之后的 trajectory 协议保持 [4] |
-| `kalman-mask-scalar-v1` | 无 verify 观测的标量滤波是否胜过 ESP | 合成确认种子 21/22/23 | 101:83:8，p=0.210 | [联合 mask 开发记录](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>) | 确认未通过。这不是带 z 的合并 |
-| 离线 K（对角、仿射、岭、低秩） | 冻结的 \(K(z-\hat m)\) 是否胜过 ESP | 合成，以及 Qwen3-0.6B / 4B 短句 | 对角 91:80:21（p=0.445）。仿射探索 101:85:6（p=0.271）。0.6B 岭回归 128 条 50:40:38（p=0.343）。4B 秩 4 探索 15:10:7（p=0.424） | [联合 mask 开发记录](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>) | 小模型上弱或未通过。合成岭回归曾通过，没有带到 Qwen。0.6B 的 oracle 上界只说明被拟合的句子里函数类还有余量 |
-| 在线卡尔曼、对齐残差、混合增益 | 在线更新 K 是否胜过 ESP | Qwen3-4B / 0.6B，CUDA，BF16，树 [4] | 在线 4B 为 2:24:6，0.6B 为 1:28:3。对齐残差 4B 新 32 条 5:9:18（p=0.424）。混合增益 128 条 4B 为 33:28:67（p=0.609） | [联合 mask 开发记录](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>) | 负或弱。额外分支在多一个节点时接受数上升，同节点预算的替换没有在 4B 与 0.6B 上同时通过 |
-| `output-hidden-hybrid-kalman-v1` | hidden 空间的混合 K 是否胜过 ESP 和 hidden 原版 | SpecBench 209–336，64 token | 4B 对 ESP 60:51:17（p=0.448）。0.6B 对 ESP 1:125 | [#61](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/61) | 负结果，已关闭 |
+## （二）已验证合同范围
+已保存的CUDA FP64独立参考覆盖EMA闭式加权历史与last/order0 anchor，标量Kalman的Joseph后验、自适应floor/冻结，以及OnlineVerify逐维和Aligned标量递推。forget=1单独检查Q/R保持、P/F继续更新，包含合法below-floor初值；重初始化清除所测状态。Hybrid按独立回归更新式区分first、last与frozen，冻结K/P不冻结观测或输出mask。测试与实际设备、版本从对应运行记录定位，范围限声明输入与模式，不等于完整状态空间证明。
 
-八类、墙钟和 g-scan 的 argmax 审计都通过。独立 AR 不一致只诊断，不改写接受数。
+时序边界：OnlineVerify和Aligned按每轮root prior的**首个提交**更新一次；后续同轮commit不新增该后验，OnlineVerify的z因此保首commit，不是末bonus。Hybrid first/last分别在首commit/finish更新，last使用最后实际提交，EOS或预算截断时不保证它是完整轮bonus。真实CUDA解码回归覆盖prefill、逐commit、截断/EOS、finish与完整T0链。保留这些旧语义，不直接改成另一算法；递推吻合并不证明状态空间/噪声假设成立、滤波最优或研究收益。
 
-# 三、未验证/待定
-- **k>1 与深树。** 正式 observation 比较都是 `num_masks=1`、单层 [4]。同预算的 [2,2]、[3,1] 只比较了树形，接受数更低，没有把 observation 或卡尔曼放到 k>1 上再测。
-- **observation 的注入方式没有拆开。** \(z=\sum p(v)e_v\) 是嵌入的凸组合，一般不落在 token 上，范数也会缩。正式运行固定 `form=mean`，只扫了 g。`form=top1` 的合成确认已经更差（ESP 联合·top1·拒绝对 ESP 轨迹 74:103，p=0.035），8B 上没有把「离开流形」和「范数变小」分成两臂。
-- **温度只有 0。** 办公室配置 `temperature=0`，验证是 argmax。T>0 的采样匹配没有正式结果。T0 通过不能推广成采样分布保证。
-- **模型只有 Qwen。** 8B 是正式轨迹和 g-scan；0.6B 与 4B 只出现在卡尔曼和小树形比较里。没有第二种模型族。
+## （三）剩余事项与执行边界
+| **事项** | **当前状态** | **停止与继续条件** |
+| --- | --- | --- |
+| 本阶段受测实现合同 | EMA末状态、Kalman observation-only及既有full/时序合同已经按各自范围验证 | 无具体阻断合同矛盾则停止补验；扩大精度/输入域不自动成为新任务 |
+| 历史Run来源与结案 | 正、负、未确认结果及原件缺口按第五章分别保留 | 只核可定位的已有材料；缺失维持unknown，不拿新运行替代旧原件，不为结案凑满矩阵 |
+| 例外合同补验 | 只有已声明合同与实现/证据的具体矛盾，且会阻断当前结论时才成立 | 先固定刺激、来源和单一判据，执行范围与次数以当前授权为准；无具体矛盾不运行。理论、泛化或资料缺失不能自动触发GPU |
+| 本步 R64 幅度规则消融 | 72项已完成，预设联合假设不获支持；与已关闭 writing 32/256 扩展区分 | 原三臂、8条输入、128token与3次重复保持，本批结束；未测语义质量/AR，不追长度或扫参数 |
 
-采样分布保证仍未完成。BF16 相对独立 AR 的算子数值机理排查保持停止。本文不另排下一次实验。
+未来确有会改变方案取舍的研究问题时，先更新本文对应范围、对照、预算与停止规则，再按当前授权执行；关闭候选不因旧命令或计划自动恢复。涉及数值时确认CUDA可用并记录实际设备、dtype/backend与环境，GPU忙时等待或缩规模，CPU仅做快速纯合同/IO检查。复用本地模型来源，不下载或覆盖CUDA torch；新Run独立冻结来源，不覆盖旧Run。
 
-# 四、和开发计划的关系
-要检验的主张和已经改变判断的结果在第二章。代码、目录和工程验收在 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。已归档 Run 的计数不因后来的解码器改动而回签。
+# 四、重点课题与保留决策
+## （一）EMA：收益边界已按本切片收束
+本课题的已完成对照为同8条writing子集qid81–88，Qwen3-4B BF16/eager、naive K2/dynamic/pruned/BC30，ESP λ=.1与既有EMA β=.9999/λ=.1/order0，其余固定；分别使用32与256新token/noEOS。完整来源/T0门通过后，以EMA−ESP的accepted均差>0且同步generate墙钟均差<0为联合判据。数字、输出一致性、尾接受口径和处置统一见第二章；冻结协议、模型/输入/源码身份、逐case与计时成本见 [日期运行记录](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+256的8×5实际末状态域对声明舍入参考误差全0（BF16状态/mask maxULP0、anchor位相等、FP32 ref_norm差0）；相对理想FP64的velocity相对L2偏差2.89%–3.24%、mask为2.78%–2.98%。这是末状态与精度合同结论，不是理想递推等价、逐步实测或性能差的因果解释。
+
+16条256轨迹保留各自旧32前缀仅作诊断。writing子集与已观察的480条均不改标独立留出，当前比较不构成旧480完整复验，也不推广为全部EMA无效。后续不自动扩展该候选，停止规则由第二章结案表维护。
+
+## （二）Kalman：逐配方验真
+第三章列出的受测合同已按对应范围完成，不再作为重复待跑任务；收益按第二章逐配方结案。OnlineVerify、aligned residual、output-hidden等已测负结果不重复扩样；若真实实现错误使旧比较无法回答问题，保留旧记录并明确原因，新验证单独冻结。8B frozen按静态对角K修正结案，不作为在线滤波正证据；其校准/评价隔离与来源仍须完整登记。没有信息增益就保留未获确认并停止投入。
+
+静态K=[A,b]与postcommit-final-norm-v1只作拟合改善/解码受益的诊断对照。160对与跨集真实收益未执行，不能写成Kalman成功，不因夹具可运行就启动矩阵。
+
+## （三）Study取舍
+既有队列保EMA条件性基线、已有Kalman方案结案、可信ESP基线及必要来源收束；当前按R68起逐项预注册协议执行；R65/R66/R67已收束。五方法/input-mask材料服务EMA身份和对照；trajectory/observation探索约束解释，不作为独立扩展队列。输出hidden、失败top1/bonus和已停止BF16机理支线进入 [研究成果归档](<研究成果归档 Research Archive 去噪推测解码.md>)。
+
+七格范数、11格独立配对、旧72项模型矩阵、旧长矩阵和原1500步训练不自动恢复，退出当前排程；旧pending/partial保持真实状态，不伪造全Run完成。特定材料直接影响结案时只读所需来源或按第三章登记最小验证，不整批接卡。模板、smoke、来源校验和测试基础设施是工程支持，不登记为算法收益Study。
+
+研究队列与记录归属按上述处置维护。Study源码、第三方来源、数据、旧Run及source lock保留；物理删除/归并前核真实消费者和取证依赖。归档基于低后续投入价值，负结果本身仍是有价值证据。
+
+## （四）本拍 R64：EMA 外推幅度规则的探索性消融
+**本步研究依据**：为 training-free 去噪起草选择幅度规则，提供论文前期消融或负结果；不训练模型，不声称新颖性或 Kalman 最优性已成立。依据为 ESP v2 [§3.1–3.3](https://arxiv.org/html/2603.17942v2) 的冻结模型 probing/均值更新，以及本仓既有 EMAVelocityMaskProvider。当前实际重读前者指定正文，EMA 幅度规则是本仓实现，不归于 ESP 作者。
+
+**微观假设 H64**：保留 EMA 原幅度的外推，在本切片相对范数重标定 EMA 和 ESP 都获得更多已提交 speculative token，并缩短同步解码墙钟。原幅度步长为 v，重标定步长为 r·v/||v||，r 是差分范数 EMA；只有 normalize 改变。幅度不预先解释为可靠置信度。β=.9999 且首差分初始化可能主导有限长度状态，BF16 还影响实际递推；单次消融不能证明噪声模型或滤波最优性。
+
+| **微观冻结项** | **协议与验收** |
+| --- | --- |
+| 数据与预算 | SpecBench 现有原件，固定 qid101/102（reasoning）、111/112（math）、121/122（coding）、241/242（summarization），只取首轮；每条128新token、T0、noEOS、seed123。它们来自已看过的480条，不称独立留出或跨域确认；不根据结果剔除输入 |
+| 模型与三臂 | 本地 Qwen3-4B，BF16/eager，冻结权重；K2、dynamic/pruned、BC30、naive。ESP 为 mean_prompt/λ=.1/update=true；EMA 两臂均 order0、β=.9999、λ=.1、step_scale=1、extrapolate_ema=false、update=true，只分别 normalize=false/true。不增加 AR、Kalman 或其它臂，不改生产实现 |
+| 重复与顺序 | 三臂各2token预热一次并排除；3次正式重复，repeat为外层、qid为中层，三臂顺序按(qid序号+repeat) mod 3循环轮换，共72case。3次计时是同prompt的重复，不能当24个独立样本 |
+| 计时与口径 | CUDA同步夹住 provider构造＋generate/同等内存证据记录；不含加载、哈希、渲染、落盘、独立审计或计时外几何诊断。每qid/arm先取3次中位数，跨8qid计算配对墙钟差；相对基线加速比为基线中位时长之和/该臂中位时长之和。归一化新增归约/除法/标量分支的成本计入，不以墙钟差独断信息质量 |
+| 接受与质量 | primary accepted为每轮min(accepted_nodes数,committed_tokens数)之和，排除被预算裁掉的尾接受；逐轮与raw forward实际commit核对，legacy accepted另列。全部72case须完整128token、来源/evidence/完整提交链T0通过。报告三臂输出一致率及重复一致性；输出不同仅比较同输入/预算下各自轨迹，不称严格同输出加速。T0不替代数学答案/代码/摘要的语义质量评分 |
+| 主判据与不确定性 | H64获本切片支持须全部质量门过，且raw分别对normalized和ESP的qid级已提交接受中位数均差>0、同步墙钟中位数均差<0。报告两个子对照各自结果，不能只选有利者。CUDA按8qid配对bootstrap10000次报告95%区间，重复不扩大独立样本量；区间仅作小样本探索性不确定性，不称总体显著性或独立确认 |
+| 计时外机制诊断 | 72case全部结束后、关闭模型前，用同prompt独立重放初始化，记录实际v的范数、r、与首差分余弦及两种mask的最大差异；不声称采到了全部实际中间态。若初始化mask相同，仅记“初始无差异”，后续干预是否相同仍未知，不据此否定后续变化或从计时推机制；个别零差不删样本，主判据不变 |
+| 来源、预算与停止 | 新Run与临时材料仅用户指定D盘临时根round64，完整冻结当前源码、计划/协议/driver、模型清单、数据和渲染tokens。先确认CUDA可用并记录RTX5090 D v2；忙则等待或缩规模前重新冻结协议，不回退CPU。整批执行预算600秒，失败保partial、不盲重试；正负/无差异均停止，不续512、扫β、改精度、重跑旧writing或旧矩阵 |
+
+**预注册与实测状态**：计划先于正式GPU提交1553b6a，执行前仅收紧初始化诊断的范围后提交56873c8；实际Run冻结后者clean及原计划/协议字节，不回签当前结果正文。72项均完成，H64=False；第二章维护结论，既有运行记录第六十七节保存实际命令、原件和未覆盖项。初始化八条的两种mask最大差异均非零（0.001953125–0.005859375），v与首差分方向的FP32余弦估计约1；这仅为初态证据，不能归因为退化成因或证明幅度是置信度。进程退出后收到的层级澄清只修正当前宏观/介观原文及“微观假设”称谓，未改变H64/参数/判据。生产源码、测试、CI、工程90/300秒门及旧Run不改。
+
+## （五）本拍 R65：独立校准的首 mask 隐藏状态残差修正
+**依据与身份**：合作者提供的 [固定源码](https://github.com/jasonchengqs/speculative_mtp/commit/d91ed75145801d9263281d2938a7d0da5841b2bf) 中，frontier_gain 以已知 bonus 的输入 embedding 与原 placeholder 之差，修正已接受最深节点的首 mask 最终归一化隐藏状态，再重算该位置的起草 logits。本拍实际阅读 frontier_gain、fit_frontier_gain、decoding、state_dump 及计时调用方；源码可读，原正表的最终 cfg/K/逐 prompt CSV 未提交。本拍是新校准与新评价，不冒充原表复现，不复制私有来源到本仓。它是冻结 LLM 权重的离线 ridge 仿射残差校正，有数据校准成本，不是协方差递推 Kalman，也不宣称无参数估计。
+
+**微观假设 H65**：仅用固定校准输入拟合一次 K，冻结后在与校准分离的本切片，相对 ESP 同时增加实际已提交接受数、缩短 CUDA 同步解码墙钟，并保持完整提交链 T0。仅 bias 为必要消融，不以它较弱替代 ESP 主对照；不由本假设改写宏观或介观。
+
+| **微观冻结项** | **协议与验收** |
+| --- | --- |
+| 数据分离 | 同一 SpecBench 原件、首轮、四类各2条。校准 qid103/104、113/114、123/124、243/244，各64新token；评价105/106、115/116、125/126、245/246，各128新token。校准与评价集合严格不交；这些材料来自历史已见480条，只称本次拟合的留出，不称全局未见测试集或跨域确认；不得按结果剔除或换输入 |
+| 模型与共同路径 | 现有本地 Qwen3-4B，BF16/eager，冻结权重；T0、noEOS、seed123、默认已有聊天渲染参数。ESP mean_prompt/λ=.1/update=true，K2、dynamic/pruned、BC30、naive。复用当前完整验证链宿主，三臂同样捕获 final norm，只有校正臂多算 correction 和 LM head；不改生产源码 |
+| 拟合与时序 | 校准只运行 ESP。u=[e(bonus)−本 forward 首 placeholder;1]，y=下一 decode forward 同位置实际 root 的 final-norm hidden−该 frontier 首 mask hidden；包含 prefill→首 decode 的配对和后续相邻 decode，校正也从已知 prefill bonus 开始。它区别于原离线 recorder 仅取 decode 对的口径。跨 prompt 不串 pending，末尾未获下一次标签的 pending 丢弃；512个校准提交不等于512个训练对。CUDA FP64 解 (UᵀU+diag(10,…,10,0))K=UᵀY，偏置不惩罚，K 转FP32后冻结。禁止原 fit 脚本的全数据重拟合；评价不收集标签、不更新 K |
+| 三臂 | ESP 无校正；bias 只加同一校准残差 Y 的均值 b0（不是完整 K 的截距行）；full 为 z′=z+uK。只替换下一轮起草的首 mask logits，bonus 已知后执行，其余起草行和验证 logits 保持原路径。不把静态 K 命名为 Kalman 已有效 |
+| 重复与计时 | 拟合后每臂2token预热一次并排除；正式3次重复，repeat外层、qid中层，按(qid序号+repeat) mod3轮换三臂，共72case。CUDA同步夹住 provider构造、generate与同等内存证据记录；不含模型加载、校准、拟合、渲染、哈希、落盘或独立审计。校准/拟合成本另报，有正收益时再算摊销，不隐藏训练外成本 |
+| 接受与质量 | primary accepted逐轮取min(accepted_nodes数,实际committed_tokens数)，legacy另列；τ沿宿主合同按解码阶段提交token（排除prefill）/解码调用报告，不混用。72case全部须128token、来源/evidence/完整提交链argmax审计通过；报告重复一致性、三臂完整输出一致率。T0不证明独立AR逐字一致或语义质量，输出不全同则不得称严格同输出加速 |
+| 主判据与分析 | 每qid/arm先取3次中位数，再以8qid配对：full−ESP接受均差>0且墙钟均差<0、全部质量门过才支持H65。速度比为ESP中位时长之和/full中位时长之和。CUDA FP64按qid配对bootstrap10000次、seed6501，报告探索性95%区间；重复不扩大独立样本量，bias仅次级消融，不以单格或子集追正 |
+| 来源与停止 | 新round65外部Run冻结当前clean提交、原计划/协议/driver、模型全清单、输入与K；torch.cuda.is_available须真并记录RTX5090 D v2。研究批总预算900秒，原工程90/300秒门保持；失败保partial，不盲重试。正负均停止，不扫ridge/长度/模型，不重开旧矩阵或旧EMA候选 |
+
+**预注册与结果**：0aef28f先登记假设，bb7333c明确prefill采/用时序，d80cfd0在正式GPU前明确τ排除prefill；实际Run冻结d80cfd0/clean。唯一正式进程于UTC2026-11-06 17:37:57—17:42:43退出0，内部271.335160秒/900秒；72项全部完成，H65=True。统计在CUDA按既定8qid/3次中位数、bootstrap10000/seed6501执行；三臂重复的输出和实际接受均一致。原件、逐qid结果与完整源绑定见既有运行记录第六十八节，不把结果文档提交回签成新模型运行。
+
+**成本与解释边界**：校准生成512token用13.305518秒，332对ridge拟合0.161637秒；K为2561×2560、6,556,160系数，序列化26,237,389字节。按本切片0.271636秒/条的稳态节省，仅校准生成+拟合的计算摊销下界为50条128-token请求；未计加载、渲染、哈希、落盘与冷启动传输，完整冷启动盈亏点仍未测，不能宣称单次请求含校准也变快。CUDA从保存校准对独立重算K与bias均零差。校准MSE下降只作拟合诊断，不当作评价收益。LLM冻结但K需数据拟合；本拍不支持“无校准”或“零额外参数”表述。
+
+**本批停止与下一步**：保持本K、输入、负结果与正结果原件，不扫ridge、延长长度或换模型追正。该正证据可进入论文探索性主表/消融；17:48 Owner更新介观，下一步优先原d91ed75代码隔离，再做共同条件下的逐项对照；原冻结K跨切片候选不自动执行，语义质量和完整冷启动成本缺口保留。这里的处理同时包含残差校正与单行LM-head重算，未设零K重算head臂，不能单独归因于某个矩阵分量或滤波机理；bias是独立合理常量消融。已有k_affine_residual的postcommit合成协议、合作者原表及本次新frontier协议分别保留，不把本结果替换旧160对未执行状态或四项拒绝原件。
+
+## （六）R66：合作者原代码隔离运行预注册
+**研究问题与微观假设 H66**：不改d91ed75145801d9263281d2938a7d0da5841b2bf原代码，按其原StateRecorder、fit_frontier_gain和FrontierGain重新校准K后，原full相对原ESP在同一评价切片获得实际接受增加与同步墙钟下降，完整T0通过。这是原程序的新校准执行，不是原正表精确复现，也不是跨实现差距的因果结论。R65说明本仓隔离重实现也能在所测条件获得正结果，不能把旧EMA负结果等同于同方法复现失败。
+
+| **冻结项** | **协议与验收** |
+| --- | --- |
+| 原码与执行边界 | 只在D:/Grok Bot/tmp/sd/round66运行已逐Git blob及SHA256核验的小源码闭包，原字节不改，不合并到本仓；外层只配置/派发/只读取证，不替换算法函数、公式或验证/KV绑定。先冻结原码清单、当前计划、driver/config、模型、真实输入和子进程命令；GPU不可用或不足则等待，不回退CPU |
+| 数据与最小准入差异 | 模型仍同一本地Qwen3-4B/同模型清单，GPU仍RTX5090 D v2，评价8qid105/106/115/116/125/126/245/246复用R65实际渲染tokens，各128token、T0/noEOS/seed123。原fit入口按i%10选choose=4、report=9，8个校准prompt会缺report组而失败；因此只加两条明确校准qid107/247，冻结顺序为103/104/113/114/123/124/243/244/107/247，各64token。不得重复/伪造prompt填组，10cal与8eval文本/tokens均不交 |
+| 原校准流程 | 原ESP的StateRecorder只保存decode相邻对，不补prefill对。将仅10cal按冻结顺序保存为单个states.pt，交给未改原fit脚本（不依赖多文件glob排序）：初fit8、choose序号4的qid123、report序号9的qid247；原LAMBDAS=(.1,.3,1,3,10,100)仅在校准内部按其cov@14选择，再依原程序全10cal重拟合。内部report cov是重拟合前校准诊断，真正评价是未传入fit的另外8qid。不要把它写成固定ridge10或独立内部report确认 |
+| 两臂与重复 | 原ESP mean_prompt/λ=.1/update=true，num_masks2、dynamic/pruned/BC30/naive，BF16/eager。原full仅打开frontier_gain enabled/path，online=false；K生成后原字节冻结，评价不拟合。两臂各2token预热排除，3次重复，repeat外层/qid中层，按(qid序号+repeat) mod2轮换，共48评价case |
+| 原路径T0与口径 | 原decoder无完整trace导出，使用其既有recorder.record回调的只读代理与HF输出只读hook观测真实验证logits、accepted_nodes、未裁commit及history；原reset/record/export/close仍原样委托，不改返回。按实际128-token结果裁尾，每一提交绑定真实验证row argmax；prefill单独记录，实际接受逐轮min(A,C)，τ排除prefill。原stats与严格新口径分别保存，不能以AR一致替代T0；若无法闭合则记录未通过，不降低门 |
+| 计时、判据与停止 | 对照原esp_mtp.test中decoder在prompt循环外构造的边界，主墙钟用CUDA同步夹住原generate及同等只读取证；每case原decoder/gain构造与K加载/传输另计setup，不混入稳态主指标。外层为换臂各case新实例，online=false且原generate/reset不变，区别于原main缓存一个controller，不能把setup也说成已摊销。模型加载、哈希、校准/原fit另记，原内部异步计时仅诊断。每qid先取3次中位数，H66须全部48项来源/T0/128token过且full−ESP接受均差>0、墙钟均差<0；GPU paired bootstrap10000/seed6601以8qid为单位。整批900秒/外层960秒，无自动重试，失败保partial；正负均停，不手动扫参、放大模型/长度 |
+| 对照解释与后续 | R66与R65同时不同于cal8→10、原内选λ/全cal重拟合、配对是否含prefill及实现，故禁止把两批结果差归因于某一差异。先只判原full对原ESP；后续再冻结共同输入/校准，逐项最小CUDA对照配置、mask provider、EMA/Kalman公式、frontier gain、解码/验证/KV与评测口径，未执行项不写已解释。无AR计时/语义质量或原表制品时保持缺口 |
+
+**结果与身份**：4e1c967预注册原代码隔离，4368281在任何正式GPU前对照原esp_mtp.test收紧计时边界；实际Run冻结4368281/clean。UTC18:02:09—18:05:53，calibration、未改原fit脚本、evaluation串行三个owner及父进程均退出0；内部224.395558秒/900秒，48case全部完成。原27个blob逐SHA256/Git对象字节核验保持，外层只在decoder实例注入原样委托的recorder观察层，未全局重绑原类/算法/验证/KV；原model/decoder/recorder/gain及fit脚本实际执行，不冒称原main的整表配置/AR/logger也已复现。17:48新介观不回写R65原冻结目标。
+
+**质量与成本**：CUDA FP64按8qid/3次中位数、bootstrap10000/seed6601分析，full−ESP墙钟探索性95%区间[−0.492507,−0.210694]秒、τ差[0.159548,0.291328]；重复输出/接受均一致。full与原ESP完整输出仅2/8独特qid相同，T0不代语义质量或独立AR逐字证明。原calibration阶段36.231521秒、原fit阶段8.772394秒（含各自加载/验证等）；controller fresh setup均值ESP0.000067/full0.007273秒另列，不混入generate主墙钟。K为2561×2560/6,556,160系数，原序列化26,226,324字节。校准、参数与冷启动成本不隐去，未声称单次请求含校准也变快；原main缓存controller与本外层换臂新实例的部署成本不同。
+
+**第一项实际对照**：R65与R66在相同8个评价输入的ESP三次结果，24/24完整输出和实际接受数相等。这是所测基线路径一致证据，不证明全量数值等价，也不能把full的1.093×/1.121×之差归因于实现。原内部report cov@14 .642857→.904762仅为全cal重拟合前的校准诊断，不是最终K的独立测试。
+
+## （七）已定位的源码差异与下一项最小对照
+以下只列实际阅读/结构核对与本次观测，不把未运行的单项因果实验记为完成。原路径相对固定d91ed75的denoise_mtp/src；原文件和本仓源码的完整SHA、行范围及5个函数AST摘要在round66/source-comparison.json，实际版本与原件由运行记录定位。
+
+| **项目** | **已核事实** | **仍待最小CUDA对照** |
+| --- | --- | --- |
+| 配置与ESP | 两边mean_prompt及m←m+λ(e−m)一致；K2/dynamic-pruned/BC30/λ=.1一致，配置容器接口不同。真实8qid ESP输出与接受24/24相同 | 已完成本切片基线对齐，保留其它配置范围 |
+| EMA与Kalman身份 | 速度/范数EMA递推相同，但原EMA用末embedding anchor；本仓另有H64采用的order0 anchor。输入mask外推与正表frontier静态ridge不是同一方法；本仓P/Q/R Kalman也不能与静态K混称 | R70保存轨迹两provider逐位一致；R71只换anchor后last/ESP0.904454×，R74现有Kalman/ESP0.913915×，各自本切片联合收益不获支持，不推广至全部EMA/Kalman |
+| frontier与拟合 | 两边均在已知bonus后修正首mask final-norm hidden并重算draft head；R65 cal8/固定10/含prefill，R66 cal10/原网格选择.3/仅decode相邻对 | R67同K运行时对齐；R68固定401对分离λ已完成，R69/R69b分别记录校准输入与prefill标签条件效应，R72完整映射优于同dense路径最佳常量 |
+| 动态树与KV | 预算、top-k pruning、dynamic tree、crop、keep五函数仅去注解/docstring后的AST相同；均保prefix+root+accepted path | R67完整tree/accepted路径与全部行argmax已同；全量浮点状态不属于本次观测 |
+| 控制器与评测 | 原入口prompt循环外加载K；R66将fresh setup独立记，primary仅generate+同等只读取证。R65驻GPU K且provider构造在primary | 跨批墙钟仍不作单因归因；R73在同R68保存72项上统一比较两计时口径，排序均K03<K10<ESP，无反转 |
+
+**本项已执行**：R67同K对照及R68–R74逐项冻结对照均已完成，正负结果与未覆盖范围见第二章及各协议状态。固定401对ridge、校准输入/prefill、provider/anchor、frontier、评测口径与现有Kalman各自收束；不重复派发、不把临时实现并入生产。下一拍未执行候选仅按第六章另行明确数据、语义质量与预算。
+
+## （八）R67：固定同一K的跨实现CUDA对照
+**微观假设 H67**：固定R66原K、真实输入与模型后，未改d91ed75原解码器/FrontierGain与本仓当前宿主加R65临时FrontierPolicy，在本切片具有完全相同的输出token、实际接受和规范化解码trace。它是实现一致性假设，不是再次拟合、证明Kalman或比较两批不同K的速度。不改生产实现、合作者源码、EMA/Kalman参数、校准数据、λ或KV路径。
+
+| **冻结项** | **协议与验收** |
+| --- | --- |
+| 原件与范围 | R66 gain.pt原字节SHA17b62c5ff2df63df0d4201a66158b5d1be00c39f984fb45c37394c8a13da2e66，原λ=.3/401校准对/2561×2560 FP32矩阵；仅加载，不拟合/在线更新。R66原27源码blob、R65临时adapter与R66临时只读RecorderTap各复制原字节并登记来源，本仓生产源码快照另核；临时实现与私有原源码不入Git、不合入生产分支 |
+| 数据与模型 | R66实际8条评价qid105/106/115/116/125/126/245/246、首轮渲染tokens逐字节复用，不重新渲染或挑题；本地同一Qwen3-4B与14文件清单、BF16/eager、RTX5090 D v2。T0/noEOS/seed123、128新token、K2/dynamic-pruned/BC30/naive、ESP mean_prompt/λ=.1/update=true，两端均只开full frontier静态K，online=false |
+| 新执行 | 本仓端、原代码端两个独立owner子进程串行，实际确认前者退出再启动后者，不共用模型/KV/模块导入状态；两端各1次2token预热排除，各8qid×3次正式重复，共48case/6144正式提交。重复用于复现性，不当24个独立prompt；不新增ESP/bias或其它算法臂，不重跑校准 |
+| 共同观测 | 本仓保留宿主原完整T0记录，原端沿原recorder实例只读委托及HF forward hook采真实提交链。两端以只读profile观察原build_tree返回值，保存tree tokens/parents/depths；不重绑原树构建/验证/KV函数或改变模型返回。final-norm/head只读hook记录实际首mask修正的BF16 head输入摘要及argmax等边界，避免保存全词表logits；摘要相同只证明所记录边界，不宣称所有浮点状态相同 |
+| 规范化trace | prefill独立commit；每decode pass按实际forward保存root_position、完整tree tokens/parents/depths、accepted_nodes、实际裁剪后committed_tokens及实际commit的owner/argmax链。仅排除计时/仪器专有字段；终止pass也保完整accepted路径并另外按min(accepted_nodes数,实际committed_tokens数)计实际接受。不能为凑一致删掉不同的树/终止事件 |
+| 主判据 | 48case全部128token、来源/模型/K不变与完整T0通过；24对同qid/repeat的全部输出、实际接受和规范化trace均逐项完全相同，才支持H67在本切片成立。各端内部3次重复也逐项报告。任何差异均反驳严格一致；保原件、定位首个不同的token/pass/字段，再区分输入、K、frontier或验证边界，不靠AR一致替代T0 |
+| 计时与解释 | 两端CUDA同步计generate与同等只读取证，controller/provider/K加载传输setup另记，模型加载/哈希/落盘/审计不混入。进程顺序固定，观察与宿主内部记账成本未完全等价，因此墙钟/τ仅诊断，不设速度胜负门，不将差值归因于算法。若本仓同K复现原输出/接受，可排除本切片的相应运行时差异解释；不能直接证明R65→R66收益差由单独λ或校准数量导致 |
+| 执行边界 | 新Run仅D:/Grok Bot/tmp/sd/round67，先冻结当前clean提交、计划/协议/driver/依赖原件、K/输入/模型与环境；CUDA可用并记录设备，满载等待、不回退CPU。整批900秒/外层960秒，原工程90/300秒门不改。失败保partial、不自动重试；正负或无差异都结束，不扫参/长度/模型，不重开旧矩阵/EMA支线 |
+
+**结果与身份**：2bbdb85先于正式GPU预注册，实际Run冻结该clean提交。UTC2026-11-06 18:36:58—18:40:16（上海11月7日02:36:58—02:40:16），本仓端、原代码端及父进程均实际退出0，内部197.672061秒/900秒；48case全部通过128token、来源和完整T0。24/24对输出、实际接受及包含完整树的规范化trace相同，两端各自3次重复一致；没有首个离散分歧。两端模型配置/精度/TF32设置相同，K和全部生产/原源码字节不变，训练对/在线更新均为0。
+
+**补充CUDA边界验证**：1,794对匹配frontier中，placeholder、final-norm probe、送入LM head的BF16输入共5,382对张量，原文件hash与读取的向量指纹闭合，按int16存储位比较均完全相同；逐frontier head argmax、全部实际forward行argmax也一致。该结论覆盖这些选中边界，未保存的全部中间隐藏状态保持未测。独立JSON/整数审计从真实forward argmax和完整树重走验证链，未将driver的true字段当作唯一证据。实际接受两端各1278，按qid3次中位数后均值53.25、τ1.725151；主判据支持H67。
+
+**计时诊断与判读**：本仓/原端generate均值2.944377/2.893154秒，setup0.000192/0.006852秒，均为qid内3次中位数再跨8qid平均。顺序固定、宿主内部记账及K加载方式不同，墙钟不用于本次算法速度胜负推断。本次没有新ESP臂，R66原速度正结论仍绑定其原Run；R67回答同K移植一致性。下一步优先分离K的拟合因素，不能由一致性把R65/R66原差距单独归因于λ、训练样本数或是否含prefill。实际命令、逐qid值和不可变原件见既有运行记录第七十节。
+
+## （九）R68：固定原401对的ridge单因素CUDA验证
+**微观假设 H68**：保持R66原401个校准对、最终拟合流程及原推理端相同，ridge=.3相对10在当前8条评价切片同时增加实际接受数、缩短同步generate墙钟。ESP仅作共同背景对照。LLM权重冻结，离线K需拟合；研究对象是这一已出现的正则差异，而非重新搜索最优λ。
+
+| **冻结项** | **协议与验收** |
+| --- | --- |
+| 原件与精度 | 只读R66 states.pt原字节SHA5921ad00a7f855ddc1133d1b8bdfbce7a384b2242a9e8ce39ccb7682ee25de0b、原K SHA17b62c5ff2df63df0d4201a66158b5d1be00c39f984fb45c37394c8a13da2e66、固定d91ed75的27源码闭包和原ridge函数；原码不改，不运行新λ网格或回写旧Run |
+| 401对重建 | 依原10prompt输入索引拆fit8/choose序号4=qid123/report序号9=qid247，各组分别调用原frontier_pairs（组内按category/qid字符串排序），再严格cat(fit,choose,report)。BF16模型embedding→FP32，X=[emb(bonus)−placeholder;1]、Y=FP32(z_true−z_probe)；只decode相邻对，不补prefill。原ridge内才将X/Y转FP64、bias不惩罚，最终K转FP32。保存同序X/Y及prompt/配对索引，数量须401 |
+| 拟合准入 | CUDA直接调用未改原ridge函数，先λ=.3重算并以int32存储位核对原K完全相同；失败保原差异并停止评价，不放宽容差/重排数据追通过。λ=10复用同一X/Y、同原函数，须有限FP32且形状2561×2560。K03评价继续读原K逐字节副本，不把新torch.save的封装字节差异当数值差异；K10新原件在评价前冻结 |
+| 评价三臂 | 原ESP、原decoder+K03、原decoder+K10；只切frontier_gain enabled/path，online=false，K不更新。Qwen3-4B同14文件模型清单、BF16/eager、RTX5090 D v2、同R66真实8qid105/106/115/116/125/126/245/246输入tokens、128新token/T0/noEOS/seed123，K2/dynamic-pruned/BC30/naive、mean_prompt/λ=.1。当前8qid为历史已见材料，本拍是探索性敏感性对照 |
+| 重复与边界 | 每臂2token预热1次排除，3次正式重复，repeat外层/qid中层，按(qid序号+repeat) mod3循环轮换，共72case/9216提交。原decoder/gain构造及K加载/传输setup单列，CUDA同步夹住原generate和相同只读T0取证；加载、401对重建/拟合、哈希/渲染/落盘/独审另计。两K前后文件SHA/实际GPU值不变，evaluation原gain_pairs/refits均0 |
+| 主判据与质量 | 72项完整128token、来源和完整验证前向argmax链通过；实际接受Σmin(A,C)，τ排除prefill，legacy另列。每qid先取3次中位数，mean(接受K03−K10)>0且mean(墙钟K03−K10)<0才支持H68。报告相对ESP的两臂结果、输出一致率及重复一致性；T0不替代语义质量或独立AR逐字证明 |
+| 分析与停止 | CUDA FP64以8qid配对bootstrap10000/seed6801，报告探索性95%区间，不把重复当独立n；K03/K10主比较与各自ESP背景对照分列。单个研究批总900秒/外层960秒，失败保partial、不自动重试，正负均停；原工程90/300秒门保持，不扫λ/模型/长度。重建及输出仅D:/Grok Bot/tmp/sd/round68，TEMP/TMP和缓存指向该根 |
+
+**结果**：7433d90预注册后，UTC19:20:03—19:24:44在RTX5090 D v2完成唯一正式批次，两owner及父进程退出0，72项完整T0通过。K03位重现零差、两K全程冻结；H68预设点方向通过，但8qid配对区间跨无效值，保持探索性判断。K03/K10与ESP完整输出相同分别6/24、15/24；两K之间6/24，不称严格同输出或语义质量已验证。三repeat接受/输出一致，λ并非当前切片所有题都同向（4胜3负1平）。原件与拟合成本见既有运行记录第七十一节；下一项固定λ=.3检验两条校准输入的加入。
+
+## （十）R69：仅加入两条校准输入的CUDA对照
+**微观假设 H69**：固定ridge=.3、原推理端及配对定义，加入qid107/247这两条校准输入（324→401对）相对原8条校准子集，在同一评价切片增加实际接受并缩短同步generate墙钟。只检验这两条已命名输入的整体加入效应，不称一般样本量增长必然带来收益。
+
+| **冻结项** | **协议与验收** |
+| --- | --- |
+| 数据与单因素 | 只读R68已冻结同序FP32 X/Y（pairs.pt SHA7413a7baa52dccdfc8123762d0b60eb2c27e346390f07f5a48902bef978aeb61）及原401条metadata。删qid107的35行[202,237)、qid247的42行[359,401)，保留[0,202)+[237,359)的324行，顺序和值均不改，不重新按i%10切组。保留原8个cal qid，与eval8不交；group标签只作原始来源角色，所有保留行均用于训练 |
+| 拟合与来源 | 原ridge函数CUDA FP64、固定λ=.3、bias不惩罚、输出FP32，只拟合新cal8 K一次；cal10继续用经R68位重现的原K17b62…逐字节副本。原401对、R68fit/admission/complete原件均绑定，不重生成校准轨迹、不选择λ、不增加prefill对。Gram/目标是同一和平方目标，加入两条同时改变其数据内容和权重，当前不分拆这两种数据效应 |
+| 评价与口径 | 原ESP/cal8/cal10三臂，除gain path外同原decoder，online=false。原R66实际8条tokens、Qwen3-4B BF16/eager/RTX5090 D v2、128token/T0/noEOS/seed123、K2/dynamic-pruned/BC30/naive与mean_prompt/λ=.1保持。各2token预热排除，3rep Latin循环，共72case；controller/K载入setup另计，主计时CUDA同步generate+同等只读T0 |
+| 主判据 | 72项source/完整T0/128门全过，K前后文件SHA/实际GPU值不变，原gain_pairs/refits均0。qid内3rep中位数后，mean(接受cal10−cal8)>0且mean(墙钟cal10−cal8)<0才支持H69；ESP仅背景。实际接受Σmin(A,C)、τ排除prefill；输出一致率/重复一致性和原legacy分别报 |
+| 分析与停止 | CUDA FP64按8qid配对bootstrap10000/seed6901，报告探索性区间；同一历史已见8qid用于敏感性消融，不称全球未见测试或参数确认。新根D:/Grok Bot/tmp/sd/round69，所有TEMP/TMP/cache/输出在此；总900秒/外层960秒，无自动重试，正负均停，不将拟合因素与EMA/Kalman/其它参数混改，原工程门保持 |
+
+**结果**：56575bd事前预注册，UTC19:28:14—19:32:45唯一批次退出0；324稳定子序列与两K冻结通过、72项完整T0通过。H69点方向通过，但速度和墙钟区间含无差异，保持探索性判断。cal8/cal10相对ESP速度1.101153×/1.117310×；输出相同12/24、6/24，未测语义质量。下一项先分离prefill标签加入，再验证mask provider/EMA anchor；不据此泛化样本量效果或改判据。
+
+## （十一）R69b：仅加入8个prefill标签的CUDA对照
+**微观假设 H69b**：固定原8条校准输入、ridge=.3与原推理端，在324个普通decode相邻对后加入8个真实prefill→首decode标签，提高本评价切片的实际接受并缩短同步墙钟。该项分离配对边界，不重新生成校准轨迹或改变校准prompt。
+
+| **冻结项** | **协议与验收** |
+| --- | --- |
+| 两组原件与准入 | 基底为R69已冻结324对子矩阵（pairs.pt SHA1a20790779c5a0ee8e7f9854701d1fb2a648c698d38c5c9f8b80e49b96a55425）与无prefill的K5ccfa1dd…；另一来源为R65真实calibration_pairs.pt（SHAea67d63501916c73dde20dd82af08c3a6a9399e19667950041445bb2f1eac574）。按qid与R65 from_forward=原source_pass+1一一对应324普通对，bonus/to_forward也须同。CUDA须验证R65 FP64值无损转FP32且共同324 X/Y存储位全同，失败停止此项，保差异、不补造或容差放宽 |
+| 唯一变项 | 保持原324行及其顺序，新矩阵在末尾按原cal qid103/104/113/114/123/124/243/244顺序附8个from_forward=0真实标签，合计332；这区别于R65按prompt交错的原332顺序，作为新Run声明。只调用原ridge函数CUDA FP64、λ=.3、bias不惩罚→FP32，旧324 K继续原字节。共同prompt/数据及配对类型外的全部公式与推理保持 |
+| 评价与边界 | 原ESP/without_prefill/with_prefill三臂，原decoder+FrontierGain只切path、online=false；原8eval tokens/128/T0/noEOS/seed123、Qwen3-4B BF16/eager/RTX5090 D v2、K2/dynamic-pruned/BC30/naive、mean_prompt/λ=.1保持。每臂2token预热排除，3rep Latin共72case；同步generate与setup分记，两K原件/实际GPU值不变、source/完整T0全部通过 |
+| 主判据与停止 | qid内3次中位数后，mean(接受with−without)>0且mean(墙钟with−without)<0才支持；ESP背景、实际接受Σmin(A,C)、τ排除prefill。CUDA FP64配对bootstrap10000/seed6951，以8qid为单位报告探索性区间。新根D:/Grok Bot/tmp/sd/round69b，总900/外层960秒，无自动重试；失败/正/负均留证，已有R65/R66身份不回签，原源码不改 |
+
+**结果**：8e435a8事前预注册，UTC19:35:54—19:40:28唯一正式批退出0；R65值无损转FP32，共同324 X/Y均逐位相同；新332与旧324两K冻结，72项完整T0通过。H69b点方向通过，接受差区间下界为0；所有三repeat输出/接受一致。两K均有相对ESP正点收益，但只在本切片、该λ与这8prefill标签下成立，不能把不同条件下的效应简单相加，也不是Kalman有效性证据。
+
+## （十二）R70：保存轨迹上的mask provider与EMA公式CUDA核对
+**独立子假设**：H70-ESP＝原ESP与本仓ESP在同一实际输入/提交链上的全部mask存储位相同；H70-EMA＝原EMA与本仓level=last在同一链上的mask、velocity、anchor及ref_norm存储位相同。两项各自验收，属于机制实现核对，不产生新的接受率/速度收益。
+
+固定原d91ed75的27文件与本仓R67已冻结115源，核实际module origins；用同一Qwen3-4B BF16/eager/CUDA0 embedding，原R66 r0 ESP的8条真实128-token T0链为外生轨迹。每provider对子分别核初始化及每commit后状态：8×129=1032。ESP k2/mean_prompt/λ=.1/update=true；EMA β=.9999/step1/normalize=false/extrapolate=false/update=true，本仓level=last。mask/velocity/anchor BF16用int16位比较，ref_norm FP32用int32比较，另核有限值及向量指纹；host独有order0 level不在本项对照。
+
+只做embedding lookup和逐token provider递推；actual model-adapter/HF forward计数必须0，新生成/拟合为0，模型加载/重放全段置fork_rng内恢复CPU/CUDA随机状态。原件/计划/协议/driver/模型清单先冻结，总300秒，外层有界，原工程90/300秒门保持。输出和TEMP/TMP/cache仅D:/Grok Bot/tmp/sd/round70。两个1032位门各自全过才记对应子假设通过；失配保首个状态和数据，不修改原算法凑一致。范围是已存ESP轨迹，不是EMA自身生成效果或全部输入的等价证明。
+
+**状态**：已完成，两项子假设分别通过，各1032状态及全部字段存储位相同；forward/newgen/fit为0，随机状态恢复、owner实际退出0。独立IO审计复核2064事件/5160字段指纹；范围不升级为EMA收益。见运行记录第七十四节。
+
+## （十三）R71：只切换EMA anchor的CUDA收益对照
+**微观假设 H71**：同一本仓宿主和其余EMA参数下，原公式对应的last anchor相对order0 anchor增加实际接受并缩短同步generate墙钟。ESP提供背景对照；即使last胜order0，也须另看是否超过ESP，不能混称EMA获得加速。
+
+固定R66实际8条tokens、Qwen3-4B BF16/eager/RTX5090 D v2、128/T0/noEOS/seed123/K2/dynamic-pruned/BC30/naive；三臂ESP mean_prompt/λ=.1/update，EMA两臂β=.9999/λ=.1/raw step1/normalize=false/extrapolate=false/update=true，唯一设置差为level=last/order0。level包括anchor初始化与逐token平滑规则的固定差异，velocity递推/精度不变。调用现有工厂/类，不改生产公式、不加载K或校准材料。
+
+每臂2token预热排除，3rep Latin循环共72/9216正式提交，qid内取3次中位数。主门全部source/完整T0/128通过，mean(接受last−order0)>0且mean(同步墙钟last−order0)<0；ESP子对照分别报告。CUDA FP64按8qid配对bootstrap10000/seed7101，重复不扩n，输出一致率、实际min(A,C)接受/τ与legacy另列。provider构造setup在外，初始化/逐token更新成本在generate内；加载/hash/IO/独审不含主墙钟。
+
+新根D:/Grok Bot/tmp/sd/round71、总900/外层960秒，源/模型/输入/计划/协议/driver事前冻结，失败保partial无自动重试，正负均停。当前历史已见8qid是有界机制消融，语义质量和独立AR仍未测；不扫β/长度、不以本项判断全部EMA或Kalman。**状态**：72项完整T0/9216提交通过。H71未获预注册联合收益支持；last−order0接受-11、墙钟+0.402614秒、速度0.887095×。探索性95%速度[0.849912,0.930506]、接受[-14.125,-7.875]。last/order0相对ESP分别0.904454×/1.019569×；anchor子对照与ESP收益分开。8qid不以重复扩n；正负均收束，不扫β/长度。完整数据见运行记录第七十五节。
+
+## （十四）R72：同401对的常量残差与完整frontier gain对照
+**微观假设H72**：固定原401校准对和原ridge .3完整K后，完整仿射修正相对仅常量残差同时增加实际接受、缩短同步generate墙钟。ESP为独立背景对照。检验的是bonus条件化完整映射相对最佳常量拟合的净效果，不是保持完整拟合截距而仅去掉A。
+
+校准原401 FP32 X/Y仅从冻结R68原件读取，不加入评价标签。CUDA FP64对Y求均值后转FP32得b0，bias K的全部A行为0、末行为b0；GPU验证全部401个X@Kbias逐字等于b0。full直接复用原17b62…K.3字节；两校正臂都用未改原FrontierGain完整dense u@K和head路径，不声称常量部署已优化。报告两者校准MSE仅作诊断，不代替留出收益。
+
+评价继续固定8条R66 tokens、Qwen3-4B BF16/eager/RTX5090 D v2、128/T0/noEOS/seed123/K2/dynamic-pruned/BC30/naive/ESP mean_prompt λ=.1；ESP/bias/full各2token预热排除、3rep Latin循环共72/9216正式提交。provider/K加载setup另列，同步generate含实际校正与LM head开销。全部完整T0与来源/128门通过且full−bias实际min(A,C)接受均差>0、墙钟均差<0才支持H72；ESP子对照另报。qid内取3次中位数，8qid CUDA FP64配对bootstrap10000/seed7201，重复不扩n，legacy/τ/输出一致率另列。新根D:/Grok Bot/tmp/sd/round72，900秒/外层960，失败保partial不自动重试；不新增模型、长度或参数扫。**状态**：H72按预注册点方向通过：接受均差+9，墙钟-0.292742秒，速度1.102720×；探索性95%速度[1.053091,1.159804]、接受[5.375,13]。72项完整T0/9216正式提交全部通过；正负均结束，不自动扩样或扫参。见运行记录第七十六节。
+
+## （十五）R73：同一批保存CUDA计时的评测口径核对
+只分析R68原72个正式case，不新生成、不加载模型、不bootstrap。事前问题：K03与K10按内部prefill_time+decode_time与严格CUDA同步generate两种口径的qid级均值排序，是否严格反转；tie单独记录。冻结原独审c8c2822e…及各result SHA，不与其它Run混合。每qid/arm先取3次中位数再跨8qid均值，CUDA FP64计算和/差/median/ratio/排序，记录三臂全排序、qid级同/反/平及72个原始差额；缺失/非正内部阶段或墙钟拒绝，差额负值保留，不截断、不加入setup或挑样本。
+
+计时差额仅称边界/同步与Python观察和记账等合计，不能全部归为CUDA异步；阶段内部和也不是端到端速度。新根D:/Grok Bot/tmp/sd/round73、分析上限60秒，CUDA可用及实际RTX5090设备写明，原source/计时不改。结果只回答已有记录的口径敏感性，不是第二次模型性能运行。**状态**：已完成；K03−K10内部−.123663秒、同步−.123797秒，两种口径均K03<K10<ESP，8qid符号同向8/8，主排序未翻转。保存72项旧记录CUDA FP64分析，无新模型/生成/bootstrap，见运行记录第七十七节。
+
+## （十六）R74：现有标量自适应Kalman相对ESP的同切片对照
+**微观假设H74**：本仓既有KalmanMaskProvider默认online配方相对ESP，同时增加实际接受并缩短同步generate墙钟。它有P/Q/R/K递推，区别于合作者静态ridge K；不把静态K正结果直接转记为Kalman成功。
+
+只调用现有实现：online/forget=.95/r_min=1e-6/q_min=1e-8/q_scale=.01，不扫参数、不改公式。记录实际mask/state/innovation张量为CUDA；P/Q/R/K为实现内Python host标量，包含innovation到标量的CUDA同步，全部prompt初始化/逐token递推成本计入generate。记录有限的末态k/q/r/p及实际provider身份，要求k在[0,1]、p非负、q/r正。ESP mean_prompt/λ=.1/update=true，其他设置固定为R66同8输入、Qwen3-4B BF16/eager/RTX5090 D v2、128/T0/noEOS/seed123/K2/dynamic-pruned/BC30/naive。
+
+两臂各2token预热排除、3rep Latin循环共48/6144正式提交。主门全部完整T0/来源/128通过，kalman−ESP的qid级实际接受均差>0且同步墙钟均差<0；qid内3次中位数、8qid CUDA FP64配对bootstrap10000/seed7401，τ/legacy/输出一致率另报。新根D:/Grok Bot/tmp/sd/round74，总900/外层960秒，失败保partial不自动重试。只有本小时剩余预算足以在20:10Z前结束才启动，否则如实记未执行；不重开旧writing32/256、旧Kalman配方或长矩阵。**状态**：H74未获预注册联合收益支持：接受均差-7.375，墙钟+0.295656秒，速度0.913915×；探索性95%速度[0.867172,0.958170]、接受[-11.25,-3.75]。48项完整T0/6144正式提交全部通过；正负均结束，不自动扩样或扫参。见运行记录第七十八节。
+
+## （十七）R75：冻结K在扩大拟合留出上的CUDA复核
+**微观假设H75**：保持现有完整frontier K与最佳常量K冻结，扩大到未参与本次校准/近期选择的32条输入后，full分别相对ESP和最佳常量都增加实际已提交接受并缩短同步generate墙钟。两子对照均报告；“稳住”另外要求两个速度比95%配对区间下界>1且接受差下界>0，不用单个有利子集代替总结果。历史480题曾经被使用，因此这是相对于本次拟合与近期选择的预注册留出复核，不称全局未见/跨数据集确认。
+
+| **冻结项** | **协议** |
+| --- | --- |
+| 数据 | 原SpecBench question.jsonl SHA7dd26882f31ada100c2aa7447019b5349bddc55697021acbc5643fdc8740aa21；按预先题号规则固定translation161–168、summarization248–255、math_reasoning401–408、rag481–488，各8条。与cal10、R64八题、R66–74八题及writing81–88共34题在qid、原文本、完整渲染与token序列均不交；原480的其它切片不算额外独立数据。不看模型输出换题 |
+| 输入与参考 | D:/Grok Bot/tmp/sd/round75/inputs.json SHA4ad97bc22eafce04bd1b5c6f68e02a2c14425153479f0de11592eefc7d31ba09，32题总12401输入token、最长1351，不截断/不silent skip。CPU只做tokenizer与IO预处理，R66原18题重渲染逐token相同；实际template_kwargs={}。实际输入/Latin遍历顺序固定为math_reasoning401–408→translation161–168→summarization248–255→rag481–488，与输入字节同序。参考独立quality-references.json SHAfd1dd0506673ebcb598fe2239961e3cee3cf8fbcce9401fd522ba4ea5217b02e，不进入模型输入 |
+| 模型与三臂 | 同一本地Qwen3-4B、14成员manifest20ff496548750bd139b280a544bcab83424f7bcf691b22c7d25c41c52a120167、BF16/eager、CUDA0 RTX5090 D v2；共同当前host与已冻结R65 FrontierPolicy，所有臂同等捕获/审计。ESP mean_prompt/λ=.1/update=true；bias用R72最佳常量K f9374de94a7a7f8c359182c022eb7dec0cfbb45f7c266a3d9eb36a4342ed945c；full用R66按原码新校准的K17b62c5ff2df63df0d4201a66158b5d1be00c39f984fb45c37394c8a13da2e66。两校正臂均走dense u@K及LM head，常量部署未优化；不refit/选λ/更新K，原码与生产源不改 |
+| 预算与顺序 | K2/dynamic-pruned/BC30/naive、128/T0/noEOS/seed123。每臂2token预热一次排除，repeat外/qid中、按(qid序号+repeat)mod3循环顺序，共288正式case/36864实际提交。qid内取3次中位数，4个任务各8题固定构成，不将重复当独立题 |
+| 计时与门 | fresh provider构造/K加载setup另列，同步generate含prompt初始化、逐token状态更新、实际校正/LM head及同等完整T0取证；模型/哈希/渲染/落盘/分析另计。每case完整来源/128预算/实际forward argmax提交链通过，K原字节与GPU值前后不变。accepted=Σmin(A,C)，legacy、排prefill的平均与合并τ、输出一致率、重复一致性、全部失败均报告 |
+| 统计 | 32qid为配对单位，在每个任务内8qid重采样、保持4任务等权的CUDA FP64分层配对bootstrap10000/seed7501；主比为baseline中位墙钟之和/full之和，接受/墙钟为qid配对均差。报告整体及四任务，不按结果删题；两子对照点方向及95%区间分别列，不把保留同T0当成语义等质 |
+| 执行边界 | 本批1200秒、外层1260秒；确认torch.cuda.is_available且记录设备后执行，不CPU替代。此前只用旧q105做五臂各8token的CUDA适配准入（≤180/外层240秒）：完整T0、实际base placeholder/bonus与首slot校正的调用归属、有限值与K冻结须过，正式32题不得用于适配调参。失败保partial不自动重试或缩题后冒称完成。所有命令TEMP/TMP先设且保持D:/Grok Bot/tmp，源码缓存/临时材料/输出仅本会话子目录，原工程90/300秒门保持 |
+
+**状态**：正式CUDA已完成，288项/36864全T0，H75两点判据及95%稳定目标均通过，full/ESP1.084824×、full/bias1.096119×；来源/命令/原件见运行记录第七十九节。首版纯元数据预检发现调度EXPECTED/protocol与已冻输入顺序不一，在GPU前只统一顺序并冻结v2，原题号/tokens/K/判据/预算不变，旧注册文件与candidate保留，不回签。数据预处理回执data-semantic-audit.json SHAf031baecf4b2dad6b84ea9d919f4787ebb240582306b8c85d9678deee064f068。本批只回答冻结K的留出稳健性，不追原480正表或重开旧矩阵。
+
+## （十八）R76：冻结完整K之上分别叠加EMA与Kalman
+**微观假设H76-EMA/H76-Kalman**：在冻结full K上，仅把base provider分别换成原EMA-last或现有online Kalman，是否相对fresh full+ESP同时提高实际接受并缩短同步generate。两个假设各自验收，无论R75正负都按原定小批执行，不只选较有利组合；不新增参数/长度搜索。
+
+为给质量和交付留预算，事前固定R75每类首4条：161–164、248–251、401–404、481–484，共16；inputs-r76.json SHAdb869a0f0c477d484bd492b2fbb74c9f2786c6610518ebdbd9af3cddf98f415e。实际输入/Latin遍历顺序同样为math_reasoning→translation→summarization→rag、各类前4，与冻结inputs-r76字节同序。三臂fresh full、full+EMA-last、full+Kalman全部同host/FrontierPolicy与原17b62 K，不用R75跨批墙钟替代共同基线。EMA β=.9999/λ=.1/step1/normalize=false/extrapolate=false/update=true/level=last；Kalman online/forget=.95/r_min=1e-6/q_min=1e-8/q_scale=.01。其它模型/树/128/noEOS/T0/seed与R75相同，三臂各2token预热排除、3rep Latin共144正式case/18432提交。K是按ESP placeholder特征拟合；更换provider改变placeholder/innovation分布，本实验只回答冻结K直接组合的效果，不据失败否定再校准组合，也不事后重拟合追正。
+
+provider构造setup在外，prompt初始化/EMA递推/Kalman实际Python标量P/Q/R/K与CUDA level/innovation同步及K校正均计入generate；末态finite与设备按实际记。完整来源/T0/预算/K冻结为门，两个候选分别须接受均差>0、墙钟均差<0才支持对应点假设。16qid按四任务各4分层CUDA配对bootstrap10000/seed7601，qid内median3；报告95%探索区间，并给两个方法比较的97.5%保守区间，不把挑中一法称整体成功。输出一致率/legacy/平均与合并τ全列，语义判断另列。总900/外层960秒、输出round76，失败保partial不重试；21:10Z后不新派模型任务，已执行结果不填假完成。
+
+**状态**：144项/18432全T0完成，两个叠加假设均不获支持；EMA/full0.878205×、KF/full0.904080×，各0/16/0。实际证据见运行记录第八十节。本比较不把静态K重新命名为Kalman，也不修改合作者或生产算法。
+
+## （十九）R77：有真实数值参考的小规模语义检查
+同128性能批先保存每题生成token与原始decoded文本，严格区分思考段和最终答案。RAG参考混有多要点/多答案，翻译/摘要的词面相似不当语义正确；不统一any-alias判对、不伪造judge评分、不以AR一致或T0替代语义。
+
+独立质量小批固定math_reasoning401–404，输入inputs-r77.json SHA2973aee0b118dda77045bc96470b11b2ea97764702c255d3f5eb4f08c0692c31，真实参考####金数依次1000/5/306/7。比较ESP、同dense最佳常量、full、full+EMA-last、full+Kalman，统一同模型/原模板与参数，max512/EOS=true/seed123、每臂每题1次共20case，不加预热、不进入128速度主表。预算480/外层540秒，不据结果再延长；这是本拍新增的质量覆盖，不恢复旧writing长度候选。完整实际提交链T0覆盖变长与首EOS裁剪，若少于512须实际EOS终止，终态未知不补零。
+
+事前数值代理：gold只解析唯一行首####纯数值、Decimal去千分逗号精确比；参考[GSM8K原数据处理](https://github.com/openai/grade-school-math/blob/master/grade_school_math/dataset.py)的####约定，预测抽取为本仓自定义，不称官方GSM8K评分。预测只取生成</think>之后的finaltail；无闭合、空尾、预算截断记not_evaluable且保留全部4题/20case分母。若有boxed只接受唯一可解析纯数值，分式/多box不静默回退；无box才取finaltail最后合法decimal，支持正规千分逗号。EOS完成且数值可解析时记correct/wrong；同时报告最终答案出现率、未完成/不可解析数和包含全部分母的数值EM，原文本保留供独立复核解析歧义。q404参考rationale有文字笔误，题干与最终gold7已独立核算一致，原件不改。
+
+另在预定两道翻译161/162、两道摘要248/249上，对已有输出做匿名、基于源文/参考的有限文本核查，记录覆盖/不支持内容/截断，明确是AI文本审阅而非验证过的人工或模型judge评分；无可判断最终答案保unknown。质量四题不足以证明语义非劣，开放任务未有可信评分器的范围保未测。所有正负、截断及未知写现有运行记录和本文，不增加研究文件树。**状态**：20项/10240提交执行及独审完成，实际均512且无EOS；五臂各NE4/4，评分规则通过而语义结论未闭合，未延长。128预算24匿名AI核查亦全unknown。见运行记录第八十一节。
+
+## （二十）R78–R79：完整最终答案的独立质量协议
+**微观问题与预注册**：R77在默认思考/T0下20项均无EOS，不能判语义质量。本批只检验显式非思考模板能否形成可评分的完整答案，以及冻结完整K相对ESP的数值答案表现；不是把R77改签为通过。Qwen3官方模型卡说明可用`enable_thinking=False`关闭思考，并警示思考模式下greedy可能退化；这只是协议选择依据，不是此前未完成原因的因果证明。[直接来源](https://huggingface.co/Qwen/Qwen3-4B#switching-between-thinking-and-non-thinking-mode)
+
+| **冻结项** | **协议与验收** |
+| --- | --- |
+| 数据与隔离 | R78开发准入固定q401，两臂各1次；R79正式固定数学qid409–416、ESP/full两臂各3次，共48项，按qid序号与repeat轮换臂顺序。原SpecBench480的SHA为7dd26882f31ada100c2aa7447019b5349bddc55697021acbc5643fdc8740aa21；原题干不加system、答案格式或提示，原gold仅评分读取。409–416的qid/题干与本次K校准及近期32题不交，但历史480已见，不能称全局盲测。重复不扩大独立n=8 |
+| 模型与处理 | 同本地Qwen3-4B/BF16/eager、RTX5090 D v2 cuda:0；同ESP mean_prompt/λ=.1/update、k2/BC30/dynamic/pruning/naive，full复用R66新校准冻结K 17b62c5f…且不重拟合。只在渲染阶段显式enable_thinking=False；生成仍temperature0/seed123/max256/stopEOS，实际模型/Tokenizer EOS并集。模板把空闭合think放入输入prefix，评分不得伪造生成的think闭合。无预热，不以本批声明稳定速度 |
+| 完整答案准入 H78 | q401两臂均须实际终端EOS、非空可解析finaltail、完整来源/T0、实际close/退出0；答案正确与协议可评分分列。任一不满足即停止正式R79，不改预算/题目/采样追通过 |
+| 数值代理与 H79 | 输入空闭合think须逐字核对；生成再次开启think则要求实际闭合，否则NE。实际EOS仅末位，生成不得新开角色；唯一合法boxed十进数优先（多框、分数框或畸形不回退），否则finaltail最后合法十进数；Decimal精确比较原gold的唯一####标量。所有8题分母保留，缺EOS/格式不合法为not_evaluable，不能填wrong或剔除；正确/错误/NE与两臂配对输出分别列。H79仅为16个qid×arm均可评分且重复稳定的协议可执行性，不是语义非劣或普遍质量结论；自定义代理不是官方GSM8K评分 |
+| 计时与停止 | 同步generate实际墙钟/输出长度描述，按每qid/arm三次中位数，不与旧128token速度拼接，不据小样本正确数声称非劣。R78内部180/父进程240秒，R79内部900/父进程960秒；准入失败或正式失败保partial，正负均不自动延长/扫参。原工程90/300秒门不变 |
+| 来源与执行 | 新外部round78/79冻结clean HEAD、当前计划、驱动/协议、原输入/refs、模型14件清单及旧adapter/K；TEMP/TMP恒为D:/Grok Bot/tmp，全部输出/cache在D:/Grok Bot/tmp/sd。torch.cuda.is_available须真，日志设备具名，模型全部close与来源末核、父进程实际退出后才收束；合作者原码与本仓生产字节不改 |
+
+**实际结果**：ab41921事前提交；R78两臂各149token真实EOS、完整T0、可评分，因此H78通过；两臂都答600，对原gold1000均记wrong。R79的48项/9201实际提交全T0且重复稳定，每臂独立8题为correct7/wrong0/not_evaluable1；q414两臂各3次均256预算无EOS，保全分母，H79全可评分门不通过。其余7题的答案数值一致不能证明语义非劣或总体质量保持；不延长、不换题/采样/答案格式。冻结rubric的匿名AI核查16个r0答案为14pass/2unknown，unknown均q414未完成；有限文本审阅另记。下一项差分只考虑原FrontierGain.online的有界因果更新合同：其256对触发与向离线K收缩重拟合不同于本仓P/Q/R标量Kalman；先读源码、另冻结判据，不能把无refit的短请求当自适应收益。
+
+## （二十一）原FrontierGain.online：先核因果更新合同
+**未排除的具体差异**：原d91ed75的`FrontierGain`累计XᵀX/XᵀY，每256个已获标签的pair解一次FP64正规方程；有离线K₀时最小化‖XK−Y‖²+λ‖K−K₀‖²（截距行不惩罚）。`reset()`只丢pending及本prompt applied，保K/累计统计/计数，原decoder在prompt循环外持有。它与本仓标量随机游走KalmanMaskProvider的P/Q/R递推不同；R70的ESP/EMA逐状态零差不覆盖该自适应机制。原源码只读：[固定版本](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/src/spec/frontier_gain.py)。
+
+**CUDA代数合同预注册**：只重放R68已保存401对X/Y（SHA7413a7ba…）与原K₀（17b62c5f…），不载LLM、不生成新token。用明确标注的identity head/norm把固定创新送原未改`update→label`，online=true/ridge=.3/refit_every256。验收：前255次label不改K，第256次恰1refit，后145只累积；update不消耗未来label、同pending只消耗一次，reset丢未获标签且保累计；独立CUDA FP64批量带prior方程与原顺序计算的FP32 K最大绝差≤2e−5、相对L2≤5e−5，XᵀX/XᵀY最大绝差≤2e−8，截距惩罚为0；原源码闭包/输入/计划SHA与clean HEAD始末一致。内部150/外层210秒，设备具名，失败保未知，不改阈值。只检验已知校准数据上的调用/代数合同，不是新真实在线收益或无泄漏泛化证明。
+
+**CUDA代数实测**：ab41921事前提交，实际父进程确认退出0；401对恰1refit，触发边界256，原顺序与独立批量FP64方程转FP32 K最大绝差/相对L2均0，XᵀX/XᵀY最大绝差均0，截距惩罚0，调用时序/reset门均通过。只重放历史校准代数，LLM forward/new generation均0。随后预注册同初始K、同原类的R80 static/online真实CUDA对照；每repeat重置总状态、每prompt只reset pending，必须实际触发refit并把累计/求解时间计入generate。状态跨prompt耦合，不能把qid当独立bootstrap单位；没有refit不算适应收益，不以本仓默认Kalman负结果代替该方法测量。
+
+### R80：原类在线K与同原类静态K的实际流式对照
+**微观假设H80**：同初始离线full K上，原类online=true相对online=false，在固定16prompt有序流中同时增加实际接受token总数并缩短同步generate总时长。它是合作源码已有自适应路径的探索，不是将静态K正结果改称标量Kalman成功，也不证明原480正表使用了online（其cfg/K/CSV仍缺）。
+
+| **冻结项** | **协议与验收** |
+| --- | --- |
+| 输入与处理 | 逐字复用R76 inputs（db869a0f…）：math401–404→translation161–164→summarization248–251→rag481–484，共16题；保持原旧模板、128/noEOS/T0/seed123、Qwen3-4B BF16/eager、ESP mean_prompt λ=.1/k2/BC30/dynamic-pruned/naive。它与R79新质量模板分开，不把两批速度或质量拼接 |
+| 唯一因素与状态 | 两臂都动态载入未改d91ed75原FrontierGain，仅online布尔不同；同K₀17b62c5f…/ridge=.3/refit_every256。每repeat各新建两个原gain，从同K₀/零计数开始；本repeat跨qid保统计/K，逐prompt丢pending，真实下一root的postnorm状态才作标签，不读gold/未来token。3rep、按qid+repeat轮换两臂，共96正式请求；2token预热每臂1次，各自独立控制器且不带入正式 |
+| 先行准入 | 新外部8token q401真实模型小门：R65 full adapter、原class static wrapper、原class online wrapper三臂，whole committed/actual accepted/trace一致且T0全过；online必须实际消费≥1延迟label、无refit、K不变、终端pending清空。240/父300秒；任一失败不启动正式批，不改阈值绕过 |
+| 正式正确性与因果 | 96项各128提交、来源/完整T0、实际模型close/末核/父退出0。每次update不消耗label，label只消费匹配绝对位置/bonus embedding的下一root，norm第一mask选行逐位匹配宿主交付；每256标签恰refit，每rep至少1次。static K逐位冻结；原K文件不写，在线K单独保存每refit与repeat末状态。首次refit以前已完整结束的题，两臂输出/接受/trace应相同，差异不得归为适应收益 |
+| 计时与判读 | 同步generate包括实际累计FP64统计、重拟合、共同选行/bonus因果核查与内存事件；online特有refit同步保留计时，K快照只保张量引用，生成后落盘，不含模型/K载入、setup、哈希、审计/IO。报告每rep的16题流接受总数/时长总和，主点判据用3次流总量中位数：接受online>static且时长online<static；全部rep结果、每题轨迹/τ另列。状态跨题耦合，不做qid独立bootstrap、不把3rep当独立数据，不宣称稳定区间或完整语义加速 |
+| 来源/预算/停止 | round80只写D:/Grok Bot/tmp/sd；clean HEAD、计划、原字节/bridge/driver/协议/输入/模型14清单先冻结，CUDA具名，无CPU回退。正式内部1200/父1260秒，原工程90/300秒不改；仅剩预算能覆盖到22:07Z前才启动，否则登记未执行。正负或失败均停，不扫ridge/refit阈值/长度或追正；不改合作者/本仓生产源码 |
+
+**R80实测**：原三臂24提交准入通过；正式在5eebdb0/clean与只读环境回执v2上执行，96项/12288提交T0全过，三repeat均online1203pairs/4refits、static0/0。16题流总量三次中位数：static823接受/46.283122秒，online836/46.212222秒，Δ接受+13、Δ墙钟−.070900秒、速度1.001534×。H80预设点门通过；该速度优势很小，跨题状态耦合、无CI，不称稳定或普遍增益。actual TF32 matmul=false/cudnn=true、float32 precision=highest；原驱动/准入及v1字节保留，v2只增三项实际旗标，算法/判据不变。每refit与末K、实际退出0和CUDA FP64统计及独立IO复核均完成。三次墙钟差+.663895/−.070900/+.236383秒，2/3次更慢。若后续核动态K跨实现边界，只在明确必要且剩余预算足够时另冻结最小合同，不自动新增臂或改旧实验。
+
+## （二十二）R81：原decoder在线K与本仓保存流的有界同一性
+**微观假设H81**：不改原d91ed75闭包27文件，直接执行原SpecDecoder的online=true，能与R80同初始K/同16题有序流得到同一完整提交链、实际接受和prompt末动态K。R67只覆盖静态K；本项补动态状态生存期边界，不是新的速度或收益复测。
+
+固定R80 actualexit0后原件及其SHA、16输入/128/noEOS/3rep、原ESP base、ridge=.3/refit256/初始K₀，每rep新原decoder跨16qid；独立2token预热一次不带入状态。新原侧48项/6144提交，原RecorderTap只读重建每个实际提交的验证argmax，原core/model/spec实际import origin记录且27件Git blob/SHA核完。必须与R80逐qid/repeat wholecommitted、实际/legacy接受、共同accepted_nodes/committed_tokens trace、每commit的forward/owner/token/argmax、累计pairs/refits和prompt末FP32 K存储位相同，任一差异即停、不放宽或重试。每题128提交至多127延迟label，故每题至多一次refit；保存prompt末K不冒充精确refit回调瞬间快照。
+
+实际Torch/GPU、matmul/cudnn TF32、float32 precision和模型config/backend须与R80回执相同，未记或不符则拒绝。外层仅配置与原observer，不改原算法函数、gain公式或返回值。原模型无close API，撤原recorder/gain和外层观察hook、释放引用/GC、末核模型文件，并要求父进程实际退出0；不声称立即显存全释放。内部900/父960秒，只在21:52Z前启动；所有临时材料round81，TEMP/TMP为外部根。缺失的完整draft tree与全部selected tensors不在本项比较，也不支持采样分布、语义或全域等价。**实测**：93a3057事前提交，48项/6144提交全T0，与R80完整提交链/实际接受/共同trace/计数及prompt末K存储位相同；actualexit0，独审通过。完整draft tree/全部selected vectors仍不在本项比较范围；见运行记录第八十四节。
+
+## （二十三）R82：零残差同head对照，定位学得frontier映射的净贡献
+**微观假设H82**：完整K相对完全零K，在相同dense u@K和首mask单行LM-head重算路径下增加实际接受并降低同步generate时长。ESP为无重算背景；它分离“学得非零残差”与“仅换读出路径”，不做相对独立AR的BF16算子机理排查。原R75 full/最佳常量对照已支持条件化映射，仍未覆盖零K路径，本项不是扫参或新算法。
+
+| **冻结项** | **协议与验收** |
+| --- | --- |
+| 数据/臂 | 逐字复用R75固定32题inputs 4ad97bc2…，math401–408→translation161–168→summary248–255→rag481–488；ESP/zero/full三臂共288正式、每臂2token预热一次排除、3rep Latin。这些题已见，仅为固定机制消融，不称新独立或全局盲测。128/noEOS/T0/seed123、原模板、Qwen3-4B BF16/eager/RTX5090 D v2、K2/BC30/dynamic-pruned/naive及ESP mean_prompt λ=.1/update不变 |
+| 唯一处理与来源 | 既有R65 adapter未改；ESP无校正，zero/full都走同dense+单行head路径。full复用17b62c5f…；zero 2561×2560 FP32所有系数（含截距）严格0，输入准备在CUDA完成，保存SHA b8aa5fee…，无拟合。新reuse冻结adapter/full/zero/model，GPU矩阵存储位与文件始末不变、无训练pair。原代码/宿主生产不改 |
+| 主门/分析 | 全288×128提交/来源/T0/close/末核/实际退出0；每qid/arm取3次中位数，full−zero平均实际接受>0且平均同步墙钟<0才支持H82点门。CUDA FP64四任务各8题分层配对bootstrap10000次、seed8201，报告探索性95%区间/胜负平/τ/legacy与输出重复一致。full/ESP与zero/ESP仅背景诊断，不把效应相加，不能从T0推出语义等质或独立AR一致。分析脚本SHA预先绑定 |
+| 计时/停止 | 同R75同步generate，含相同内存证据/校正/head，setup/加载/哈希/审计/磁盘不计；无校准成本。新round82内部1200/父1260秒，正式最迟21:54Z启动，否则未执行；正负/失败均停，不改K、ridge、长度、题量或筛子集。原工程90/300秒门保持，全部TEMP/TMP外部根、输出/cache只在sd |
+
+**设计纠偏与R82b新版本**：R81已48项/6144完整提交与prompt末动态K对齐、实际退出0。R82于21:48:55启动后，独审发现zero行连续stride[2560,1]、full列连续[1,2561]，计时存在布局混杂；21:52:21核定唯一owned进程后主动终止，父确认非零退出，原件/已完成逐项与活动项未知保留，无complete、不做主汇总。新round83作为R82b仅将zero改成CUDA zeros_like(full,preserve_format)，两矩阵实际GPU stride须同为[1,2561]并逐result记录；原32题、三臂、128、3rep、点门、10000/seed8201和1200/1260预算不变。原版已见partial不是盲确认，新版是修正设计混杂的机制消融；不选择题/参数或放宽科学门。新原件/驱动/计划/协议独立冻结，最迟21:55Z启动以留交付窗口，原工程90/300秒门不变；未启动则延期。
+
+**R82b实测**：d7b69e4/clean、round83新来源，两GPU矩阵stride[1,2561]，288项/36864提交T0、模型close/14件末核及actualexit0；full−zero接受+8.187500、墙钟-0.300858秒、速度1.107204×，H82点门通过，探索性95%速度[1.086110,1.127636]。zero/ESP为0.979870×、接受+0.000000；full/ESP为1.084916×。这些处理效应分别报告，原R82中断不进入统计。见运行记录第八十五节。
+
+## （二十四）R84–R85：固定单数值格式的完整答案质量协议
+**问题与假设**：R79在非思考但自由解释格式下，每臂7正确/1无EOS；本次检验明确单数值格式能否形成完整可评分答案。原q414与R79保持失败，不延长/换题补签。新开发q417与固定评价q425–432在读取新生成输出前选定；题号按原数据顺序，不按难度/正确结果挑选，历史480已见，评价与本次校准/近期R75/R79不交。
+
+| **冻结项** | **协议/验收** |
+| --- | --- |
+| 输入/格式 | 同原SpecBench数据7dd26882…、原题干后固定追加“Output exactly one number using decimal notation, with no units, explanation, or formatting.”；enable_thinking=False，实际空闭合think来自输入prefix；不插入gold。开发417，正式425–432，原####参考单独冻结 |
+| 模型/对照 | 同Qwen3-4B BF16/eager、ESP/冻结完整K17b62…成对对照、原R65 adapter不改，K2/BC30/dynamic-pruned/naive/mean_prompt λ=.1/update，greedy/seed123/max64/EOS=true。无新校准、无在线更新；CPU只离散tokenizer、纯评分/来源合同 |
+| 准入H84 | q417两臂各1次，必须真实终端EOS、whole-decimal可解析、与原gold匹配、完整来源/T0和实际模型关闭/末核/进程退出；任一失败则正式R85不派发，不改提示/长度或选替代题 |
+| 正式H85与指标 | q425–432、两臂3rep Latin，共48请求，独立n8；先核全EOS/严格格式/重复稳定的协议可执行性，再分开报告correct/wrong/not_evaluable、接受/τ及同步generate时长。整个finaltail仅允许一个十进制数（可符号/千位逗号），解释、单位、分数、boxed及thought/新role均不可评分；无EOS/裁尾保NE且保分母。H85全可评分门不等于质量非劣；三rep不扩n。变长完整答案计时仅描述，未预注册稳定加速假设 |
+| 来源/失败/预算 | 新round84/85冻结clean HEAD、计划/输入/refs/driver/scorer/模型14件；原115源及静态K文件/GPU位始末核对。19项纯字符串/整数ID评分边界先验；开发内部180/父240秒，正式300/父360秒。失败保partial/unknown，正负均停，不追扫参数。当前dirty与之后文档提交分别记身份 |
+| GPU协调 | 北京时间07:05前绝不启动CUDA/载GPU模型。07:05后先只读固定dayan对话01a1560e-d494-7f30-9251-09da737852b2紧凑进度及实际owned退出/不再派发证据，再用原resource_admission.observe(initial=True) GPU/主机准入；未证实释放/准入不通过不接卡。CUDA窗口07:05–07:35，07:30前完成执行/关闭/来源末核，最后5分钟保留；不能仅按时点/低利用率判断独占。不发对方派单，不终止他人进程，受扰计时单列 |
+
+**执行前参考核查修订v2**：q428原参考错误地将“A比L高30%”反解成L=.7A，正确关系为L=A/1.3；后续同时涨薪也未给L的涨幅。原gold95200与原题均保留，不替换题。该qid只记录原参考匹配，数学语义状态固定unknown_reference_defect；八题分母保留，不能把原gold匹配当数学正确。其余8个含开发题参考已逐式核查。新v2 scorer/driver/协议在读取任何新模型输出前冻结，旧版本未执行且原字节保留。按Owner最新澄清，本拍仅质量/ESP-冻结K对照，原码隔离运行不作为前置；临时约束与GPU协调保持。
+
+**离线核验与下次执行合同（2026年11月7日）**：冻结K17b62…已沿R66 gain-freeze、states摘要、10份实际校准请求及退出回执核到CAL10原输入。固定评价425–432与CAL10、R75、R79、开发417及已列近期选择集均无qid、原文或NFKC/大小写/空白规范化重合，原480内也无规范化重复；这支持本次拟合/选择留出，历史已见与预训练污染未知的范围保持。
+
+临时评分器v2存在实际离散反例：`[20,151652,151645]`解码原文为`5<|vision_start|><|im_end|>`，跳过特殊token后“5”会被误判correct。新v3仅去除真实终端EOS，再核保留特殊token的原文与数字全文一致；17项新增tokenizer/原文边界及受改评分器19项回归通过。原v2、首个失败与修正前v3均保留；没有模型输出被重判。下次必须新Run绑定v3及同步的原始token审计、clean HEAD/计划/输入/参考/driver/模型14件；旧07:05–07:35时窗与上轮释放回执均已过期，须取得本轮owned退出/停派和一次即时原准入。不得直接复用旧父入口或覆盖R84拒绝。
+
+| **验收层** | **固定八题的判读** |
+| --- | --- |
+| 执行与T0 | 48请求的完整提交/source/T0、模型关闭/末核、实际退出0先成立；partial/缺行保unknown/未执行，不补成NE或通过 |
+| 完整答案H85 | 每项真实终端EOS、保留原文后严格单数值；无EOS、格式或隐藏控制token均为NE。逐qid/臂报告三次答案状态/值一致性，token/接受重复性另列，保全部原始行 |
+| 参考与数学质量 | 每臂24请求、独立8题；correct/wrong/NE仅为原参考匹配。数学状态另列7个已核参考题与q428的1个unknown_reference_defect，总分母仍8，不把三rep当24独立题或投票择优 |
+| 收益与判断变化 | `score.passed`仅表示评分完成；任一NE会阻断H85全可评分门。full独有错答/NE是该题退化反例；全可评分或样本正确数相同仍不足以确认非劣。接受/τ、变长EOS描述计时分别报告，不拼接固定128/noEOS速度 |
+
+**资源门的实际来源**：当前18.12GiB来自早期8B复验登记峰值17305047040+2GiB；本次核到固定Git声明，原8B采样回执的直接绑定仍缺。旧4B容量探针原件与固定声明一致：q295/1500输入/256输出的采样峰值8808693760字节，但不是本次frontier/审计/加载路径峰值。原18.12GiB、显存和非抢占门保持不变；两类工作负载不互换预算。来源、raw反例与准入状态见运行记录第八十七节。
+
+**原R84状态：资源阻塞，未取得模型质量结果。** 事前提交e6f6de5/7efdfce，19项评分与8项独立字符串自检通过。北京时间07:05后只读核对dayan的37份owned退出原件和不再派发声明；原observe(initial=True)于UTC23:06:40拒绝：无foreign CUDA进程、free VRAM20507MiB/util5%，但主机available10291404800+workerRSS768827392=11060232192字节，低于原peak17305047040+reserve2147483648=19452530688字节。R84父进程实际exit1/非超时，模型未加载、请求0，无T0/答案/速度；R85依准入顺序未派发。没有重试、放宽预算、改资源门或改用CPU跑模型。NVIDIA实际型号RTX5090 D v2；这不是完成一次BF16模型验证。下次须资源真正满足原门并用新运行身份，不覆盖此次拒绝；原q414失败和全部历史结论保持。完整回执见运行记录第八十六节。TEMP/TMP恒D:/Grok Bot/tmp；全部临时/cache/output仅D:/Grok Bot/tmp/sd。合作原表cfg/K/CSV与历史raw-byte缺口保持未知；本轮不清理重构、不重跑已对齐机制。
+
+**资源变化后的新执行预注册：R87/R88（2026年11月7日20:49）**。本轮沿H84/H85原问题与固定控制继续：新round87先q417两臂各一次，真实EOS/全文数字/原gold正确及source/T0/close/末核/实际退出0全部成立才派round88的425–432两臂三rep Latin/48请求；64、非思考模板、EOS、seed123、Qwen3-4B BF16/eager、ESP与固定K/adapter均保持原字节。v3评分器c6bcc7b4…不改；独立审计新增真实ID的非EOS特殊token拒绝，4项新增读端边界通过；未变27/36项不重跑。新driver只迁移身份/读端/协调与日志，科学函数和常量AST与旧版本相同，执行前绑定当前clean HEAD、本文、driver/parent/audit/scorer/输入/refs/K及模型14件；旧R84拒绝与所有失败保留。
+
+本轮以dayan最新停派安排及r3c_20261107_1933/GPU-RELEASE-final.json实际owned退出原件为协调来源，接卡前重新只读确认；worker在torch/CUDA初始化前执行未改的observe(initial=True)，维持原18.12GiB/VRAM/foreign门。每批启动时协调证据须≤120秒且原件SHA相同；不以巡检快照代实际准入。新启动预算为本日20:49–21:25（上海），最晚父预算21:31内退出，留收尾时间；开发内部180/父240秒、正式300/父360秒均不变，失败/准入不通过即止，不换题、扩长度或重试。现有执行未覆盖载模全过程RSS监测，当前4B加载峰值保unknown，不另开容量实验或改门。评分/参考/数学unknown、完整提交T0、接受/τ与变长EOS描述计时仍按上表分列；结束保实际worker退出、GPU释放和不再派发回执。此为新运行身份预注册，尚未取得模型结果。
+
+**R87实测与本批处置**：6f3a50d/clean为事前执行身份；原18.12GiB/VRAM/foreign门实测通过后，在RTX5090 D v2 CUDA0/BF16/eager完成q417两臂。两条64-token前缀完全相同，均继续解释相对速度并在预算处截断，无EOS。v3评分每臂correct0/wrong0/NE1；128提交完整T0、115源/模型14件及K始末绑定、模型close/末核、actualexit0、同步原件审计通过。**H84不获完整答案准入支持，R88依协议未派发，八题质量仍未测**。实际接受ESP23/full24，τ1.575000/1.615385，同步generate1.894166/1.444316秒；单开发题/无预热/固定ESP先后，只保描述值。UTC13:01:03已核owned PID22092退出并发布round87/GPU-RELEASE-final.json，next_batch_planned=false。本批不续长、换题、加臂或扫参；旧q414与R84拒绝保持。完整答案评价恢复须新协议选择和事前登记，不将当前未完成前缀拼接成已答对或速度收益。具体命令/UTC/SHA见运行记录第八十八节。
+
+## （二十五）R89–R90：解释与显式终行答案的完整解答协议
+**问题与取舍**：R87实际同时有64预算截断与旧全文数字格式未遵循，不能归为纯预算不足；其H84失败/R88未派发保持。旧提示只允许一个数字且无解释后的答案标记。为避免把解释中任意末数字当答案，本版保原题干/模型/模板/ESP与冻结K，只把末尾指令一次替换为：`You may explain your solution. End with exactly one final line of the form Final answer: <decimal number>. Put no units or formatting on that line, and write nothing after it.`。提示、512上限与终行判读是一个整体探索，不拆成预算或格式的已证因果，不试提示网格。
+
+**H89开发假设**：固定已见开发q417，两臂各一次能在512内以真实EOS终止，并给出唯一机械可评分的最终数值。开发准入要求完整/source/T0/close/模型末核/实际退出0及两臂都可评分；**correct或wrong均可准入，gold不用于选协议**，NE阻断正式派发。q417不是独立质量样本，正/负/未执行都保留。
+
+| **冻结项** | **新协议与判读** |
+| --- | --- |
+| 输入/对照 | 原题干不变，新末尾指令如上，enable_thinking=False及空闭合think输入prefix不变；开发417，输入89token/SHAa0c788bf38f3…；原参考/gold不变，只更新新提示摘要绑定，refs9db840b4203e…。Qwen3-4B BF16/eager、K2/BC30/dynamic-pruned/naive、ESP mean_prompt λ=.1/update、固定K17b62…与adapter0654…、seed123/greedy、max512/EOS=true，无新拟合/扫参/预热 |
+| 唯一答案边界 | 仅去真实终端EOS后的raw正文须与解码正文一致，其它生成控制token按既有v3规则拒绝。正文中去空白后以大小写精确`Final answer:`开头的行恰有一行，且它必须是最后非空行；标签后仅一个十进制数，可符号、规范千位逗号、小数与空白。原文和全部提交token保留，绝不扫描全文最后数字 |
+| 单位/歧义/未完成 | 单位可在解释中出现，最终行含单位/百分号/等式/分式/指数记法/boxed/Markdown/多值/备选均NE，不换算或选其一；重复记录即使同值也NE，记录后有正文也NE。无实际EOS/截断先记NE，缺行/未派发/来源失败保unknown而不补假零。生成新role/thought或隐藏特殊token仍按既有v3规则拒绝 |
+| 新检查与身份 | 新parser 5e20953cb8cb…与同步独立raw-ID读端绑定，11项新parser/4项新读端边界通过；旧EOS/隐藏token检查AST沿用，不重跑无变化旧套件。新round89冻结clean HEAD、计划/driver/parent/audit/scorer/输入/refs/K及模型14件，不覆盖R84–R88 |
+| 开发预算/停止 | 两请求、ESP后full、每臂最多512，内部180/父240秒；H89失败即停，不补题/延长/改提示追通过。旧工程90/300秒门保持；新开发不是续写R87 |
+| 条件正式R90 | 只有H89完整可评分且窗口足够时，另提交并冻结同一协议正式版，原固定425–432、两臂三rep Latin/48请求、每臂max512，内部1200/父1260秒。最晚上海22:08启动以22:29前完成父预算并留退出/末核；不足则正式待验，不缩科学门赶时间。已在新HEAD9f2a74a按下述UTC执行；旧R88仍未派发 |
+| 正式评价边界 | 每臂24请求、独立8qid；重复与答案/接受稳定性分列。原参考匹配C/W/NE与数学质量分开，q428 reference defect的数学unknown保8题分母；解释推理正确性不由数值匹配自动证明。T0、最终答案质量、实际接受/τ与变长EOS描述计时分开，同正确数不证明语义非劣，不拼旧128固定预算速度 |
+| GPU错峰 | 上海本日22:05前不启动CUDA。22:05后核dayan本轮新owned退出与停派原件，协调证据≤120秒、SHA一致，worker先过未改18.12GiB/VRAM/foreign门再初始化CUDA；旧r3c释放及到点/低利用率无效。GPU窗口22:05–22:35，开发最迟22:26启（父240秒至22:30），正式最迟22:08启；留自然退出/末核，未知不抢卡/不杀他人。本批结束留owned退出、GPU释放和停派回执，不另发其它对话消息 |
+
+**H89开发实测与正式身份**：23aa95f/clean在RTX5090 D v2完成q417两臂，各111token/真实EOS，终行5；222提交完整T0/来源、关闭/模型14件末核及actualexit0通过，独立读端一致。准入要求correct或wrong皆可评分，未按gold选择协议。其后以9f2a74a/clean单独冻结R90同一末尾指令/512/判读，原425–432、两臂三rep/48请求；UTC14:07:59启动，14:12:27自然退出0，内部252.855512/1200、父267.935469/1260秒。两批派发前各核dayan本轮新退出/停派原件并通过未改资源门，实际设备均为CUDA0 RTX5090 D v2。
+
+**R90实际判读**：48请求全部真实EOS，9498提交完整T0/来源及模型关闭/14件末核通过；两臂最终数值与评分状态逐题相同。每臂原参考匹配5correct/2wrong/1NE（24请求为15/6/3），独立n8，三次重复的输出与接受均稳定；原始全文跨臂15/24配对相同。八题全部机械可评分的条件未满足，格式不依从与答错均保原结果。
+
+| **全部8题，qid内median3再平均** | **ESP** | **冻结full K** |
+| --- | ---: | ---: |
+| 原参考匹配/不匹配/NE | 5/2/1 | 5/2/1 |
+| 实际接受均值 | 70.750000 | 73.750000 |
+| 平均τ | 1.567708 | 1.615559 |
+| 合并τ | 1.551420 | 1.597959 |
+| 同步generate秒 | 4.538052 | 4.450941 |
+
+**失败定位与证据边界**：q425以`### Final answer: 28.33`结束，366token已有真实EOS，精确记录行缺失故NE；只读原文还发现把Saturday/Sunday的each计为一次，正确数值应30。q427终行29可评分，但40−(12+9)=19，是真实算术错。q428终行99076.92与冻结参考95200不匹配，原参考缺陷和数学unknown保持；其它五题保存推导与原参考相符。上述原文核读作为定性诊断，保留冻结数值判读，未放宽parser/删题/改gold。所有8题含NE与参考缺陷的描述墙钟比为1.019571×；无预热、变长输出、历史已见n8，完整语义非劣/稳定速度不是本批已证结论；旧128固定预算收益单独保原Run。
+
+两模型worker已实际退出，UTC14:13:47发布round90/GPU-RELEASE-final.json及NO_MORE_CUDA，cuda_released=true、owned_still_present=[]、next_batch_planned=false，本拍不再派CUDA。TEMP/TMP=D:/Grok Bot/tmp，临时/cache/output仅SD round89/round90；没有下载/升级/生产重构或原码隔离重跑。实际命令、SHA与判读原件见 [运行记录第八十九节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+## （二十六）R91：独立数学审查与下一近期留出问题
+**范围与独立性**：本节是对R90原件的CPU证据审查。独立计算者为未继承父对话的agent，仅先见匿名A–H题干，不见本轮输出、参考、qid或既有缺陷判断；返回后以SHA b76e0fd6…冻结，再揭示两臂与参考。父agent已看过旧结果，复核者也可能在预训练中接触公开题，因此“盲”只限本轮输出/参考，不是人工专家审查或全局未见数据。阶段2是揭示后逐项比较，原gold/score/raw及H84/H90决定保持。
+
+**四层结果**：下表每题覆盖ESP/full各三次；“末值”是保存原文的解释性读数，q425原`extracted`仍为null、NE不重判。EOS根据原完成件和保存token，CPU未重算模型或logits。q428以外，原scorer的`semantic_status`直接沿用参考匹配的`status`，不能充当本表的独立数学证据。
+
+| **qid** | **两臂保存末值** | **EOS／格式，每臂3次** | **原参考与原标签** | **独立题干计算及输出判断** |
+| --- | --- | --- | --- | --- |
+| 425 | Markdown标题中的28.33 | 3/3／0/3 | 30；NE | 常见读法为日8课、工作日1600分钟，再加周六/日各100，即30小时。两臂明确采用该日课时，却只加一天；1700/60本身算对，遗漏each。原题“额外2课”及weekly基数另有读法，需明示假设 |
+| 426 | 5 | 3/3／3/3 | 5；匹配 | (25−5)/4=5根/人；两臂推导与题干一致 |
+| 427 | 29 | 3/3／3/3 | 19；不匹配 | 2×20−6×2−3×3=19美元；两臂支出21算对，随后40−21=29是明确算术错 |
+| 428 | 99076.92 | 3/3／3/3 | 95200；不匹配 | 未来总薪56000+(400000/13)(1+r_L)，题干未给r_L；两臂把过去的30%关系移到当前，数值仅在比例保持或同涨40%等额外条件下成立，数学状态unknown |
+| 429 | 385000 | 3/3／3/3 | 385000；匹配 | 500×700×1.1=385000美元；题干、推导与末值一致 |
+| 430 | 84 | 3/3／3/3 | 84；匹配 | 3×16+12+2×12=84岁；推导与末值一致 |
+| 431 | 15 | 3/3／3/3 | 15；匹配 | 90/2×20/60=15小时为顺序清扫累计时间；多人并行的经过时间未给，保该条件 |
+| 432 | 34 | 3/3／3/3 | 34；匹配 | 24+(24×2/3−6)=34件；推导与末值一致 |
+
+q425的常见题意与原参考采用每天额外2课、weekly为工作日课时；若额外2课指全周，得24小时，若weekly包含周末最终总量，得640/21小时。这些条件不能挽救模型已明确采用日8课却漏一日的推导。数学复核可支持四题的直接计算及q431的条件性结果，不把原5/2/1改称无条件语义准确率。
+
+**来源及q428的可识别性**：八题题干/参考均与本仓原数据行及R90冻结SHA相同。当前运行字节699248B、CRLF480行、SHA7dd26882…与本仓Git对象ab1748c9…一致；上游[Spec-Bench固定数据文件](https://github.com/hemingkx/Spec-Bench/blob/66230f10cb0a02aced5ef3ce1e85163c16160454/data/spec_bench/question.jsonl)为LF、698768B、blob2498d097…。在内存明确仅作CRLF→LF映射后与该上游blob身份吻合，两个原字节身份分别保留，不改运行文件或重签来源。此处固定的是数据文件，不提升此前README/论文的阅读深度。
+
+[GSM8K固定test原件](https://github.com/openai/grade-school-math/blob/b0bb162abedc65e1fdd8e93ed090fd7598ee68bc/grade_school_math/data/test.jsonl)与Spec-Bench均保留q425/427/428相同题意和30/19/95200参考。q428原推导把L₀=A₀/1.3误写成0.7A₀，并另加两人同涨40%；[上游问题报告](https://github.com/openai/grade-school-math/issues/10)曾指出百分比反算错误，该报告不是维护者修订。独立公式给r_L=10%时89846.15、40%时99076.92、27.4%时恰95200美元；后二数都可能在补充条件后出现，题干不能唯一识别。保原gold95200与数学unknown，不以参考有错为由把模型升为正确。
+
+**成对关系**：以下为已保存R90逐qid的三次中位数，全部8题保留，包括NE和参考欠定；仅离散汇总，无新统计或性能实验。
+
+| **qid** | **总提交 ESP→full** | **解码调用 ESP→full** | **实际接受 ESP→full** | **接受差** | **同步generate秒 ESP→full** |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 425 | 366→366 | 237→236 | 129→130 | +1 | 8.425870→8.543405 |
+| 426 | 75→75 | 50→49 | 24→25 | +1 | 1.841049→1.813829 |
+| 427 | 139→139 | 89→89 | 49→49 | +0 | 3.152322→3.224621 |
+| 428 | 475→455 | 307→287 | 168→168 | +0 | 10.816804→10.360521 |
+| 429 | 95→95 | 56→57 | 39→38 | -1 | 2.008721→2.083027 |
+| 430 | 187→187 | 124→113 | 62→74 | +12 | 4.406234→4.139674 |
+| 431 | 115→115 | 65→64 | 49→50 | +1 | 2.317157→2.330543 |
+| 432 | 140→142 | 93→85 | 46→56 | +10 | 3.336261→3.111908 |
+
+接受5胜/1负/2平，计时4快/4慢；净增24中q430/q432占22。q428较快伴随输出475→455、调用307→287，而实际接受168不变，不能单独归因于接受改善；q430同187token时接受62→74、调用124→113，q432多2token仍接受46→56、调用93→85，分别保留这些观察，不当作固定路径反事实或筛掉其余题。两臂最终数值/状态相同，不能据相同匹配数证明普遍等质；无预热/变长EOS的1.019571×仍是该批描述比，不做新CI或拼接旧128预算速度。论文当前可列的有限证据是：此前32题同布局full/zero支持残差机制与接受收益，R90提供真实EOS和共同错误案例；完整答案质量非劣、稳定加速、跨数据集及预训练污染均未由本审查证明。
+
+### G16：事前数学rubric与完整答案协议（R92纯CPU准备）
+以下保留R92事前冻结内容及当时未派发状态；其后独立新Run R93的实际执行与结果见本节末，不将本次GPU回签为R92执行。
+**问题**：冻结frontier K相对ESP的接受收益，能否延伸到未进入已核CAL10及近期选择包的原q433–448，并在声明数学读法下减少完整答案generate时长？本拍只完成事前判读、输入与可执行准备，不产生模型效果证据。
+
+**先算后揭示**：fresh-context agent只见匿名A–P原题干，未见qid、参考、模型输出或既有判断；原计算于UTC 2026-11-07 16:00:07.911730（上海11月8日00:00:07）保存并冻结，16:01:37.992674才揭示原参考。以下主值及条件先于揭示；16参考的算术核对一致不等于16题无歧义，也不是模型16/16正确。父agent已见历史480题，公开题预训练污染未知，本次独立计算为agent审查。
+
+| **qid / 匿名** | **事前主公式与值** | **单位、精度与判读条件** |
+| --- | --- | --- |
+| 433 / A | 30×(1−.30)×4＝84 | 滑梯次数，精确整数，直接 |
+| 434 / B | (20+40+60)×(1+2)＝360 | 两周故事总数；有条件主读法，240只是第二周小计 |
+| 435 / C | 16×(5+3+.25)＝132 | 干原料汤匙，精确整数，直接；不换算质量 |
+| 436 / D | 3×2−2×1＝4 | 美元价差，直接；两商品合价8不是所问 |
+| 437 / E | 100−(20+44)＝36 | 姐妹合计尚需签名数，直接 |
+| 438 / F | 40%×(1−80%)＝8% | 所求百分数的主标量8，直接；明确0.08河流份额或2/25可另获数学等价支持，0.08%错误；裸数按所求百分数单位，不静默缩放 |
+| 439 / G | (400+800)×.8+150＝1110 | 美元；有条件：折扣作用于前两包。1080仅为明确三包均折扣的条件支路，不自动算主值通过 |
+| 440 / H | [120+.75×120+(.75×120+60)]/3＝120 | 美元/人；有条件：Arelia/Aurelia同一人。原拼写不修；严格不同姓名时欠定。若Aurelia＝x，前三人均摊5x/6+20；若四人含Arelia的120则5x/8+45，均不能据gold定x |
+| 441 / I | 33/3×12＝132 | 美元；有条件：总共12小时。165只对应另加12小时/总15小时，不算主值通过 |
+| 442 / J | (50−20)−(40−40/2)＝10 | 衬衫数差，精确整数，直接 |
+| 443 / K | (25+1+1)×2＝54 | 纸杯蛋糕，精确整数，直接；含Howie与老师 |
+| 444 / L | 26/2−10＝3 | 年龄，精确整数，直接 |
+| 445 / M | (4×2+2×2)/6＝2 | 美元/份，按题目取最近整数；有条件：洋葱加倍、所列成本与6份；未列成本未知 |
+| 446 / N | 1×12×4×10/12＝40 | 英尺；有条件：倍数按n倍读。严格n倍增加的全支路为715/12英尺（59又7/12）；混合读法abc/12，a∈{10,11}、b∈{4,5}、c∈{12,13}。只有明确一致的条件才记录支路，不事后改主值；59.58仅限显式两位小数精度 |
+| 447 / O | 6×8/12＝4 | 盘当量批次，直接；不是同时必须有4个物理烤盘 |
+| 448 / P | 5×4×2＝40 | 立方英寸体积，精确整数，直接 |
+
+10题直接；434/439/440/441/445/446为6题有条件主读法。原16个gold与参考步骤逐字保留，未替换题目或修参考。四层逐请求独立报告：①原始终止token证明真实EOS；②沿R90的精确末行十进制记录/隐藏控制字符合同，格式NE不冒充数学错误；③只核原gold数值匹配；④按上表审查显式唯一答案、单位、已展示推导与条件，分直接支持/常见读法支持/显式单位等价/条件支路/错误/unknown/NE。G16外层评分与读端的`semantic_status`固定为pending_independent_math_review；原标量parser不改，数值匹配另列，不能代替第四层。
+
+未派发/缺件记NOT_DISPATCHED或unknown_execution，不补造16条NE或准确率。相冲突最终主张、题内三rep的值/状态/语义不一致保unknown，不多数投票；裸主数只支持答案值，不能证明隐藏推理正确，展示步骤矛盾另记并阻断完整数学质量通过。q440/446的无条件题意仍不能由主数匹配消除；其它显式条件支路也不升级为主读法通过。格式失败可在独立数学层如实说明，但不救机械格式分或回签R90。
+
+| **方面** | **G16-v1冻结内容与尚未执行项** |
+| --- | --- |
+| 输入与可证独立层级 | 原数据连续q433–448，16题不换不删。R91选择先冻结；22份已命名R64–R90 inputs/frozen-inputs（含CAL10）无qid、原文或NFKC/大小写/空白重合，原480内无规范化重复。缺文件不证明未暴露；历史480已见，仅为已核拟合/近期选择留出，非全局盲测/跨数据集 |
+| 模型与两臂 | 同一本地Qwen3-4B BF16/eager、未来RTX 5090 D v2/cuda:0；ESP与冻结full K。K2/BC30/dynamic-pruned/naive、mean_prompt λ=.1/update、seed123、temperature0、非思考模板，保持原decoder/验证/KV与frontier公式；不拟合新K、不叠EMA/Kalman |
+| 输入与输出协议 | 沿R90原末尾指令：`You may explain your solution. End with exactly one final line of the form Final answer: <decimal number>. Put no units or formatting on that line, and write nothing after it.` 已仅以tokenizers离线渲染，16项token长度77–165；没有参考混入prompt。正式max512、真实EOS；不因输出调整提示/解析/长度 |
+| 固定预热 | 原开发q417，6请求各32token/noEOS，seed123，顺序esp/full/full/esp/esp/full。每臂3次，单独保存来源/T0但不入正式质量、接受或计时分母；不得看计时后补预热 |
+| 正式顺序与分母 | rep0/1/2内各按433–448升序，第i题的臂序按(i+rep)奇偶交替；16×2×3＝96请求、每臂48，独立n16。102项schedule已保存；正式最高49152token，含预热最高49344，不含prompt。所有qid保留，不挑同长度/获益子集 |
+| 计量与点门 | qid/arm内median3，再跨全部16题汇总实际接受、排prefill的τ、同步generate时间及成对胜负；预热不入统计。探索性联合点门：full−ESP接受均差>0、ESP/full时长比>1、无ESP已获数学支持题转full错误/unknown，且数学可判定/支持覆盖不下降。关键语义unknown、缺件/未完成或来源/T0失败不宣布无条件等质收益；即使点门通过，也只限声明读法与切片，不称总体非劣或稳定加速，不事后增CI/筛题 |
+| 计时混杂 | 同等T0/source插桩的同步generate范围；加载/校准/设置/文件I/O另列，未计入拟合摊销时不称端到端。逐项总提交、decode_calls、实际接受、停止、全文及臂序同存，区分变长EOS与调用变化，不能将较短输出全归因于接受收益 |
+| 正确性与原件 | 每个正式实际提交token完整T0覆盖prefill/bonus/EOS/裁尾后argmax/owner；预热亦保存原生T0。96正式raw由冻结读端独立复核链/来源，预热沿同宿主原生审计，两个审计范围分别说明。输入/115宿主源/模型14件/K/FP32存储位始末核，完成须close、末核、真实actualexit0与请求计数对齐；未跑不记通过 |
+| 预算与停止 | 内部1200秒、父/外层1260秒，含加载/6预热/96正式/关闭/末核；原工程90/300秒门不改。未来允许起点+1260须不晚于GPU槽结束前300秒，超时/取消只终止owned树并保完成/活动unknown/未派发；资源、来源、T0或输入漂移停止新派发，不重试/补题/换格式追通过 |
+| 当前CPU准入 | false授权下父/工作进程均退出2，未入Popen、资源探测、Torch或模型路径；固定1200/1260及错误qid/计数/摘要的负例拒绝，正式execute在stopEOS=true及已声明静态K描述标签归一后与R90科学计算AST一致，标量scorer AST未变。这些不是正向GPU端到端验收 |
+| 未来GPU待办 | 当前授权false、时窗null、模型行0。未来须新执行Run/root/version、绑定当时clean提交/协议/计划/输入/源码/模型/K，取得新明确GPU时窗与当前协调释放，沿未改`observe(initial=True)`核owned退出/停写、内存/VRAM/util/foreign；确认CUDA与实际设备并记录。不得将R90释放或当前CPU拒绝回执当新准入；完整102执行、质量与退出仍待验证 |
+
+**可定位身份**：原数据SHA `7dd26882f31ada100c2aa7447019b5349bddc55697021acbc5643fdc8740aa21`；CRLF本仓blob `ab1748c9f9aaa8f842bdc7845a58abc4b0546582`与[Spec-Bench固定源](https://github.com/hemingkx/Spec-Bench/blob/66230f10cb0a02aced5ef3ce1e85163c16160454/data/spec_bench/question.jsonl)的LF blob `2498d09719b92937c9408f9d7e6efbeaaceb0413`分开保留，原参考并对照[GSM8K固定test](https://github.com/openai/grade-school-math/blob/b0bb162abedc65e1fdd8e93ed090fd7598ee68bc/grade_school_math/data/test.jsonl)。本拍只复核已取得来源与本地字节，无新下载。
+
+| **G16原件** | **SHA-256** |
+| --- | --- |
+| 匿名计算原文blind-rubric-original.md | `50cb9b954784807407579370a80374260b9ca4345cddf9a3757cc2850a96d3da` |
+| inputs.json / quality-references.json | `abf2eb4e40d63c72ac141848684695d0cfe6d2aff97a61b3f4d347c37b0185fe` / `b0569c73b7638034bc7e53d400b24f17df12f91fc1269f1e4ecb54ec177c3365` |
+| rubric-v1.json / request-schedule.json | `9900614be76bafb0b7b08d5f6d2c1ca439eddcedf7d3b8e37172810e69cbd463` / `1ef874c711d210a443103534ede205d221ece5a276df472e26b71b68b92d8383` |
+| 预热输入 / model-sources.json（14件清单） | `a0c788bf38f304985c12d8f18152ed788dffc4f01585a942f56789f82cd26aba` / `20ff496548750bd139b280a544bcab83424f7bcf691b22c7d25c41c52a120167` |
+| full-gain.pt / frontier_adapter.py | `17b62c5ff2df63df0d4201a66158b5d1be00c39f984fb45c37394c8a13da2e66` / `0654c3ada23c43c7188ec5e2575b0c1b3440edec3eed2ea3deae3015d6db8dda` |
+
+原件仅在`D:/Grok Bot/tmp/sd/round92`。执行码、父进程/读端/评分器摘要与提交后计划快照由该根`protocol-v1.json`、`CPU-preparation-binding.json`及交付回执绑定，状态为CPU预注册/NOT_DISPATCHED，不将scratch协议另称研究计划。当前源码基线7a7e1a4，115宿主文件与R90冻结源逐字一致；模型14件仍待未来加载前/后全核，本拍仅复核清单与实际tokenizer。准备过程及首次失败原件见[运行记录第九十一节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+### R93：G16原16题有界CUDA执行与四层结果
+**采用与身份**：协调授权SD-G16-R93-20261108-0051；新根`D:/Grok Bot/tmp/sd/round93`，执行clean HEAD `d0c35d523dfc409dd00cc2a24eb6bfcc76a41c8f`，R93协议SHA `9671bc97df3be5c98e631c2d22ac4154265df8c8bb07cf0db3c83b479c503b8a`。R92的16项输入/参考/rubric/预热/顺序、模型/K、计划快照与四份执行码逐字复用；只新增Run/时窗/授权及身份，未改公式/臂/评分/预算。R92先算后揭示仍是本次事前rubric来源。
+
+**实际准入与退出**：UTC11月7日16:55:06.425538重新核dayan当前CPU-only/六owned不存在、源释放SHA及停派；实际启动距核验0.128秒。原`observe(initial=True)`在Torch前通过（空闲显存20407MiB、util3%、foreign空、主机可用22561591296字节），随后确认CUDA true及NVIDIA GeForce RTX5090 D v2/cuda:0、BF16/eager。UTC16:55:06.553862—17:02:04.989335（上海11月8日00:55:06—01:02:04），父418.435496/1260秒、内部399.879523/1200秒，actualexit0；原工程90/300门不改，本拍未重跑未变工程合同。已完成102请求；96正式14460提交全T0/source，6预热192token另存。115宿主源、模型14件始末核、模型close与独立raw读端通过；预热沿保存原生审计、正式96由独立读端逐提交复核，未再算模型logits。
+
+| **四层结果，每臂独立n16，重复不扩题数** | **ESP** | **冻结full K** |
+| --- | --- | --- |
+| 实际EOS完成 | 16/16（48/48请求） | 16/16（48/48请求） |
+| 精确终行格式 | 15通过/1NE | 15通过/1NE |
+| 原参考数值 | 14匹配/1不匹配/1格式NE | 14匹配/1不匹配/1格式NE |
+| 独立数学，声明主读法 | 9直接支持/6常见读法支持/1输出冲突unknown | 9直接支持/6常见读法支持/1输出冲突unknown |
+
+q433两臂三次均输出`### Final answer:`再换行84，明确数学解30−9=21、4×21=84受支持，但冻结格式仍missing_final_record/NE。q438正文正确推出8%，终行却为`Final answer: 0.08`；按事前规则裸数采用所求百分数单位，不能静默解释为河流份额。严格末行尺度错误、原参考不匹配保持；整段8%与裸0.08产生冲突，独立数学按冻结冲突规则留unknown，既不记支持也不救分。q440只在原姓名同一读法、q446只在n倍读法下支持，无条件语义仍不能消歧；其它四个有条件主读法保持。q447的4为盘份批次，不推出同时需4个不同实体烤盘。父与原盲算agent的揭示后原文核查一致；没有更换gold、删除坏题或多数投票。
+
+| **全部16题，qid/arm内median3后汇总，预热排除** | **ESP** | **冻结full K** |
+| --- | ---: | ---: |
+| 实际接受均值 | 55.187500 | 59.250000 |
+| τ逐题均值 / 合并τ | 1.582356 / 1.578218 | 1.652342 / 1.647423 |
+| 实际接受/排prefill提交比例 | 36.930155% | 39.549437% |
+| 同步generate秒均值 | 3.457556 | 3.389449 |
+| 提交token / decode_calls均值 | 150.437500 / 94.687500 | 150.812500 / 90.937500 |
+
+**点门与因果边界**：接受均差+4.0625、ESP/full描述时长比1.020094×，两项探索性点方向为正；支持覆盖相同、未观察到ESP支持转full错误/unknown。格式NE和关键冲突/条件语义仍在，**不宣布无条件完整答案等质收益、总体非劣或稳定加速**。接受14胜/1负/1平，计时12快/4慢；每个qid/arm三rep输出及实际接受一致，跨臂全文39/48配对相同。没有事后CI或筛同长度子集；速度排除加载/拟合/文件I/O、包含同等source/T0插桩，不称含校准摊销的端到端加速。
+
+| **qid** | **提交token ESP→full** | **调用 ESP→full** | **实际接受 ESP→full** | **同步generate秒 ESP→full** |
+| --- | ---: | ---: | ---: | ---: |
+| 433 | 178→178 | 113→107 | 64→70 | 4.135441→3.963219 |
+| 434 | 179→179 | 101→101 | 77→77 | 3.679250→3.798350 |
+| 435 | 155→155 | 94→88 | 60→66 | 3.496408→3.243779 |
+| 436 | 83→83 | 52→51 | 30→31 | 1.915456→1.916642 |
+| 437 | 91→91 | 56→52 | 34→38 | 2.069075→1.953681 |
+| 438 | 124→124 | 77→72 | 47→52 | 2.816062→2.677233 |
+| 439 | 176→178 | 108→102 | 68→76 | 3.910720→3.829365 |
+| 440 | 208→208 | 134→127 | 74→80 | 4.876030→4.753106 |
+| 441 | 82→82 | 54→55 | 27→26 | 1.974125→2.110743 |
+| 442 | 168→174 | 112→110 | 56→63 | 4.110104→4.133148 |
+| 443 | 96→96 | 62→59 | 33→36 | 2.248558→2.207176 |
+| 444 | 82→82 | 49→48 | 32→33 | 1.836729→1.811052 |
+| 445 | 218→216 | 136→130 | 82→86 | 4.989048→4.808628 |
+| 446 | 313→313 | 206→201 | 107→112 | 7.398177→7.366169 |
+| 447 | 93→93 | 60→56 | 33→37 | 2.206287→2.084309 |
+| 448 | 161→161 | 101→96 | 59→65 | 3.659416→3.574584 |
+
+439/442/445的输出长度分别+2/+6/−2，伴随不同文本，不将全部计时变化归于接受；其余13题全文相同也不另筛一张性能表。例：435同155token、调用94→88、接受60→66；441同82token、调用54→55且接受27→26、更慢，均保留。全部16题及48重复配对原件从运行记录第九十二节定位。
+
+**释放与处置**：UTC17:02:17.797762（上海01:02:17）已核owned PID49940实际退出、NVIDIA无该PID、owned扫描空；发布本批新`GPU-RELEASE-final.json`并立即向协调会话回报GPU子任务完成。随后只做CPU审计/数学/文档，不等待回信、不再派卡。当前批结束，未改K/格式追好结果；完整答案质量缺口仍需另行明确评价问题，不自动重跑/扩题/加臂。协议/summary保留的R92描述标签（scope末尾no current GPU dispatch、STAGE92、CPU准入model_rows0）已在`inherited-metadata-disclosure.json`公开为继承元数据；R93真实102执行、授权/源/退出原件优先，没有修改或重签冻结文件，不能把旧标签当零执行。
+
+## （二十七）R94：标量Kalman的实际提交历史路由合同
+以下保留CPU阶段在d9cd4a9冻结的事前问题与待验说明；其后新执行Run round95及实测判读见本节末，不把GPU回签为round94 CPU阶段。
+**问题与采用状态**：R74的标量Kalman与R76的冻结K直接组合均较基线接受少、时间长。先排除一个可能导致这些现象的集成解释：decoder或原frontier包装器是否把拒绝草稿、裁尾后的逻辑bonus传入Kalman状态，或漏/重复实际提交。当前为**CPU准备已完成、CUDA待验且未授权**；不预设存在bug，不重做已核公式或收益矩阵。历史R75/R76的RAG类别只保原记录，本批不另开RAG/任务或改合作者代码。
+
+| **与负结果直接相关的差异** | **已有证据能回答什么** | **不能据此认定什么** |
+| --- | --- | --- |
+| 作用空间与观测 | EMA是输入embedding差分外推；R74 Kalman以实际提交embedding为观测、共享P/Q/R/K更新输入level。静态frontier K校正首mask的final-normalized hidden残差；R80/81是原类FP64累计统计与在线refit，不是P/Q/R Kalman | 不能把静态ridge或原在线refit的正点转为本仓Kalman成功 |
+| EMA与Kalman公式 | R70的ESP/EMA外生轨迹逐状态对齐；既有CUDA加权历史、Joseph/噪声floor/reset预期通过。R74/R76冻结Kalman类与当前AST相同 | 代数吻合不能解释为何接受更低，也不证明滤波假设/收益 |
+| frontier/bonus时序 | 原静态/在线frontier有R67/R81提交链及末K对齐；EMA已有混合接受/拒绝历史测试；Hybrid已有EOS/预算裁尾callback测试 | 上述不是本标量Kalman经R76包装路径的独立历史回放；R74/R76原件主要是全T0和末态有限/范围检查 |
+| 拟合与应用provider | R76固定ESP校准K后只换EMA-last或Kalman，full两组合为负；真实provider分布改变是已知设计条件 | 缺完整保存frontier特征向量，未量化分布偏移或证明它独占因果；本拍不重新拟合/调参 |
+| host标量同步 | Kalman初始化variance及每_step innovation均将CUDA标量转Python float；prompt逐token扫描与这些同步计入R74/R76 generate | 来源支持存在成本，但不能把全部墙钟增加归给同步，更不能用它解释接受下降 |
+
+**单一假设H94（集成排除，不是收益假设）**：在固定的实际decoder边界刺激下，只改变裸`KalmanMaskProvider`与R76原`FrontierPolicy`包装路由，二者callback序列都等于独立预期的实际提交前缀；最终BF16 level/masks与host P/Q/R/K/t等于脱离decoder、只喂该预期历史的同公式回放。若失败，提交历史接线仍是候选原因；若通过，只排除所测路由/裁尾条件的污染，不把分布错配或同步成本升级为唯一解释，不声称Kalman收益。
+
+| **固定项** | **事前协议、验收与责任** |
+| --- | --- |
+| 来源与改动 | 当前clean源码基线0cb4276；R74/R76实际source_snapshot中的Kalman类与当前AST一致，原R80/R81原件复用。原R76 adapter逐字复制SHA `0654c3ada23c43c7188ec5e2575b0c1b3440edec3eed2ea3deae3015d6db8dda`；117个实际宿主/配置/fixture依赖文件SHA冻结，无生产或第三方代码改动 |
+| 模型与张量 | 不加载真实模型或14权重。复用tests/conftest.py的显式设备FakeSession骨架；8×8 identity embedding/BF16、固定20I输出head、固定9×8 FP32零K，只让包装路径保持同读出作路由控制。零K不是新拟合或收益臂，不能当原真实K制品；全部张量和运算必须CUDA并记录实际设备 |
+| 独立刺激 | prompt token[1,2,3]；所有实际owner验证规则为(position+2)mod8，故提交前缀独立预期[4,5,6,7,0,1,2]。mixed刺激只在交替forward的首mask读出移一token，owner验证规则不变，必须真实出现接受与拒绝。另budget2裁尾、EOS6裁尾、budget1仅prefill；每项fresh base/wrapper同R74/R76工厂实际用法，不造未使用的跨prompt复用bug |
+| 唯一因素与数量 | bare与frontier_zero_control两条路由，4个固定边界共8 case；K2、naive、static branches[1,1]/不剪枝、T0、seed123，现有online/forget=.95/r_min=1e-6/q_min=1e-8/q_scale=.01均不改。此小fixture验证共享callback循环，不冒充原BC30 dynamic真实模型全域验证 |
+| 预期/零容差 | 每case实际完整提交必须为上述预期按预算/EOS6截断；回调(new,prev)严格逐一对齐且_t=prompt3+实际提交数。拒绝/被裁尾的未提交bonus不得出现。BF16 level/masks存储位与host标量对同provider提交历史回放要求完全相等；两路由同结果/状态/顺序。回放独立于decoder历史派发，但复用同公式，**不称独立代数oracle**；代数依据复用旧Joseph等测试 |
+| 有效刺激与原件 | mixed必须确有accepted与zero-accepted轮；两裁尾case必须真的在逻辑bonus前截断，否则刺激无效而失败。保存全部request/raw/result、完整实际提交argmax/source审计、level/PQRKt及回调序列、K未改、退出/partial，不用T0代替状态门 |
+| 资源、deadline与取消 | 内部240/父300秒，另明确60秒退出余量；启动前新窗口须覆盖300+60及新鲜owned退出/停派交接，原observe(initial=True)在Torch前通过。父是实际worker owner，以PID/create_time/argv限制300秒强停；内部每case及generate取消检查deadline，失败保partial且finally关闭fixture会话，实际进程退出后才确认释放。没有CPU替代或自动重试/放宽/扩case |
+| CPU准备与尚未覆盖 | 两脚本compile，6类元数据漂移拒绝；父/worker在false授权下均退出2且未入Popen/Torch/资源门，独立整数前缀及回调多/少/额外负例通过。第一次给不存在tests/__init__.py列源被拒，已保首错，只绑定真实namespace依赖。实际CUDA fixture可达性、混合分支/裁尾有效性、BF16 exact回放与完整T0均待验，不能记通过 |
+| GPU待验与停止 | CPU根D:/Grok Bot/tmp/sd/round94，冻结提交后protocol.json与计划快照/来源绑定，false授权保原样。准备完成即向协调会话回报CUDA待验就绪；未来新授权后用未占用新Run/root（候选round95）只适配授权/窗口/提交身份。拒绝或窗不足保未派发；执行失败不重跑，真实退出释放先回报GPU子任务，再CPU记录/最终交付，不等待回信占卡 |
+
+**与论文受限主张的关联**：R93的1.020094×、接受+4.0625和14/1/1仍是该批描述，q433格式NE、q438共同单位冲突以及440/446条件保持。它们不自动算方法相对质量退化，也不替R94签状态正确。H94通过只使“这组负结果由所测callback污染造成”的解释缺少支持；未通过先查真实接线/fixture与冻结来源，不更改Kalman方程或借静态K正结果改签。原件与CPU准备过程见运行记录第九十三节，本文仍是唯一研究计划。
+
+### H94实际CUDA结果与因果判读
+**新身份与实际门**：CPU准备HEAD `d9cd4a93c4b787beb341304b03b056917059d15c`；协调授权SD-KALMAN-H94-20261108-0151后在未占用新根`D:/Grok Bot/tmp/sd/round95`执行。四份worker/parent/adapter/计划字节与CPU封存一致，117源未改，仅适配新Run/授权窗口和身份。UTC17:53:55.582067读当前dayan无GPU授权/只做CPU的原文、四owned不存在、真实释放SHA及停派，原observe(initial=True)随后在Torch前通过：显存free20388MiB、util7%、foreign空、主机available21868482560字节。父/子明确继承TEMP/TMP及新`cache/pycache`，未借父-X隐式传递。
+
+**执行与释放**：UTC17:53:55.716161—17:54:01.636932（上海11月8日01:53:55—01:54:01），RTX5090 D v2/cuda:0、CUDA true、BF16；内部5.105859/240秒、父5.920780/300秒，无超时、actualexit0。8case/26实际提交完整source/T0、独立position前缀与callback序列/次数通过；BF16 level/masks存储位、host P/Q/R/K/t对脱离decoder的同公式回放零差，零K未变、真实模型加载0、拟合0、fixture会话关闭。UTC17:54:39.448356新release核PID19360退出、NVIDIA无该PID、owned空并停派，先回报GPU子任务后只做CPU核证，未二次派GPU。
+
+| **固定边界，每项两路由相同** | **实际提交与回调** | **有效刺激证据** |
+| --- | --- | --- |
+| mixed，budget7 | [4,5,6,7,0,1,2]；_t=3+7=10 | 三轮accepted_nodes为[]、[1,2]、[1,2]，实际提交分别[5]、[6,7,0]、[1,2]，确有拒绝与接受，末轮裁尾 |
+| clip_before_bonus，budget2 | [4,5]；_t=5 | 原轮accepted_nodes=[1,2]但只提交[5]；未提交的6/7未进callback |
+| EOS_before_bonus，EOS6 | [4,5,6]；_t=6 | 原轮accepted_nodes=[1,2]但只提交[5,6]；逻辑bonus7被EOS裁掉 |
+| prefill_only，budget1 | [4]；_t=4 | 没有decode轮，只消费prefill提交一次 |
+
+**CPU独立原件核证**：逐读8份request/raw/result，重建26提交的index/token/argmax/forward/owner与trace裁尾关系、实际callback(new,prev)及计数；保存两路由level/host状态相同，实际混合/裁尾非空。GPU的零差回放依冻结worker的真实断言/回执，CPU没有再算logits或重做独立数值公式；本同公式回放不冒称新的Joseph代数oracle。
+
+**结论**：H94在所测BF16固定张量、naive/static两路由边界内通过，未发现漏/重复提交或拒绝/裁尾bonus污染。不把此结论推广为整个dynamic BC30/真实2560维模型的覆盖，亦不签Kalman收益或速度。R74/R76现有配方的负结果继续成立，不能据T0或该合同把它改成正收益；本拍没有发现需要修改生产/第三方代码的接线bug。
+
+**仍可说清的机制差异与未知**：Kalman以prompt均值起步后逐token吸收prompt，ESP直接用均值；前者观测/更新权重与EMA/ESP及hidden残差K的作用空间均不同。CPU只读旧末态诊断：R74的24请求/8题末k范围0.468376–0.539051，R76的48请求/16题0.489775–0.549809，而ESP为固定λ=.1；这些是末值，不是整段轨迹，也不证明较大gain导致接受下降。R76在ESP拟合K后换provider，分布变化已知但缺全frontier特征，无法量化其独占作用；prompt循环和CUDA→Python float同步成本存在，旧计时也未独立拆出其贡献。现阶段将这些保为配方/组合适配与成本解释候选，不预设必须有bug，不重拟合/扫参追正。
+
+原件仅在round95：执行protocol SHA `84745d869832382131f1921ee513fb4963bc0b1584232059c0912516536c3a3d`、GPU-contract-complete、independent-saved-contract-audit与新release；CPU准备/旧诊断读取仍在round94。来源SHA与实际PID/时间/预算见运行记录第九十三节追加。R93的共同格式NE/单位冲突与方法相对退化继续分列，14/1/1、1.020094×及条件题意不改；这次不产生新质量/吞吐主张。
+
+## （二十八）R96：接受主指标重列与单一空间顺序对照CPU准备
+**主指标口径**：$A=\sum_f\min(|accepted\_nodes_f|,|actual\_commits_f|)$，$D=decode\_calls$，$C=\sum_f|actual\_commits_f|=N-1$（本批保存Run均恰1个prefill提交）。主报实际draft接受长度$\ell=A/D$；提交draft占比$R_c=A/C$明确不叫全部提议树节点的接受概率；$\tau=C/D$含实际bonus/纠正token，和$\ell$分列。当前验证输入root已经在此前提交，不再重复计入；prefill不入$A,D,C$，EOS/预算后未提交的接受与bonus均排除，零接受decode轮保留。逐请求有$\ell=R_c\tau$，但裁尾时不能一律用$\tau-1$替代$\ell$。原保存depth matches/attempts是裁尾前匹配率，另存，不混作裁尾后主门。主表用全部实际decode调用的$\sum A/\sum D$，另保qid内median3比值均值；重复与调用数均不扩独立研究样本，R80有序流跨题耦合。
+
+**新解释而非回签**：保存原件只作CPU整数计数重建，无模型/Torch/GPU重跑，无改旧判据或旧质量分。以下汇总包含全部原正式请求，$A/D$均为实际draft提交/实际decode调用；warmup排除，$R_c$为提交中draft占比而非整树提议接受概率。R80按有序流理解，不能作16独立qid的新证据；R81是等价性合同，没有新增独立收益臂。H94只作集成合同封存，不列收益比。
+
+| **Run / arm** | **A/D 原整数总数** | **每步draft接受 ℓ** | **提交draft占比 Rc** | **含bonus的τ** |
+| --- | --- | ---: | ---: | ---: |
+| R66 / esp | 1005/2049 | 0.490483 | 32.972441% | 1.487555 |
+| R66 / full | 1278/1782 | 0.717172 | 41.929134% | 1.710438 |
+| R72 / esp | 1005/2049 | 0.490483 | 32.972441% | 1.487555 |
+| R72 / bias | 1062/1989 | 0.533937 | 34.842520% | 1.532428 |
+| R72 / full | 1278/1782 | 0.717172 | 41.929134% | 1.710438 |
+| R74 / esp | 1005/2049 | 0.490483 | 32.972441% | 1.487555 |
+| R74 / kalman | 828/2229 | 0.371467 | 27.165354% | 1.367429 |
+| R75 / esp | 4155/8064 | 0.515253 | 34.079724% | 1.511905 |
+| R75 / bias | 4209/8004 | 0.525862 | 34.522638% | 1.523238 |
+| R75 / full | 4941/7284 | 0.678336 | 40.526575% | 1.673806 |
+| R76 / full | 2469/3648 | 0.676809 | 40.501969% | 1.671053 |
+| R76 / full_ema | 1977/4131 | 0.478577 | 32.431102% | 1.475672 |
+| R76 / full_kalman | 2130/3975 | 0.535849 | 34.940945% | 1.533585 |
+| R80 / static | 2469/3648 | 0.676809 | 40.501969% | 1.671053 |
+| R80 / online | 2508/3609 | 0.694929 | 41.141732% | 1.689111 |
+| R93 / esp | 2649/4545 | 0.582838 | 36.930155% | 1.578218 |
+| R93 / full | 2844/4365 | 0.651546 | 39.549437% | 1.647423 |
+
+**接受判断**：R66/R72/R75的full优于各自无校正/常量；R74现有Kalman低于ESP；R76现有EMA/Kalman直接组合低于full，但不是“K不能与滤波融合”；R80原online refit与R93静态K均有接受正信号，耗时是独立次指标。计时、来源、原失败与每题比值/均值口径按各Run保留；不以小耗时改进不足或共同基座/格式错误否定已测接受增益。
+
+**H96首版封存问题（v1，后续Owner修订见下；未执行CUDA）**：在同一frontier时刻、相同ESP base/冻结$K_s$/readout/现有Kalman递推下，滤波放在$K_s$的输入embedding创新空间，还是映射后的hidden残差预测空间，是否改变实际每步接受？对照为 $h_t+F_{K_s}(\mathcal{K}_e(x_t))$ 与 $h_t+\mathcal{K}_h(F_{K_s}(x_t))$，full $h_t+F_{K_s}(x_t)$为同时参考；唯一主因素是同公式滤波器在静态映射前或后的位置。它检验**校正信号的坐标/空间顺序**，不冒称把现有输入mask provider与输出hidden provider无混杂互换；两现成类的公式/owner/范数/时刻不同，不能直接当单因素AB。
+
+当前可得观测分别为$x_t$或其静态预测$F(x_t)$，不是尚未出现的真实下一root hidden。每个已选frontier在实际bonus/hidden均可得后、首mask head重算前恰更新一次，各case重置、不跨题，首个观测按原init规则初始化；模型BF16、K与滤波level均FP32，host P/Q/R/G仍为原Python标量。沿原online scalar random-walk/Sage-Husa公式及固定默认参数，不训练新K、不改base输入mask、验证/KV或node布局。各空间按同一方差规则处理各自单位，不声称同一物理协方差坐标等价；若差异来自尺度/floor亦属该固定配方落在不同空间的结果，不能独占归因为几何。
+
+**v1已封存设计（不作当前派发依据）**：原G16顺序首4题q433–436（已见，含q433历史NE，不按新输出选题），full/input-order/hidden-order、各3rep、同32-token上限/T0/真实EOS停止；固定模型/输入/数值/decoder/K，预算内部240/父300+60退出。竞争解释为：映射后的统计更适合该固定标量噪声配方，或时序平滑损失了有效瞬时创新、两个位置都不如静态预测。主门预先固定全36请求的实际pooled ℓ_hidden>ℓ_input且ℓ_hidden≥ℓ_full，所有qid/缺件保留；每题比值/τ/接受占比另报，开销不作主门；若hidden只与full持平，仅为位置偏好，不写新增接受收益；若两滤波均低于full，则不采用本两组合，不调参追正。full为同期决策参照，不重做K对ESP的验证。质量实现门为完整提交T0与来源，32前缀未完成时语义记未评估，不能借此签质量不降。CPU已完成4脚本compile、实际_residual方法的符号路由、固定元数据拒绝及父/worker无授权退出2（-O父同样拒绝）；无Torch/模型/资源探测。映射为identity时两顺序零差的新增GPU路径准入、真实模型36请求/完整T0/14件关闭末核仍未执行，不能把CPU形式检查计为科学通过。当前只回报CUDA待验就绪，计划本身不发卡。
+
+**当时Owner修订的H96-v2（已由R97收束）：先说清能改变什么决定**
+
+**可证伪假设（大白话）**：固定现在这份K，不改进入denoise的ESP mask；在K已经预测出的hidden残差上估计在线噪声并平滑，比先在embedding创新上估计噪声再平滑，能保留并增加每步实际接受数。同期只比不滤波的固定K（F）、映射前滤波（E）、映射后滤波（H）。它问的是**哪个空间的自适应噪声/增益估计与这份K更相容**，不直接证明R76的input-mask/hidden校正错位是原因。
+
+**先核可辨识性**：对固定仿射映射，若两臂共享同一标量增益序列且初始化对应，精确算术下映射和平滑可交换：$F((1-g_t)m+g_tx)=(1-g_t)F(m)+g_tF(x)$。所以“只换位置”不保证有区别；本候选可能不同的来源仅为各空间按当前innovation更新标量Q/R、gain及floor/尺度。已从实际`KalmanMaskProvider._step`提取函数作纯CPU代数核对：共同gain的有理数恒等成立；固定二维非等距仿射与4观测的反例，第四步gain为.111800547/.162268077、预测差.070257299，说明该自适应公式**一般不等价**。这不是当前K/模型的结果，也不保证选定四题足以分开；若公式实际等价便取消GPU，不另跑恒等/排除批次。当前两臂是否产生足够不同的gain和接受仍待验。
+
+| **事前预期的实际每步draft接受关系** | **本切片能改变的方法决定** |
+| --- | --- |
+| pooled $\ell_H>\ell_E$且$\ell_H>\ell_F$，四个成组输入均同向严格提高，并满足下述可辨识条件 | 支持继续这条hidden在线融合pilot方向；仍不签总体收益、泛化或正式采用 |
+| H只超过E，未超过F；对应题方向无冲突 | 只有位置偏好，没有新增收益；不采用更复杂组合，若两滤波均低于F也停止此配方 |
+| 两滤波均不如F，或在增益可区分时接受关系完全无差别 | 当前切片不支持引入此配方，停止、不扫参追正；不作统计等价或普遍否定 |
+| qid方向混合、样本/有效更新不足、增益近似相同，或其余未区分上述决定的结果 | 保留不确定，不将假设写成已否定或根因已证，不自动加题/延长/重跑 |
+
+**最小成组设计与无结论条件**：仍用已见q433–436，模型/输入/ESP base/初始化/K/验证KV/32-token上限与真实EOS一致；每题三臂**各一次，共12请求、最多384生成token，无计时预热或三次重复**。按题轮换臂顺序，所有实际提交完整T0/source，A/D/Rc/τ逐题与pooled并列，耗时只描述该次观察、不作主门或速度稳定性结论。必须保留4个完整成组输入且每个滤波请求至少4次selected-frontier更新；每组两臂共同前缀gain轨迹最大差需大于$10^{-6}$，否则视为有效共同gain/不可辨识。这个阈值只作干预分离诊断，不代替实际接受主门；不排除失败题来满足条件。缺件/T0失败/partial先记运行未完成，不能当科学负结果。四题均已见、n=4仅探索性方法决定，不造CI或独立测试；一次T0不扩独立n，32前缀不签最终语义质量。
+
+**执行与路径边界**：新CPU候选在仓库已ignore的`.tmp/r96-fusion-close/`，实际Run仍须新授权、新外部任务根及实际最终HEAD/计划重新绑定，以保持现有`validate_output_root`的源码/输入隔离；不能直接在CPU草稿目录发Run，也不直接使用旧v1协议跨HEAD启动。原240内部/300父+60退出、实时owned交接/原observe、CUDA设备日志、全部T0/关闭及14件模型末核不改。当前GPU授权仍false。原R96-v1的36请求/3rep、旧根与来源SHA只读保留，不回签；当前12请求候选及CPU拒绝/路由/离散判读检查是新版本准备，不是GPU准入或实验成功。TEMP/TMP/cache跟随当前任务目录，已停止向旧临时根写入；不为路径变更重跑旧实验。
+
+## （二十九）R97：H96-v2一次CUDA pilot已收束（2026年11月8日）
+**一句方法决定**：本已见四题切片不支持在固定K上加入这套在线标量滤波；hidden残差空间未优于embedding创新空间，二者接受数相同且均低于单用K，停止本配方、不扫参追正。不是整个融合框架的普遍否定，也未证明R76根因。
+
+事前假设/预期/判读沿上节H96-v2，科学代码、数据、K、初始化、解码及240/300+60预算逐字不变；仅新Run身份/外部路径/条件授权重绑定。执行clean HEAD94482e5，RTX5090 D v2/cuda:0、torch2.11.0+cu130、BF16/eager、CUDA true。获准窗口内按新真实交接核SHA、原observe全部门后，只执行4qid×3臂×1、无预热的12请求/384实际提交；未做identity GPU或旧合同重跑，未拟合/下载。
+
+| **条件** | **实际draft接受A / decode D** | **每步接受ℓ** | **提交draft占比Rc** | **含bonus τ** | **4请求generate总秒，仅描述** |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 固定K，不滤波F | 50/76 | 0.657895 | 40.322581% | 1.631579 | 3.318947 |
+| 映射前滤波E | 45/80 | 0.562500 | 36.290323% | 1.550000 | 3.018003 |
+| 映射后滤波H | 45/80 | 0.562500 | 36.290323% | 1.550000 | 3.028853 |
+
+各臂C均124（各4×31 decode提交，另prefill4单列）。q433三臂12/20相同；q434 F12/19、E/H10/21；q435 F14/18、E/H12/19；q436 F12/19、E/H11/20。滤波相对F为一平三负，无正负混合；H/E四题全平。各组至少20–22次selected-frontier更新、gain轨迹最大差依qid为.054328/.155420/.049392/.057080，均超过事前分离阈值，所以不是只比较同一增益或未经历更新。实际增益不同但本切片没有接受位置优势；不把计数相同当成状态/数学等价。冻结读端判为`both_filters_not_supported_stop_recipe`，不作统计等价或全局假设否定。
+
+384提交完整source/T0、12份原始链/输入/源码快照和模型关闭/14件前后末核通过；CPU另重建A/D/C、逐提交argmax/index/owner和来源。四题三臂的32-token前缀均相同，全部触预算、无完整EOS答案，最终语义质量未评估。时间是单次无预热观察，含首次调用成本和臂顺序；不因更短的总秒宣称稳定加速，不推翻接受主门。
+
+实际UTC19:53:59.800—19:54:43.746，内部28.916/240、父43.946/300秒，exit0无timeout；UTC19:55:12核PID51796已退出、owned为空/NVIDIA无该PID后先报告GPU子任务释放，后续仅CPU分析。主交接是巡检新独立核验（不是dayan新自报），后到实际工人原件仅作补充，未改运行输入/重启。原CPU scope/status继承标签保留，不回签；实际执行以新authority、readiness、12请求及实际退出证据为准。
+
+原件在项目父目录`.tmp/denoising-speculative-decoding/r97-fusion-pilot-20261108/`：protocol `a383091dc8fe71afd83feab52265b798264b5462d81c90d43f19c596009634c0`、CPU-count-audit `999c9504f6675affea1694a5df3566214b666110b7b91152fc9d258f5e0bb29b`、release `7d1293ed44ad28f9c2cc1e6ac1b027fc33c30ff64f054096c2eb3b5c29526b0c`。旧R96资产不改，R93接受正信号及既有来源/质量缺口继续保原范围。本pilot收束，不自动扩题、延长、重试或选择参数；下一方法问题须另有可区分的事前假设。
+
+## （三十）R98：真实历史误差能否补充静态K——CPU判断，未形成CUDA就绪项
+**历史阶段说明**：以下是R98当时的判断和建议，旧H98/R99停止身份保留；当前新介观的待审修订集中在第三十三节，不以新文字回签旧准备或执行。
+
+**一句结论**：延迟真实误差在源码时序上可因果取得，但所核保存证据不能证明它对下一frontier有增量预测价值；不把R97的预测代理平滑换个名字继续，也不据现有EMA/Kalman名称直接接线。本拍不实现新滤波器、不冻结可派发实验，以下最小对照仅为**建议/待审**。
+
+令第j个实际selected frontier的mask final-normalized hidden为$p_j$，输入创新为$x_j$，静态预测$\mu_j^K=p_j+F_{K_s}(x_j)$。这里预测的是**该次实际bonus作为下一次验证root时的hidden**，不是已知未来向量，也不是token embedding。
+
+| **统计对象** | **定义及最早可用时刻** | **允许用途与禁止替代** |
+| --- | --- | --- |
+| 静态先验预测 | 当前forward结束、实际bonus及selected mask确定后得到$\mu_j^K$ | 可重算下一树首mask head；没有新增验证观测 |
+| 实际验证观测 | 下一forward返回的实际root final-norm hidden $y_j$ | 仅当prompt/目标position/bonus embedding与pending一一对应才能标注旧预测；它是当前引擎实际标签，不冒称独立AR/精确数学oracle |
+| 已验证历史误差 | $r_j=y_j-\mu_j^K$，在下一forward返回后才可算 | 可影响之后的frontier；不能回写已经执行的验证前向/已建树，不能把token embedding、argmax或K预测当$y_j$ |
+| 下一待预测量 | $y_{j+1}$或静态K之外偏差$r_{j+1}$，再下一forward才可见 | 当前最多利用已知$r_j$预测；$r_j\approx r_{j+1}$是待验持续偏差假设，不是源码事实 |
+
+**对齐与防泄漏**：已有`FrontierPolicy`的pending采集与R80 `OnlinePolicy.after_forward`按实际root position和bonus embedding核对下一root，说明取标签无需新增LLM前向。顺序是prefill无历史→生成$\mu_0^K$→下一forward得$y_0/r_0$→当前验证/提交结束选新frontier→才可用$r_0$影响$\mu_1$。只取真正到达的root，不用未接受树分支作标签；EOS/预算/取消后无后继root的pending丢弃，跨prompt清空。j是frontier事件，不是一token：相邻目标token距离随实际提交长度变化，必须记录距离，不能默认为固定一步物理时间。误差始终相对**当时未加历史项的静态预测**计算；若以已校正预测的误差再直接累加，会改变统计对象并可能重复补偿。
+
+**现有能力不是同一对象**：input EMA velocity平滑已提交embedding差分；标量Kalman平滑embedding level或R97当前K预测代理；OnlineVerify/AlignedResidual针对input mask/embedding验证误差。OutputHiddenHybrid确有延迟真实hidden标签，但更新的是output trajectory regressor的对角gain，并经norm映射回denoise输入mask；它不是保持ESP/K/readout不变的“静态K剩余偏差状态”。R80用真实延迟标签重拟合K，亦不等于固定K下估计历史误差。可复用因果pending/核对思想，不直接移用这些参数、归一化或状态来凑名称。
+
+**所核证据缺口**：R97的12份结果只有token/T0/计数和标量gain轨迹，`FusionPolicy._finish_frontier`未设置真实标签pending，未保存$y_j/\mu_j^K/r_j$。R67保存placeholder/probe/BF16校正head输入，不保存评价root真hidden，不能从它们或argmax反演标签。R68原401对虽有按qid/pass排列的X/Y，但全部用于当前K拟合；fit/choose/report是来源标签，不是新留出，不能拿其拟合内残差签独立时序增量。R80保存label/refit事件及K快照，没有逐事件固定K真实误差流，且online改变K/跨题累计。结论仅限这些已核路径，不宣称全库无其它数据；不扩大搜索、不造相关系数/零误差，不用旧收益或R97负结果替代这项信息问题。
+
+**最小建议H98，非已采用配方**：若决定检验“上一真实误差在相邻frontier持续”，最简单无拟合操作候选是$\hat y_{j+1}=\mu_{j+1}^K+r_j$；系数1是这个待审持续偏差模型的明示假设，不是从旧负例挑出的最佳gain，也不是已实现Kalman/EMA。同期只比较静态K与该因果carry，两个条件都读取/记录同样的标签，control不施加历史项；首次无历史完全回到静态K。不改K、ESP base、denoise输入mask、验证/KV或head位置，不新增前向。若未来采用，建议沿原顺序q433–436四已见输入×两臂×一次、32上限/0预热/最多256token；只作方法试点，不称独立泛化。
+
+| **待审假设成立/不成立的预期关系** | **会改变的方法决定** |
+| --- | --- |
+| carry pooled实际draft $\ell$高于静态K，四题方向一致；基线同一有效标签行上$\|r_{j+1}-r_j\|^2$总和也低于$\|r_{j+1}\|^2$ | 支持继续“真实历史偏差有可用增量”的这条pilot方向；不签质量或总体收益 |
+| 误差预测改善但每步接受未改善 | 有该误差损失下的信息迹象，没有接受收益，不采用这套carry；不能说历史无信息 |
+| 接受改善但误差诊断不改善 | 只保留本切片接受信号，增量机制解释未支持，不按MSE替接受主门，也不冒称机制已证 |
+| 接受一致不增/下降且误差诊断不改善 | 停止该单位carry，不据此否定所有历史创新估计器 |
+| 方向混合、有效标签不足、错配/未来读取/缺件 | 不确定或运行无效，不当负假设，不自动扩大、重跑或选gain |
+
+**未闭合项及停止边界**：还未选择/采用持续偏差状态模型，也未实现固定K剩余误差buffer与独立观测落盘/读端；因此没有可运行协议或CUDA就绪回报。未来若采用上述具体候选，须先完成pending仅消费一次、冷启动/跨prompt/终止丢弃、基线误差非已校正误差、future-label拒绝等纯CPU合同；每题两臂至少各2个有历史且真标签闭合的预测，否则保不确定、不删题。误差诊断只在同一轨迹/同一有效行比较，不能把两臂干预后不同frontier强配；需保存真实误差/历史项及所有权供独立复核，缺值不补零。当前不为补证据启动collection-only/恒等探针；新执行须先冻结最终科学/来源/预算（建议沿240内部/300父+60退出）并另获新GPU窗口及实时准入，本拍GPU/Torch/拟合/下载均0。R97停止决定与旧Run原件不变。
+
+## （三十一）R99：H98 CPU准备，Owner已停止（未冻结/未派CUDA）
+**当时Owner更正（旧停止状态保留）**：暂停H98及其它新假设/验证，改先原样复现Jason做法。以下保留当时CPU准备事实，不作当前任务/可派发协议；未完成整体来源冻结或CUDA就绪回报，未运行GPU，草稿原件保留。
+
+巡检已允许采用“上一真实偏差持续一个frontier”作为下一受限工作假设，系数1是明示无拟合基线，不是已证持续性/最终论文方法或完整Kalman/EMA。R98当时的未采用/未接线记录保留原阶段含义；本节承接实际准备状态，本批仍无GPU/模型/下载/fit授权。
+
+**假设与同期对照**：静态K给出的未加历史项预测$\mu_j^K$在实际下一root验证得到$y_j$后，留下真实误差$r_j=y_j-\mu_j^K$。H98 carry在之后frontier用$\mu_{j+1}^K+r_j$，control仅用$\mu_{j+1}^K$；两臂同样收/存label，首次无历史完全回到静态K。固定原K17b62…、Qwen3-4B BF16/eager、ESP k2/BC30 dynamic-pruned/λ.1、seed123、head位置、验证/KV/输入。q433–436四已见输入×2臂×1、32上限/0预热/最多256token，按题交替臂序，不造独立泛化或完整质量结论，不加新前向/Study。
+
+**因果与独立证据合同**：pending只存当时静态预测/bonus embedding及prompt/run/forward/目标position，下一forward返回后核身份/位置/实际root embedding方可消费一次。只有已观测旧误差可参与新预测；保存新预测时记其来源label，不能引用未来label或用target−已校正预测替代基线误差。冷启动/终止/取消/跨prompt丢pending和历史状态，未获label不是零误差。每条prediction保留原始FP32 static/applied prediction及bonus embedding，label保留实际root embedding/target hidden/真实baseline error与完整因果键；不是hash/布尔代替数值。事件间token距离随实际提交变化，以frontier编号及absolute position记，误差诊断不跨两臂强配不同轨迹。
+
+**预期接受与方法决定**：carry pooled实际draft $\ell$高于control且四题方向均正，才有本pilot接受支持；各臂自身有效label行分别比较静态预测与单位历史carry的误差。接受和误差诊断分开报告：二者均正才支持所假设的增量机制继续；仅误差改善不采用当前carry为接受方法；仅接受改善只保接受信号、机制未证。接受一致不增/下降且误差无改善则停止单位carry，不否定全部历史创新；方向混合或任一请求少于2条有历史且真实label闭合的预测，保不确定，不删题、补标签、扩题、延长或调gain。缺件/错配/未来label/T0失败是运行无效，不当负假设。
+
+**数值与预算**：向量运算FP32，control和carry同样保留原始数字；脱离执行器用独立FP32逐元素加减（struct round-to-nearest）核差与实际施加值，出现位差停止并保差异，不加容差追绿。诊断SSE用保存值独立float64汇总，在每臂同一有效行比较，不复用执行器自报数值。标量诊断不作独立样本扩大；原始history JSON总量硬限128MiB，含实际记录开销的时间单次描述，不作主门。内部240/父300+60退出、完整提交T0、来源/模型14件始末核与原实时GPU/内存/foreign准入不变。当前只准备，未获新窗口不导Torch或资源探测；CPU合同、实际源码/来源/计划身份完成冻结后才能报CUDA就绪。
+
+## （三十二）R100：按源码模板独立复现Jason方法（480题接受增益方向通过）
+
+**目标与授权**：合作者此前提供的七行表是历史报告，不是本机实测。先选Qwen3-8B/BC30：报告ESP τ=1.564、ESP+K τ=1.746、Δτ=+0.181，95% CI=[+0.174,+0.189]，431胜/6负/43平；相对AR速度1.42×→1.54×，对应K相对ESP约1.085×（由舍入值计算）。用户已直接答复“先按源码模板独立复现”，本次据此建立可追溯的新实验；作者历史运行的材料缺项集中列在下方最小对照清单。
+
+**480题实际结论（2026年11月8日）**：两臂在同一clean执行HEAD `955ac971d1633fc71b245b5c663243e5bba7299a`、同RTX5090 D v2上先ESP后固定K，各480题/13类/原顺序，源自原Dolly100的λ3全量refit K不再更新。实际CUDA加载的文件、4097×4096 FP32元素payload、设备及online=false与冻结身份一致，每题gain_applied>0、pairs/refits=0；ESP无K。完整81149个实际提交token（ESP40511、K40638，分别含8预热）T0、原CSV与CPU完整重放一致，两臂来源/模型始末及实际清理退出通过。
+
+| **指标** | **ESP** | **固定K** |
+| --- | --- | --- |
+| 实际draft A / decode D；pooled ℓ | 14612/25579；0.571250 | 16061/24252；0.662255 |
+| 原decode committed C / D；pooled τ（含bonus、排prefill） | 40023/25579；1.564682 | 40150/24252；1.655534 |
+| 逐题平均ℓ / τ（与pooled分列） | 0.600900 / 1.590913 | 0.683400 / 1.676068 |
+| 原生带审计spec / AR秒 | 919.2851 / 1204.0133 | 899.1919 / 1200.3564 |
+| 原生AR/spec单次描述比 | 1.309728× | 1.334928× |
+| 原AR exact-match诊断 | 236/480 | 235/480 |
+| 正式输出token；EOS / 到预算 / 未知 | 40503；128 / 352 / 0 | 40630；121 / 359 / 0 |
+
+按事前13类内同prompt配对bootstrap10000次/seed20261108重算pooled比值：主指标Δℓ=**+0.091005**，95% CI **[+0.084985,+0.096955]**，通过“点值与下界均正”的接受门；原Δτ=+0.090852，CI [+0.084931,+0.096717]。ℓ胜/负/平为382/44/54，原τ为378/30/72，无零D或缺题。支持的是本次独立配方的静态仿射修正接受收益；原ESP τ接近历史1.564，但本次Δτ小于历史+0.181，且作者原CI算法、配置/K/逐题CSV仍缺，不能称原表精确复现或归因某一缺失设置。
+
+两臂完全相同输出273/480，同长度466/480。ESP/K带审计单次spec时间比为1.022346×；原AR诊断、输出差异与预算终止保留，语义质量未测，**尚无同质量加速结论**。此静态K结果不是Kalman在线递推或EMA有效性的证明，不据点值追调参数。两臂parent分别2175.401974/2150.828773秒，均在原3660秒门内；4GiB未触发，清理无错、实际exit0，UTC00:44:53及01:23:49先分别核退出和回报GPU释放，后做CPU判读。完整来源、原件SHA及资源见既有运行记录第一百零二节。
+
+**作者历史正表的最小对照清单（最终运行材料待补，取得后先只读比较）**
+
+| **所需材料** | **与R100核对什么、排查哪类差异** |
+| --- | --- |
+| 两臂最终cfg与实际启动命令、模型/设备/运行库版本 | 评价数据/题序、树/mask、thinking、100或256预算、EOS/预热/AR及精度，排查模板与最终运行配置不一致 |
+| Dolly采集配置、题号/顺序与fit参数 | 类别/题量/生成预算及提示行为、原prompt划分/λ选择，排查校准数据与拟合流程差异 |
+| 实际加载的最终K及所属运行、ridge/pairs/online元数据 | 与本次λ3离线K比较，排查增益文件或在线更新模式不一致；源码默认值不替代实际加载记录 |
+| 全480题成对CSV及聚合/CI口径 | 核A/D与τ、pooled与逐题均值、类别/缺行、胜负/区间及计时范围，排查报告指标和加权差异 |
+| 当时质量评价配置、逐题输出/参考或“未评价”说明 | 核完整答案、EOS/裁尾与质量判据，明确速度能否作同质量比较；CSV接受数不替代语义评价 |
+
+这份清单用于定位历史表与本次幅度差距，材料命中某项差异不自动证明其独占贡献。未取得时保留材料缺口，R100的接受正结论与论文机制表述照已测范围使用；不以缺件否定方法，也不靠新拟合、扫参或无限追加实验代替历史材料。当前优先核配置、校准/K和汇总口径；质量主张另列，已有T0与CI不重复派验。
+
+| **环节** | **d91ed75已提交内容 / 本次处置** | **与此前本机切片的差别** |
+| --- | --- | --- |
+| 模型与树 | Qwen3-8B、BF16/eager、单mask、static [14]、efficient、pruning；本地完整16文件已按字节核身份 | R66/R67为4B、双mask、dynamic/naive；不能沿用4B K或旧计时作为8B复现 |
+| 预算与评价 | [原模板](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/configs/hf/qwen3_8b/run_0/esp_bc30.yaml)为100 token、480题、EOS停止、seed123、非确定模式；模板注释另说Table 1用256，本次保留100，不据此推断作者表预算 | 旧128/32短切片、题量和停止条件不等同于本模板；原表预算保持unknown |
+| 校准输入 | [Dolly loader](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/src/data/dolly.py)默认creative_writing前100条、max_prompt_len=2048；其文档说明用于Figure 2，不能据默认值认定正表采集配置 | 旧CAL10来自SpecBench/401对。本次默认Dolly100为独立校准输入；采集100-token预算来自本次模板继承，不是作者表事实 |
+| 提示与mask | 原SpecBench关闭thinking，Dolly原loader不转发该参数；保留各自原始chat模板行为。mask为mean_prompt、λ=.1、update=true | 不把两数据集提示行为静默统一，不添加新provider或滤波臂 |
+| 拟合 | [原fit脚本](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/scripts/fit_frontier_gain.py)以prompt序号尾4选λ、尾9报告、其余拟合，原网格(.1,.3,1,3,10,100)，最后重拟合全部Dolly对；FP64 ridge、输出FP32、截距不惩罚 | 不复用旧K/401对，不新增λ选择规则；最后refit包含报告分组，因此该coverage不作最终K独立测试，SpecBench另作评价 |
+| 修正与统计 | 固定输入相关仿射offset加在去噪后的首mask hidden，online=false，验证/KV保持原码。原τ=排除prefill的committed/decode_calls，含bonus；speedup=ΣAR秒/Σspec秒 | 同时报实际裁剪后draft接受数A/decode_calls、A/drafted；不拿原τ约1.5与旧实际接受约.6直接比较，也不在终止裁剪处机械τ−1 |
+
+**执行顺序与判读**：先用原码采集Dolly states（本次独立配方：继承8B模板100-token，仅切换Dolly、保存states、关闭无关AR校准对照），再运行未改fit脚本冻结8B K；最后在原480条SpecBench模板上执行ESP与固定K两臂，保原warmup 8、逐题seed、AR及原聚合口径。每阶段新独占输出，原logger追加行为不能混入旧CSV。完整提交链T0、实际裁剪接受、终态/EOS、耗时和独立AR诊断分别保存；预算耗尽不算完整语义质量。是否出现接受改善以同题两臂计数判断，原表CI算法未取得，不声称复刻其CI。出现差距先报告可比边界和首个不同环节，不换模型、扩预算或加新假设追正。
+
+**第一阶段实际结果（CPU准备）**：d91ed75的31个已取来源成员逐Git blob/SHA256复核未改；本地8B的16文件共16,397,461,896字节已核身份。原码loader在全局Transformers 5.12.1下因chat模板返回BatchEncoding而非Tensor失败；仅在任务隔离目录安装Transformers 4.57.6/huggingface-hub 0.36.2后，同一原loader成功准备全部480题（qid81–560，21–1500 token）和Dolly默认100题（12–78 token），EOS均为151645。现有torch 2.11.0+cu130、tokenizers .22.2、datasets 5.0.0及原码保持；未实例化模型、查询CUDA、拟合或推理。来源/依赖/输入摘要与失败日志见既有运行记录第九十七节。
+
+**阶段来源**：下面保留原生入口CPU准备、v1/v2原估算及逐阶段实际身份；采用Owner批准的v3保护合同。采集/拟合阶段当时未测收益的状态不回签，最新480题结果见上。缺正表材料仍限制精确数值对齐。
+
+**R100原生入口准入合同与阶段来源**：复用R66 RecorderTap，不改31份原源码或全局算法绑定；通过短暂构造观察，在实际decoder实例上委托原generate和recorder，返回原结果，forward hook仅读argmax。调用原main.py，覆盖其原warmup、循环、AR、CSV与Dolly状态导出；finally撤实例包装及原/外层hook、释放模型引用。仅原入口准入，不是480题收益批。
+
+最小拟派批为Dolly原序第1题（dump_states、无AR），随后SpecBench原首题与原480中最长token输入（保各行原字节和二者原顺序），各100-token/EOS，分别保原8-token warmup；SpecBench保原AR。事前保存完整480及100输入不变，小批另存显式子集，不改正式480次序。q81和最长q295（1500 token）保持原行字节及原顺序。覆盖最多316个spec提交及208个AR提交；Dolly只测导出链，不用1题伪拟合原脚本的80/10/10划分。
+
+原接线16项纯CPU合同已核，v3保护增至20项：原generate返回对象/全局绑定不变；prefill、接受、bonus、EOS及预算裁尾完整T0/计数，坏链拒绝；成功/异常撤hook和引用；未获新授权时在Torch/资源探测/子进程前拒绝。父进程复用既有Windows Job owner，记录PID/后代、峰值RSS、实际退出及清理失败；本次8B准入内部360秒（含载入前后身份/两阶段/清理）、父硬截止420秒、Job清理最多20秒及60秒交接余量分别冻结，旧90/300工程门不改。v1/v2曾用权重体积×2＋2GiB的host保守估算等待；Owner在UTC22:20撤销该条件，改4GiB系统可用主存底线的受保护实测。原free VRAM估计、空闲/foreign/超时/来源门保持。首批仅提供本机该批的实测来源/资源/成本，后续Dolly100采集、原fit和两臂480评价分阶段独立预算，不套4B实测或把小批峰值签成完整480容量。
+
+
+
+**受保护真实入口结果（v3，2026年11月8日）**：实际执行HEAD为`a79cb58ae256b483028a7fe7c1ab72f1559a4741`/clean，v3协议SHA `d6ae8800cc46a597472535849d138085dbdbb512ccf14b6141b3e5c28da4e42a`。在CUDA0／NVIDIA GeForce RTX 5090 D v2／torch2.11.0+cu130／Transformers4.57.6／BF16/eager上调用未改原main，单mask/static[14]/efficient。Dolly1＋SpecBench q81/q295共三题各100，两个原8-token预热另列；全部316实际spec提交（300正式＋16预热）的prefill/接受/bonus/裁尾完整T0通过，CPU整数重建也与原CSV一致。原31来源、8B全16文件在实际载入前/结束核验，原模型/hook引用清理及进程实际退出通过，Dolly原states导出2,234,185字节/68个decode记录。
+
+| **正式请求** | **实际draft A / decode D** | **含bonus原τ=C/D** | **原生AR exact-match** |
+| --- | --- | --- | --- |
+| Dolly首题（18输入token） | 31/68=0.455882 | 99/68=1.455882 | 校准不启用AR |
+| SpecBench q81（34输入token） | 26/74=0.351351 | 99/74=1.337838 | 0 |
+| SpecBench q295（1500输入token） | 39/60=0.650000 | 99/60=1.650000 | 0 |
+
+SpecBench两题合并为A/D=65/134=0.485075、原τ=198/134=1.477612。q81末轮预算裁尾使τ−1不等于实际A/D，保持两者分列。原生带观察计时记录overall相对AR为1.2095×，仅保原回执，不作为同质量速度收益：原生AR exact-match=0/2；完整T0通过不替代该诊断，也不证明独立AR一致。原CLI未保存AR完整token，本批不追查已永久停止的BF16算子机理。三题均到100预算、无终端EOS，最终语义质量未测；本批只有ESP基线，未拟合或加载K，不能签Jason正表、K增益或480题复现。
+
+**实测资源替换原等待估算**：父进程从冷hash/加载到退出共73.591264秒（worker全程72.249741秒），4GiB保护未触发。所属进程树观测RSS峰值5.464211GiB、系统可用主存最低14.772121GiB；317次采样、最大实际间隔0.240539秒。Dolly CUDA allocated/reserved峰值15.305109/15.468750GiB，SpecBench为16.233142/16.777344GiB。它们是本机本批的实测依据，原32.513GiB不再作启动门，不把新观测峰值当完整采集/拟合/480的安全上界。UTC22:24:58.825823—22:26:12.414686，worker/parent实际exit0、Job清理无错；22:27:06.563340新核PID58528已不存在并先发GPU释放回报，之后无新GPU派发。原件与判读见既有运行记录第九十九节。
+
+**Dolly100原码采集结果（2026年11月8日）**：另以clean执行HEAD`82f51db81111ca41243a5a3776648b2e9636df24`冻结原100条creative_writing输入／100-token上限／EOS／默认thinking／原warmup8／dump_states／无AR、无K、无fit，使用新窗口及相同4GiB保护。100条均完成100token，10000正式＋8预热完整T0通过；真实输入0–99及全部token、h/m形状与BF16类型、状态position/root/bonus和真实输出逐项核对一致。states实际204,400,241字节，SHA `e7fef7d742e1ab89f32ba38c704f62f8ee301c0dfc0d900a97639194a108b9fe`；按原frontier_pairs得到6125对，原80/10/10提示划分对应4925 fit／596 choose／604 report对。
+
+所属Job观测RSS峰值4.421925GiB、系统available最低15.635113GiB，CUDA reserved峰15.527344GiB；parent277.830467秒/660，4GiB未触发，实际source/模型始末核验、原导出、引用清理与worker/parent exit0通过，UTC22:48:20.079156新核PID56304消失并先发实际释放。校准A=3711/D=6225/C=9900仅为采集统计，不当K增益；100条均到预算无EOS，语义质量未评，校准不启AR，原三题AR诊断不改。**本阶段结论：原Dolly100已按独立模板配方采成可追溯6125对，具备运行原fit的输入条件；尚无K或收益结论。**
+
+**原fit真实结果（2026年11月8日）**：实际clean执行HEAD`6aa2ab159a39808591836b6ab1598fc74d5bc673`，未改原脚本对确切Dolly states运行六λ选择，选中λ=3。原report604对的pruned cov@14由369/604=0.610927到504/604=0.834437（+0.223510）；这是用fit4925对拟合、choose596对选λ后的报告，**不是最终全6125对refit的独立泛化证据，也不是SpecBench接受或速度收益**。随后按原代码全部6125对refit，保存4097×4096 FP32 K，CUDA形状/类型/全有限值及原metadata核验通过；未修改输入、公式或追正参数。
+
+新`gain.pt`为67,126,932字节，SHA `a3fb44788387d0d24b626f6a8b8d226fdc5070baeda716690a65cda349a023c9`；C连续FP32小端元素payload SHA `24bb30cd1cd207a65a80bc35ac517b099a50296dcce11a58836c98ec79c81ca0`，供下一实际加载取证。父40.224664秒/660，观测RSS峰5.463928GiB、系统available最低14.500717GiB，GPU allocated/reserved峰6.107923/7.341797GiB，4GiB未触发；原source/模型/输入始末校验、模型弱引用回收与Job/进程实际exit0通过，UTC23:07:06.759128新核PID58224消失并先回报GPU释放。**该阶段当时仅得原Dolly采集→原fit链跑通并产出K；跨数据接受结果由随后480评价另行取得，见本节前部。**
+
+**480题事前冻结合同（现已执行）**：原ESP和加载上述固定新K各保全部SpecBench480／qid81–560／13类别／原顺序，使用同8B/BF16/eager、1mask/static[14]/efficient、mask mean_prompt/λ.1/update、100-token/EOS/非thinking、seed123、原warmup8/AR。两臂用同一预注册HEAD分别调用原main，先ESP后K，期间不改K/绑定源；每臂新独占Run。K臂online=false、不重拟合。第一预热前只读核实际gain.K的CUDA设备/形状/dtype/元素payload与文件SHA及ridge/online，保持原返回/数学不变；逐prompt再核gain_applied>0且pairs/refits=0，ESP应全部0。该取证接线19项CPU合同及本次真实加载证明均通过；原31来源不改。
+
+主指标为pooled实际ℓ=ΣA/ΣD的K−ESP，原含bonusτ=ΣC/ΣD分列，另记两类W/L/T、输出完全一致率、原AR诊断及EOS/预算/长度。按13类别内同prompt配对bootstrap10000次、seed20261108，重算pooled比值，percentile95%区间；Δℓ>0且下界>0才支持本配方的接受提升。零D/漏行/失败不补零或静默删prompt，原作者CI算法未取得，不能称原表区间精确复现。两臂原生ΣAR/Σspec及ESP/K时间比仅作带观察单遍描述，语义质量/同质量速度主张仍不闭合；不以T0替代AR或语义质量。
+
+每臂480事前独立预算worker3600秒／parent3660秒＋20清理／60释放，按原两题约45分钟/480仅作当时排期估计；实际成本见本次记录，不改门。4GiB及原foreign/VRAM/来源/超时门保持。两次新实时交接分别派发，ESP释放后才派K，不复用窗口；没有重试、补题、换模型或重拟K。
+
+
+
+### R107：原默认模板复测、质量抽查与无审计计时（2026年11月8日，已收束）
+
+按Enmao最新介观，仅原样复现Jason做法；在线滤波／持续偏差仍待Enmao拍板。本批不改K、mask、验证或KV，不重拟Dolly、不扫参数、不用封存Dolly32；以下四项假设／预期／决定在本批hypotheses.json及计时contract中先于相应GPU执行冻结，实际结果统一写入本节。
+
+| **工作** | **假设与预期** | **结果改变的决定** | **实际结果** |
+| --- | --- | --- | --- |
+| 差异清单 | 表示目标、配置或口径差异可能解释旧比较差距；逐项定位而非追加方法 | 区分已对齐、可能影响大的因素与历史缺件；不据代码差异独占归因 | 完成下列8项源码核对和定性影响登记，非新的CUDA消融 |
+| 默认配置复测 | 原Dolly拟合固定K在480题上再次增加每步实际接受；与历史表幅度分开 | 正则保留本配方接受收益；负／不确定如实记录，不调K追表 | Δℓ=+0.091005，CI全正；480题输出／计数与旧K完全一致，幅度仍未到历史表 |
+| 质量抽查 | 固定K的可见输出不出现明显劣化；预选前4条＋前4个K/AR不同比较、去重 | 若坏输出则标记质量风险；答案不完整或仅小样本则不签全量等价 | 5条：1完整同AR邮件符合提示，4条100-token截断前缀；只见局部连贯相关，质量等价未闭合 |
+| 无审计计时 | 接受增益能转成去审计后的墙钟收益；相同预选输入双臂各一次 | 分开接受改善、计时点值与同质量加速；不据单次耗时扫参 | 原SpecBench q81–112，ESP/K=1.026387×；输出14/32相同，同质量加速未证 |
+
+**源码差异清单**（“影响”是基于机制的定性判断，不是已隔离量化的贡献）：
+
+| **项目** | **Jason原码** | **本项目对应实现／历史路线** | **对增益的影响** | **决定** |
+| --- | --- | --- | --- | --- |
+| K加在何处 | Jason frontier_gain.update: z_post=z_probe+[e(b)-placeholder,1]@K，再送head | 宿主VerifyCorrectionMaskProvider改输入embedding mask；旧EMA/Kalman配方也不等于此frontier仿射修正 | 大 | 表示空间和信息时机不同；不能把输入mask配方的负结果当作Jason方法失败。已有同K跨实现对齐按R67保留 |
+| 树宽 | 默认单mask、static[14]，BC=(1+1)*(1+14)=30 | 宿主按同公式计BC；历史配置必须逐Run核，非自动同宽 | 当前模板差异小／历史未知 | 本批锁BC30，不扩树、不据BC10表推BC30 |
+| 生成预算 | 默认100；模板注释另提Table1用256 | 当前原模板复现100；合作者所发正表最终cfg未取得 | 未知，潜在大 | 只签100模板结果；未取得表配置不解释全部差距、不自扩256 |
+| mask数与更新 | 1，mean_prompt/lam0.1/update=true | 宿主可多mask、多provider；不能混用历史配方，本次原码设置完全固定 | 当前对齐／历史可能大 | 不把方法默认名当相同干预 |
+| EOS与裁剪 | 验证链先累计legacy accepted，再EOS/剩余预算裁剪 | 宿主同样先累计legacy accepted，再裁剪提交 | 当前差异小，口径影响大 | 主指标A采用完整T0回放的实际接受；legacy accepted、C/D和EOS分列 |
+| 接受指标 | 源码tau=C/D，包含bonus、排除prefill；pretrim accepted另列 | 本项目主指标为裁剪后A/D，不能与tau混称接受率 | 解释影响大 | 历史表tau与本批native tau对照，论文主指标A/D另报 |
+| K拟合 | 新R100 Dolly100/6125对、原lambda选择后全量refit，冻结lambda3 | 合作者正表最终Dolly类别/题量、配置、K及逐题CSV尚缺 | 未知，潜在大 | 本批不重拟；新复现结果不冒充历史正表 |
+| 计时 | 原算法spec_time排除加载/预热，但已有R100审计插桩在路径内 | 宿主诊断/trace/同步会额外耗时，不可比较带审计与裸计时 | 大 | 本次另做同原码前32题双臂无附加审计计时，报范围与顺序 |
+
+来源为[d91ed75 frontier_gain.update](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/src/spec/frontier_gain.py)、[原默认模板](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/configs/hf/qwen3_8b/run_0/esp_bc30.yaml)、宿主的[mask providers](<../src/spec_mtp/structure/algorithm/mask/providers.py>)和[decode loop](<../src/spec_mtp/structure/algorithm/decode/loop.py>)；实际字节摘要从运行记录定位。模板默认100 token，注释另提原Table1用256；本批遵从默认100，不据该注释反推合作者所发正表的最终配置。
+
+**480题实际结果**：本次固定K执行源HEAD为0c1b5a0；ESP参照来自此前R100同原码／模型／输入／默认配置的480题CUDA，并非本次同步新生成的ESP臂。该时间分离边界保留，不能写成两臂均本次重跑。
+
+| **指标** | **既有ESP480** | **本次固定K480** |
+| --- | --- | --- |
+| 实际ΣA／ΣD | 14612／25579 = 0.571249853 | 16061／24252 = 0.662254659 |
+| 原C／D（τ） | 40023／25579 = 1.564681966 | 40150／24252 = 1.655533564 |
+| EOS／预算终止 | 128／352 | 121／359 |
+| 原独立AR逐token相同诊断 | 236／480 | 235／480 |
+
+按原R100类别分层qid配对bootstrap，10000次、seed20261108、每次重算合并比值，Δℓ=0.091004806014，95% CI [0.084984748866,0.096955003079]；Δτ=0.090851598567，CI [0.084931029871,0.096717313719]。按τ胜／负／平378／30／72，按实际A/D为382／44／54，零分母题0。新固定K的489件输出SHA与40,638提交完整T0通过；全部480题返回token和原生计数与旧K一致。该默认配方的接受正信号再次出现，但历史表Qwen3-8B BC30的τ=1.746、Δτ≈0.181未复现到同幅度；缺最终cfg/K/CSV，不据差距否定方法，也不把静态K命名成已实现Kalman递推。
+
+**32题无审计墙钟与质量**：预先固定原SpecBench q81–112，ESP先、K后，各一次、各独立进程。只在原完整generate的返回边界作CUDA同步计时；加载、8-token预热及返回后token搬运／序列化排除，K本身需要的norm hook保留，没有额外T0、head／forward或profiler审计。ESP总75.792720800秒，K总73.844172800秒；两臂各3130生成token，墙钟点比ESP/K=1.026387295。各自AR/spec点比1.256164274／1.297391830，跨臂AR输出32/32相同。两臂返回token各自与对应已审计轨迹32/32一致；计时运行本身未重新执行T0。单次固定顺序、不代表480题速度，不签稳定加速区间。
+
+ESP/K输出14/32相同，K/AR为12/32；K有3条EOS、其余29条预算终止。事前样本规则去重后为q81/82/83/84/87：q82邮件98-token并EOS，逐token同AR且覆盖提示要求；其它4条是连贯相关但100-token截断的游记／对比大纲／邮件／故事前缀。本会话仅作非盲AI文本核查，不是独立人工评分；没有看见明显乱码或重复崩坏，不据此证明全部输出质量未受损、任务完成或语义等价。该批仅保实际墙钟正点值，未形成同质量加速结论。
+
+**当前决定**：保留原默认固定K的接受正结果与本次复现一致性、窄队列计时点值；质量与历史表精确身份继续列缺口。三臂已实际退出／释放，全部四项工作收束，不追加生成、重复计时、扩预算或进入滤波线。实际协议、先验判据、源码、回执与质量样本见[运行记录第一百一十四节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+
+### R108：新拉原码＋未改默认配置的直接运行（2026年11月8日，已收束）
+
+按Enmao直接要求，R107计时／质量已收尾后，本批只重新拉取原码、原样默认执行，再与我方基线比较。运行前的复验问题为“原始默认ESP在相同本机模型／数据上能否重现既有基线计数”；预期得到原生τ／计数／AR相对时间，结果只决定默认基线是否已对齐。没有提出新方法或推进滤波。远端main运行前后均为d91ed75，新clone工作树保持clean；原main、配置树85个成员与远端Git blob字节匹配。
+
+**直接执行边界**：实际子进程只有`python 原始src/main.py --cfg_file 原始configs/hf/qwen3_8b/run_0/esp_bc30.yaml`，没有参数覆盖、runpy、类/函数替换、head/forward/profiler或返回边界包装。原默认仍是Qwen3-8B／BF16／eager／auto设备／1mask／BC30／static[14]／100-token／480题／原AR与预热。为遵守不下载模型及临时输出范围，只在临时cwd建立`Qwen/Qwen3-8B`到既有模型的目录映射，并将原数据字节放到默认`data/spec_bench/question.jsonl`；源码/YAML不改，输出使用原默认相对`results/hf/qwen3_8b/esp_bc30`。外层只沿既有ProcessTree/WindowsJob做退出、4GiB/期限/设备守卫，不进入科学调用链。
+
+| **原生指标** | **本次未改默认运行** | **此前我方ESP原码模板基线** |
+| --- | --- | --- |
+| 题量 | 480 | 480 |
+| 原C／D（τ） | 40023／25579＝1.564681966；summary报1.5647 | 40023／25579＝1.564681966 |
+| 原生accepted／decode_calls | 14612／25579 | 同样14612／25579 |
+| AR逐token相同诊断 | 236／480 | 236／480 |
+| 原生AR/ESP时间比 | summary报1.3106× | 旧臂含T0审计，不作裸计时相等验收 |
+| 逐题原生计数／AR诊断与旧基线一致 | 480／480 | 参照原始绑定回执，不重跑模型 |
+
+原生CSV计时和为spec943.9105秒、AR1237.0755秒，CSV四位小数重算AR/spec=1.310585590；summary从原内存汇总报1.3106，两者按各自精度保留。这里完全采用原代码的prefill＋decode计时口径，不冒充R107另设的完整generate边界计时或ESP/K速度比。原生accepted字段在源码中先于EOS/预算裁剪累计，本批只按其原名报告，不新增逐token观测／T0或最终输出捕获，不把诊断值当全量语义质量。
+
+**数字与当前问题**：原始默认ESP数字已取得，和我方原码模板的480题计数全部对齐；相对合作者历史表的ESP τ1.564接近，但本机原生AR/ESP点值1.3106不等于表中1.42，版本／设备／历史计时条件不反推。更关键的是，这份原默认配置没有frontier_gain块，原类默认enabled=false，480题gain_applied全部0。因此默认运行不会产出ESP+K的τ1.746／1.54×；缺对应启用K的原始配置与K文件仍是明确材料问题。本次没有自行加K、拟合、改树或延预算，既有R100/R107固定K正结果按原身份保留；后续等待材料，滤波线仍暂停，结果与问题只在本会话最终汇报。
+
+实际命令、原默认副本、字节校验及新GPU退出／释放证据见[运行记录第一百一十五节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+### R109：原代码＋仓库原生K参数的480题直接运行（2026年11月8日，已收束）
+
+Enmao在R108默认ESP结束后明确要求用原仓库K配置或参数继续原样跑。本批只检验“同一原码与基础配置，启用已冻结原fit输出K后，接受增益能否复现”；接受方向以预注册的配对类别分层bootstrap Δτ及其95% CI判读，不按结果再拟合或扫参。实际原始main.py／esp_bc30.yaml保持字节，仅使用其原生`--set spec.frontier_gain.enabled=true`与`--set spec.frontier_gain.path=<冻结gain.pt绝对路径>`。基础YAML未变不等于有效配置未变：输出cfg.yml除程序自产路径外，恰多这两个K设置，online仍用原类默认false。没有改合作者代码、加入审计／返回捕获或进入滤波线。
+
+K是此前原始scripts/fit_frontier_gain.py真实执行所得，Dolly100／6125对／λ=3／4097×4096，与R107固定K相同；本批未重新拟合，也未找回合作者历史正表K。模型、数据、BF16/eager、1mask、BC30/static[14]、100-token、预热8、原AR及其余默认均与R108一致。实际GPU为RTX5090 D v2。
+
+| **原生指标** | **R108 ESP** | **R109 ESP＋固定K** |
+| --- | --- | --- |
+| 题量 | 480 | 480 |
+| C／D；τ | 40023／25579；1.564681966 | 40150／24252；1.655533564 |
+| 原生accepted／D | 14612／25579 | 16061／24252 |
+| 原生生成token | 40503 | 40630 |
+| AR逐token相同诊断 | 236／480 | 235／480 |
+| 原summary AR/spec时间比 | 1.3106× | 1.3337× |
+| 原CSV合计spec／AR秒 | 943.9105／1237.0755 | 939.7237／1253.3415 |
+
+Δτ=+0.090851598567，配对类别分层bootstrap 10,000次、seed20261108、线性百分位95% CI [0.084931029871,0.096717313719]；τ胜／负／平378／30／72。原生accepted/D单列，不将其裁剪前累计冒签为本次新增完整提交链审计。全部480题K原生new_tokens/committed/decode_calls/accepted与R107同K计数一致，说明这组接受结果可由无科学包装的原始CLI直接复现；不证明本轮最终token逐字一致。
+
+**判断**：固定K接受正方向再次成立，但幅度仍低于历史表Qwen3-8B BC30的Δτ+0.181／τ1.746。原生跨会话spec秒比943.9105/939.7237=1.004455352×，只有单次描述点值；不是原表AR相对速度，也不是R107完整generate边界计时。两次原生AR秒数不同，不能拿AR/K与AR/ESP两列相除当控制后的K加速。当前原CLI不保存最终token，也未加T0，既有R107 T0及质量抽查不移签为本轮证据，语义等价与同质量加速仍未证明。
+
+**停止**：原始CLI的默认ESP与原生K启用两列已取得；本批不追加CUDA、拟合、扫参或新方法。历史正表精确cfg／K／逐题CSV仍缺，保留独立复现身份等待材料。来源、实际退出及GPU释放见[运行记录第一百一十六节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+### R110：已提交原配方逐项复现（denoise与layerwise均已收束）
+
+**目标与执行**：14:54Z Enmao要求原样复现其余实验，15:03Z设为持续目标；20:47Z进一步明确denoise收尾、结果记好后可续跑layerwise。宏观、介观保持本文开头原文，不提出、调优或集成新算法。d91ed75原Git字节源树／原YAML／原脚本参数不改；已有本机Qwen3-8B与原SpecBench480供默认相对路径使用，真实设备RTX5090 D v2。先原CPU正确性／tiny smoke，再完整原run_main_results.sh qwen3_8b（AR＋ESP/EMA各BC10/30/60），随后四个原BC60 static/dynamic配置，均完整480题。外层仅资源、进程归属与退出守卫，不加forward／head／返回／计时审计包装。
+
+| **原配置树设置** | **ESP τ＝C/D** | **原EMA-velocity τ＝C/D** | **ESP原生AR/spec** | **EMA原生AR/spec** |
+| --- | --- | --- | --- | --- |
+| BC10：1 mask／[4] | 1.402331443 | 1.276733966 | 1.2302× | 1.1043× |
+| BC30：1 mask／[14] | 1.564681966 | 1.442151885 | 1.3116× | 1.1909× |
+| BC60：1 mask／[29] | 1.647815544 | 1.540788056 | 1.3872× | 1.2815× |
+| BC60 static：2 masks／[15,4] | 1.651518273 | 1.468330836 | 1.3814× | 1.2125× |
+| BC60 dynamic：2 masks／原动态预算60 | 1.609571991 | 1.419237300 | 1.2486× | 1.0911× |
+
+五组均为原配方的单次原生测量，EMA-velocity的τ和原生速度点值均低于对应ESP，**本机这些配方不支持相对ESP的联合收益**；不推广为所有EMA方法或模型均无效，也不据此开始β／预算搜索。源ESP本身使用embedding EMA更新，表内EMA-velocity是另一种“差分速度EMA外推”，不与ESP＋K混称。独立原AR配置完成480题，原summary吞吐32.4979 token/s；它不是将其他各臂原生AR分母强制统一后的新计时指标。原生速度来自原prefill＋decode计时，逐臂AR时间不同；没有计时CI／完整语义质量或同质量加速结论。
+
+BC30原C/D＝40023/25579、原accepted/D＝14612/25579；480题new_tokens/committed/decode_calls/accepted及AR诊断与R108逐题全部一致。所有十个spec配置gain_applied均0，cfg.yml除程序自产路径外逐项等于原YAML。因此本批没有ESP＋K臂，不能将原EMA-velocity或不同BC60配置当作该历史表K结果。原accepted在源码裁剪之前累计，只按其原名报告；未增加完整提交链T0或最终token捕获。真实模型的原AR相同诊断为236–260/480，不替代语义质量测量；三CPU随机tiny smoke的exact_match＝1.0000也不外推到真实模型。
+
+**七行历史表逐项对照**：以下原表数字来自用户转发的合作者历史结果，不是本次实测或Git内原CSV；reported Δτ与CI／胜负平按原表保留，不由四舍五入τ倒算。
+
+| **原表模型／树** | **原表ESP→K τ** | **原表ESP→K速度** | **本批ESP原生结果** | **当前未闭合项** |
+| --- | --- | --- | --- | --- |
+| Qwen3-0.6B BC30 | 1.526→1.720 | 1.35×→1.50× | 未运行 | 该模型cfg未提交；历史K／CSV缺失 |
+| Qwen3-0.6B BC10 | 1.370→1.557 | 1.23×→1.38× | 未运行 | 该模型cfg未提交；历史K／CSV缺失 |
+| Qwen3-4B BC30 | 1.487→1.712 | 1.35×→1.53× | 未运行 | 该模型cfg未提交；历史K／CSV缺失 |
+| Qwen3-4B BC10 | 1.339→1.558 | 1.22×→1.39× | 未运行 | 该模型cfg未提交；历史K／CSV缺失 |
+| Llama-3.2-3B BC30 | 1.575→1.749 | 1.41×→1.52× | 未运行 | 缺原模型；历史K／最终cfg／CSV缺失 |
+| Llama-3.1-8B BC30 | 1.657→1.825 | 1.46×→1.57× | 未运行 | 缺原模型；历史K／最终cfg／CSV缺失 |
+| Qwen3-8B BC30 | 1.564→1.746 | 1.42×→1.54× | τ1.564681966；1.3116× | 缺历史正表K／最终cfg／逐题CSV |
+
+七行的K τ／Δτ／CI／胜负平均未能独立核验；没有原表K与逐题CSV，不据本机单跑点值判定历史表已被证实或证伪。0.6B／4B配置不在提交树，本机已有4B权重也不移植8B配置补数。`fit_frontier_gain.py`只给必需的model/states/out参数及示例glob，缺对应Dolly采集配置和states；不借用此前我方独立采集／拟合件冒充作者历史原件。R109原生参数启用独立拟合K的旧正结果保持其原身份，不移签为本批。
+
+**执行清单与停止边界**：denoise的62配置已逐项登记：14份完整运行（11 CUDA／3 CPU），48份缺原Llama3.2-3B、Llama3.1-8B或Qwen3-32B权重。14个脚本入口中，原correctness、smoke、main-results的Qwen3-8B调用及download-data默认调用已运行；download-data因原数据已存在未下载。其余9个消融／alignment脚本保持原默认Llama条件、缺模型不改用Qwen，拟合脚本缺原states。CPU实际为196＋30检查通过（不照抄旧README的172），三个原tiny smoke各4题完整同AR。原3600秒每GPU执行限、90秒实际CUDA进程确认、300秒CPU限、4GiB主存及10＋10秒清理保持；16个所属子进程全部退出，11 CUDA身份、源／配置／模型／原数据末核及新释放通过。原生完整表和实际回执见[运行记录第一百一十七节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+启动前外部protocol已冻结denoise源码／命令／环境／判读；本文在原CPU与AR完成后同步当前范围，不回签为启动前文档资产。20:47Z Enmao进一步明确允许denoise结果记好后接layerwise，41dea8d已先提交denoise真实结果并确认远端两门绿，然后开始下一阶段。
+
+**同仓layerwise原配方已完成**：该项目的9配置／3脚本逐项登记，5个本地synthetic配置及原CPU smoke原样执行，4个HF配置／2脚本缺原GPT2模型不下载。原source31文件与Git blob匹配、原配置／原脚本参数不改；CPU脚本自身的--epochs 1／--device cpu保留，原base与probe按train/test阶段各完成8 epoch CUDA。其他三cfg只有test阶段，不能把train.epochs=8字段误当实际训练；原test入口没有cfg拷贝／训练CSV也是原行为。
+
+**checkpoint责任合同与复评**：初跑按独立CWD隔离四份相同save_name，三份test-only的默认checkpoint因此缺失，原代码明确退回随机模型。原件全部保留，随机accept_rate=1.0000不能作训练模型消融或算法收益。随后按原main/test的默认读取路径，只绑定原码base真实8-epoch输出，SHA256 `56c3e39b3e32af6c4efe6b74bafb566b44d515f6c98dbe67e08eeb4b84d404c4`；三cfg的model／data字典与producer相同、无代码／参数变化、各64请求／32-token。新Root中输入checkpoint前后字节一致，原加载日志均为epoch8，不新训、不借probe权重、不冒充作者历史checkpoint或K。复评是补齐已有原码数据依赖，不是新算法方向。
+
+| **原配置** | **实际目标／输入** | **原LM test acc** | **原avg_accepted_per_step** | **原accept_rate** | **原AR同输出率** | **原false_accept_rate** |
+| --- | --- | --- | --- | --- | --- | --- |
+| layerwise_mtp | base原码8-epoch目标 | 0.8024 | 0.4751 | 0.0855 | 1.0000 | 0.0000 |
+| fixed_depth_baseline | 同一base epoch8 checkpoint | 0.8024 | 0.7672 | 0.1376 | 1.0000 | 0.0000 |
+| layerwise_mtp_internal_verify | 同一base epoch8 checkpoint | 0.8024 | 1.5288 | 0.2717 | 0.0000 | 0.7136 |
+| layerwise_mtp_two_tokens | 同一base epoch8 checkpoint | 0.8024 | 0.4839 | 0.0480 | 1.0000 | 0.0000 |
+| layerwise_mtp_probe | probe自身原码8-epoch目标 | 0.6732 | 0.9063 | 0.1630 | 1.0000 | 0.0000 |
+
+同一个base目标的LM test acc均0.8024，内部验证器的输出与AR **0/64相同，原错误接受率0.7136**；该原配置不满足无损，接受数较高不能作正确加速证据。其他同base full验证配置为64/64相同。probe改变了训练目标／最终权重，LM test acc为0.6732，与base不是同权重因果消融。原库没有这组的对应历史数值表，也不记录可比的真实LLM速度；本节仅是原配方复现与输入责任取证，不作为本论文training-free收益或新贡献，不修作者代码或续开方案。
+
+观察器有两项假定已在读端纠正并保留原件：初版postcheck“constructed_and_trained”布尔不代表test-only实际训练；实际stages／训练CSV／checkpoint优先。绑定协议文字误写epoch7，实际producer步骤1–8、原加载日志为epoch8，冻结的checkpoint SHA与科学执行输入从未改变，未为修正文案重跑模型。全部9个layerwise worker exit0，8次真实CUDA身份、源码／输入／输出SHA及新释放通过；原程序完成与内部验证器正确性负结果分开报告。实际原件与范围见[运行记录第一百一十八节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+**全目标停止**：71份已提交配置中19份本机可运行项均实际执行，52份缺已确认的原模型；17脚本入口中5个按其可用的原调用运行，其余12个缺原模型或states，逐项清单保留。额外三次是同源checkpoint绑定复评，不另计新配置。Denoise七行K历史表、原Dolly采集配置／states、最终cfg与逐题CSV缺口继续严格拒绝代造；不下载模型、不扩预算／β、不恢复在线滤波，不把layerwise作为新论文方向。所有25个所属worker身份确认退出，GPU新释放实测6%／free20322.0MiB，不能填假0；本目标不再派CUDA。
+
+## （三十三）R101：固定K之外的真实延迟创新——单位carry实测负结果
+
+**问题与状态**：真实下一root的hidden标签到达后，其相对固定K的误差能否为下一个frontier提供可用增量？已按事前协议在同一clean执行HEAD `19672de3fdcae524c22a4fb436c1e10d298b09cd`完成RTX5090 D v2两臂，负结果有效，停止当前固定单位carry。它沿用R98/H98的一步误差持续思想，绑定8B/原λ3 K与实际量化目标，不估计Q/R/P，也不称最优Kalman。旧H98/R99停止不改；R97代理平滑与本次真实延迟标签按信息来源分开。以下定义与判据均在反馈前固定。
+
+**同一表示目标与时序**：基础模型、K和输入mask均沿R100。$h_j^{\mathrm{mask}}+F_{K_s}(x_j)$由原gain计算；为直接观察其实际readout而不复制K计算，本协议定义$p_j^K=\operatorname{FP32}(Q_{\mathrm{BF16}}(h_j^{\mathrm{mask}}+F_{K_s}(x_j)))$，即原更新实际送入LM head的未融合输入。真实$y_j$是匹配该预测的下一次验证root的post-norm hidden，按实际BF16值提升至FP32。二者同为4096维final-norm坐标；这里明确包含[原update的FP32→head dtype边界](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/src/spec/frontier_gain.py#L105-L118)，与R99原始FP32预测草稿不混签。真实标签的调用时刻沿[原forward后label位置](https://github.com/jasonchengqs/speculative_mtp/blob/d91ed75145801d9263281d2938a7d0da5841b2bf/denoise_mtp/src/spec/decoding.py#L167-L173)。
+
+| **事件/对象** | **最早可用与用途** |
+| --- | --- |
+| 当前预测$p_j^K$ | 当前bonus（prefill为root token）已知且原gain调用head时；保存原预测及目标位置，不能把它或embedding当新真观测 |
+| 延迟观测$y_j$及真实误差$r_j=y_j-p_j^K$ | 下一真实forward返回、其root与pending的run/prompt/预测ID/绝对位置/bonus输入一致时，只消费一次；不是未接受分支hidden或独立AR oracle |
+| 当前可用状态$b_j$ | 消费$y_j$后令$b_j\leftarrow r_j$；只预测随后frontier的剩余偏差，不回写刚完成的tree、verify或KV，也不作$b\leftarrow b+r$累加 |
+| 下一未知目标$y_{j+1}$ | 再下一forward才出现；当前使用旧$b_j$预测，不能读取未来目标来生成当前修正 |
+
+顺序复用R98：prefill无历史→原K预测0→下一forward得$y_0/r_0$→当前verify/提交选出新frontier→原K预测1才可用$r_0$。j为frontier事件而非单token时间，记录目标位置及token距离。无历史时直接保原head输入；prompt开始、预热结束、EOS/预算/异常/取消都清空pending和历史，终止时无后继root的预测标未知并丢弃，不填零。每个误差始终对当时**未融合的**$p_j^K$计算，不能用target减已融合预测重复反馈。
+
+**唯一候选与假设**：用单位增益覆盖上一已观测误差，预测下一误差仍接近它。候选head输入为$Q_{\mathrm{BF16}}(p_{j+1}^K+b_j)$，同期控制臂保原K输入；两臂都观察真实标签并计算同样的shadow项，控制臂只记录、不施加。它是无新拟合的固定增益预测—校正基线，不估计Q/R/P，也不据此命名为最优Kalman或EMA成功。假设是：这个因果历史项在所选已见开发切片提高同期固定K的pooled实际接受长度，并在控制轨迹的同一有效预测行改善影子预测误差。
+
+**影子诊断与实际干预分开**：令$p_j^{\mathrm{shadow}}=\operatorname{FP32}(Q_{\mathrm{BF16}}(p_j^K+b_{j-1}))$、$c_j^{\mathrm{shadow}}=p_j^{\mathrm{shadow}}-p_j^K$。它在预测时按当时已可用历史计算、在$y_j$到达前冻结，但在控制臂**不施加**；控制臂实际$p_j^{\mathrm{applied}}=p_j^K$、$c_j^{\mathrm{applied}}=0$。干预臂在自己的轨迹施加$p_j^{\mathrm{shadow}}$，另存$p_j^{\mathrm{applied}}$及$c_j^{\mathrm{applied}}$。无历史时直接沿原输入，不伪造历史状态。控制轨迹已有历史且真实标签闭合的相同行集$\mathcal E$上，只计算如下影子预测误差改善：
+
+```math
+S_{\mathrm{control}}=\sum_{j\in\mathcal E}\left(\|r_j\|^2-\|r_j-c_j^{\mathrm{shadow}}\|^2\right)
+ =\sum_{j\in\mathcal E}\left(2\langle r_j,c_j^{\mathrm{shadow}}\rangle-\|c_j^{\mathrm{shadow}}\|^2\right).
+```
+
+这个S是控制轨迹上的影子/反事实预测诊断，不是其实际施加量，也不是干预后的端到端因果效果；实际用控制臂$c^{\mathrm{applied}}=0$代入只会恒得0。不能拿干预臂的实际改变量或不同frontier填控制臂S。原始表示须足以由独立读端重算两份SSE及其差，而非只留执行器自报S。
+
+**先用公式排除伪比较**：理想无量化时$c_j^{\mathrm{shadow}}=r_{j-1}$，所以正相关本身还不足够，须$2\sum\langle r_j,r_{j-1}\rangle>\sum\|r_{j-1}\|^2$才改善此损失；独立零均值旧误差的期望增量反为负。持续且可表示的非零常偏差可产生非零修正，故候选不恒等于固定K。若BF16使$c_j^{\mathrm{shadow}}=0$，或head logits仅有共同平移/剪枝候选完全不变，则不能据隐藏状态非零宣称接受干预已分开。把$y_j$用于已经执行的第j次预测是泄漏；把当前root错当新frontier未来目标是错配；只平滑$p^K$或embedding又回到R97的信息条件，均不进入本协议。以上是符号推导，未运行合成滤波器。
+
+**开发对照与决定**：拟用原SpecBench最前四题qid81–84，原顺序、已见开发，不按结果选题。仅固定K控制F与单位误差候选B各一次、各四题，独立原main过程先控制后候选；冻结d91ed75源及R100模型/tokenizer/运行库，同8B/RTX5090 D v2/BF16/eager、单mask/static[14]/efficient、mean_prompt/λ.1/update、seed123/T=0/非确定、100-token/EOS/非thinking、原warmup8与AR。K固定为R100的a3fb4478…/λ3、online=false，不加ESP第三臂、不重拟合或同时改树/验证/KV。正式主指标$\Delta\ell=\Sigma A_B/\Sigma D_B-\Sigma A_F/\Sigma D_F$，A为实际裁剪后draft接受数；原τ、逐题方向、A/提议数、输出/EOS/AR诊断与额外时间分列。逐题D=0记未定义，任臂pooled分母为0不判主门，缺行不补零；不把向量维度或round当独立样本。
+
+| **有效批次的事前关系** | **方法决定** |
+| --- | --- |
+| $\Delta\ell>0$且$S_{\mathrm{control}}>0$ | 保留候选，提交在事前已封存测试包上的下一阶段执行评审；四已见题只给探索性点信号，不直接采用或签泛化 |
+| $S_{\mathrm{control}}>0$但$\Delta\ell\le0$ | 有该影子误差损失下的信息迹象，当前单位更新未转成接受收益，不采用该配方 |
+| $\Delta\ell>0$但$S_{\mathrm{control}}\le0$ | 保留接受观察，所假设的误差持续机制未获支持；不以接受正值替机制证据 |
+| 二者均不改善 | 停止当前单位更新，不据此否定全部历史观测或所有Kalman；不扫gain、扩长度或补题追正 |
+| 无有效真标签/每请求不足两条有历史且标签闭合的预测、干预未改变任何实际候选、错配或来源/T0失败 | 信息不足、不可区分或运行无效，保原样本与未知，不作负假设结论，也不自动增加运行 |
+
+先判批次完整有效，再按表读符号。主指标使用全部正式decode计数，含首个无历史位置，不按S的有效标签行筛选接受数。S只在控制臂自己相同事件行上比较静态与shadow误差，报告缺标签/无历史的排除理由；不跨两臂强配。实际候选分离只复用两臂真实生成中可比较共同前缀的树记录，不为shadow另算head/logits，不用不同frontier冒作同事件；证据不足记不可辨识。分别记录每题有效行数/损失与所有qid接受方向；方向混合仅保pooled探索性点信号，不签一致或稳定收益，四题不造稳定CI。持续均值偏移与短时相关都可能解释$S_{\mathrm{control}}>0$，此二臂设计不单独区分它们，也不签Kalman最优性或完整答案等质。
+
+**实际结果与决定（2026年11月8日）**：仅q81–84、原顺序，固定K控制F→单位carry B，独立原main过程，各100-token/EOS、原8-token预热/AR；不重拟合、不调增益或改mask/tree/verify/KV。
+
+| **指标** | **固定K控制F** | **单位carry B** |
+| --- | ---: | ---: |
+| 实际ΣA / ΣD | 157 / 239 = 0.656903766 | 118 / 276 = 0.427536232 |
+| 原C/D（τ） | 394 / 239 = 1.648535565 | 394 / 276 = 1.427536232 |
+| 每题有历史且标签闭合行 | 64 / 51 / 65 / 55 | 72 / 58 / 75 / 67 |
+| 正式输出token / EOS题数 / 到预算题数 | 398 / 1 / 3 | 398 / 1 / 3 |
+| 完整spec提交T0，含8预热 | 406 | 406 |
+
+主Δℓ=−0.2293675338063186，四题全部变差；控制同一235有效行的baseline SSE为5,140,360.181343315、shadow SSE为9,446,969.780739600，S=−4,306,609.599396285，四题shadow损失均增大。控制另有4首行无历史、2末尾缺标签，分列而不作零残差；这些排除不改变主指标的全部正式D。候选每题真实非零施加73/58/76/68行（含3个终止后无后继标签的预测）；122个共同真实提交前缀frontier中118棵实际树不同，满足实际干预分离，标签数量也充分。两信号均负，按事前表停止此单位更新，不以信息不足或未施加解释结果。
+
+两臂输出完全相同2/4、同长度4/4，原AR exact诊断各1/4；完整T0证明对应验证前向argmax提交链，不证明最终语义等质。各3题到100预算，完整答案质量未闭合。四已见题只给探索性点结果，不计算稳定CI或宣称跨域泛化；32条保留包未用于本次选择反馈或生成。源/真实K、模型始末、逐臂退出与释放、独立raw复算和预设决定见[运行记录第一百零七节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+**保留包隔离与限域签核**：任何本次方法反馈前，已在Dolly revision `bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a`事前固定32条、原行序、NFKC/casefold/空白归一、已知拟合/选择/开发排除、nonthinking模板及2048上限。原包SHA `52c752db8b58665f7ee1b7445ef30a6ced01707e4a0974caa3aca6f436cf7a1d`不变，实际全为open_qa。巡检在本次反馈前核19份早期登记记录、18份有绑定输入SHA、13组重建切片及creative全池保守排除，另沿用后来暴露/校准排除，确认32条无已知登记使用重合；新评审SHA `87d641c687e3ee3b0cd63063b7be088e10c0f8321a45e06ef2ba0fd769fb78a4`作有限签核。
+
+该范围只指本项目已知登记使用，不保证未登记历史、基础模型预训练未见、分布外或Dolly总体泛化。旧包/规则/false-null及未签评审保原历史状态，新评审另绑定，不回签。32条未进入模型路径、response未读取，也不因本次负结果换题或消费保留包。以后若出现具体新暴露，撤回相关范围；任何用途/来源变化及后续执行另行评审。
+
+**两事件接线与原入口验证**：只在原gain.update那一次head调用观察未融合BF16 p_K并按臂施加；下一真实gain.label(0)核run/prompt/预测/绝对位置/bonus/root embedding及next decode后一次消费。原online=false，外部误差始终相对未修正p_K，prompt/warmup/terminal/异常重置。实际原main/SpecDecoder/AR、source/模型/K守卫及owned Job均复用；本批31项新增CPU合同在反馈前通过，随后真实两臂CUDA及独立原件复核通过。原作者31份来源及K未改，不复制decoder或K公式。
+
+独立CPU读端对两臂均核完整身份、原native frontier、最新历史及BF16应用公式；只有控制产生S_control，候选SSE/S字段不适用而非零。预执行评审补齐了本臂release身份和候选raw验证，NVIDIA/cleanup缺字段或null拒绝；所有修复和协议升级均在模型反馈前，旧v1/v2及预审v3原件保留。每调用四角色raw、原生完整链、计数、质量诊断和成本均在原worker完整性链内，方法判断不由执行器自报S单独决定。
+
+保存原始BF16的$y/p^K/p^{\mathrm{shadow}}/p^{\mathrm{applied}}$及因果键（相同值可共用存储但角色分开），独立读端据原始表示直接形成两份预测误差/SSE及差，不只留S标量。首个无历史位置仍保存$p^K/p^{\mathrm{applied}}$及后来实际到达的$y$，仅历史引用/影子修正标不适用；缺标签才$y=\mathrm{null}$、误差未知，不伪零。复用既有引用清理/T0，不复制decode/K公式或写新框架；新增待核的是同目标量化、限域施加和该误差状态，不重复已证通用接口。R97及R100的SpecBench评价token/argmax制品缺这份成对真hidden，不能反演后冒称已测S；R100 Dolly states虽有相邻root/mask，却已用于最终K全量拟合，不能作为新独立时序增量证据。
+
+**预算与实测成本**：本次上界为两臂各4×100＋8预热，spec总816，AR另计816；实际spec共812（正式796＋预热16），AR预算/计时另列，不冒称AR全token已获T0审计。每臂worker360/parent420＋20清理/60释放建议沿旧R100实测，实际parent分别75.124926/75.389014秒；原90/300及4GiB/foreign/VRAM门未改，4GiB未触发，两次新逐臂交接均已完成退出释放。
+
+原native spec计时9.1025→10.5986秒；包含额外审计/归档的formal观测调用wall为9.212117→10.724778秒，其中转CPU＋隐式等待＋序列化/fsync组合为0.081946→0.094159秒。归档前保留张量逻辑量最大3.125→3.59375MiB，不等于GPU分配器峰值；GPU kernel与同步未独立隔离，保持unknown/null。native计时不含返回后的raw归档，这些插桩单次值只描述受测成本；输出仅2/4相同且完整质量未闭合，不给同质量加速结论。所有必要CUDA已结束，不使用剩余窗或自动调参、扩题、跑32条。
+
+**事后CPU误差分解（2026年11月8日）**：仅复用上述控制F的四份正式raw与原因果键，不读取B来构造S。定义$A_c=\sum\langle r_j,c_j^{\mathrm{shadow}}\rangle$、$E_c=\sum\|c_j^{\mathrm{shadow}}\|^2$；下表按已保存BF16原值提升FP64求差与汇总。
+
+| **题号 / 有效行** | **$A_c$** | **$E_c$** | **$2A_c-E_c$** | **实际token距离1 / 2的行数** |
+| --- | ---: | ---: | ---: | ---: |
+| 81 / 64 | 100,512.011180 | 1,256,569.556193 | −1,055,545.533833 | 30 / 34 |
+| 82 / 51 | 199,959.051817 | 1,113,365.122279 | −713,447.018644 | 6 / 45 |
+| 83 / 65 | −30,220.325130 | 1,732,273.050655 | −1,792,713.700915 | 32 / 33 |
+| 84 / 55 | 178,780.446004 | 1,102,464.238012 | −744,903.346005 | 12 / 43 |
+| 合计 / 235 | 449,031.183871 | 5,204,671.967138 | −4,306,609.599396 | 80 / 155 |
+
+原历史状态$e_j=\operatorname{FP32}(y_{j-1})-\operatorname{FP32}(p_{j-1}^K)$与实际量化修正$c_j$分别保存、分别统计；前者合并内积448,907.311035、能量5,204,540.849019，代数差−4,306,726.226948。逐题符号与量化修正一致，且$\sum\|c_j-e_j\|^2=34.960547$；本切片的符号结论未因这次量化边界改变。历史引用均为本prompt最近已闭合预测，按真实绝对位置核距离，每个旧标签只进入一次下一预测；另4条无历史、2条末尾缺标签保持排除身份，不补零。原件、逐题旧误差项与数值自检见[运行记录第一百零八节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+**本批方法决定与缺口**：q81/82/84满足$A_c>0$却$2A_c<E_c$，说明单位修正的能量惩罚超过同向项；q83连内积也为负，不能据该题主张缩小正权重能改善损失。合并正内积仅保留“旧真实误差可能包含可利用方向”的描述性动机，不能证明下一步可预测、所有题适用或小权重有接受收益。四题均已见，235事件和4096坐标不构成独立样本；本次没有CI、gain选择、最优权重估计或新质量结论。
+
+现有内积/SSE不足以分开prompt内持续均值偏差与短时相关，也没有分别识别潜在偏差变化和观测噪声的证据，不能由单位carry失败反推可信Q/R或在线增益。**本批采用有证据的收束／缺观测结论，不增加滤波配方**：若后续提出因果融合，须先给同一目标的可区分状态/观测模型、延迟与token间隔处理、重置及参数来源，并在选择数据与未消费测试用途间划清界限，再定义相对固定K的实际接受主门。现阶段没有足够依据签出这样的具体噪声模型或执行候选。R101单位carry维持停止、32条保留包继续封存；这份事后分析不改变原负结果或R100静态K正证据，也不产生新GPU授权。
+
+## （三十四）固定K误差中的prompt内持续成分：工作模型与四题影子验证（历史预测门通过／后续待Enmao拍板）
+
+**三问与本次交付**：
+
+1. **假设**：固定K之后的真实误差包含prompt内持续成分；在显式容纳短时相关后，因果估计这一成分仍能帮助后续预测，并有望增加相对同原K基线的每步实际接受数。该假设尚未验证，来源是R101的幅度／方向问题，不是对旧四题重新作确认性分析。
+2. **预期与反驳**：若该工作模型可用，另四题上的因果误差预测应优于“仅短时变化”模型，只施加持续成分的影子预测也应优于原K；随后独立接受评价应有正的Δℓ。前两个信号只能作为继续条件，可能与实际接受方向相反。若预测改善但接受不增，就停止该融合配方；若短时模型已解释全部可用信号，或持续项的影子损失不改善，就不进入接受实验。
+3. **改变的决定**：只决定是否值得在原K的head输入上加入下述持续分量估计，不改输入mask、K、树、验证或KV。最终只保留一个候选与同原K基线；仅短时模型是保存raw上的辅助机制参照，不增一条GPU干预臂。
+
+**为何选常量而不先选漂移**：最小解释M₁为“prompt内常量偏差＋短时变化”，M₀为“只有短时变化”。先固定常量状态的Q_b=0，避免再引入无法定源的漂移强度；这是一项可被反驳的建模假设。位置相关的均值变化、近单位根的长相关都可能破坏这一模型，保留为竞争解释，不据常量模型胜出就宣布真实偏差恒定。文献基础沿[已有阅读范围](<文献调研 Literature Review 去噪推测解码.md>)：其中没有给本组合提供现成状态方程，以下是本项目待验证的统计模型，不归于ESP作者。
+
+**同一目标、状态和统计分量**：沿R101的实际BF16 head输入$p_j^K$与下一真实root表示$y_j$，观测$r_j=y_j-p_j^K$，绝对目标位置为$s_j$。静态仿射参数始终记$K_s$，在线条件增益另记$G_j$。M₁的潜在状态是$x_j=[b_q,u_j]^T$：$b_q$为本prompt常量偏差，$u_j$为随token位置变化的、给定此工作模型仍未预测的残差分量。每项是d维向量，协方差只用共享的2×2标量结构乘$I_d$，不拟合d×d矩阵。$y_j$是本次模型前向实际计算的表示；统计变化u及其创新不是硬件测量误差。
+
+```math
+b_q\sim N(0,T I_d),\quad u_0\sim N(0,V I_d),\quad r_j=H x_j,\quad H=[1,1],\quad R_{\rm label}=0.
+```
+
+```math
+\delta_j=s_j-s_{j-1}>0,\quad
+F_{\delta}=\operatorname{diag}(1,\rho^{\delta}),\quad
+Q_{\delta}=\operatorname{diag}(0,V(1-\rho^{2\delta})),\quad -1<\rho<1.
+```
+
+状态推进为$x_j=F_{\delta_j}x_{j-1}+w_j$，工作假设$w_j\sim N(0,Q_{\delta_j}\otimes I_d)$且独立于先前状态；b与初始u独立。这里的独立性属于待反驳模型条件，不是对真实文本序列的已测事实。
+
+T和V是每坐标的统计方差尺度，ρ是每一个实际token间隔的短时相关参数；零先验均值、各向同性、跨prompt同参和条件平稳都是明示假设。实际距离1用ρ、距离2用ρ²，常量b不随距离增长方差；不把decode轮数当token间隔。frontier位置由生成路径选择，这种采样及均值随位置变化可使假设失配，需由后述未用于参数估计的预测验证反驳，不能把矩估计当真实协方差识别证明。
+
+**因果更新与唯一候选**：每个prompt从$\hat x_0^-=0$、$P_0^-=\operatorname{diag}(T,V)$开始，首次无label仍用原K。仅在下一验证forward返回且pending的run/prompt/预测ID/绝对位置/bonus绑定闭合后，一次消费r：$G=P^-H^T/(HP^-H^T)$，$\hat x^+=\hat x^-+G(r-H\hat x^-)$，$P^+=(I-GH)P^-(I-GH)^T$。推进到新预测位置时用上式F、Q得到$\hat x^-_{next},P^-_{next}$。更新后的b可供之后frontier使用，不能改已执行tree或使用该新frontier尚未到达的y。误差始终减未融合$p^K$，不是减已修正预测。
+
+候选**只**把持久状态$\hat b$加入实际head输入：$p^{B}=Q_{BF16}(p^K+\hat b)$；u用于分离短时变化和确定条件增益，不把$\rho^\delta\hat u$作为第二修正加入。M₁的完整误差预测$\hat b+\hat u^-$仅用于与M₀比较预测能力。prompt开始、预热结束、EOS/预算/异常/取消均丢弃状态与pending；缺label记未知，禁止跨prompt沿用。这个候选不同于单位carry：它保留两个不同职责的状态和条件协方差，由已观测历史更新b；不把上一r直接覆盖后单位施加。若最终参数使T=0、或量化后所有实际候选不变，判不可区分而非负收益。
+
+M₀只有短时状态，精确label更新后令$\hat u^+=r_{last}$，下一目标的预测为$\rho_0^{s-s_{last}}r_{last}$；无历史预测0，重置规则相同。该参照不含持久项，也不在GPU上作为额外修正臂施加。
+
+**三个统计参数的事前来源（原设计与本次校准状态分列）**：
+
+| **自由度** | **拟采用的来源与用途** | **当前状态与失效处理** |
+| --- | --- | --- |
+| T、V、ρ | 仅R101控制q81–84原raw作已见开发校准；先冻结下述单一矩规则，不按接受数选择 | 本次按冻结规则校准一次并通过数值准入，数值见下文；这些题参与了失败配方诊断，属于开发而非独立确认 |
+| 初始均值、P、Q及label R | 均值0、P=diag(T,V)、Q_b=0、短时Q按上式、R_label=0来自模型假设 | 没有额外初始gain、EMA系数、floor或漂移强度；不伪称来自实测硬件噪声 |
+| 在线G与融合强度 | G完全由上述条件模型与实际距离递推；实际修正系数固定为1乘后验b | 不扫α、不按S/接受数求最优gain、不更新K；条件方差不冒称已校准置信区间 |
+
+T与V共同乘任一正因子时，P/Q同倍缩放，$G=P^-H^T/(HP^-H^T)$及均值预测不变。因此三项是统计矩参数，实际均值更新只有T/V与ρ两个有效自由度；不需要先独立标定绝对噪声尺度才提出候选。
+
+拟用$C_h$为四个校准prompt等权的$\langle r(s),r(s+h)\rangle/d$均值，h∈{0,1,2}仅按**绝对token差**配对，不跨prompt；h=0为自身平方。工作模型给$C_h=T+V\rho^h$。唯一矩映射为$\rho=(C_1-C_2)/(C_0-C_1)$、$V=(C_0-C_1)/(1-\rho)$、$T=C_0-V$；M₀单独用$V_0=C_0,\rho_0=C_1/C_0,T_0=0$。这是协方差参数校准，不是直接优化修正gain或接受主指标。每题h=1、2各至少两对且保全部题；缺配对、C₀−C₁≤0、非有限、V≤0、T<0或|ρ|≥1即当前模型不准入，不夹值、不加floor、不换估计器。T=0为嵌套无持续项、停止这一路候选。坐标和配对只用于工作参数，不计独立n或事后CI。ρ近±1时，有限窗口可能难分常量与慢变；不再增设可事后选择的“近单位根”阈值，有用性按下述固定预测／接受门判断，即使过门也不签潜在状态的唯一识别。任何非有限数值或条件方差非正按准入失败处理，不靠精度或参数夹值追正。
+
+**CPU校准批的事前补充口径**：巡检当时允许一次规定矩校准，并只在数值准入且T>0时继续CPU准备，未授权模型/GPU/新采集。使用q81–84全部正式且真实label闭合的239条r，包含各题第一条；不用旧235条“已有上一误差”选集。h=0每label一次，h=1/2枚举同prompt目标绝对位置差恰为h的全部正向配对，h=2包括非相邻decode事件；先各题均值，再四题等权，不中心化、筛坐标或按误差选行。r先由两个原BF16角色提升FP32相减，内积和矩汇总固定FP64；读取数值前冻结calibration-spec、源码、计划和四包身份，不为准入换精度。M₀另核C₀>0、ρ₀有限且|ρ₀|<1。上述“条件方差非正”仅指每次更新分母$S=HP^-H^T$须有限且>0；R_label=0下后验P允许半正定及奇异，观测方向方差为零正常，不要求后验正定，也不加jitter/floor/clip。
+
+**单次实际校准与当前决定（2026年11月8日，仅CPU）**：读取数值前，calibration-spec SHA `36fbf08f242f563502c52962210b1ec2d2da1f78e9479ab3be3030c83c6ae4f2`绑定e618计划原字节及补充快照、评审文本转录、分析源码和原控制四包。四题标签65/52/66/56，共239；h=1配对30/6/32/12，共80，h=2配对50/46/48/46，共190，含非相邻decode事件。2条末尾缺label仍为未知。四题等权C₀=5.3619252426252055、C₁=0.3654399314042613、C₂=0.6946407367893614；C₀−C₁=4.996485311220944。
+
+由唯一映射得T=0.6742915896760389、V=4.687633652949167、ρ=−0.06588647516801295，T/V=0.1438447710716081；M₀为T₀=0、V₀=5.3619252426252055、ρ₀=0.06815461142560456。全部配对、有限值、正差/V、T非负及两模型|ρ|<1门通过，T>0允许条件CPU准备。参数文件SHA `d37d7526c85ac9ed97bd9214a08410fba0cea536004c83c369ea51a712d41f50`固定，不换估计器、不扫gain、不改K。逐题矩、准入项及实际来源见[运行记录第一百一十节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。校准本身只证明已见开发数据上的数值准入；后续R105四题预测结果见下文，独立接受收益仍未验证。
+
+**现有材料与一个有限缺件请求**：原Dolly `states.pt`的已绑定SHA为e7fef7d…；源码`StateRecorder.export`保`h/m/bonus/pos/root/acc/prompt_ids/committed`，`frontier_pairs`用h[j,2]→h[j+1,0]、m[j,0]及bonus配对。pos记录验证root，目标frontier位置还须由pos/acc与下一root一致核对；没有prefill gain预测的独立记录。该无K采集的全部6125对已经用于最终K全量refit，故只具校准材料身份；它没有当前K轨迹上当时实际head输入及完整pending绑定。不能以离线反算pK替代原K真实轨迹的独立观测。
+
+本次补证前已有q81–84同K因果raw可作上述校准，当时缺的是**q85–88同一冻结K控制轨迹的四份逐事件pK/y原件与完整因果绑定**；已知R100的native token/argmax记录不能提供这些hidden角色。最小补证请求是原SpecBench顺序接续四题、每题一次固定K控制，保R101原8B/BF16/eager、单mask/static[14]/pruning、mean_prompt λ.1/update、seed123、100-token/EOS/非thinking、warmup8/AR及K online=false，只补观测，不施加新滤波。每行需run/prompt/预测ID、pK/y、目标绝对位置、实际root embedding/bonus、真实forward与消费关系；首预测和终止未label行分别保留。输入/源/模型/K始末摘要、完整提交T0与owned退出/释放沿原合同。
+
+**旧观察授权与新版本边界**：v1/v2均未取得新四包，旧就绪撤回与实际退出／释放保留。R105先修复并以真实观察器冷图完成CPU构造／接线回归，再由独立核验的新协议和单次新授权执行本次四题；不复用partial根或旧grant，旧禁执行材料保留历史身份。原采集上界仍为408 spec及另408 AR token（各含8预热），worker360/parent420＋20清理/60释放建议、90/300工程门及4GiB/VRAM/foreign、128MiB观测上限未改。本批没有调整模型、参数或判据，也没有追加派发。
+
+**可反驳的验证与后续接受主门**：q85–88仅用于冻结参数后的顺序因果预测验证，不能回流矩校准。M₀、M₁都在新y出现前冻结预测；两模型按本模型δ推进，用同一控制标签行比较完整误差预测SSE，同时比较仅b影子与原K的SSE。须四题均有至少两条历史闭合行、M₁预测逐题和合并均优于M₀、仅b影子逐题和合并均优于原K；否则停止这套持久分量候选，不换成完整b+u修正追正。近似恒等/实际量化修正无效、缺配对或身份/T0失败分别记不可区分／信息不足／无效，不写方法负结果。该四题此前在静态K评价中已见，只是未用于新参数估计的机制验证，不称全历史独立。
+
+上述门若通过，只形成下一阶段评审理由。32条已封存包的未来用途是**参数与实现完全冻结后的独立接受评价**，目前不读取其题文/response、不生成或据本设计更换；已知项目使用范围的有限独立性边界保持。届时仅原K与唯一b融合两臂，以全部正式decode的$\Delta\ell=\Sigma A_B/\Sigma D_B-\Sigma A_F/\Sigma D_F$为主，原τ与逐题接受率另列；按qid配对bootstrap固定10000次/seed20261108，每次配对重采qid并重算两臂ΣA/ΣD之差，不改成题均比值差；Δℓ>0且95%下界>0才继续方法方向。误差预测改善但接受门不通过即停止该配方，不再扫系数；接受正而机制预测失配则只保接受观察、不签持续偏差解释。样本、完整链或来源缺失先判未完成/无效。32条的模型实现、实际预算与资源准入须另审，四题时长不能直接外推。
+
+**质量、成本与停止**：主张限每步接受；原完整T0、EOS/预算/输出及AR诊断分列，100-token未闭合答案仍不签语义等质或同质量加速。候选只需两份d维FP32均值和共享2×2协方差，d=4096时均值逻辑量32KiB，逐事件O(d)，无额外模型/head前向或K拟合；这些是设计成本，实际CUDA开销待将来另验。旧矩校准与合成CPU评价器合同保持；旧v2进入CUDA worker并记录设备后导入失败，没有新四题模型前向、影子收益或接受结果。启动阶段时间不作四题性能证据；原单位carry负结果保持，矩准入不计为新假设通过。
+
+**限定观察的实际收束（2026年11月8日）**：执行源HEAD为653b3e7。v1在冻结环境检查拒绝，未启动worker；v2完整导入环境且不带-B，通过CUDA设备准入后，因薄入口延迟导入而将函数误作观察器基类，未到模型实例化／前向即退出1。原Job清理无错，UTC08:35:40新核worker55340身份与NVIDIA进程均已离场。无worker-complete、新四包或T0，按协议不进入双SSE读端，不作科学负结果；收集就绪撤回、参数与原判据保持，32条不消费。具体缺陷与最小CPU验收见[开发记录第六十五节](<开发记录 Development Record/2026-11-05 宿主结构收束.md>)，实际v1/v2、执行文档快照和释放原件见[运行记录第一百一十一节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+**R105观察入口新版本的CPU修复（2026年11月8日）**：只把真实CausalObservation的导入恢复到工厂创建时、原基类替换前，旧R104入口／失败／撤就绪身份保留。独立CPU冷进程用真实cost_observer→causal_native依赖图复现旧源TypeError，再核新源实际观察器构造与原基类MRO、绑定正常／异常还原、唯一control顺序及未授权早拒；未替换整个观察器模块。decoder仅为明确禁止构造的边界，未构造实际SpecDecoder／模型或生成记录，任何设备调用被测试护栏拒绝。实际环境消费进程通过原owner.environment：完整应用冻结环境、null键删除、无-B且任务内缓存；parent和worker未授权入口均在torch/child/resource前返回2。
+
+R105只是工程版本，不增研究假设或实验臂。原q85–88输入、K、参数d37d7526…、仅b影子及全四题逐题／合并双SSE门逐项复用；没有重算239/235、重拟或选择gain。修复阶段只形成新版本／新Run的禁执行CPU材料；随后另经独立核验与资源交接，以新授权完成下述唯一control观察。旧禁执行包、就绪及失败不更签。原件、源码哈希与真实构造边界见[运行记录第一百一十二节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+
+**R105限定CUDA观察与冻结双SSE结果（2026年11月8日）**：执行HEAD为746cff0，使用另签新protocol e78c83be…及authority 8f72e0b7…，仅原λ3 K控制四题、100-token/EOS、BF16/eager与原观察器，不装滤波runtime、不拟K或重新估计参数。四题raw的run／输入／位置／bonus／真实forward及pK/y角色绑定通过；25件输出SHA和408个spec提交（正式400＋预热8）的完整T0回放通过。262条正式label含四题首条，历史闭合行67/66/64/61；q88另1条终止label仍未知。M₁、M₀每行先预测后读y，误差始终相对原pK；旧单位carry影子不作判据。
+
+| **qid** | **真实label／有历史闭合** | **完整M₀ SSE** | **完整M₁ SSE** | **原K SSE** | **仅b量化影子SSE** | **两门** |
+| --- | --- | --- | --- | --- | --- | --- |
+| 85 | 68／67 | 1,572,112.138348 | 1,441,864.053993 | 1,582,170.135415 | 1,439,934.054874 | 均通过 |
+| 86 | 67／66 | 1,496,841.254500 | 1,410,300.397902 | 1,502,212.243725 | 1,408,283.749259 | 均通过 |
+| 87 | 65／64 | 1,372,940.368182 | 1,292,387.381017 | 1,384,936.984020 | 1,285,426.910138 | 均通过 |
+| 88 | 62／61 | 1,311,936.904421 | 1,234,284.120322 | 1,318,157.476375 | 1,231,876.170424 | 均通过 |
+| 合并 | 262／258 | 5,753,830.665451 | 5,378,835.953234 | 5,787,476.839534 | 5,365,520.884696 | 均通过 |
+
+M₁相对M₀逐题SSE下降8.284911%／5.781565%／5.867188%／5.918942%，合并下降6.517305%；仅b影子相对原K逐题下降8.989936%／6.252678%／7.185170%／6.545599%，合并下降7.290845%。258条有历史行均有实际BF16非零修正且两模型预测不同，四题均远超至少两行的门。巡检另以标量2×2 Joseph递推和FP32向量独立读取原四包，未调用本评价器求值或重拟参数，逐题及合并SSE／计数与冻结读端一致。**冻结结论为submit_next_stage_review_only**：当前控制轨迹支持持久分量候选的预测有用性，尚不签潜在状态唯一识别或滤波后接受增益；后者仍以原预注册独立接受门为准，不修改阈值、叠加完整b+u或扫系数。
+
+本次CONTROL实际ΣA/ΣD=137/262，仅作轨迹身份和描述，不能与旧题或旧候选算接受差。四题均100-token预算终止、无EOS，原AR输出诊断2/4相同，完整答案语义质量未测；带插桩单次计时不作速度结果，CPU影子不冒充CUDA滤波成本。真实worker exit0、原Job清理无错，09:42:05Z新释放回执确认所属身份消失、GPU0%／free20754MiB；释放先单独上报，再进行CPU回放。实际授权、输出、执行文档快照及结果SHA见[运行记录第一百一十三节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。本批已停止派发，32条封存，下一步只交评审确认独立接受实现、预算和资源，不自动执行。
+
+
+# 五、历史Run收束与判读合同
+| **材料** | **当前状态与收束** |
+| --- | --- |
+| EMA五方法11 Run | 固定H02报告字节与已登记SHA吻合，11条身份元数据可核。已登记的checkout候选路径及固定归档同路径未取得66个Run成员，H02本体没有执行根字段，外部原件位置仍unknown。validator原字节已从H01明确原运行根取得且匹配同一SHA，但不据此补齐H02实际调用环境、其余源码/配置或模型链；保历史完成事实，不冒充原生重验 |
+| ESP完整复验H01 | 沿报告明确execution_root取得3个原Run，18个Run声明成员、59个宿主成员及16个Study声明成员（不含RPipe）均匹配保存SHA。实际source_refs及其3个引用原件均命中运行摘要，关闭其与上游protocol的原字节绑定；固定Git报告仍保独立归档身份。报告生成器原字节绑定仍未闭合；权重/tokenizer、内嵌RPipe源码及重新执行原生质量门未核 |
+| OnlineVerify / Aligned旧比较 | 指定旧输出根当前不在，32条真实模型负结果目前属运行记录级证据，原终态、逐token与模型/输入摘要未重新核得。原记录段未写明backend或EOS停止设置，两者保持unknown，不据当前默认值反推。保负结果及缺口，不为补通过重跑同配方 |
+| 8B冻结K旧比较 | 指定10份原制品与3个固定Git源码对象字节均与已登记SHA吻合，原source HEAD、prompt摘要和qid序列可核。stored argmax布尔不等于完整token链重验；fit可被旧流程复用，header/source HEAD不构成每份fit的绑定。fit自身model/source/校准文本哈希仍缺，不能事后补签；收益仍未确认 |
+| 未完成范数/配对/续跑 | 登记原计划、实际完成/未完成和退出当前队列理由；排程取消不等于旧Run成功 |
+| 历史来源缺口 | 四项cross-task原tool/plan/runtime精确字节仍缺，受影响读端严格拒绝、保unknown，不回填、不用当前helper替代；不阻塞不依赖这些文件的EMA/Kalman核验 |
+
+固定Git对象与实际运行原件按各自已登记摘要核对，不以归档字节替代运行字节。实际原件命中时只关闭对应来源边，缺失或不匹配继续保留unknown，不转换换行或用语义相同的JSON补齐。来源审计不改变第二章的方案处置。
+
+以下命名缺口全部保持 **unknown / still-refuse**，只约束依赖这些来源的操作。H02定位与H01两项生成器绑定分别登记，不混为四项cross-task原件，也不影响第二章已冻结的研究处置。
+
+| **缺口** | **所需原身份** | **已知定位边界** | **关闭条件** |
+| --- | --- | --- | --- |
+| H02执行根与运行链 | 实际根值未登记 | H02报告及固定旧PLAN均不提供实际根。11个checkout候选根未命中只限已查位置，不从H01推根 | 取得真实旧运行头、派发回执或来源清单，明确实际根并对应11 Run及66成员保存摘要 |
+| H01生成器与复用汇总器 | analyzer `cbb00e6edd5418a033f41e3472c0979803849af8fd5cdba422ad9b8de0c55363`；aggregation `5db751c8d9973ffc5d29ef28120bef5e9addea11c383e5f473ea9da3aa8af519` | 已知phase入口为56字节再导出，SHA为8e5e1829…且不匹配analyzer。两个原成员/producer提交均未定位 | 分别取得匹配两摘要的原始源码及真实成员/版本关联。阶段入口、validator或当前readout不替代生成器 |
+| 运行矩阵 `studies/output_space_cross_task/docs/execution_v1.json` | `708bf37bc5160ab6cc2c0787dd89e773b0fd60e518fdd9b272a6b114756dc254` | diagnosis.source_binding.matrix_sha256只声明原身份。已取固定归档be50f497…与目标708bf37…不同 | 保留原矩阵未改字节并命中预期SHA，连同其真实producer/原成员绑定 |
+| 原生导出器 `studies/output_space_cross_task/check_hypotheses.py` | `0f8d644e049eb6f9a7cf2e80b6d43de96ec9731023bd61bc55421363c659ccf5` | 原Run source packet声明该SHA，保存export索引的producer_sources为空 | 原导出器字节命中SHA，并具备正式读端要求的原Git/member身份 |
+| 跨任务工具 `tools/diagnose_study_windows.py` | `ba72f70420e6309a412f1deaf1f2fd28b9c02767ccc71b4cc1248b6235710948` | diagnosis.source_binding.tool_sha256有声明，cross索引没有绑定原工具 | 原工具字节命中SHA，并有独立支持的原成员/版本关联 |
+| 原计划 `studies/output_space_cross_task/docs/PLAN.md` | `07abd854854816d51c4770939e14e095e6f9931dbe62698528f6e58d19475df9` | 旧Run与diagnosis的声明一致，实际原计划字节未取得 | 原计划未改字节命中SHA及原成员/版本。不重建换行或拿当前中文计划补签 |
+
+原报告中的声明字段、可读的归档和已命中的其他来源边均不能替缺失原件。cross原路径报告也与保存索引绑定的固定报告字节不同，声明可读不代表报告身份已闭合。只在出现明确原定位或匹配原件时核对应边，不按文件名猜源、重扫既查位置或为缺失来源补跑GPU。正式拒绝证据保原提交身份，本拍未重跑拒绝driver。
+
+逐Run核源码/声明、输入/模型/tokenizer、配置/seed、设备/dtype/backend、计划与实收样本、终态、质量门、指标及来源回执。只生成新收束摘要，不覆盖旧Run。原执行与失败从 [运行记录](<运行记录 Run Record/INDEX.md>) 定位，开发决定归日期开发记录。
+
+T0门是每个实际提交token对应验证前向argmax，覆盖prefill、bonus、EOS及预算裁剪后完整链。独立AR一致率只作诊断，T0不推广为T>0分布保证。旧full/argmax协议保各自判据，不替换失败门。BF16相对独立AR的算子机理排查仍永久停止。
+
+τ为排除prefill的解码提交数/decode_calls，零调用记缺失；逐prompt均值与合并计数之比分列。accepted与committed可能裁剪位置不同，保冻结口径。配对固定qid、输入、模型、停止和预算，保胜平负、缺行与不可比项，不把同prompt多树/长度/臂当独立样本。
+
+实际加速需同质量、同输出条件完整计时，冻结预热、CUDA同步、加载边界、臂顺序与资源。缺计时不填零，host-clock、cProfile及关闭计时占位不是速度证据。工程tiny模型、小张量、重绘与计数复核只证明对应合同，不产生新真实模型收益结论。
+
+# 六、停止与下一步
+R110全目标已收束：denoise与获准续跑的layerwise全部19个本机可运行原配置均已执行，52个缺模型项及K历史表原件缺口已登记。内部验证器在同源训练checkpoint上不满足无损，保持负结果；不修作者代码或据此开新方向。下一步仅待原表最终cfg／K／states来源／逐题CSV等真实材料，不补造、不下载模型、不恢复在线滤波或自动派CUDA。
+
+R109已按后续明确授权用原生enabled/path参数跑完固定K480题；原始ESP及K两列计数均与此前各自基线完全对齐。接受正方向成立，裸原生跨会话ESP/K只有1.004455×点值，历史表幅度仍未精确复现。本批停止，不追加GPU或拟合；待Jason历史正表cfg／K／逐题CSV再决定后续。
+
+R107本批四项已完成并停止，下一步等待Jason历史正表最终cfg、K及逐题CSV，沿既定原样复现路线核对；当前不自动补跑、扩256或增加方法。
+
+按Enmao最新介观，当前先原样复现Jason做法；已有R100固定K相对原ESP的接受正结果、R101负结果／控制数据诊断及其余历史提交保留，作者历史正表精确配置等缺件继续单列。R105四题结果仅保原历史范围，不作为继续滤波融合的派发依据；后续仅b候选、影子评价、q85–88采集和GPU申请全部暂停，32条继续封存。在线滤波／持续偏差属于介观变更，统一标“待 Enmao 拍板”；本会话不继续该线的实现、实验或推送。
+
+
+
+研究问题、对照或预算变化时更新本文，不另建平行计划。新算法不是已有结案的等待条件。工程只处理直接阻塞当前结论或来源保全的具体缺口，其余事项见开发计划。

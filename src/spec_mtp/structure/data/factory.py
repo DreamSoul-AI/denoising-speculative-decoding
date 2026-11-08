@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
@@ -22,12 +23,14 @@ class Data:
         self.source = source
         self._loaders = loaders
         self.meta = meta
-        self._train_set = None
-        self._train_start = None
-        self._resume_data = None
+        self._train_set: Any = None
+        self._train_start: dict[str, Any] | None = None
+        self._resume_data: dict[str, Any] | None = None
 
     def iter_batches(self, split: str) -> Iterator[Any]:
         loader = self._loaders.get(split)
+        if split == 'train' and self._resume_data is not None:
+            self.validate_training_state(self._resume_data)
         if loader is None:
             return iter(())
         if split == 'train':
@@ -42,11 +45,11 @@ class Data:
                     self._loaders[split] = loader
                 cursor = loader.batch_sampler
                 pending = self._resume_data
-                self._resume_data = None
                 inside = pending is not None and not pending['exhausted']
                 if pending is not None:
                     restore_generators(loader, pending['after'] if pending['exhausted'] else pending['start'])
-                cursor.consumed = pending['consumed'] if inside else 0
+                self._resume_data = None
+                cursor.consumed = 0 if pending is None or pending['exhausted'] else pending['consumed']
                 cursor.exhausted = False
                 self._train_start = generator_states(loader)
                 # A replacement iterator must not consume another global base-seed draw.
@@ -62,26 +65,57 @@ class Data:
 
         loader = self._loaders.get('train')
         spec = loader_spec(loader)
-        if spec is None or not isinstance(loader.batch_sampler, BatchCursor) or self._train_start is None:
+        if loader is None or spec is None or not isinstance(loader.batch_sampler, BatchCursor) or self._train_start is None:
             return None
         cursor = loader.batch_sampler
-        return {'version': 1, 'spec': spec, 'seed': self.meta.get('seed'),
+        return deepcopy({'version': 2, 'spec': spec, 'seed': self.meta.get('seed'),
                 'identity': {'name': self.name, 'source': self.source, 'config': self.meta.get('config')},
                 'consumed': cursor.consumed, 'exhausted': cursor.exhausted,
-                'start': self._train_start, 'after': generator_states(loader)}
+                'start': self._train_start, 'after': generator_states(loader)})
 
-    def restore_training_state(self, state: dict[str, Any]) -> bool:
-        from spec_mtp.structure.data.resume import loader_spec
+    def validate_training_state(self, state: dict[str, Any], *, num_steps: int | None = None,
+                                step_period: int = 1) -> None:
+        """Admit the cursor and every RNG domain before mutating loader or pending state."""
+        import json
+        from spec_mtp.structure.data.resume import generators, loader_spec, validate_generator_states
 
         loader = self._loaders.get('train')
-        if state.get('version') != 1 or state.get('spec') != loader_spec(loader) or state.get('seed') != self.meta.get('seed'):
+        expected = loader_spec(loader)
+        if (not isinstance(state, dict) or expected is None
+                or set(state) != {'version', 'spec', 'seed', 'identity', 'consumed', 'exhausted', 'start', 'after'}
+                or type(state.get('version')) is not int or state['version'] != 2):
+            raise ValueError('unsupported checkpoint data state; exact resume requires version 2')
+        present = {key: value is not None for key, value in generators(loader).items()}
+        if num_steps is not None and self._train_set is not None:
+            if type(num_steps) is not int or num_steps < 1 or type(step_period) is not int or step_period < 1:
+                raise ValueError('invalid checkpoint data step budget')
+            size = int(self.meta.get('batch_size') or getattr(loader, 'batch_size', 1) or 1)
+            expected = {**expected, 'dataset_size': len(self._train_set), 'batch_size': size,
+                        'num_samples': size * num_steps * step_period, 'sampler': 'RandomSampler',
+                        'replacement': False, 'drop_last': False, 'shared_generator': False}
+            present = {'sampler': self.meta.get('seed') is not None, 'loader': False}
+        def canonical(value):
+            try:
+                return json.dumps(value, sort_keys=True, allow_nan=False)
+            except (TypeError, ValueError) as error:
+                raise ValueError('invalid checkpoint data metadata') from error
+
+        if canonical(state.get('spec')) != canonical(expected) or canonical(state.get('seed')) != canonical(self.meta.get('seed')):
             raise ValueError('checkpoint data sampler/batch/seed does not match current data')
-        if state.get('identity') != {'name': self.name, 'source': self.source, 'config': self.meta.get('config')}:
+        if canonical(state.get('identity')) != canonical({'name': self.name, 'source': self.source, 'config': self.meta.get('config')}):
             raise ValueError('checkpoint data identity/config does not match current data')
         consumed = state.get('consumed')
-        if type(consumed) is not int or not 0 <= consumed <= len(loader.batch_sampler) or type(state.get('exhausted')) is not bool:
+        batches = expected['num_samples'] // expected['batch_size'] if expected['drop_last'] else (
+            expected['num_samples'] + expected['batch_size'] - 1) // expected['batch_size']
+        if (type(consumed) is not int or not 0 <= consumed <= batches or type(state.get('exhausted')) is not bool
+                or (state['exhausted'] and consumed != batches)):
             raise ValueError('invalid checkpoint data cursor')
-        self._resume_data = state
+        for field in ('start', 'after'):
+            validate_generator_states(state[field], present, shared=expected['shared_generator'])
+
+    def restore_training_state(self, state: dict[str, Any]) -> bool:
+        self.validate_training_state(state)
+        self._resume_data = deepcopy(state)
         return not state['exhausted']
 
     def steps_per_epoch(self, split: str = 'train') -> int | None:
@@ -125,7 +159,8 @@ class Data:
         period = max(int(step_period), 1)
         remaining = max(int(num_steps) - int(step), 0)
         num_samples = batch_size * remaining * period
-        opts = _loader_options(self.meta.get('config') if isinstance(self.meta.get('config'), dict) else {})
+        config = self.meta.get('config')
+        opts = _loader_options(config if isinstance(config, dict) else {})
         self._loaders['train'] = _train_loader_for_samples(
             dataset,
             batch_size=batch_size,
@@ -168,7 +203,7 @@ class DataFactory:
     ) -> Data:
         name = data_config.name
         source = data_config.source if data_config.source is not None else 'torch'
-        builder = DataRegistry.get(name, source)
+        builder = DataRegistry.get(name, source) if name is not None else None
         if builder is None:
             raise ValueError(f'unknown data name/source: {name!r}/{source!r}')
         if builder is _build_torch_vision:
@@ -187,16 +222,17 @@ def _loader_options(cfg: dict[str, Any]) -> dict[str, Any]:
 
 def _empty_train_loader(dataset: Any, batch_size: int) -> Any:
     class _Empty:
+        def __init__(self, dataset: Any, batch_size: int) -> None:
+            self.dataset = dataset
+            self.batch_size = batch_size
+
         def __len__(self) -> int:
             return 0
 
         def __iter__(self):
             return iter(())
 
-    loader = _Empty()
-    loader.dataset = dataset
-    loader.batch_size = batch_size
-    return loader
+    return _Empty(dataset, batch_size)
 
 
 def _train_loader_for_samples(

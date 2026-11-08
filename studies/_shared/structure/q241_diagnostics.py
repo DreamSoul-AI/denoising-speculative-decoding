@@ -100,7 +100,7 @@ transfer = _folded_window_diagnostics.transfer
 def selective_transfer(model, states, coordinate, **kwargs):
     import torch
     from unittest.mock import patch
-    from spec_mtp import model as kv_cache
+    from spec_mtp.structure.model import hf_causal as kv_cache
     from spec_mtp.structure.algorithm.mask import OutputHiddenMaskProvider
     assert coordinate in ('anchor', 'velocity')
     original = OutputHiddenMaskProvider.masks_per_owner

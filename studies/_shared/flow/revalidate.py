@@ -12,26 +12,34 @@ from unittest.mock import patch
 
 def load_validator(path):
     spec = importlib.util.spec_from_file_location('revalidation_policy', path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f'validator must be a loadable Python module: {path}')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
+def _checked_study(study):
+    """Keep a dedicated revalidation entry behind the ordinary Study preflight."""
+    from studies._shared.flow.cli import check_study_inputs
+
+    study = Path(study).resolve()
+    check_study_inputs(study)
+    return study
+
+
 def revalidate_run(study, run_id, validator_path):
     from spec_mtp.flow.context import FlowContext
-    from spec_mtp.structure.artifact.config import load_config
+    from spec_mtp.structure.artifact.config.io import load_config
     from spec_mtp.structure.artifact.layout import artifact_layout
-    from spec_mtp.structure.artifact.provenance import check_frozen
-    from spec_mtp.structure.make.expand import load_study_yaml
     from spec_mtp.flow.write.run import run as write
     summarize = import_module('studies._shared.flow.summarize.run')
 
-    study = Path(study).resolve()
+    study = _checked_study(study)
     validator_path = Path(validator_path).resolve()
     layout = artifact_layout(study, run_id)
     config = load_config(layout.config_path)
     validator = load_validator(validator_path)
-    check_frozen(study, load_study_yaml(study))
     # Uses the installed execution package's unchanged source manifest. The new
     # validator is loaded separately, never substituted into that source lock.
     report = validator.evaluate_run(config, layout.assets_dir)
@@ -77,10 +85,11 @@ def revalidate_run(study, run_id, validator_path):
 
 def process_study(study, validator_path):
     from spec_mtp.flow.process import run_study
+    study = _checked_study(study)
     process = import_module('studies._shared.flow.process.run')
     validator = load_validator(Path(validator_path).resolve())
     with patch.object(process,'verify_evidence',validator.verify_evidence):
-        return run_study(Path(study).resolve())
+        return run_study(study)
 
 
 def main():

@@ -72,7 +72,7 @@ def test_admission_defers_on_capacity_or_unknown_work(monkeypatch, free, command
 
 @pytest.mark.parametrize('method', ['input_first', 'output_zero', 'output_first'])
 def test_read_only_observer_preserves_tiny_bf16_output_and_forward_budget(method):
-    from spec_mtp.model import HFCausalLM
+    from spec_mtp.structure.model.hf_causal import HFCausalLM
     from spec_mtp.structure.algorithm.decode.loop import SpecDecoder
     from studies._shared.structure.config import _convert
     module = tool('capture_4b_geometry')
@@ -157,7 +157,7 @@ def test_geometry_summary_pairs_only_identical_shared_targets():
 
 def test_saved_audit_rejects_missing_or_changed_native_files(tmp_path):
     from hashlib import sha256
-    from spec_mtp.audit import verify_files
+    from spec_mtp.structure.artifact.observation import verify_files
     declared = {'runs/ar/assets/raw.json': sha256(b'frozen raw').hexdigest()}
     with pytest.raises(FileNotFoundError):
         verify_files(tmp_path, declared)

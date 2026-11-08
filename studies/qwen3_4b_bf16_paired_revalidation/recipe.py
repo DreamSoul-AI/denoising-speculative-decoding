@@ -1,10 +1,7 @@
-"""Original untimed paired execution with measured4B nonpreemptive admission."""
-from studies._shared.structure.recipe import register as native_register, register_sources
-from paired_repeat import register_overrides
-register_sources()
-register_overrides()
+"""Source-gated registration of the explicit paired/norm control protocol."""
+from studies._shared.structure.recipe import register as native_register, register_control
 
 
 def register(ctx):
     native_register(ctx)
-    register_overrides()
+    register_control(ctx.study_dir, admission_assets=ctx.assets_dir, kind='paired')

@@ -9,7 +9,7 @@ experiment:
 recipe: recipe.py
 
 provenance:
-  include: [validate_migration.py]
+  include: []
 
 flow:
   study_phases: true

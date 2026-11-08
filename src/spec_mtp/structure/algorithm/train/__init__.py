@@ -28,7 +28,7 @@ from spec_mtp.structure.algorithm.progress import (
     resolve_budget,
 )
 from spec_mtp.structure.algorithm.tracker import AlgorithmTracker
-from spec_mtp.structure.algorithm.resume import capture_rng, restore_rng, partial_resume_warning
+from spec_mtp.structure.algorithm.resume import admit_training_resume, capture_rng, restore_rng, partial_resume_warning
 from spec_mtp.structure.algorithm.metric import BATCH_NAMES, MetricBundle
 
 due_eval_period = due_period
@@ -218,6 +218,37 @@ def bind_step_train_loader(
     rebind(step=int(step), num_steps=int(budget.num_steps), step_period=period)
 
 
+def _training_contract(config, budget, device, model, tracker):
+    import os
+    import torch
+
+    period = max(int(config.setting('step_period', 1) or 1), 1)
+    settings = config.to_mapping()
+    settings.pop('resume', None)
+    settings.pop('resume_from', None)
+    settings['config'] = {key: value for key, value in (settings.get('config') or {}).items()
+                          if key not in ('resume', 'resume_from')}
+    contract = {'unit': budget.unit, 'num_steps': budget.num_steps, 'num_epochs': budget.num_epochs,
+                'step_period': period, 'settings': settings, 'device': str(device), 'torch': str(torch.__version__),
+                'deterministic': torch.are_deterministic_algorithms_enabled(),
+                'cudnn_benchmark': torch.backends.cudnn.benchmark,
+                'cudnn_allow_tf32': torch.backends.cudnn.allow_tf32,
+                'matmul_allow_tf32': torch.backends.cuda.matmul.allow_tf32}
+    contract['metrics'] = getattr(tracker.metrics, 'names', None)
+    contract['model'] = {'name': getattr(model, 'name', None), 'source': getattr(model, 'source', None),
+                         'config': (getattr(model, 'meta', None) or {}).get('config'),
+                         'module_class': type(model.module).__module__ + '.' + type(model.module).__qualname__,
+                         'dtypes': sorted({str(value.dtype) for value in model.module.state_dict().values()}),
+                         'backend': getattr(getattr(model.module, 'config', None), '_attn_implementation', None)}
+    if device.type == 'cuda':
+        index = device.index if device.index is not None else torch.cuda.current_device()
+        properties = torch.cuda.get_device_properties(index)
+        contract['cuda_mapping'] = {'visible_devices': os.environ.get('CUDA_VISIBLE_DEVICES'), 'selected_index': index,
+                                    'name': properties.name, 'capability': [properties.major, properties.minor],
+                                    'uuid': str(properties.uuid) if getattr(properties, 'uuid', None) is not None else None}
+    return contract
+
+
 def _run_supervised(
     algo: TrainAlgorithm,
     data: Any,
@@ -230,8 +261,6 @@ def _run_supervised(
 
     config = algo.config
     device = torch.device(getattr(system, 'device', 'cpu'))
-    module = system.place_module(model.module)
-    model.module = module
     logger = getattr(system, 'logger', None)
     budget = resolve_budget(config, steps_per_epoch=infer_steps_per_epoch(data))
     lr = float(config.setting('lr', 0.1))
@@ -244,8 +273,18 @@ def _run_supervised(
     keep_best = algo.save_best()
     already_percent: set[float] = set()
 
+    period = max(int(config.setting('step_period', 1) or 1), 1)
+    contract = _training_contract(config, budget, device, model, tracker)
+    exact_metrics = (device.type in ('cpu', 'cuda') and type(tracker.metrics) is MetricBundle
+                     and set(tracker.metrics.names_for('train')) <= BATCH_NAMES)
     resume_extra: dict[str, Any] = {}
-    restored = algo.resume(data, model, system, tracker, resume_extra)
+    restored = algo.load_resume(system, resume_extra)
+    admit_training_resume(restored, model=model, tracker=tracker, data=data, contract=contract,
+                          num_steps=budget.num_steps if budget.unit == UNIT_STEP else None, step_period=period,
+                          resume_sources=resume_extra.get('resume_sources'))
+    module = system.place_module(model.module)
+    model.module = module
+    algo.apply_resume(restored, model, system, tracker, resume_extra)
     optimizer = algo.make_optimizer(module)
     scheduler = algo.make_scheduler(optimizer, budget.scheduler_t_max())
     if restored:
@@ -262,31 +301,15 @@ def _run_supervised(
     module.train()
     epoch = int(restored.get('epoch') or 0) if restored else 0
     steps = int(restored.get('step') or 0) if restored else 0
-    period = max(int(config.setting('step_period', 1) or 1), 1)
-    settings = config.to_mapping()
-    settings.pop('resume', None)
-    settings.pop('resume_from', None)
-    settings['config'] = {key: value for key, value in (settings.get('config') or {}).items()
-                          if key not in ('resume', 'resume_from')}
-    contract = {'unit': budget.unit, 'num_steps': budget.num_steps, 'num_epochs': budget.num_epochs,
-                'step_period': period, 'settings': settings, 'device': str(device), 'torch': str(torch.__version__),
-                'deterministic': torch.are_deterministic_algorithms_enabled(),
-                'cudnn_benchmark': torch.backends.cudnn.benchmark,
-                'cudnn_allow_tf32': torch.backends.cudnn.allow_tf32,
-                'matmul_allow_tf32': torch.backends.cuda.matmul.allow_tf32}
-    exact_metrics = (device.type in ('cpu', 'cuda') and type(tracker.metrics) is MetricBundle
-                     and set(tracker.metrics.names_for('train')) <= BATCH_NAMES)
-    contract['metrics'] = getattr(tracker.metrics, 'names', None)
     training_state = (restored or {}).get('training_state')
     resume_inside_epoch = False
     if training_state is not None:
-        if training_state.get('version') != 1:
-            raise ValueError('unsupported checkpoint training_state version')
-        if training_state.get('data') is not None and training_state.get('contract') != contract:
-            raise ValueError('checkpoint training contract differs; keep budget/settings/runtime unchanged')
-        algo._stall = int(training_state.get('stall', 0))
+        algo._stall = training_state.get('stall', 0)
         already_percent = set(training_state.get('already_percent') or [])
-    tracker.begin_run((restored or {}).get('tracker'))
+    resumed_terminal = bool(training_state and training_state.get('stopped')) or (
+        steps >= budget.num_steps or budget.progress(epoch=epoch, step=steps) >= budget.total)
+    if not resumed_terminal:
+        tracker.begin_run((restored or {}).get('tracker'))
     bind_step_train_loader(data, config, step=0 if training_state and training_state.get('data') else steps, budget=budget)
     if training_state is not None:
         if training_state.get('data') is not None:
@@ -353,14 +376,10 @@ def _run_supervised(
             for hit in crossed_percents(current, budget.total, percents, already_percent):
                 already_percent.add(hit)
 
-    already_done = budget.progress(epoch=epoch, step=steps) >= budget.total
+    extra: dict[str, Any]
     wrote_last_ckpt = stop
     try:
-        if already_done:
-            extra = _hook_extra(epoch=epoch, lr=used_lr, step=steps)
-            extra.update(_timing())
-            fire_eval(extra)
-        else:
+        if not resumed_terminal:
             while True:
                 if stop:
                     break
@@ -392,7 +411,8 @@ def _run_supervised(
                     if log_period and steps % log_period == 0:
                         extra = {'epoch': epoch, 'lr': used_lr, 'step': steps}
                         extra.update(_timing())
-                        logger.report(tracker, 'train', extra=extra)
+                        if logger is not None:
+                            logger.report(tracker, 'train', extra=extra)
                         tracker.flush('train', progress=extra)
                     if budget.unit == UNIT_STEP:
                         extra = _hook_extra(epoch=epoch, lr=used_lr, step=steps)
@@ -439,15 +459,24 @@ def _run_supervised(
                 if steps >= budget.num_steps:
                     stop = True
         extra = _hook_extra(epoch=epoch, lr=used_lr, step=steps)
-        if eval_period <= 0 and not already_done:
+        if eval_period <= 0 and not resumed_terminal:
             fire_eval(extra)
             if keep_best and algo.last_improved:
                 fire_ckpt(extra=extra, improved=True, is_last=True)
                 wrote_last_ckpt = True
-        if not already_done and not wrote_last_ckpt:
+        if not resumed_terminal and not wrote_last_ckpt:
             fire_ckpt(extra=extra, improved=False, is_last=True)
-    finally:
-        tracker.flush_state()
+    except BaseException as primary:
+        try:
+            tracker.flush_state()
+        except BaseException as cleanup:
+            setattr(primary, 'tracker_cleanup_error', cleanup)
+            if hasattr(primary, 'add_note'):
+                primary.add_note(f'tracker finalization also failed: {cleanup!r}')
+        raise
+    else:
+        if not resumed_terminal:
+            tracker.flush_state()
 
     train_loss = tracker.segment_mean('train').get('Loss', 0.0)
     accuracy = tracker.segment_mean('test').get('Accuracy', 0.0)
@@ -464,6 +493,7 @@ def _run_supervised(
     }
     if algo._best_metric == 'Accuracy':
         summary['best_accuracy'] = algo._best_test
+    summary['resume_sources'] = resume_extra.get('resume_sources')
     summary['elapsed'] = format_hms(clock.elapsed_seconds())
     summary['elapsed_seconds'] = float(clock.elapsed_seconds())
     return summary

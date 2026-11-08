@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from spec_mtp.structure.artifact.activity import announce
-from spec_mtp.structure.artifact.config import load_config
+from spec_mtp.structure.artifact.config.io import load_config
 from spec_mtp.structure.artifact.layout import ensure_study_layout
 from spec_mtp.structure.data.config import DataConfig
 from spec_mtp.structure.data.factory import DataFactory, vision_root

@@ -6,12 +6,21 @@ import copy
 
 from spec_mtp.flow.context import FlowContext
 from spec_mtp.flow.study import run_study_phase
-from spec_mtp.structure.api import algorithm_api, data_api, model_api, system_api
+from spec_mtp.structure.algorithm.factory import AlgorithmFactory
+from spec_mtp.structure.algorithm.tracker import make_tracker
+from spec_mtp.structure.data.factory import DataFactory
+from spec_mtp.structure.model.factory import ModelFactory
+from spec_mtp.structure.system.factory import SystemFactory
+from spec_mtp.structure.system.runtime import apply_runtime
 from spec_mtp.structure.artifact.asset import ensure_assets
-from spec_mtp.structure.artifact.config import load_config
+from spec_mtp.structure.artifact.config.io import load_config
 from spec_mtp.structure.artifact.provenance import check_frozen
-from spec_mtp.structure.control import control_from_config, validate_control
-from spec_mtp.structure.control.layers import AlgorithmConfig, DataConfig, ModelConfig, SystemConfig
+from spec_mtp.structure.control.control import control_from_config
+from spec_mtp.structure.control.contract import validate_control
+from spec_mtp.structure.algorithm.config import AlgorithmConfig
+from spec_mtp.structure.data.config import DataConfig
+from spec_mtp.structure.model.config import ModelConfig
+from spec_mtp.structure.system.config import SystemConfig
 from spec_mtp.structure.make.expand import load_study_yaml
 from spec_mtp.structure.make.recipe import RecipeContext, apply_recipe
 from spec_mtp.structure.origin import apply_model_origin, normalize_origin
@@ -24,12 +33,13 @@ def run(ctx: FlowContext) -> None:
     validate_control(ctx.control)
     ensure_assets(ctx.layout)
     system_config = SystemConfig.from_mapping(ctx.control.system)
-    ctx.state['runtime'] = system_api.apply_runtime(ctx.control.seed, system_config)
+    ctx.state['runtime'] = apply_runtime(ctx.control.seed, system_config)
     ctx.state['seed'] = ctx.control.seed
 
-    system = system_api.build(
+    system = SystemFactory.build(
         system_config,
         ctx.layout.assets_dir,
+        logger=ctx.state.get('logger'),
     )
     system.meta.update(ctx.state['runtime'])
     ctx.state['system'] = system
@@ -53,13 +63,13 @@ def run(ctx: FlowContext) -> None:
     origin = cfg.get('origin')
     if origin not in (None, ''):
         apply_model_origin(normalize_origin(origin))
-    data = data_api.build(
+    data = DataFactory.build(
         DataConfig.from_mapping(ctx.control.data),
         ctx.layout.shared_data_dir,
         seed=ctx.control.seed,
         origin=origin,
     )
-    model = model_api.build(
+    model = ModelFactory.build(
         ModelConfig.from_mapping(ctx.control.model),
         ctx.layout.shared_model_dir,
         data_meta=getattr(data, 'meta', None),
@@ -67,8 +77,8 @@ def run(ctx: FlowContext) -> None:
     )
     if model.module is not None:
         model.module = system.place_module(model.module)
-    algorithm = algorithm_api.build(AlgorithmConfig.from_mapping(ctx.control.algorithm))
-    tracker = algorithm_api.make_tracker(
+    algorithm = AlgorithmFactory.build(AlgorithmConfig.from_mapping(ctx.control.algorithm))
+    tracker = make_tracker(
         ctx.layout.assets_dir,
         AlgorithmConfig.from_mapping(ctx.control.algorithm),
     )

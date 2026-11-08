@@ -6,7 +6,7 @@ from typing import Any
 
 from spec_mtp.flow.context import FlowContext
 from spec_mtp.structure.artifact.provenance import capture_environment, load_provenance
-from spec_mtp.structure.artifact.result import STATUS_SUCCEEDED
+from spec_mtp.structure.artifact.result.format import STATUS_SUCCEEDED
 
 
 def _snapshot(obj: Any) -> dict[str, Any]:

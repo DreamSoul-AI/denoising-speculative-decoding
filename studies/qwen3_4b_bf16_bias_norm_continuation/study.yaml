@@ -7,7 +7,6 @@ recipe: recipe.py
 freeze: true
 provenance:
   include:
-  - continuation.py
   - docs/source_refs.json
   project_plan:
     commit: f1f085256a696dfe3e6e09e9cb3b9277a0c2cac1
