@@ -1,7 +1,9 @@
 # 去噪推测解码
 宏观＝围绕 training-free 的 speculative decoding 发一篇论文，以 denoising、卡尔曼滤波、EMA 为基本要件。
 
-介观＝在已获授权的原源码模板独立复现基础上，研究“固定静态 K 预测＋因果在线滤波融合”。先明确同一隐藏表示目标的状态、观测、延迟和重置语义，再每批只检验一个会改变方法决定的假设；以每步实际平均接受 token 数/接受率为主指标，质量与额外开销分列。固定 K 及基础解码对照不变，拟合/选择与独立测试隔离；作者历史正表的精确配置差异保留待材料，不重复静态 K 复现或据缺件否定方法。
+介观＝先原样复现 Jason 的做法；按其 Dolly 离线拟合、另一数据集测试、denoise 输出固定校正及原模型规模、树宽、budget 对照 ESP；以每步实际接受数为主指标；暂不推进新假设或其他验证。
+
+2026年11月8日收到Enmao经main转达的介观纠偏后，在线滤波／持续偏差线立即暂停，标为“待 Enmao 拍板”。不再为该线接线、影子评价、采集、申请GPU或推送；既有提交、正负结果及原件保持，32条继续封存。
 
 中文名称为“去噪推测解码”。仓库地址：[DreamSoul-AI/denoising-speculative-decoding](https://github.com/DreamSoul-AI/denoising-speculative-decoding)。
 
