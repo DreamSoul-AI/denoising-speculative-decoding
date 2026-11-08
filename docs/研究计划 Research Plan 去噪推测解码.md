@@ -20,7 +20,7 @@ R100原8B/480题静态仿射K的接受正结果保持。R101已完成同一固�
 文献基础与阅读范围沿用 [文献调研](<文献调研 Literature Review 去噪推测解码.md>)，机制和代价见 [通用调研](<通用调研 General Research 去噪推测解码.md>)。当前结论沿用已有文献阅读与实际运行证据。
 
 # 二、当前成果与结论
-**原仓库配方复现（R110 denoise）**：R110 denoise原配方已收束：62份已提交配置逐项登记，11个Qwen3-8B配置在RTX5090 D v2各完成480题、3个原CPU tiny smoke完成；其余48份缺已确认的原模型，不换模型或下载。原码EMA-velocity在五组对应树设置的τ与原生AR/spec速度点值均低于ESP。BC30为ESP τ1.564681966／1.3116×、EMA-velocity τ1.442151885／1.1909×；原ESP480题计数与R108全部一致。全部配置K未开启，不能用EMA列替代合作者ESP＋K历史正表；原K／最终cfg／states与逐题CSV缺口保留。原CPU196＋30检查及三smoke通过，11个真实CUDA子进程退出、来源末核与释放通过。20:47Z Enmao已明确允许denoise结果记好后续跑同仓layerwise原配方，不改代码，不下载缺失模型。
+**原仓库配方复现（R110，全目标已收束）**：R110全仓原配方复现已收束：denoise 14份可运行配置及layerwise 5份本地配置均已原样运行，52份缺原模型明确登记、未下载。Denoise五组原EMA-velocity的τ／原生速度点值均低于对应ESP，七行历史K表仍缺原件。Layerwise原CPU smoke及两份原8-epoch CUDA训练完成；三test-only初跑因隔离根缺checkpoint走原随机回退，原件已保留，随后只用原码base真实epoch8产物按原默认路径完成同权重CUDA复评。内部verifier原AR相同0/64、原false_accept_rate=0.7136，不能签无损；其余同权重full验证模式为64/64相同。没有改源码、配置或参数，layerwise不混作training-free论文证据。25个所属Python子进程（19 CUDA）全部退出且新释放通过；结果见唯一研究计划R110及运行记录第一百一十七、十八节，本目标不再自动派GPU。
 
 **原生参数启用K（R109）**：R109已按原仓库原生参数启用K，未改Jason d91ed75源码或基础YAML，在RTX5090 D v2直接跑完480题。使用此前由原fit脚本实际产出的独立Dolly100固定K（λ=3、6125对），不是合作者历史正表未提交的K。相对R108原始ESP，原生τ由1.564681966升至1.655533564，Δτ=+0.090851599，配对95% CI [0.084931030,0.096717314]；逐题计数480/480与我方此前同K原码复测一致。原生AR/K点值1.3337×；跨两次原生会话ESP/K仅1.004455×，不能据接受增益签同质量加速。退出、来源/模型/K末核及GPU释放通过，本批结束；历史正表τ1.746仍未精确复现。
 
@@ -979,7 +979,7 @@ K是此前原始scripts/fit_frontier_gain.py真实执行所得，Dolly100／6125
 
 **停止**：原始CLI的默认ESP与原生K启用两列已取得；本批不追加CUDA、拟合、扫参或新方法。历史正表精确cfg／K／逐题CSV仍缺，保留独立复现身份等待材料。来源、实际退出及GPU释放见[运行记录第一百一十六节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
 
-### R110：已提交denoise配置与脚本逐项原样复现（已收束；layerwise待执行）
+### R110：已提交原配方逐项复现（denoise与layerwise均已收束）
 
 **目标与执行**：14:54Z Enmao要求原样复现其余实验，15:03Z设为持续目标；20:47Z进一步明确denoise收尾、结果记好后可续跑layerwise。宏观、介观保持本文开头原文，不提出、调优或集成新算法。d91ed75原Git字节源树／原YAML／原脚本参数不改；已有本机Qwen3-8B与原SpecBench480供默认相对路径使用，真实设备RTX5090 D v2。先原CPU正确性／tiny smoke，再完整原run_main_results.sh qwen3_8b（AR＋ESP/EMA各BC10/30/60），随后四个原BC60 static/dynamic配置，均完整480题。外层仅资源、进程归属与退出守卫，不加forward／head／返回／计时审计包装。
 
@@ -1011,7 +1011,25 @@ BC30原C/D＝40023/25579、原accepted/D＝14612/25579；480题new_tokens/commit
 
 **执行清单与停止边界**：denoise的62配置已逐项登记：14份完整运行（11 CUDA／3 CPU），48份缺原Llama3.2-3B、Llama3.1-8B或Qwen3-32B权重。14个脚本入口中，原correctness、smoke、main-results的Qwen3-8B调用及download-data默认调用已运行；download-data因原数据已存在未下载。其余9个消融／alignment脚本保持原默认Llama条件、缺模型不改用Qwen，拟合脚本缺原states。CPU实际为196＋30检查通过（不照抄旧README的172），三个原tiny smoke各4题完整同AR。原3600秒每GPU执行限、90秒实际CUDA进程确认、300秒CPU限、4GiB主存及10＋10秒清理保持；16个所属子进程全部退出，11 CUDA身份、源／配置／模型／原数据末核及新释放通过。原生完整表和实际回执见[运行记录第一百一十七节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
 
-启动前外部protocol已冻结denoise源码／命令／环境／判读；本文在原CPU与AR完成后同步当前范围，不回签为启动前文档资产。全仓另有layerwise的9配置／3脚本；依20:47Z明确授权，denoise结果记好后仅按原配方继续其5个本地synthetic配置与原CPU smoke，4个HF配置缺原GPT2模型不下载。它们含训练、不对应上述正表，单列原配方兼容性，不作为training-free论文结果或新研究问题；独立CWD保留原参数并避免四份原cfg共用save_name覆盖输出。
+启动前外部protocol已冻结denoise源码／命令／环境／判读；本文在原CPU与AR完成后同步当前范围，不回签为启动前文档资产。20:47Z Enmao进一步明确允许denoise结果记好后接layerwise，41dea8d已先提交denoise真实结果并确认远端两门绿，然后开始下一阶段。
+
+**同仓layerwise原配方已完成**：该项目的9配置／3脚本逐项登记，5个本地synthetic配置及原CPU smoke原样执行，4个HF配置／2脚本缺原GPT2模型不下载。原source31文件与Git blob匹配、原配置／原脚本参数不改；CPU脚本自身的--epochs 1／--device cpu保留，原base与probe按train/test阶段各完成8 epoch CUDA。其他三cfg只有test阶段，不能把train.epochs=8字段误当实际训练；原test入口没有cfg拷贝／训练CSV也是原行为。
+
+**checkpoint责任合同与复评**：初跑按独立CWD隔离四份相同save_name，三份test-only的默认checkpoint因此缺失，原代码明确退回随机模型。原件全部保留，随机accept_rate=1.0000不能作训练模型消融或算法收益。随后按原main/test的默认读取路径，只绑定原码base真实8-epoch输出，SHA256 `56c3e39b3e32af6c4efe6b74bafb566b44d515f6c98dbe67e08eeb4b84d404c4`；三cfg的model／data字典与producer相同、无代码／参数变化、各64请求／32-token。新Root中输入checkpoint前后字节一致，原加载日志均为epoch8，不新训、不借probe权重、不冒充作者历史checkpoint或K。复评是补齐已有原码数据依赖，不是新算法方向。
+
+| **原配置** | **实际目标／输入** | **原LM test acc** | **原avg_accepted_per_step** | **原accept_rate** | **原AR同输出率** | **原false_accept_rate** |
+| --- | --- | --- | --- | --- | --- | --- |
+| layerwise_mtp | base原码8-epoch目标 | 0.8024 | 0.4751 | 0.0855 | 1.0000 | 0.0000 |
+| fixed_depth_baseline | 同一base epoch8 checkpoint | 0.8024 | 0.7672 | 0.1376 | 1.0000 | 0.0000 |
+| layerwise_mtp_internal_verify | 同一base epoch8 checkpoint | 0.8024 | 1.5288 | 0.2717 | 0.0000 | 0.7136 |
+| layerwise_mtp_two_tokens | 同一base epoch8 checkpoint | 0.8024 | 0.4839 | 0.0480 | 1.0000 | 0.0000 |
+| layerwise_mtp_probe | probe自身原码8-epoch目标 | 0.6732 | 0.9063 | 0.1630 | 1.0000 | 0.0000 |
+
+同一个base目标的LM test acc均0.8024，内部验证器的输出与AR **0/64相同，原错误接受率0.7136**；该原配置不满足无损，接受数较高不能作正确加速证据。其他同base full验证配置为64/64相同。probe改变了训练目标／最终权重，LM test acc为0.6732，与base不是同权重因果消融。原库没有这组的对应历史数值表，也不记录可比的真实LLM速度；本节仅是原配方复现与输入责任取证，不作为本论文training-free收益或新贡献，不修作者代码或续开方案。
+
+观察器有两项假定已在读端纠正并保留原件：初版postcheck“constructed_and_trained”布尔不代表test-only实际训练；实际stages／训练CSV／checkpoint优先。绑定协议文字误写epoch7，实际producer步骤1–8、原加载日志为epoch8，冻结的checkpoint SHA与科学执行输入从未改变，未为修正文案重跑模型。全部9个layerwise worker exit0，8次真实CUDA身份、源码／输入／输出SHA及新释放通过；原程序完成与内部验证器正确性负结果分开报告。实际原件与范围见[运行记录第一百一十八节](<运行记录 Run Record/2026-11-05 宿主结构CPU验证.md>)。
+
+**全目标停止**：71份已提交配置中19份本机可运行项均实际执行，52份缺已确认的原模型；17脚本入口中5个按其可用的原调用运行，其余12个缺原模型或states，逐项清单保留。额外三次是同源checkpoint绑定复评，不另计新配置。Denoise七行K历史表、原Dolly采集配置／states、最终cfg与逐题CSV缺口继续严格拒绝代造；不下载模型、不扩预算／β、不恢复在线滤波，不把layerwise作为新论文方向。所有25个所属worker身份确认退出，GPU新释放实测6%／free20322.0MiB，不能填假0；本目标不再派CUDA。
 
 ## （三十三）R101：固定K之外的真实延迟创新——单位carry实测负结果
 
@@ -1215,7 +1233,7 @@ T0门是每个实际提交token对应验证前向argmax，覆盖prefill、bonus�
 实际加速需同质量、同输出条件完整计时，冻结预热、CUDA同步、加载边界、臂顺序与资源。缺计时不填零，host-clock、cProfile及关闭计时占位不是速度证据。工程tiny模型、小张量、重绘与计数复核只证明对应合同，不产生新真实模型收益结论。
 
 # 六、停止与下一步
-R110 denoise已按原源码／原配置完成所有14个本机可运行配置，并登记48个缺模型项及七行正表的原始K／cfg／CSV缺口；不扩预算、补造历史K或恢复在线滤波。按20:47Z最新明确授权，结果记好后继续同仓layerwise原配方；缺模型不下载，其训练兼容性数据不并入论文主表。
+R110全目标已收束：denoise与获准续跑的layerwise全部19个本机可运行原配置均已执行，52个缺模型项及K历史表原件缺口已登记。内部验证器在同源训练checkpoint上不满足无损，保持负结果；不修作者代码或据此开新方向。下一步仅待原表最终cfg／K／states来源／逐题CSV等真实材料，不补造、不下载模型、不恢复在线滤波或自动派CUDA。
 
 R109已按后续明确授权用原生enabled/path参数跑完固定K480题；原始ESP及K两列计数均与此前各自基线完全对齐。接受正方向成立，裸原生跨会话ESP/K只有1.004455×点值，历史表幅度仍未精确复现。本批停止，不追加GPU或拟合；待Jason历史正表cfg／K／逐题CSV再决定后续。
 
