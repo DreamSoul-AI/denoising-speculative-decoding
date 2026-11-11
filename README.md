@@ -9,8 +9,8 @@
 | **文档** | **维护内容** |
 | --- | --- |
 | [协作约定](AGENTS.md) | 资料定位、适用规范及执行边界 |
-| [通用调研 General Research 去噪推测解码](<docs/通用调研 General Research 去噪推测解码.md>) | 机制、方案、直接来源与当前判断 |
-| [文献调研 Literature Review 去噪推测解码](<docs/文献调研 Literature Review 去噪推测解码.md>) | 已读文献、阅读深度和与本项目的关系 |
+| [通用调研 General Research 去噪推测解码](<docs/调研 Search/通用调研 General Search/通用调研 General Research 去噪推测解码.md>) | 机制、方案、直接来源与当前判断 |
+| [文献调研 Literature Review 去噪推测解码](<docs/调研 Search/文献调研 Literature Search/文献调研 Literature Review 去噪推测解码.md>) | 已读文献、阅读深度和与本项目的关系 |
 | [架构设计 Architecture Design 去噪推测解码](<docs/架构设计 Architecture Design 去噪推测解码.md>) | 职责、状态、流程、质量目标和取舍 |
 | [代码结构设计 Code Structure Design 去噪推测解码](<docs/代码结构设计 Code Structure Design 去噪推测解码.md>) | 模块责任、接口、依赖和测试镜像 |
 | [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 研究问题、假设、对照和停止规则 |
@@ -36,6 +36,8 @@
 本轮不调整现有 Actions、CI/CD 或设置。远端结果仅作参考，本地 CPU 回归不覆盖 CUDA、真实权重/数据、吞吐或采样分布保证。已有 CUDA 环境保持原样，不下载模型或覆盖 torch。
 
 ## 研发维护与文档现状
+
+维护入口见 [仓库约定](REPO.md) 和 [研发文档导航](docs/README.md)。
 
 Python 3.10+、PyTorch 与固定 Transformers 条件见 [pyproject.toml](pyproject.toml)，当前研究宿主为 `spec_mtp`。目录入口：[产品或库源码](src/spec_mtp/)、[研究声明与适配](studies/)、[测试](tests/)、[当前文档](docs/)。运行与测试按本 README、相关设计和实际配置选择，不把历史命令视为新的实验授权。
 

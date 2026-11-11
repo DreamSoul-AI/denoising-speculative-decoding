@@ -1,14 +1,33 @@
-"""Every doc and tool is reachable: docs/*.md linked from AGENTS.md, tools/*.py named in layout.md."""
+"""Check that canonical documents are reachable and scientific entry points match their design."""
 
+import re
 from pathlib import Path
+from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[2]
+LINK = re.compile(r'\]\((?:<([^>]+)>|([^\s)]+))\)')
 
 
 def test_every_doc_is_linked_from_agents():
-    agents = (ROOT / 'AGENTS.md').read_text(encoding='utf-8')
-    missing = [p.name for p in sorted((ROOT / 'docs').glob('*.md')) if f'docs/{p.name}' not in agents]
-    assert not missing, f'add to AGENTS.md §2: {missing}'
+    docs = (ROOT / 'docs').resolve()
+    canonical = set(docs.glob('*.md')) | set((docs / '调研 Search').glob('*/*.md'))
+    pending = [ROOT / 'AGENTS.md']
+    visited = set()
+    while pending:
+        page = pending.pop()
+        if page in visited:
+            continue
+        visited.add(page)
+        for angle, plain in LINK.findall(page.read_text(encoding='utf-8')):
+            href = unquote((angle or plain).partition('#')[0])
+            if not href or '://' in href:
+                continue
+            target = (page.parent / href).resolve()
+            if target.is_relative_to(docs) and target.suffix == '.md' and target.is_file():
+                pending.append(target)
+
+    missing = sorted(path.relative_to(docs).as_posix() for path in canonical - visited)
+    assert not missing, f'add to the documentation navigation linked from AGENTS.md: {missing}'
 
 
 def test_scientific_modules_match_the_design():
