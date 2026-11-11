@@ -9,8 +9,8 @@
 | **文档** | **维护内容** |
 | --- | --- |
 | [协作约定](AGENTS.md) | 资料定位、适用规范及执行边界 |
-| [通用调研 General Research 去噪推测解码](<docs/通用调研 General Research 去噪推测解码.md>) | 机制、方案、直接来源与当前判断 |
-| [文献调研 Literature Review 去噪推测解码](<docs/文献调研 Literature Review 去噪推测解码.md>) | 已读文献、阅读深度和与本项目的关系 |
+| [通用调研 General Research 去噪推测解码](<docs/调研 Search/通用调研 General Search/通用调研 General Research 去噪推测解码.md>) | 机制、方案、直接来源与当前判断 |
+| [文献调研 Literature Review 去噪推测解码](<docs/调研 Search/文献调研 Literature Search/文献调研 Literature Review 去噪推测解码.md>) | 已读文献、阅读深度和与本项目的关系 |
 | [架构设计 Architecture Design 去噪推测解码](<docs/架构设计 Architecture Design 去噪推测解码.md>) | 职责、状态、流程、质量目标和取舍 |
 | [代码结构设计 Code Structure Design 去噪推测解码](<docs/代码结构设计 Code Structure Design 去噪推测解码.md>) | 模块责任、接口、依赖和测试镜像 |
 | [研究计划 Research Plan 去噪推测解码](<docs/研究计划 Research Plan 去噪推测解码.md>) | 研究问题、假设、对照和停止规则 |

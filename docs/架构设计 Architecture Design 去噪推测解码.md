@@ -1,5 +1,5 @@
 **去噪推测解码 架构设计**
-更新日期：2026年11月4日。状态：当前选定设计。科学职责保持；源码组织的目标是 `structure` / `flow` 两柱。解码合同已迁入 `structure/api`，其余模块尚未按该目标搬迁。实现差距和验收顺序见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)。机制见 [通用调研 General Research](<通用调研 General Research 去噪推测解码.md>)，历史数字见 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，文件职责见 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，实验问题见 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。
+更新日期：2026年11月4日。状态：当前选定设计。科学职责保持；源码组织的目标是 `structure` / `flow` 两柱。解码合同已迁入 `structure/api`，其余模块尚未按该目标搬迁。实现差距和验收顺序见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)。机制见 [通用调研 General Research](<调研 Search/通用调研 General Search/通用调研 General Research 去噪推测解码.md>)，历史数字见 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，文件职责见 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，实验问题见 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。
 
 # 一、从研究目标推导架构
 ## （一）目标、上下文与约束

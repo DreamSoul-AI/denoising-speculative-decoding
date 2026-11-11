@@ -11,10 +11,10 @@
 
 - GitHub 地址：[DreamSoul-AI/denoising-speculative-decoding](https://github.com/DreamSoul-AI/denoising-speculative-decoding)。本地位置以当前关联源码目录为准，不写死盘符、用户名或下载目录
 - 项目中文名为“去噪推测解码”，已由 Enmao 确认。正文使用中文，源码标识、接口、命令与原始来源标题保留必要原文
-- [README](README.md) 维护项目现状及入口，[通用调研 General Research](<docs/通用调研 General Research 去噪推测解码.md>) 维护机制、比较、来源和当前判断。历史测量在运行记录
+- [README](README.md) 维护项目现状及入口，[通用调研 General Research](<docs/调研 Search/通用调研 General Search/通用调研 General Research 去噪推测解码.md>) 维护机制、比较、来源和当前判断。历史测量在运行记录
 - [架构设计](<docs/架构设计 Architecture Design 去噪推测解码.md>) 维护目标职责、合同、状态、运行部署和验证，[代码结构设计](<docs/代码结构设计 Code Structure Design 去噪推测解码.md>) 唯一维护目标目录、Python 文件责任、依赖与测试镜像
 - [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>) 是唯一中文计划，Study 按研究问题分章。旧英文计划与冻结子计划只从固定 Git 历史取证，不恢复并行正本
-- [文献调研](<docs/文献调研 Literature Review 去噪推测解码.md>)、[开发计划](<docs/开发计划 Development Plan 去噪推测解码.md>)、[缺陷记录](<docs/缺陷记录 Bug Report 去噪推测解码.md>)、[开发记录](<docs/开发记录 Development Record/2026-10-31 工程重构与文档重整.md>) 和 [运行记录](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>) 分别维护学术证据、工程待办、活动缺陷、演进和实际结果
+- [文献调研](<docs/调研 Search/文献调研 Literature Search/文献调研 Literature Review 去噪推测解码.md>)、[开发计划](<docs/开发计划 Development Plan 去噪推测解码.md>)、[缺陷记录](<docs/缺陷记录 Bug Report 去噪推测解码.md>)、[开发记录](<docs/开发记录 Development Record/2026-10-31 工程重构与文档重整.md>) 和 [运行记录](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>) 分别维护学术证据、工程待办、活动缺陷、演进和实际结果
 - 上述根入口和专项文档继续作为现有入口，文档角色与命名按 AGENTS.md 的文档分工与研发迭代章节维护。研究报告按职责归属：学术证据归文献调研，工程机制归通用调研，开发决定与演进写开发记录，实际执行从运行记录定位，提交与 PR 引用对应记录。Study、测试和工具不另建 README、PLAN、NUMBERS、审查、交接或逐事报告
 - 从目标与质量场景推导职责、接口、状态和依赖，现有实现只作为行为和故障证据。按奥卡姆剃刀说明每个模块的必要性、不增加的后果和持续成本，不以旧文件树倒推目标设计
 - 图示保留在正文 Mermaid 中，区分源码依赖、运行调用和部署。图语法检查不能替代合同或实现验证
