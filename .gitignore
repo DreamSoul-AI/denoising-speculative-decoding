@@ -31,3 +31,5 @@ studies/qwen3_4b_bf16_five_methods/docs/paired_pending.json
 studies/qwen3_4b_bf16_directions/docs/direction_pending.json
 
 /USER.md
+
+/.local/
