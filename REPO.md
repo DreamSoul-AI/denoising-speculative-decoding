@@ -39,3 +39,11 @@
 - 完成检查编码、标题、链接、表格、必要 Mermaid 解析与 diff 范围。旧文档/证据消费者已知失效应明确报告，不能宣称全量测试或远端 CI 通过
 
 - 本任务不修改 Actions、CI/CD、workflow 或仓库设置，不读取/创建凭据。验证产物不进 Git。
+
+## 共享资源入口
+
+- 使用共享资源时，从 [Knowledge](https://github.com/DreamSoul-AI/knowledge) 查找共享资源工具，按 Workspace 配套示例将数据、模型与项目产物接入 `.local/`。本机路径从个人配置读取，实际链接与消费者按项目核对。
+
+## Workspace 采用记录
+
+- 来源 [Workspace 098bd2e](https://github.com/DreamSoul-AI/workspace/tree/098bd2eccf23eb1e6d77a3eec6db51e6bc387daf)。采用范围为Learnings 命名与分发、文档规范配置、长作业检查点与恢复、调研、研究计划与研究结论归档、发布前分支对齐、可选共享资源入口。项目专用流程见本文件。
