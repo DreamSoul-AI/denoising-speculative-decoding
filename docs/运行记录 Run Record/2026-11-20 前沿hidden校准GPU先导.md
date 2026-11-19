@@ -2,7 +2,7 @@
 
 ## 范围与版本
 
-用户本次明确允许使用 GPU 推进研究。执行前已登记[研究计划第六章](<../研究计划 Research Plan 去噪推测解码.md#六2026-11-20-gpu-有界先导已获本次执行授权>)，本轮只执行来源校准线的小规模先导。没有执行 Dolly 四格、输入／输出干预、Holt 或轨迹卡尔曼；回归 K 不能称为已实现卡尔曼滤波。
+用户本次明确允许使用 GPU 推进研究。执行前已登记[该轮研究计划固定快照](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/2ae11c0/docs/%E7%A0%94%E7%A9%B6%E8%AE%A1%E5%88%92%20Research%20Plan%20%E5%8E%BB%E5%99%AA%E6%8E%A8%E6%B5%8B%E8%A7%A3%E7%A0%81.md)，本轮只执行来源校准线的小规模先导。没有执行 Dolly 四格、输入／输出干预、Holt 或轨迹卡尔曼；回归 K 不能称为已实现卡尔曼滤波。
 
 运行采用 [Jason 固定提交 534a79f9c00854895d514a90a727575c0580dc10](https://github.com/jasonchengqs/speculative_mtp/commit/534a79f9c00854895d514a90a727575c0580dc10) 的完整 ZIP 快照。来源树未改动；外部 pilot.py 调用其解码、states、前沿修正与拟合函数，添加提交链审计和有界实验编排。不是本仓当前 spec_mtp 实现的 GPU 验收。当前工作区基线为 243e6d7，已有其他修改保留。
 
