@@ -1,232 +1,173 @@
-**去噪推测解码 研究计划**
-更新日期：2026年11月20日。这是唯一中文研究计划。本文对照当前代码写算法，并把已跑实验收成一张结论表。逐次预注册、旧英文计划和运行日志从 Git 历史与 [运行记录](https://github.com/DreamSoul-AI/denoising-speculative-decoding/blob/8f25a61515cf331e3a3cf3ba0dfbc66f217e315c/docs/%E8%BF%90%E8%A1%8C%E8%AE%B0%E5%BD%95%20Run%20Record/INDEX.md) 取证，不在这里重写。工程待办见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。
+# 研究计划 Research Plan 去噪推测解码
 
-# 一、当前算法与数学
-本次沿用远端 dev 的已核实基线 [8f25a61](https://github.com/DreamSoul-AI/denoising-speculative-decoding/tree/8f25a61515cf331e3a3cf3ba0dfbc66f217e315c)。本章路径与行号对应该版本源码，当前关联工作树仍在 243e6d7。正式办公室比较用的是 ESP 轨迹加 observation 混合；卡尔曼类是同一解码循环上的其它 mask。
+更新日期：2026年11月20日。状态：用户已确认研究方向；本次完成计划与文档提交，没有启动新的 GPU 实验。本文是唯一当前研究计划，历史计划从 Git 提交读取，实际结果从[运行记录](<运行记录 Run Record/INDEX.md>)定位。
 
-## 解码循环
-`SpeculativeDecoder.generate`（`src/spec_mtp/structure/algorithm/decode/loop.py` 第 196–465 行）按模块文档（第 5–22 行）做两段：
+当前主线为 **零阶 EMA → 差分 EMA／Holt → 轨迹卡尔曼滤波**。先回答状态估计本身能否改善 soft token 探测，再研究输入／输出表示，最后才与 Jason 的仿射 hidden 校准组合。第一阶段统一关闭 Jason 校准及其他 observation blend，固定树和贪心验证，以实际接受量和 τ 比较；共享电脑的墙钟计时不参与方法选择。
 
-- **Prefill。** prompt 嵌入与 k 个 mask 拼成一次因果前向（第 231–243 行）。最后一个 prompt 位置选出第一枚提交 token，作为下一棵树的根；k 个 mask 位置的 logits 留下，用来建第一棵草稿树。mask 的 KV 随后裁掉（第 264 行）。
-- **静态树。** 每轮用上一轮 mask logits 的 softmax 建树（第 291–292 行）。正式配置走 `build_static_tree`（`src/spec_mtp/structure/algorithm/decode/tree.py` 第 75–107 行）：`branches` 的长度不超过 k；每一层只让该层概率最高的节点继续生孩子；剪枝打开时，子 token 不取父 token。`impl=efficient` 要求 `tree.mode=static`（`loop.py` 第 159–164 行）。
-- **树注意力块。** 一块的顺序是根、草稿节点、每个 owner 的 k 个 mask（`loop.py` 第 320–336 行）。块内注意力在 `tree_attention.py` 的 `block_layout`（第 8–34 行）：根只看自己；草稿节点看祖先链和自己；某个 owner 的 mask 看该 owner 的注意力集合，以及同一 owner 上排在自己前面的 mask。`efficient` 把这块结构缓存下来（第 77–83 行）。下一轮的 mask logits 取自最深接受节点；没有接受草稿时取根（`loop.py` 第 450–453 行，`mask_indices_of` 第 37–41 行）。
-- **贪心验证。** 温度 ≤ 0 时 `select_token` 取 argmax（`loop.py` 第 96–100 行）。验证从根往下走，预测 token 与某个子节点相同就接受该节点，否则停下（第 356–377 行）。停下的那一枚是 bonus。`stats['accepted']` 在 EOS 或长度截断之前累加匹配到的草稿节点（第 380–381 行）。
-- **τ。** `prompt_tau` 是提交数除以 `decode_calls`；调用数为 0 时没有 τ（`src/spec_mtp/analysis.py` 第 10–16 行）。解码循环里的 `stats['committed']` 只在解码轮写入（`loop.py` 第 394–400 行），不含 prefill 交出的第一枚 token。模块文档写的是：τ = 每个 decode call 的提交 token（接受的草稿加 bonus）（第 22 行）。办公室行用的就是 `stats['committed'] / decode_calls`（`studies/trajectory_observation/structure/office_tree.py` 第 182 行）。
+# 一、目标、证据与研究问题
 
-温度 ≤ 0 时，每个提交 token 记下当次前向的 argmax，整段生成结束后做审计（`loop.py` 第 246–250、473–484 行）。这是 T0 的 argmax 审计。它不提供采样分布保证。独立 AR 是否逐 token 相同，另计，只作诊断。
+宏观目标是提高同模型推测解码中每次验证能够保留的 draft 数和推进的 token 数。当前不以测速或 hidden MSE 的改善替代验收收益，也不把静态回归校准称为完整卡尔曼滤波。
 
-## ESP 基线 mask
-`ESPMaskProvider`（`src/spec_mtp/structure/algorithm/mask/providers.py` 第 83–137 行）。默认 `init='mean_prompt'`、`lam=0.1`。
+## 已有证据与采用状态
 
-- 初值：\(m_0=\frac{1}{t}\sum_j e_j\)，k 个槽共用这一条均值（第 104–107 行）。
-- 每提交一枚 token 更新一次，含 prefill 的第一枚和随后每一枚解码提交（`loop.py` 第 272–274、394–397 行）：
-
-\[
-m \leftarrow (1-\lambda)m + \lambda e_{\mathrm{new}},\qquad \lambda=0.1
-\]
-
-代码写成 \(m \leftarrow m+\lambda(e_{\mathrm{new}}-m)\)（`providers.py` 第 133–137 行）。\(e_{\mathrm{new}}\) 是该 token 的输入嵌入。`update=false` 时不改 m。
-
-## Observation 与增益混合
-`ObservationBlendMaskProvider`（`providers.py` 第 285–398 行）包住上面的轨迹。正式臂是 `condition='none'`、`form='mean'`。
-
-\[
-z=\sum_v p(v)\,e_v,\qquad p=\mathrm{softmax}(\ell)
-\]
-
-实现是 `softmax(logits.float())` 再乘嵌入表（第 343–346 行）。`form='top1'` 时 z 改成该行 argmax 的嵌入。z 只活一轮，`on_token_committed` 只转给基线，不把 z 写进轨迹（第 397–398 行）。
-
-混合是
-
-\[
-m=(1-g)\hat m+g z=\hat m+g(z-\hat m),\qquad g\in[0,1]
-\]
-
-`g=0` 时直接返回轨迹（第 356–357 行）。**k=1 时只有根上的那个 mask 被混合。** `masks_by_depth` 的循环是 `for depth in range(k)`，`slots=k-depth`（第 359–361 行）。k=1 时 depth 只有 0，只改根的槽 0；深度 1 的草稿 owner 保持轨迹。正式运行的 `num_masks` 就是 1，所以增益只加在根 mask 上。
-
-### 代码与 docstring 不一致
-类文档（第 290–292 行）写：深度 d 的槽 j 在 \(d+j\le k\) 时改用 \(z_{d+j}\)，否则保持 \(\hat m_j\)。代码用 0 起计的 depth、槽下标，只改写 `j < k-depth`，也就是 \(d+j<k\)。张量有 k+1 行 owner（第 352–355 行），深度 k 的那一行不进循环，不会被混合。
-
-拒绝条件化的文档（第 296–301 行）写槽 1 使用 \(z_{d+1}\)。`masks_for_tree` 取的是 `_probs[depth]` 和 `_observation[depth]`，depth 为该 owner 的树深度，根记 0（第 373–391 行）。用的是 \(z_d\)，不是 \(z_{d+1}\)。正式八类和 g-scan 的 `condition` 都是 `none`，这条分支没有进那些比较。
-
-## 卡尔曼变体（按现实现）
-都在 `providers.py`。除特别写出的槽以外，只改槽 0，其余槽仍是基线 mask。
-
-| **类** | **公式** | **位置** |
+| **证据** | **当前判断** | **本计划中的作用** |
 | --- | --- | --- |
-| `KalmanMaskProvider` | 标量随机游走。\(P^-=P+q\)，\(K=P^-/(P^-+R)\)，\(m\leftarrow m+K(e-m)\)。online 用 Sage–Husa 更新标量 \(q,r\)（遗忘因子默认 0.95）；frozen 锁住 prompt 结束时的 K。没有本轮 verify 的 z | 第 531–556 行 |
-| `VerifyCorrectionMaskProvider` | \(m=\hat m+K(z-\hat m)\)，z 是上一枚已提交嵌入。标量、对角、仿射 \( \hat m+(z-\hat m)A^\top+b \)、低秩 \( \hat m+(z-\hat m)V U^\top+b \) | 第 688–720 行 |
-| `OnlineVerifyKalman` | 逐维 \(K=(P+Q)/(P+Q+R)\)。full：槽 0 为 \(\hat m+K(z-\hat m)\)。trajectory 臂原样返回 ESP。observation 臂把先验换成随机游走状态 | 第 785–823 行 |
-| `AlignedResidualKalman` | 状态是标量相关系数 F。槽 0 为 \(\hat m+F\cdot\nu_{\mathrm{prev}}\)。F 朝相邻残差的余弦更新，并夹到 \([-1,1]\)。R 用余弦残差的平方更新，不减 P | 第 884–918 行 |
-| `HybridGainKalman` | \(m=\hat m+K\odot(z-\hat m)\)。创新 \((y-\hat m)-K\odot(z-\hat m)\)，步长 \(P^-\odot r/(R+P^-\odot r^{\odot 2})\)，\(P^-=P+Q\)。`observe='last'` 改到本轮 bonus 上学习 | 第 1022–1102 行 |
-| `OutputHiddenHybridKalman` | 在 output-hidden 轨迹上，\(h\leftarrow h+(z-h)\odot K\)，再按嵌入表平均范数缩放。trajectory 模式不乘 K | 第 1229–1244 行；缩放在第 74–78 行 |
+| ESP 输入均值初始化与逐 token 指数更新 | 初始化、观测顺序和权重一致时，可与输入零阶 EMA 对齐 | 建立可核对的零阶基线 |
+| 既有差分 EMA、输入／输出路线与历史标量 Kalman | 初始化、锚点、观测时点或状态不一定相同，旧负结果不直接否定新的一阶状态模型 | 保留历史参照，按实际版本和协议解释 |
+| Jason 固定来源的仿射 hidden 校准 | 在 Qwen3-4B 开发实验中复核到验收收益、模式匹配及冻结参数迁移的正向方向；不等于原 8B 全量同条件数值复现 | 保存为已验证的来源参照，推迟组合 |
+| 简单上一残差预测与残差 EMA | 固定路径的 MSE 有时下降，但 cov@14 未改善；没有运行该动态方案的完整解码 | 不据此宣称 EMA／Holt／Kalman 已有效，也不先做更高阶 |
 
-这些类都不是 `studies/k_affine_residual` 里、解码循环之外的 `postcommit-final-norm-v1`。
+最新实测与论文接受量表见[前沿校准研究](<运行记录 Run Record/2026-11-20 六十分钟前沿校准研究.md>)，小模型入口检查见[0.6B 先导](<运行记录 Run Record/2026-11-20 前沿hidden校准GPU先导.md>)。历史其他结果见[运行记录目录](<运行记录 Run Record/INDEX.md>)。本轮来源运行没有改动本仓科学宿主，已有 `postcommit-final-norm-v1` 夹具与历史 joint-mask 方法各保留原义。
 
-## 正式运行配置
-八类 trajectory 消融、墙钟和 g-scan 共用（`studies/trajectory_observation/structure/office_traj.py` 第 110–133、898–910 行；`office_tree.py` 第 40、341 行）：
+## 本轮要回答的问题
 
-- 模型：Qwen3-8B，权重 `D:\models\Qwen3-8B`，BF16，CUDA，eager，`local_files_only`
-- mask：`method=esp`，`num_masks=1`，`init=mean_prompt`，`lam=0.1`，`update=true`
-- 树：static，`branches` [4]，剪枝开，`impl=efficient`。块复杂度 \((1+1)\times(1+4)=10\)
-- 解码：温度 0，`stop_on_eos` false
-- 数据：Dolly `databricks/databricks-dolly-15k` train。八类与墙钟按长度的 64 token 档是每条 64 token；g-scan 与墙钟的 256/512 档见下表
-- 混合：`condition=none`，`form=mean`，协议名 `trajectory-observation-blend-v1`。traj / g0 的增益是 0；八类里的 full 是 0.5
-
-# 二、结论总表
-差值方向在表内写明。胜负平是逐条符号检验的胜:负:平。p 是双侧符号检验。区间是 bootstrap 百分位，种子 0，10000 次。这些办公室比较标明探索，不另设确认线。原始 jsonl 在运行记录所指目录，不进 Git。
-
-八类的问题相同：增益 0.5 的联合 mask，是否比关掉 observation（增益 0）接受更多。设置就是上一节的正式配置，每类一条 Dolly 切片，64 token。效应是 traj 减 full 的接受数均值；τ 箭头是 full→traj。
-
-| **名称** | **问题** | **设置** | **效应量** | **PR** | **结论** |
-| --- | --- | --- | --- | --- | --- |
-| `office-8b-traj-ablate-v1` | 联合是否多于 trajectory-only | creative_writing 剩余 60 条 | 47:5:8，+3.616667，τ 1.267772→1.361124 | [#69](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/69) | 增益 0.5 接受更少 |
-| `office-8b-traj-xcat-v1` | 同上，换类 | open_qa 128 条 | 103:12:13，+3.2421875，τ 1.253489→1.338024 | [#70](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/70) | 同上 |
-| `office-8b-traj-xcat2-v1` | 同上 | general_qa 128 条，跳过 qid 91 | 101:17:10，+3.1484375，τ 1.265720→1.350626 | [#71](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/71) | 同上 |
-| `office-8b-traj-xcat3-v1` | 同上 | classification 128 条 | 93:23:12，+4.0546875，τ 1.243178→1.352919 | [#72](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/72) | 同上 |
-| `office-8b-traj-xcat4-v1` | 同上 | closed_qa 128 条 | 95:22:11，+2.4921875，τ 1.357949→1.431103 | [#73](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/73) | 同上 |
-| `office-8b-traj-xcat5-v1` | 同上 | brainstorming 128 条 | 95:17:16，+2.6171875，τ 1.290219→1.358632 | [#74](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/74) | 同上 |
-| `office-8b-traj-xcat6-v1` | 同上 | information_extraction 128 条 | 106:10:12，+3.046875，τ 1.326882→1.415774 | [#75](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/75) | 同上 |
-| `office-8b-traj-xcat7-v1` | 同上 | summarization 128 条 | 97:17:14，+2.6640625，τ 1.340886→1.418055 | [#76](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/76) | 同上。八个 Dolly 类到此用完 |
-| `office-8b-traj-wall-v1` | 接受数更高时墙钟是否更短 | 同一 summarization，64 token | 接受数仍 97:17:14；墙钟 traj 更短 99:29:0，差 −0.100136 秒 | [#84](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/84) | 接受数与墙钟同向，都离开 0 |
-| `office-8b-traj-failset-v1` | full 胜出的句子有没有共同长度 | 上面八组已归档 jsonl | 子集条数等于各组的负。字符均值四组更高、四组更低 | [#85](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/85) | 看不出按长度分开的失败模式 |
-| `office-ar-inconsistency-v1` | 独立 AR 不一致是口径还是正确性 | 八组已归档行，不加载模型 | 八组都重叠，argmax 全过 | [#89](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/89) | 可隔离的口径问题 |
-| `office-ar-first-fork-v1` | 不一致从哪一个 token 开始 | summarization 64 token；64 条至少一臂哈希不等 | 两臂首分叉下标与两侧 token 都相同的 35/64（0.546875）。fp32 对照未加载 | [#95](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/95) | 不贴共享参照，也不贴分叉分开 |
-| `office-ar-bf16-determinism-v1` | BF16 上 AR 自己会不会翻 | 上面 64 条，只跑 AR | 两次整段 AR 一致率 1；整段对逐 token prompt 为 0.3125；重放对归档参照为 0.5 | [#96](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/96) | 贴「AR 路径不稳定」 |
-| `office-8b-traj-wall-by-length-v1` | 墙钟差是否随长度变大 | summarization，64/256/512 | 墙钟差 −0.096467 / −0.474111 / −1.148640 秒，绝对值递增。512 的差主要在 verify | [#97](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/97) | length-dependent，分解在 verify |
-| `office-8b-traj-g-scan-v1` | 哪个 g 优于 g=0 | summarization，256 token；g=0, 0.25, 0.5, 0.75 | 接受数合计 10235 / 9467 / 8548 / 8088。τ 均值 1.460560 / 1.412226 / 1.358059 / 1.333320。相对 g0 的胜负平 21:100:7、6:121:1、5:118:5，方向都是 negative。墙钟差 +0.189740 / +0.473827 / +0.541773 秒 | [#102](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/102) | 三个 g>0 的接受数都低于 trajectory-only，g 越大越少、墙钟越长 |
-| 同预算树形 | 把 4 个节点拆成两层是否更多接受 | [2,2] 与 [3,1] 对 [4]，`num_masks=2`，64 token | 4B 与 8B 上 [2,2] 约少 1.8–1.9 个接受 token，区间离开 0。[3,1] 也是负方向，8B 区间含 0 | [#78](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/78) | 两层树更差。之后的 trajectory 协议保持 [4] |
-| `kalman-mask-scalar-v1` | 无 verify 观测的标量滤波是否胜过 ESP | 合成确认种子 21/22/23 | 101:83:8，p=0.210 | [联合 mask 开发记录](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>) | 确认未通过。这不是带 z 的合并 |
-| 离线 K（对角、仿射、岭、低秩） | 冻结的 \(K(z-\hat m)\) 是否胜过 ESP | 合成，以及 Qwen3-0.6B / 4B 短句 | 对角 91:80:21（p=0.445）。仿射探索 101:85:6（p=0.271）。0.6B 岭回归 128 条 50:40:38（p=0.343）。4B 秩 4 探索 15:10:7（p=0.424） | [联合 mask 开发记录](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>) | 小模型上弱或未通过。合成岭回归曾通过，没有带到 Qwen。0.6B 的 oracle 上界只说明被拟合的句子里函数类还有余量 |
-| 在线卡尔曼、对齐残差、混合增益 | 在线更新 K 是否胜过 ESP | Qwen3-4B / 0.6B，CUDA，BF16，树 [4] | 在线 4B 为 2:24:6，0.6B 为 1:28:3。对齐残差 4B 新 32 条 5:9:18（p=0.424）。混合增益 128 条 4B 为 33:28:67（p=0.609） | [联合 mask 开发记录](<开发记录 Development Record/2026-11-01 trajectory与observation联合mask.md>) | 负或弱。额外分支在多一个节点时接受数上升，同节点预算的替换没有在 4B 与 0.6B 上同时通过 |
-| `output-hidden-hybrid-kalman-v1` | hidden 空间的混合 K 是否胜过 ESP 和 hidden 原版 | SpecBench 209–336，64 token | 4B 对 ESP 60:51:17（p=0.448）。0.6B 对 ESP 1:125 | [#61](https://github.com/DreamSoul-AI/denoising-speculative-decoding/pull/61) | 负结果，已关闭 |
-
-八类、墙钟和 g-scan 的 argmax 审计都通过。独立 AR 不一致只诊断，不改写接受数。
-
-# 三、未验证/待定
-- **k>1 与深树。** 正式 observation 比较都是 `num_masks=1`、单层 [4]。同预算的 [2,2]、[3,1] 只比较了树形，接受数更低，没有把 observation 或卡尔曼放到 k>1 上再测。
-- **observation 的注入方式没有拆开。** \(z=\sum p(v)e_v\) 是嵌入的凸组合，一般不落在 token 上，范数也会缩。正式运行固定 `form=mean`，只扫了 g。`form=top1` 的合成确认已经更差（ESP 联合·top1·拒绝对 ESP 轨迹 74:103，p=0.035），8B 上没有把「离开流形」和「范数变小」分成两臂。
-- **温度只有 0。** 办公室配置 `temperature=0`，验证是 argmax。T>0 的采样匹配没有正式结果。T0 通过不能推广成采样分布保证。
-- **模型只有 Qwen。** 8B 是正式轨迹和 g-scan；0.6B 与 4B 只出现在卡尔曼和小树形比较里。没有第二种模型族。
-
-采样分布保证仍未完成。BF16 相对独立 AR 的算子数值机理排查保持停止。第四章记录本轮新增的研究问题和拟议验证。
-
-# 四、本轮研究问题与拟议验证
-
-2026年11月20日，由 EMA／Holt／卡尔曼的学习讨论，以及 Jason 对拟合数据和 thinking 设置的反馈形成这组问题。研究方向是观察位置、趋势与预测残差是否能帮助免训练起草，并检验收益对校准数据分布的依赖。下述方案为拟议验证，实际模型、数据规模、计算预算与运行安排在执行前登记。前两章的旧协议和历史结果保留原义。
-
-## 从三份算法说明接入研究计划
-
-三份说明提供本轮研究的机制和数学入口，Jason 的前沿修正提供一条具体的来源实现。研究保留两条互补主线，一条比较从零阶平滑到一阶状态估计，另一条复现和分析前沿残差校准。两条线先各自建立对照，再在有依据的配置上组合。
-
-| **来源** | **进入本计划的内容** | **研究中的作用** |
+| **问题** | **待检验假设** | **不支持时怎样调整** |
 | --- | --- | --- |
-| [ESP 算法说明](https://dreamsoul.feishu.cn/docx/NL8gdTBZioubwfxj0BKchWXVnib) | soft mask、候选树、BC、position ID／RoPE、目标解码与验收 | 固定数据流、位置和预算，给所有方法提供同一验证合同 |
-| [EMA 算法说明](https://dreamsoul.feishu.cn/docx/WNmAdTaxXoN5y5x1xydcBOH6nif) | 输入／输出观测，零阶、原始差分 EMA、Holt，锚点与速度 | 定义状态估计的候选与退化关系，检查同一残差更新了什么 |
-| [卡尔曼算法说明](https://dreamsoul.feishu.cn/docx/KpWVdcrh7o0R1xx7PBocsoxTnLb) | 先预测再校正，误差协方差，历史 calibration 与在线更新 | 明确状态、观测、噪声模型和增益的来源，分别检验估计状态与拟合校准系数 |
-| [Jason 534a79f](https://github.com/jasonchengqs/speculative_mtp/commit/534a79f9c00854895d514a90a727575c0580dc10) | bonus 输入差值到同位置 final hidden 残差的回归，数据入口修复 | 来源复现基线，与自有输入／输出修正按位置、信息和成本对齐 |
+| R1：趋势是否有用 | 在同一表示、初始化、树与读出下，加入趋势优于零阶均值 | 若没有配对验收增量，停止扩高阶，先检查锚点与预测位置 |
+| R2：速度该由什么误差更新 | Holt 的预测残差同时修正位置与速度，比平滑原始位移更有用 | 若优势只来自锚点或初值，按因素报告，不归因为残差更新 |
+| R3：协方差增益是否有增量 | 相同状态与观测下，Riccati 增益递推优于固定增益 | 若与冻结增益持平，采用较简单方案，不宣称自适应增益有贡献 |
+| R4：输入还是输出表示 | 输出 hidden 在对应可用时间和固定读出下，可能提供更好的预测状态 | 若时点或读出不同，只作系统方案比较，不声称纯表示优势 |
+| R5：后续是否与仿射校准互补 | 验证后的状态方案与 Jason 校准各自提供增量 | 只有前四项有稳定结果后才登记组合，避免同时改多个因素 |
 
-### 状态估计主线
+新颖性与理论适用性尚未确证。经典 EMA、Holt 和 Kalman 是已有方法；需要证明的是它们在本任务中明确的状态、观测、时序与验收贡献。
 
-令 $y_t$ 表示当前正式路径上可取得的表示，可取输入 embedding 或该位置真实 hidden。$\beta$ 一律表示旧速度的保留权重，$\alpha$ 表示位置的新观测权重。$t$ 按观测位置计数，一次 forward 的多个提交按路径顺序吸收。
+# 二、符号与算法候选
 
-| **候选** | **估计与更新** | **决定性的对照** |
-| --- | --- | --- |
-| 零阶 EMA／ESP 参照 | $M_t=(1-\alpha)M_{t-1}+\alpha y_t$，向未来槽重复同一状态。与 ESP 对齐还要统一 prompt 均值初始化与逐 token 调度 | 已有输入零阶作为基线，输出路线另定义 hidden 到输入 mask 的映射 |
-| 原始差分 EMA | $V_t=\beta V_{t-1}+(1-\beta)(y_t-y_{t-1})$，锚点分别登记最近观测或零阶均值 | 先核对旧实现的锚点和速度，再分辨换锚点与换更新公式的效应 |
-| 一阶 Holt | $\hat M_t=M_{t-1}+V_{t-1}$，$\varepsilon_t=y_t-\hat M_t$，$M_t=\hat M_t+\alpha\varepsilon_t$，$V_t=V_{t-1}+\alpha(1-\beta)\varepsilon_t$ | 对齐初值时，$\alpha=1$ 与最近观测锚点的差分 EMA 速度相同。先验证这个边界，再看保留位置估计的影响 |
-| 一阶轨迹卡尔曼 | 状态为 $(M,V)$，以位置观测的同一残差修正二者，增益从误差协方差递推得到 | 与固定增益 Holt 共用表示、预测模型、读出层和验收，检验增益递推的增量 |
+沿用三份学习说明：[ESP](https://dreamsoul.feishu.cn/docx/NL8gdTBZioubwfxj0BKchWXVnib)、[EMA／Holt](https://dreamsoul.feishu.cn/docx/WNmAdTaxXoN5y5x1xydcBOH6nif)、[Kalman](https://dreamsoul.feishu.cn/docx/KpWVdcrh7o0R1xx7PBocsoxTnLb)。这些飞书入口需相应访问权限；以下正文独立说明实施所需合同。
 
-轨迹卡尔曼需写明 $F,H,P_0,Q,R$ 的含义和校准来源。首个候选可使用各表示维度共享的 $2\times2$ 协方差，作为待核验的简化假设。已知输入 embedding 的查表值确定，观测噪声在这里描述它对潜在轨迹的偏离。输出 hidden 的观测延迟及尺度映射单列，避免把前一位置预测出的 token 当成已有同位置 hidden。
+| **符号** | **含义** |
+| --- | --- |
+| $t$ | 已提交 token 的位置／观测索引，不是 forward 轮次 |
+| $y_t$ | 本次实际可取得的同位置表示；输入路线为 $E[x_t]$，输出路线为真实 final hidden $h_t$ |
+| $M_t,V_t$ | 吸收观测后的位置与每 token 趋势；不另用 L 表示位置 |
+| $\alpha$ | 位置新观测权重 |
+| $\beta$ | 旧速度保留权重，新位移权重为 $1-\beta$ |
+| $d,i,h$ | owner 的树深度、其第 i 个 soft slot、相对正式前缀的真实预测距离 $h=d+i$ |
+| $G_t=(g_{M,t},g_{V,t})^\top$ | 轨迹滤波的 Kalman 增益，来自协方差递推 |
+| $K_{\mathrm{out}}$ | Jason 的仿射回归系数，首阶段关闭，与 $G_t$ 不混用 |
 
-状态估计产生初步外推向量，校准层决定实际 soft mask 或草稿 logits。轨迹滤波增益与离线校准 K 各自记录。比较状态估计时先固定或关闭校准层，比较校准层时先固定状态估计。拟合 K 冻结／在线更新、临时 draft 条件化、残差预测和加速度状态保留为后续选项，先取得对应一阶对照的结果再扩展。
+## 1. 零阶 EMA／ESP
 
-### 观测来源、修正空间与验收
+输入路线以 prompt embedding 的算术均值初始化，按每枚正式提交的 token 更新：
 
-输入／输出有两个要分别记录的含义。一个是状态估计观察输入 embedding 还是输出 hidden，另一个是在模型输入处修正 soft mask，还是在前向后修正 final hidden／草稿 logits。Jason 的输出修正可以接在 ESP 输入均值探测之后。更换观测表示与更换修正位置分别是一个干预因素。
+$$M_t^{(0)}=(1-\alpha)M_{t-1}^{(0)}+\alpha y_t,\qquad m_{t,d,i}=M_t^{(0)}.$$
 
-目标解码仍是可研究项。首轮方法比较固定贪心验收。后续如研究采样，另登记提案概率、接受和拒绝后的修正规则并验证分布目标；如研究 beam，登记路径评分、beam 宽度与保留规则。T0 的逐提交 argmax 审计继续只对应贪心合同。
+基线取 $\alpha=0.1$。相同初始化、更新顺序与读取时点下，它是当前来源 ESP 均值 mask 的数学参照。逐步等价检查先在 CPU 做，不能只比较最终接受数。
 
-## 灵感、证据与假设
+## 2. 差分 EMA
 
-宏观目标是提高同模型推测解码的实际生成效率，让方法的收益和适用条件可以被复核。当前阶段先回答修正空间、校准分布与生成模式三个问题。输出 hidden 已包含上下文，因而可能比输入 embedding 更容易获得有用修正，这是待检验的机制假设。Holt 和轨迹卡尔曼是后续状态估计候选。
+$$V_t=\beta V_{t-1}+(1-\beta)(y_t-y_{t-1}).$$
 
-Jason 提交的 534a79f 以 d91ed75 为父提交，已核对完整 diff、Dolly loader、统一分词入口、前沿修正、拟合脚本和 Qwen3-8B BC30 配置。它有两个与本轮直接相关的修改。
+主对照采用 $m_{t,d,i}=M_t^{(0)}+hV_t$，与零阶保持同一个均值锚点，仅增加速度。另列末 token 锚点 $y_t+hV_t$ 和历史配置作为锚点消融，不能将锚点变化混入“差分更新更好”的解释。第一版关闭范数归一化、块内速度滚动和额外步长缩放。
 
-- Dolly 新增 all／none 类别选择及 offset，默认仍为 creative_writing。全类别记录的 category 字段目前统一写成配置值 all，按数据顺序取前 N 条。研究使用时须恢复原始类别和全库行号，记录真实类别分布。
-- Dolly 与 SpecBench 共用 encode_prompt，都会传入 chat_template_kwargs。Qwen3 的 enable_thinking=false 因此可在拟合采集端生效。入口没有强制关闭 thinking，实际采集配置仍须核实。
-- 同次提交还改变了 context 顺序、长输入处理和 EOS 收集。它没有改变 K 的拟合目标，fit_frontier_gain.py 只改了打印文字。尚未取得修正后实际采集命令、states 清单和冻结 K，因此不能据提交本身认定已完成修复后复验。
+## 3. Holt：先预测，再用同一残差修正位置与趋势
 
-来源为 [Jason 提交](https://github.com/jasonchengqs/speculative_mtp/commit/534a79f9c00854895d514a90a727575c0580dc10)、[Dolly loader](https://github.com/jasonchengqs/speculative_mtp/blob/534a79f9c00854895d514a90a727575c0580dc10/denoise_mtp/src/data/dolly.py) 和 [统一分词](https://github.com/jasonchengqs/speculative_mtp/blob/534a79f9c00854895d514a90a727575c0580dc10/denoise_mtp/src/data/tokenization.py)。
+$$
+\widehat M_t=M_{t-1}+V_{t-1},\qquad r_t=y_t-\widehat M_t,
+$$
+$$
+M_t=\widehat M_t+\alpha r_t,\qquad
+V_t=V_{t-1}+\alpha(1-\beta)r_t,\qquad
+m_{t,d,i}=M_t+hV_t.
+$$
 
-| **研究问题** | **待检验假设** | **会改变判断的结果** |
-| --- | --- | --- |
-| 修正空间 | 输出 hidden 的上下文化信息能带来更好的草稿 | 输出只改善拟合误差，或计入额外成本后没有接受和速度收益，就收窄“输出更好”的判断 |
-| 拟合分布 | 多类别校准在同等拟合预算下，比单类别更能迁移到未见 prompt 或类别 | 多类别在独立评测中不提高配对收益，或收益由样本量、输入长度差解释 |
-| thinking 设置 | 拟合与推理的模式不匹配削弱 K 的收益 | 对齐输入后，模式对照的收益差区间仍不足以确定方向，保留未决状态 |
-| 状态更新 | Holt 的位置残差反馈优于原始差分 EMA，协方差增益可在此基础上进一步改善 | 对齐观测和读出后，收益消失或成本抵消收益，就不推进更高阶状态 |
+这里 $\beta$ 是旧速度权重，对应经典 Holt 趋势平滑新权重 $\beta^*=1-\beta$。固定增益为 $[\alpha,\alpha(1-\beta)]^\top$。该重写依据 [Hyndman 与 Athanasopoulos，Holt 及误差校正形式](https://otexts.com/fpp3/exponential-smoothing.html)，不据时间序列理论声称 token 接受量必然改善。
 
-## 输入与输出的算法、信息和时点
+共同输入初值为 $M_0=\mathrm{mean}(E[\mathrm{prompt}])$、$V_0=0$，首次差分所需的 $y_0$ 是最后一个 prompt token 的 embedding。所有方法共享此初值；历史 provider 的 prompt-difference 预热另列，不默认等同。CPU 退化检查另用 $M_0=y_0$、相同 $V_0$、$\alpha=1$，核对 Holt 与末 token 锚点差分 EMA 的逐步等价；不能把该特殊初值的等价结论套到均值初始化。
 
-用 b 表示本轮确定的 bonus token，m_b 是这个位置在本次前向使用的 soft mask，c 是 b 后面的目标 token。Jason 用输入差值 d_b=E[b]-m_b 加截距，拟合最终归一化 hidden 的残差。
+## 4. 同一位置／趋势状态上的 Kalman
 
-$$u_b=[d_b;1],\qquad h_b^{\mathrm{corr}}=h_b^{\mathrm{probe}}+u_bK_{\mathrm{out}}.$$
+第一版对每个表示维度使用 $s_t=[M_t,V_t]^\top$，各维共享一个 $2\times2$ 协方差作为可检验的简化：
 
-修正发生在本轮验证得出 b 之后。下一轮同位置 root 的真实 hidden 提供标签，修正后的 hidden 经过 LM head 产生 c 的草稿分布。这里 K 是离线岭回归系数。公式具备残差校正形式，是否采用协方差递推属于另一项模型选择。[前沿修正实现](https://github.com/jasonchengqs/speculative_mtp/blob/534a79f9c00854895d514a90a727575c0580dc10/denoise_mtp/src/spec/frontier_gain.py#L105)
+$$
+F=\begin{bmatrix}1&1\\0&1\end{bmatrix},\qquad H=\begin{bmatrix}1&0\end{bmatrix},
+$$
+$$
+s_t^-=Fs_{t-1},\quad P_t^-=FP_{t-1}F^\top+Q,\quad
+G_t=P_t^-H^\top(HP_t^-H^\top+R)^{-1},
+$$
+$$
+r_t=y_t-Hs_t^-,\quad s_t=s_t^-+G_t r_t,\quad
+P_t=(I-G_tH)P_t^-(I-G_tH)^\top+G_tRG_t^\top.
+$$
 
-输入方案要同时给出预测目标和信号可用时间。b 已知时 E[b] 可以直接查表。若把 E[b] 当作同位置输入拟合目标并使用 d_b 作特征，映射存在恒等解 m_b+d_b=E[b]。这种配对只能检查数值和位置，不能作为未知未来 token 的预测证据。
+Holt 与该候选共用一步预测和残差，区别是增益来源。[Kalman 1960](https://people.duke.edu/~hpgavin/SystemID/References/Kalman-JBE-1960.pdf) 提供线性状态估计与误差协方差递推依据；embedding 轨迹是否符合线性、噪声和共同协方差假设仍需实测，不将最小均方误差性质推广为验收最优。
 
-| **候选** | **信号与操作** | **比较所回答的问题** |
-| --- | --- | --- |
-| 输出后修正 | 本轮前向结束后用已知 b 修正 h_b 的草稿分布，沿用 Jason 前沿位置 | 复现其同位置 hidden 残差修正的收益 |
-| 输入前修正 | 在探测前，用当时已提交历史和已获得残差修正未来槽 embedding，随后正常前向 | 可部署的输入修正策略是否有效。须逐项记录它比输出后修正少了哪些当轮信息 |
-| 同信息输入重算 | 得到 b 后修正同位置输入，并重新前向，取预测 c 的分布 | 对齐当轮信息后比较输入与输出干预。额外前向计入耗时，先作为机制对照 |
-| 无修正与独立 bias | 对应位置、树和模式下的基线；bias 在相同拟合集独立拟合 | 估计完整 K 相对基线和仅截距的增量 |
+输入 embedding 查表值是确定的。这里 R 描述表示对假设潜在轨迹的偏离，不声称 token 测量本身有随机仪器噪声。首版取固定 $Q=\mathrm{diag}(q_M,q_V)$、标量 $R>0$，使用 fit 段一步残差的均方尺度 $s^2$ 作归一化尺度；它是总创新的尺度，不是已识别出的真实 R。建议 $R=s^2$、$P_0=\mathrm{diag}(s^2,s^2)$，以 dev 选择 $q_M/R,q_V/R\in\{10^{-4},10^{-2},1\}$，小尺度使用仅由 fit 确定的数值下限并记录。
 
-输入前修正与输出后修正首先是系统方案比较。只有信号、目标 token 和可用时点一致时，才将差异归因于修正空间。输出在 b 位置的 logits 预测 c，输入 b 槽也须取得预测 c 的 logits，不能将输入 c 槽的输出与它错位比较。临时 draft 条件化可以作为后续输入特征，正式历史仍按提交路径更新。
+固定 Q/R 时，增益递推主要随协方差、步数和观测间隔变化，不能叫“按当前残差大小自适应”。增设相同 Q/R 的冻结稳态增益臂：只在 CPU 收敛后固定 $G_\infty$，若不收敛就记录未取得该对照。观测依赖的 Q/R 在线估计是后续独立因素，首阶段不加入。
 
-## 最小验证顺序与数据设计
+# 三、soft slot、观测与提交时序
 
-### 1. 先核对数据和位置合同
+## 真实预测位置
 
-核对前后版本的类别计数、prompt ID、文本拼接、模板参数、截断和 EOS。在固定原始文本上检查实际 prompt token，确认 fit 和 inference 的模式。用可控的小规模输入核对 probe、bonus、下一轮 root hidden 的同位置配对，额外前向记真实调用数。
+正式前缀末位置为 t，深度 d 的 owner 上第 i 个 soft slot 位于 t+d+i；主对照用真实距离 $h=d+i$ 读出状态预测。零速度时所有 owner 仍退化为同一均值，因此保持零阶基线。
 
-拟合采集、选正则与最终评测按 prompt 隔离，保留数据集全局 ID、原始类别、文本摘要和 token 摘要。Dolly 的旧类内 qid 与新 all 模式的 qid 不同，用原始 ID 和文本核对。既往八类切片、SpecBench 480 条及被反复使用的句式已经参与开发判断，明确作为开发证据，最终确认另留独立输入。
+所有趋势方法使用相同 owner／slot 映射。历史差分 provider 若只输出 $M+iV$ 再向每个 owner 复制，单独标为旧布局参照；不得把它与使用真实距离的 Holt／Kalman 差异全部归因为状态更新。现有解码器有 `masks_for_tree` 接口，具体 shape、缓存和未来槽位语义需先做 CPU 合同核对，再登记实现差距。
 
-### 2. 先复现 Jason 输出修正
+当前 draft ID 的 embedding 只构成候选树，不提前写入正式 $M,V,P$。首版只按真实距离预测，分支临时 draft 条件化后续另做一个因素。被拒分支丢弃临时状态；接受的 token 按顺序正式更新一次；更新不回改已计算的旧候选。
 
-建议先选共同已有的 Qwen3-8B，BC30、k=1、branches=[14] 作为来源对齐候选，以实际本地缓存和核实后的配置为准。已有办公室结果的 [4]、64 token 属于另一设置，单独比较。固定权重、模板、EOS、生成长度、dtype、后端和贪心验证，在同批评测 prompt 上比较无校正、独立 bias 和完整冻结 K。
+## 输入与输出的可用时间
 
-先报告拟合标签的误差与开发集 cov@14，再报告完整解码的提交数、接受数、调用数和 τ。Jason 拟合脚本会在选正则及内部 report 后，用全部采集数据重拟合最终 K。最终 K 的解码评测使用独立 prompt，内部 report 分数按对应的旧拟合子集解释。[拟合脚本](https://github.com/jasonchengqs/speculative_mtp/blob/534a79f9c00854895d514a90a727575c0580dc10/denoise_mtp/scripts/fit_frontier_gain.py#L79)
+- 输入路线：验证确定 token 后立即查到 $E[x_t]$，包括 bonus；一轮提交多个 token，按位置顺序更新。
+- 输出路线：只吸收实际前向中、正式路径上已经得到的同位置 final hidden；bonus 的 hidden 通常在下一轮 root 才到达。选出的 token embedding 不能冒充真实 hidden。
+- 必须保存目标位置 p、来源 forward、可用时刻、是否已正式提交和同一前缀身份。标签稀疏时按 $\Delta p$ 推进：$F(\Delta p)=\left[\begin{smallmatrix}1&\Delta p\\0&1\end{smallmatrix}\right]$，Q 也按同一单位步长模型累计；没有观测不做测量校正。
+- 输出 hidden 进入模型输入前需固定共同读出映射 $T_{\mathrm{read}}$。不能因输入／输出同维就直接视为相同空间；各个输出状态算法共用该映射，不在 eval 调尺度。
 
-### 3. 分开检验类别覆盖与 thinking
+先在输入路线比较状态阶数，再在输出路线内部比较同一阶数。输入与输出的信息时点无法对齐时，只比较可部署系统方案。必须额外前向才能取得的观测单列；为方便对照补一次 AR 不能悄悄不计入前向预算。
 
-在来源方法建立后，采用下列拟合条件，统一在关闭 thinking 的同批输入上评测。开／关均显式写出，先验证实际模板产物。其余分词处理沿用同一版本。
+# 四、实验顺序与判读
 
-| **拟合数据** | **拟合 thinking** | **推理 thinking** |
-| --- | --- | --- |
-| creative_writing 单类别 | 关 | 关 |
-| creative_writing 单类别 | 开 | 关 |
-| 按原始类别分层的多类别 | 关 | 关 |
-| 按原始类别分层的多类别 | 开 | 关 |
+| **阶段** | **比较** | **固定条件与判据** | **当前状态** |
+| --- | --- | --- | --- |
+| E0 数学和时序合同 | 零阶等价、Holt 退化、单位步／跳步、owner 深度、拒绝分支与多提交 | CPU 定点序列核对，预测纯读，P 对称且半正定；不覆盖历史源码 | 待实施 |
+| E1 输入零阶与一阶 | ESP／零阶、同锚点差分 EMA、Holt、Kalman 固定 Q/R、对应冻结增益 | 同初值、同读出距离、BC30、贪心；Jason 校准与其他 blend 关闭 | 当前首要实验 |
+| E2 因素拆分 | 均值／末 token 锚点、旧／真实距离布局；必要时比较趋势步长 | 从 E1 的具体差异出发补关键对照，不扫全部组合 | 等待 E1 |
+| E3 输出状态路线 | 输出零阶、差分、Holt、Kalman | 同一真实 hidden 观测流、相同延迟与读出映射，先做路线内比较 | 等待输入合同与 E1 |
+| E4 确认与迁移 | 冻结参数，独立输入、类别、数据集与生成长度 | 主比较与停止条件先锁定，保留负结果与输出差异 | 有开发信号后推进 |
+| E5 与 Jason 校准组合 | ESP／选定状态 × 校准关／开，至少四格 | 固定状态参数，必要时为各特征分布独立拟合并对齐预算，检验交互 | 明确推迟 |
 
-四个条件分别采集 states、选择正则并拟合 K。建议将输入行数预算固定，每条生成上限相同，另报告真正进入拟合的配对数、长度和 token 数。若配对预算差异足以改变结论，补同等配对数的敏感性对照。原始顺序前 N 条的 all 模式可用于来源复现，多类别效应对照使用预先固定的分层抽样。
+E1 的建议 dev 范围为：零阶固定 $\alpha=0.1$；差分 EMA 仅比较 $\beta\in\{0.9,0.99,0.9999\}$；Holt 比较 $\alpha\in\{0.1,0.5,1\}$ 与同一组三个 $\beta$；Kalman 比较上述九组 Q/R 比值，冻结增益复用同一组选定参数。它们是不同大小的有界搜索，需报告每个算法的搜索条件数，不能称完全同等调参预算。若开发结果不稳，再预登记同等搜索预算的敏感性检查。
 
-此四格回答拟合类别覆盖和拟合模式在固定非 thinking 推理下的作用。若需区分“模式不匹配”与“thinking 拟合本身的影响”，在选定数据条件上再补推理 thinking 开的匹配对照，并重算该模式自己的无修正基线。每次改变 context 顺序、截断或 EOS 时单列处理因素。
+参数只按 dev 验收指标选取，MSE 和 cov@14 不单独决定胜者。多个配置 dev 得分相同时，优先预先固定的较简单配置，不看 eval 决定。确认前锁定一个主要比较，例如 Kalman 对同状态 Holt；三份校准抽样不构成大样本的校准不确定性证明。
 
-### 4. 比较修正空间与泛化
+# 五、数据、模型和资源
 
-先在相同 fit/dev/eval 划分和非 thinking 条件下比较上节三种输入／输出候选。纯空间机制比较采用同信息输入重算，效率比较采用可部署的输入前修正与输出后修正，并计入各自成本。
+## 数据隔离
 
-对选定方法区分同类别未见 prompt、拟合中未见类别、不同数据集。多类别拟合覆盖了某一类别时，该类别上的新 prompt 是类内留出。要主张未见类别迁移，另做留一类别拟合。先固定已校准 K 再读评测集，不在跨数据集评测端重选。
+初步建议继续使用固定 HF Dolly `bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a`，保留原始八类和全局行号。先按每类预留 eval，再抽 dev 与 fit；候选规模为 fit32/dev8/eval32，各类分别为 4/1/4。使用三份独立 fit/dev 抽样与同一预留 eval，以便对相同 prompt 配对。种子建议 20261128、20261129、20261130，执行前冻结实际清单并排除本轮已使用的全部文本。
 
-## 判读、预算与后续状态估计
+SpecBench 有 13 类，其中八类各 10 条，不能再把剩余五类的评测说成十三类均衡确认。以后复用其旧输入只作开发证据；新的正式确认可先预留 Dolly eval64（每类8条），并继续寻找独立数据集。当前计划不把已经参与选择的输入重新包装为最终盲测。
 
-主比较报告逐 prompt 的完整 K 相对独立 bias、相对无修正的配对收益，至少包括接受数差、合计 τ 及其配对差。报告按 prompt 重采样的 95% 区间和逐类别结果，区间覆盖零时保留未决。确认前登记主要比较、重复的校准抽样、样本量与判断阈值，功效与预算依据小规模方差和可用资源确定，避免把四格中的最优开发结果当成独立确认。
+输入模板、thinking=false、截断、EOS、原始文本摘要和实际 token ID 固定。各方法在同一输入与目标解码规则下生成，输出长度不同必须随表报告。若重复校准，配对 bootstrap 条件于冻结参数与跨校准的不确定性分开报告，不能把三次使用同一 eval 当成三批独立 prompt。
 
-T0 审计覆盖完整实际提交链，失败时先排查实现。独立 AR 一致率按既定规则单列诊断。只有实际量过的耗时才报告速度，计入额外前向、hook、投影和同步成本，校准成本单列。hidden MSE 和 cov@14 是机制指标，不能替代接受或速度收益。若配对方向不稳、拟合收益不能迁移，先复核数据、位置和信息条件，保留负结果。
+## 模型与预算状态
 
-本轮采用两条研究主线。状态估计线按零阶参照、原始差分 EMA、固定增益 Holt、协方差增益卡尔曼建立递进对照。来源校准线按 Jason 核对与复现、拟合分布与模式、输入／输出干预比较推进。各线先固定表示、校准与验收，再在有证据的配置上组合。更高阶状态在一阶趋势获得可复核证据后讨论。最终模型与数据规模、GPU 预算、运行日期、同步和发布状态均待实际执行时确认。
+候选先复用已有 Qwen3-0.6B 做有界连通检查，再在已有 Qwen3-4B 上做主比较。先固定 BF16、eager、单 mask、branches=[14]、BC30、最多512输入 token、最多64生成 token；有信号后才登记256-token和其他树预算。不下载新权重，不替换 CUDA torch，不与其他 GPU 作业同时派发本研究进程。
 
-# 五、和开发计划的关系
-要检验的主张和已经改变判断的结果在第二章。代码、目录和工程验收在 [开发计划](<开发计划 Development Plan 去噪推测解码.md>)。已归档 Run 的计数不因后来的解码器改动而回签。
+下一轮 GPU 总时长建议不超过60分钟，按 CPU 合同、0.6B 先导、4B dev、配对 eval、分析收尾顺序登记；这是预算建议，本次仅提交文档，不自动开始执行。执行时先冻结源码、权重、数据、配置与新 Run，按实际设备占用决定缩减规模；缩减须在看 eval 结果前记录。资源不足、数值非有限、P 异常或 T0 失败时停止相关阶段并保留回执，不用墙钟收益替代缺失的接受量结果。
+
+# 六、评价合同与停止条件
+
+1. **A**：最终保留的 draft token 数，不计 bonus、prefill 和被 EOS／长度截断丢弃的候选。
+2. **C**：decode 验证调用数；任何额外前向单列计数与用途。
+3. **S**：decode 实际提交数，含保留 draft 与 bonus，不含 prefill 首 token。
+4. **A/C 与 $\tau=S/C$**：分别衡量每次验证的 draft 接受量和总提交量。τ 用合计 S／合计 C，逐 prompt 配对差及区间另列，不混成 token/s。
+
+固定输入、模型、生成预算、树与数值设置；同时报告真实输出长度、A、C、S、A/C、τ、逐类别结果和输出一致性。完整提交链验证前向 argmax 审计为 T0 门，独立 AR 一致率只诊断；不恢复已停止的 BF16 算子机理排查，不推广采样分布保证。
+
+若一阶方案对零阶的配对方向不稳，先核对初始化、锚点、真实距离和标签时点，不继续加速度状态。若 Kalman 对 Holt／冻结增益无验收增量，停止把协方差递推作为已证贡献。若 MSE 下降而 A/C、τ 无改善，保留为机制负结果。暂停项只有在出现对应新证据或新设计、并登记范围与预算后恢复；旧长矩阵和历史登录态不构成执行授权。
+
+# 七、Jason 方案的后续位置
+
+已完成的是来源方法的收益方向复核：例如 SpecBench 校准后冻结 K，跨到 Dolly HF 的 τ 从1.4160提高到1.5879。它不是完整 Kalman，也不是我们新的状态估计算法；目前不继续围绕该 K 扩大搜索矩阵。
+
+以后在状态路线有稳定增量后，单独开组合问题：校准关时比较状态，状态固定时比较校准，最后以四格检验互补或替代。状态改变会改变 placeholder 和输入差值分布，旧 K 不应默认仍是同分布；需要重拟合时，对齐校准 prompt 数、有效配对数与模式，并在迁移端保持冻结。
+
+# 八、工程承接与证据入口
+
+实现工作在[开发计划](<开发计划 Development Plan 去噪推测解码.md>)登记，模块和合同分别由[架构设计](<架构设计 Architecture Design 去噪推测解码.md>)、[代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)承接。现有带 Kalman 名称的历史 provider 需逐一核对状态与观测，不能仅凭名称当作本文一阶候选已实现。
+
+第一项工程工作是核对 `masks_for_tree`、实际接受后更新、hidden 可用时间与截断计数，再实现最小状态模型。新机制仍位于 `structure/flow` 两柱内，不为研究另建 decoder 或复制第三方来源树。未完成实现、未执行实验、未验证假设分别保留状态。
+
+数学来源阅读范围为三份既有算法说明、Hyndman 与 Athanasopoulos 的 Holt／误差校正章节、Kalman 1960 的状态与协方差递推部分；本轮未开展全量新文献检索，最接近的 SD 状态预测工作及新颖性比较仍需后续文献调研补齐。既有学术证据从[文献调研](<调研 Search/文献调研 Literature Search/文献调研 Literature Review 去噪推测解码.md>)进入，工程机制从[通用调研](<调研 Search/通用调研 General Search/通用调研 General Research 去噪推测解码.md>)进入。
