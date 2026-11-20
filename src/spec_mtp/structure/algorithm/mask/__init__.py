@@ -1,6 +1,7 @@
 """Mask providers, K-fit math, and the method-name registry."""
 
 from spec_mtp.structure.algorithm.mask.factory import build_mask_provider
+from spec_mtp.structure.algorithm.mask.trajectory import InputTrajectoryMaskProvider
 from spec_mtp.structure.algorithm.mask.fit import (
     RIDGE_GRID,
     apply_lowrank_delta,
@@ -35,6 +36,7 @@ __all__ = [
     'EMAVelocityMaskProvider',
     'ESPMaskProvider',
     'HybridGainKalman',
+    'InputTrajectoryMaskProvider',
     'KalmanMaskProvider',
     'ObservationBlendMaskProvider',
     'OnlineVerifyKalman',

@@ -324,6 +324,8 @@ forbidden_modules =
 旧 `spec-mtp make/launch/process` 会明确拒绝并指向 `python -m studies._shared.flow.cli`。删除历史 Study、第三方树或原始数据不在本次范围。
 
 ## 已经落位的部分
+
+本次输入状态模型落位于 `structure/algorithm/mask/trajectory.py`，集中维护共同初始化、零阶／差分／Holt／二状态 Kalman 递推、稳态增益求解和纯树距离读出。`factory.py` 仅注册 `input_trajectory` 并拒绝未定义的组合，既有 provider 不迁移、不改数学。`decode/loop.py` 继续独占提交时序，追加最终保留接受量。新增测试分别镜像 `tests/spec_mtp/structure/algorithm/mask/` 与 `decode/`，登记到现有 manifest，不添加新运行器。
 科学 CLI 不再代理研究调度。Study 共享接入在 `studies/_shared/`。K 的三个科学函数和 collect/summarize/process 仍在该 Study 的 `structure/` 与 `flow/`。`structure/algorithm/reference` 只保留不可改的 ESP 来源树。只读来源 manifest 覆盖科学包与被复用的 `_shared` 接入。步骤 5–8 还没有开始。
 
 `.importlinter` 仍检查扁平模块。两柱方向由 `tests/spec_mtp/test_structure_flow_gates.py` 执行；工具未跑 Import Linter 时，不把那份目标合同写成已经生效。`tests/manifest.json` 声明函数级元数据并展开 pytest 参数 ID，`tests/run.py` 将每个参数/阶段/attempt 的证据写到外部新目录。历史读端测试通过 `tests/conftest.py` 的共享 `historical_file` fixture，从固定 `b8b20b5ada7fd860894114cbf224ce749af430cf` 按需读取不可变 Git blob 到测试临时目录，逐对象及写入字节校验；缺对象明确失败。原15个参数项恢复为必需覆盖，现清单没有历史排除；分析器与校验门仍执行当前源码，旧源码仅作来源哈希输入，不导入执行，不重跑历史模型。其余收集项无遗漏才执行。

@@ -51,6 +51,15 @@ def _clock():
     return float(value)
 
 
+def _acceptance_metrics(stats):
+    """Final retained-token accounting, separate from legacy pre-trim accepts."""
+    calls = stats['decode_calls']
+    return {'protocol': 'retained-acceptance-v1', 'A': stats['retained_accepted'],
+            'C': calls, 'S': stats['committed'],
+            'accepted_per_call': stats['retained_accepted'] / calls if calls else None,
+            'tau': stats['committed'] / calls if calls else None}
+
+
 def _elapsed(started):
     if started is None:
         return None
@@ -209,7 +218,7 @@ class SpecDecoder:
         # so temperature > 0 stays token-identical to ar_generate.
         provider = self.mask_policy
         stats: dict[str, Any] = {'prefill_calls': 0, 'decode_calls': 0, 'accepted': 0,
-                 'committed': 0, 'hit_context_limit': 0, 'trace': [],
+                 'retained_accepted': 0, 'committed': 0, 'hit_context_limit': 0, 'trace': [],
                  # Draft attempts/accepts at depth 1..3. An attempt is a
                  # sampled token that had tree children to match; the bonus
                  # token past the last child is not an attempt. Counted before
@@ -218,6 +227,7 @@ class SpecDecoder:
                  'accept_by_depth': [0, 0, 0, 0]}
 
         self.stats = stats
+        stats['acceptance_metrics'] = _acceptance_metrics(stats)
         self.committed = []
         if self.max_new_tokens == 0 or self._poll_cancel():
             stats.update(new_tokens=0, prefill_time=0., decode_time=0.,
@@ -352,6 +362,7 @@ class SpecDecoder:
             cache = out.past_key_values
             logits = out.logits[0]                                    # [block, V]
             stats['decode_calls'] += 1
+            stats['acceptance_metrics'] = _acceptance_metrics(stats)
 
             # Verify: walk the model's own prediction chain through the tree.
             cur = 0
@@ -391,6 +402,10 @@ class SpecDecoder:
                 committed_now = committed_now[:remaining]
                 stop = True
 
+            # Accepted drafts precede the bonus. A retained EOS draft counts;
+            # candidates after EOS/budget, and the bonus, do not count as A.
+            retained_nodes = accepted_nodes[:len(committed_now)]
+
             for index, token in enumerate(committed_now):
                 new_embed = model.embed(torch.tensor([[token]], device=device))[0, 0]
                 if not self.output_hidden:
@@ -398,6 +413,8 @@ class SpecDecoder:
                 prev_token_embed = new_embed
                 committed.append(token)
                 stats['committed'] += 1
+                stats['retained_accepted'] += int(index < len(accepted_nodes))
+                stats['acceptance_metrics'] = _acceptance_metrics(stats)
                 record = choices[choice_offset + index] if self.temperature <= 0 else {
                     'forward': stats['decode_calls'], 'row': ([0] + accepted_nodes)[index], 'argmax': None}
                 self._emit({'event': 'commit', 'index': len(committed) - 1,
@@ -411,6 +428,7 @@ class SpecDecoder:
             stats['trace'].append({
                 'root_position': root_position, 'cache_before': cache_len,
                 'accepted_nodes': list(accepted_nodes), 'committed_tokens': list(committed_now),
+                'retained_accepted_nodes': list(retained_nodes),
                 'stopped': stop, 'cache_after': None,
             })
             if self.output_hidden:
@@ -463,6 +481,7 @@ class SpecDecoder:
         if verify_open:
             stats['verify_seconds'] = verify_total
         stats['new_tokens'] = len(committed)
+        stats['acceptance_metrics'] = _acceptance_metrics(stats)
         stats['termination_reason'] = ('cancelled' if self.was_cancelled else
             'context' if stats['hit_context_limit'] else 'eos' if self._is_eos(committed[-1]) else 'budget')
         stats['block_complexity'] = self.nominal_block_complexity

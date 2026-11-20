@@ -7,7 +7,7 @@
 
 2026年11月20日新增来源校准研究：在外部固定的 Jason 源码快照上，使用已有 0.6B／4B 模型开展 GPU 三臂、校准类别与 thinking 对照。该结果属于来源方法验证，不改变上述本仓实现状态。当前方法比较以实际接受量和 τ 为主，共享电脑的墙钟计时不用于判断收益。方案见[研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)，实际结果与论文接受量表见[前沿校准研究](<docs/运行记录 Run Record/2026-11-20 六十分钟前沿校准研究.md>)。
 
-当前研究主线已切回零阶 EMA、差分 EMA／Holt 与轨迹 Kalman：先关闭额外仿射校准，比较状态估计、输入／输出观测和实际接受量，再研究与 Jason 校准的组合。当前只更新计划，尚未启动这一轮 GPU；算法与实验顺序见[研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)。
+当前研究主线已切回零阶 EMA、差分 EMA／Holt 与轨迹 Kalman：先关闭额外仿射校准，比较状态估计、输入／输出观测和实际接受量，再研究与 Jason 校准的组合。输入路线已有共同初始化的独立实现，新增真实树距离和最终保留接受量；输出路线与新一轮 GPU 仍待实施。算法与实验顺序见[研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)。
 
 # 一、文档入口
 | **文档** | **维护内容** |
@@ -27,6 +27,21 @@
 当前安装包为 `denoise-spec-mtp`。`spec_mtp` 与每个 `studies/<name>/` 的目标布局都是 [RPipe](https://github.com/DreamSoul-AI/RPipe) 的 `structure/` 与 `flow/` 两柱：`structure` 定义一次 Run 由什么组成，`flow` 运行阶段链。顶层只保留 `__init__.py`、`__main__.py` 和薄入口。新增机制必须先落在这两柱里；要改这条规则，先改代码结构设计。解码合同在 `structure/api/decode_api.py`。树构造、节点编辑、树注意力和解码循环在 `structure/algorithm/decode/`。mask provider、K 拟合和注册表在 `structure/algorithm/mask/`。`contracts.py`、`tree.py`、`masks.py` 与 `decode.py` 已删除，调用方导入这些真实路径。其余解码内容仍在 `data.py`、`model.py`、`audit.py`、`analysis.py`、`cli.py`，Study 顶层还有一批历史脚本。这些仍是冻结遗留，迁移分步进行。流程骨架已经在 `spec_mtp.flow` 与 `spec_mtp.structure`，不再内嵌 `src/rpipe/` 副本，也不再 `import rpipe`。`python -m spec_mtp` / `spec-mtp` 提供 `decode/audit/compare`；旧 make/launch/process 研究命令明确拒绝并提示使用 `python -m studies._shared.flow.cli`。
 
 第三方 ESP 来源树及 `ORIGIN.json` 保留，不能把它称为作者官方实现。原始 SpecBench 数据保留于 `datasets/spec_bench/question.jsonl`。
+
+输入轨迹通过现有 `spec` 配置启用，树、模型与输入来源沿用既有合同。例如以下片段选择 Holt：
+
+```yaml
+spec:
+  method: input_trajectory
+  num_masks: 1
+  impl: efficient
+  tree: {mode: static, branches: [14], pruning: true}
+  trajectory: {kind: holt, alpha: 0.1, beta: 0.9, horizon: owner_depth}
+```
+
+`kind` 可选 `order0`、`difference`、`holt`、`kalman`、`fixed_gain`。所有新策略使用 float32 状态、prompt 均值 M 与零速度 V；历史 ESP／EMA provider 保持原行为，BF16 逐步舍入不承诺与 float32 零阶逐位相同。`difference` 可用 `anchor: last` 作锚点对照；`horizon: slot` 保留仅槽位距离的布局对照，默认真实距离为 owner 深度加槽号。Kalman 的 `q_level/q_velocity/r/p0` 为共享尺度下的 Q/R/P0 系数，默认 0.01/0.01/1/1；`fixed_gain` 使用同一组参数实际求解的稳态增益。`alpha/beta` 用于零阶／差分／Holt；Kalman 与冻结增益的修正权重由 Q/R/P0 决定，不使用这两个平滑系数。递推不读取 draft token 作为正式观测，也不组合旧的 observation／K 校正。
+
+新统计 `acceptance_metrics` 输出裁剪后 A、C、S、`accepted_per_call` 与 `tau`；零调用比值为 null。旧 `accepted` 和深度接受计数保留裁剪前意义，旧汇总函数也保留该口径；新研究应明确读取新协议，不能混用两者。实现边界和验证证据见[输入轨迹开发记录](<docs/开发记录 Development Record/2026-11-20 输入轨迹状态实现.md>)。
 
 科学 CLI 的 `decode` 必须显式提供 `--model-sources <JSON>`：清单位于模型目录外，以相对路径映射该完整、自包含的本地模型目录内全部文件的 SHA256，不缺项、不含目录外成员。输出也放在模型根外；解析后逃逸模型根的符号链接会被拒绝，不直接承诺兼容引用外部 blobs 的 Hub 快照。载模前、运行头及结束记录写出前分块读取核验实际文件；漂移时保留部分观测，不写完成末行。运行头另记实际模型 config、backend、device、dtype 和能力，调用者原 `sources` 标签保持原义。审计带模型来源的新记录时使用 `audit <raw> --sources <标签JSON> --model-sources <原模型清单JSON>`；缺少独立模型清单不能记来源完整。旧无模型来源字段的记录仍只比较原标签，不代表重新验证实际模型。`audit/compare` 不加载模型或重新生成观测。
 

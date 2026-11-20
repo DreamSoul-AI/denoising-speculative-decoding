@@ -1,5 +1,7 @@
 """Method-name registry for mask providers."""
 
+from spec_mtp.structure.algorithm.mask.trajectory import InputTrajectoryMaskProvider
+
 from spec_mtp.structure.algorithm.mask.providers import (
     AlignedResidualKalman,
     BonusSlotMaskProvider,
@@ -16,6 +18,16 @@ from spec_mtp.structure.algorithm.mask.providers import (
 
 
 def build_mask_provider(spec_cfg, embedding_table, generator=None):
+    if str(spec_cfg.get('method', 'esp')).lower() == 'input_trajectory':
+        incompatible = ('observation', 'bonus_slot', 'correction', 'kalman_merge',
+                        'kalman_align', 'hybrid_gain', 'output_kalman')
+        if any(spec_cfg.get(key) is not None for key in incompatible):
+            raise ValueError('input_trajectory does not combine with mask corrections')
+        cfg = spec_cfg.get('trajectory', {})
+        allowed = {'kind', 'alpha', 'beta', 'anchor', 'horizon', 'q_level', 'q_velocity', 'r', 'p0'}
+        if not isinstance(cfg, dict) or not set(cfg) <= allowed:
+            raise ValueError('spec.trajectory has an unknown field or is not a mapping')
+        return InputTrajectoryMaskProvider(spec_cfg.get('num_masks', 1), **cfg)
     observation = spec_cfg.get('observation')
     bonus = spec_cfg.get('bonus_slot')
     correction = spec_cfg.get('correction')

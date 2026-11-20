@@ -65,6 +65,15 @@ flowchart LR
 
 `mask_policy` 由装配或 Study 为每条 prompt 创建，提供初始化、块内预测和提交后更新，声明是否需要 normalized hidden。decoder 只使用其行为合同，不按 Study 名加载类。输入/输出 provider 保留不同的实际观测需求，不强制制造无用 hidden。K 当前 postcommit CPU pilot 只提取同位置表示对与回归，不经过真实 speculative slot，也不以该策略接口暗示已具备起草应用。
 ## （三）科学不变量
+
+输入轨迹策略单独拥有每条 prompt 的 M、V、上次正式观测和提交步数。共同初始化为 prompt 均值与零速度；差分观测起点为 prompt 最后一个 embedding。Kalman 采用每个 embedding 分量的二状态模型，共享一个二阶协方差，固定 Q/R；该简化不宣称跨分量最优或基于残差自适应噪声。稳态冻结增益须实际收敛，否则拒绝配置。
+
+`covariance`、`process_noise` 与 `measurement_noise` 保存共同尺度下的归一化 P/Q/R。实际 P、Q、R 同乘正数 s² 不改变 G，因此输入版直接递推无量纲系数，不声称已经从 fit 数据识别绝对噪声或得到物理单位下的 P。默认 P0=I、Q=diag(0.01,0.01)、R=1；冻结增益模式从同样参数求稳态，再以稳态 P/G 开始状态修正，M/V 的共同初值保持不变。
+
+`masks()` 为 prefill 给出一基 slot 距离的预测，`masks_for_tree(tree)` 为 root 和各节点 owner 给出 `[owner, slot, embedding]`，真实距离为 `owner_depth + slot`；可显式切到仅 slot 的受控布局。二者都是纯读取。只有 decoder 对 EOS／预算裁剪后实际提交的输入 embedding 可以修正正式状态，bonus 也逐 token 修正。新策略不与旧 observation／K wrappers 自动组合。
+
+接受量追加独立口径：A=`retained_accepted`（裁剪后仍输出的 draft token），C=`decode_calls`，S=`committed`（decode 阶段实际输出，含 bonus，不含 prefill 首 token）。旧 `accepted` 保留裁剪前意义；A/C 和 S/C 在 C=0 时为 null。原始逐轮 trace 同时保留验证路径与最终保留路径。
+
 - 每条生成有独立 committed 状态与 RNG，prompt 切换后不残留上一条 mask/KV。prefill 产生首 token，不能被漏审
 - 仅实际提交 token 更新 input mask 长期历史；输出长期状态仅使用已提交位置的真实 normalized hidden。预测 proxy 和块内模拟只活在当前块
 - 树节点有稳定 parent/depth/position/owner 映射。验证接受路径、bonus 与 mask-logits seed 在同一映射下解释，错误 owner 即失败
