@@ -74,6 +74,8 @@ flowchart LR
 
 接受量追加独立口径：A=`retained_accepted`（裁剪后仍输出的 draft token），C=`decode_calls`，S=`committed`（decode 阶段实际输出，含 bonus，不含 prefill 首 token）。旧 `accepted` 保留裁剪前意义；A/C 和 S/C 在 C=0 时为 null。原始逐轮 trace 同时保留验证路径与最终保留路径。
 
+E1 Study 对每个实际提交落盘 raw，并将完整模型清单及实际模型说明附于 header。模型全部文件与冻结源码在每个模型阶段前、dev→eval 边界和结果终态前核对；为避免每条 prompt 重复读取全部权重，不使用科学 CLI 的逐 prompt 全量重哈希路径。任一末尾核对失败不产生完成 summary，已落盘观测作为部分证据保留。选择清单先于 eval 写入，评测结果不进入参数选择；离线分析仅使用新协议，不回签旧计数。
+
 - 每条生成有独立 committed 状态与 RNG，prompt 切换后不残留上一条 mask/KV。prefill 产生首 token，不能被漏审
 - 仅实际提交 token 更新 input mask 长期历史；输出长期状态仅使用已提交位置的真实 normalized hidden。预测 proxy 和块内模拟只活在当前块
 - 树节点有稳定 parent/depth/position/owner 映射。验证接受路径、bonus 与 mask-logits seed 在同一映射下解释，错误 owner 即失败

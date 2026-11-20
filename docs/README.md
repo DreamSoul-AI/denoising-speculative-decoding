@@ -7,6 +7,7 @@
 | 项目说明与使用 | [README.md](../README.md) |
 | 仓库专用工作约定 | [REPO.md](../REPO.md) |
 | 开发记录 | [INDEX.md](<开发记录 Development Record/INDEX.md>) |
+| 研究阶段结论 | [输入状态首轮比较](<研究记录 Research Record/2026-11-21 输入状态首轮比较.md>) |
 | 运行记录 | [INDEX.md](<运行记录 Run Record/INDEX.md>) |
 | 调研与证据 | [调研与证据](<调研 Search/README.md>) |
 | 设计与合同 | [设计与合同](<设计 Design/README.md>) |

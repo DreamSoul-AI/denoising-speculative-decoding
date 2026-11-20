@@ -325,6 +325,8 @@ forbidden_modules =
 
 ## 已经落位的部分
 
+E1 的有界实验入口为 `studies/trajectory_observation/flow/input_state.py`，只解析冻结配置并转调 `structure/input_state.py`。后者负责固定的八类抽样、模板编码、候选配置、dev 选择、逐提交审计和 stage 边界来源检查，不复制 decoder 或通用调度器。`structure/input_state_analysis.py` 只读新协议 A/C/S，按 prompt 配对重采样合计 τ 差，不加载模型。测试位于相同 Study 的 `structure/test_input_state.py`。运行源码从外部快照加载，后续分析代码变更不替换正在执行的版本。
+
 本次输入状态模型落位于 `structure/algorithm/mask/trajectory.py`，集中维护共同初始化、零阶／差分／Holt／二状态 Kalman 递推、稳态增益求解和纯树距离读出。`factory.py` 仅注册 `input_trajectory` 并拒绝未定义的组合，既有 provider 不迁移、不改数学。`decode/loop.py` 继续独占提交时序，追加最终保留接受量。新增测试分别镜像 `tests/spec_mtp/structure/algorithm/mask/` 与 `decode/`，登记到现有 manifest，不添加新运行器。
 科学 CLI 不再代理研究调度。Study 共享接入在 `studies/_shared/`。K 的三个科学函数和 collect/summarize/process 仍在该 Study 的 `structure/` 与 `flow/`。`structure/algorithm/reference` 只保留不可改的 ESP 来源树。只读来源 manifest 覆盖科学包与被复用的 `_shared` 接入。步骤 5–8 还没有开始。
 

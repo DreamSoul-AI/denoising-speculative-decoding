@@ -4181,6 +4181,54 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_input_state.py::test_e1_reserves_unseen_balanced_eval_before_dev",
+      "target": "studies.trajectory_observation",
+      "level": "unit",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_input_state.py::test_e1_selection_requires_dev_pairs_and_preserves_declared_ties",
+      "target": "studies.trajectory_observation",
+      "level": "unit",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_input_state.py::test_e1_grid_keeps_tree_and_corrections_fixed",
+      "target": "studies.trajectory_observation",
+      "level": "unit",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_input_state.py::test_e1_template_is_rendered_before_explicit_token_encoding",
+      "target": "studies.trajectory_observation",
+      "level": "unit",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_input_state.py::test_e1_bootstrap_resamples_pairs_and_rejects_missing_prompts",
+      "target": "studies.trajectory_observation",
+      "level": "unit",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/trajectory_observation/structure/test_input_state.py::test_e1_analysis_reaudits_raw_and_rejects_changed_row",
+      "target": "studies.trajectory_observation",
+      "level": "integration",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {
