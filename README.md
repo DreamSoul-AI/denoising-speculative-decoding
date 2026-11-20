@@ -7,7 +7,7 @@
 
 2026年11月20日新增来源校准研究：在外部固定的 Jason 源码快照上，使用已有 0.6B／4B 模型开展 GPU 三臂、校准类别与 thinking 对照。该结果属于来源方法验证，不改变上述本仓实现状态。当前方法比较以实际接受量和 τ 为主，共享电脑的墙钟计时不用于判断收益。方案见[研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)，实际结果与论文接受量表见[前沿校准研究](<docs/运行记录 Run Record/2026-11-20 六十分钟前沿校准研究.md>)。
 
-当前研究主线已切回零阶 EMA、差分 EMA／Holt 与轨迹 Kalman：先关闭额外仿射校准，比较状态估计、输入／输出观测和实际接受量，再研究与 Jason 校准的组合。当前只更新计划，尚未启动这一轮 GPU；算法与实验顺序见[研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)。
+当前已完成8B input/output固定八臂比较：input零阶τ=1.5030；output零阶1.2331、Kalman1.3011。output Kalman对自身零阶有正向差异，但这版固定读出下output整体落后input。条件、接受量和区间见[8B路线比较](<docs/研究记录 Research Record/2026-11-21 8B输入输出路线比较.md>)与[运行记录](<docs/运行记录 Run Record/2026-11-21 8B输入输出状态比较.md>)；4B E1保留在[首轮记录](<docs/研究记录 Research Record/2026-11-21 输入状态首轮比较.md>)。下一步隔离输出读出、P0和冻结增益，不直接扩高阶。
 
 # 一、文档入口
 | **文档** | **维护内容** |
@@ -28,11 +28,28 @@
 
 第三方 ESP 来源树及 `ORIGIN.json` 保留，不能把它称为作者官方实现。原始 SpecBench 数据保留于 `datasets/spec_bench/question.jsonl`。
 
+输入轨迹通过现有 `spec` 配置启用，树、模型与输入来源沿用既有合同。例如以下片段选择 Holt：
+
+```yaml
+spec:
+  method: input_trajectory
+  num_masks: 1
+  impl: efficient
+  tree: {mode: static, branches: [14], pruning: true}
+  trajectory: {kind: holt, alpha: 0.1, beta: 0.9, horizon: owner_depth}
+```
+
+`kind` 可选 `order0`、`difference`、`holt`、`kalman`、`fixed_gain`。所有新策略使用 float32 状态、prompt 均值 M 与零速度 V；历史 ESP／EMA provider 保持原行为，BF16 逐步舍入不承诺与 float32 零阶逐位相同。`difference` 可用 `anchor: last` 作锚点对照；`horizon: slot` 保留仅槽位距离的布局对照，默认真实距离为 owner 深度加槽号。Kalman 的 `q_level/q_velocity/r/p0` 为共享尺度下的 Q/R/P0 系数，默认 0.01/0.01/1/1；`fixed_gain` 使用同一组参数实际求解的稳态增益。`alpha/beta` 用于零阶／差分／Holt；Kalman 与冻结增益的修正权重由 Q/R/P0 决定，不使用这两个平滑系数。递推不读取 draft token 作为正式观测，也不组合旧的 observation／K 校正。
+
+新统计 `acceptance_metrics` 输出裁剪后 A、C、S、`accepted_per_call` 与 `tau`；零调用比值为 null。旧 `accepted` 和深度接受计数保留裁剪前意义，旧汇总函数也保留该口径；新研究应明确读取新协议，不能混用两者。实现边界和验证证据见[输入轨迹开发记录](<docs/开发记录 Development Record/2026-11-20 输入轨迹状态实现.md>)。
+
 科学 CLI 的 `decode` 必须显式提供 `--model-sources <JSON>`：清单位于模型目录外，以相对路径映射该完整、自包含的本地模型目录内全部文件的 SHA256，不缺项、不含目录外成员。输出也放在模型根外；解析后逃逸模型根的符号链接会被拒绝，不直接承诺兼容引用外部 blobs 的 Hub 快照。载模前、运行头及结束记录写出前分块读取核验实际文件；漂移时保留部分观测，不写完成末行。运行头另记实际模型 config、backend、device、dtype 和能力，调用者原 `sources` 标签保持原义。审计带模型来源的新记录时使用 `audit <raw> --sources <标签JSON> --model-sources <原模型清单JSON>`；缺少独立模型清单不能记来源完整。旧无模型来源字段的记录仍只比较原标签，不代表重新验证实际模型。`audit/compare` 不加载模型或重新生成观测。
 
 旧逐条运行证据、日志、图和报告保留在固定历史/外部运行根，未恢复进 Git。历史读端测试从固定 Git 提交 `b8b20b5ada7fd860894114cbf224ce749af430cf` 按需提取原始 blob 到测试临时目录，核对对象哈希与写入字节；缺少 Git 对象直接失败，不下载或伪造原件。当前分析器和校验门读取这些不可变输入，不导入或执行归档源码，不修改原哈希与断言；相关15个参数项已恢复到 CPU 计划，不再排除。此验证只复核保存的历史观测与读端合同，不重新运行历史模型，也不代表全部历史结果已独立复验。
 
 # 三、开发与验证
+
+采用共享资源的工作树从`.local/data`、`.local/models`读取统一资源池；这两个池不按repo或研究topic隔离，只有`.local/artifacts`按repo隔离。通用Study的ModelScope/HF及datasets缓存已接入这些消费者路径；Qwen3-8B已完成资源核验及本轮input/output对比。配置、兼容边界与验证见[共享资源接入记录](<docs/开发记录 Development Record/2026-11-21 跨仓库资源消费者接入.md>)。历史Run及旧专用脚本的资源绑定保留原义，不将新资源替换旧版本身份。
 工作分支经 PR 面向 `dev`，完成检查并按当次明确授权集成，不自动发布。当前 HEAD 的本地结果、历史红项和未覆盖范围记在 PR 正文，不用旧提交结果代替。
 
 执行离线 CPU 计划：`python tests/run.py --plan cpu-pr --output-root <源码树外的新验证目录>`。静态清单先验证必需项和精确排除，逐参数 setup/call/teardown 写独立记录，缺收集、缺终态、失败、跳过和证据写失败均非零。整批预算420秒，在测试边界检查；子进程测试各有有限超时，单个本地计算不支持强制中断。运行产物不进 Git。

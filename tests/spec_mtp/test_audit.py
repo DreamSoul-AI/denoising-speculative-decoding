@@ -137,3 +137,38 @@ def test_empty_decode_still_checks_all_counts(field):
     _, _, sink = run(req)
     sink.rows[-1]['stats'][field] = True
     assert not audit_run(sink.rows, req.sources).argmax_coverage
+
+
+@pytest.mark.parametrize('change', ['A', 'C', 'S', 'ratio', 'missing_metrics', 'missing_nodes',
+                                  'nodes', 'bool_count', 'bool_ratio'])
+def test_retained_acceptance_protocol_rejects_corrupted_new_fields(change):
+    req = request()
+    _, _, sink = run(req)
+    stats = sink.rows[-1]['stats']
+    if change in ('A', 'C', 'S'):
+        stats['acceptance_metrics'][change] += 1
+    elif change == 'ratio':
+        stats['acceptance_metrics']['tau'] += .01
+    elif change == 'missing_metrics':
+        del stats['acceptance_metrics']
+    elif change == 'missing_nodes':
+        del stats['trace'][0]['retained_accepted_nodes']
+    elif change == 'nodes':
+        stats['trace'][0]['retained_accepted_nodes'] = [True]
+    elif change == 'bool_count':
+        stats['retained_accepted'] = True
+    else:
+        stats['acceptance_metrics']['accepted_per_call'] = False
+    verdict = audit_run(sink.rows, req.sources)
+    assert not verdict.argmax_coverage and verdict.reasons
+
+
+def test_old_counts_are_not_reinterpreted_as_retained_acceptance():
+    req = request()
+    _, _, sink = run(req)
+    stats = sink.rows[-1]['stats']
+    del stats['retained_accepted'], stats['acceptance_metrics']
+    for trace in stats['trace']:
+        del trace['retained_accepted_nodes']
+    assert audit_run(sink.rows, req.sources).argmax_coverage
+    assert 'retained_accepted' not in stats

@@ -39,7 +39,8 @@ def _decode(args: argparse.Namespace) -> dict[str, Any]:
         sink = JsonlSink(args.output, model_root=args.model, model_sources=model_sources)
         model = HFCausalLM(args.model, local_files_only=True)
         sink.model_info = model.describe()
-        result = generate(request, model, build_mask_provider(request.spec, model.embedding_table), sink)
+        extra = {'output_head': model.hf.get_output_embeddings().weight} if request.spec.get('method') == 'output_trajectory' else {}
+        result = generate(request, model, build_mask_provider(request.spec, model.embedding_table, **extra), sink)
         return asdict(result)
     except BaseException as error:
         primary = error

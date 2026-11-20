@@ -116,11 +116,11 @@ def existing_output_dir(path):
     output = Path(path).resolve()
     if not output.is_dir():
         raise RuntimeError('output directory must already exist')
-    if output.drive.upper() == 'C:':
-        raise RuntimeError('measurement output must stay off C:')
     root = ROOT.resolve()
     if output == root or root in output.parents:
         raise RuntimeError('write the measurement outside the repo')
+    if output.drive.upper() == 'C:':
+        raise RuntimeError('measurement output must stay off C:')
     return output
 
 
