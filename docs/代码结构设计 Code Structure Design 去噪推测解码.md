@@ -325,6 +325,8 @@ forbidden_modules =
 
 ## 已经落位的部分
 
+共享资源解析由 `structure/artifact/layout.py::shared_resource_dir` 集中完成。已采用 `.local` 的 Study layout 与 `_shared/structure/model.py`、`data.py` 使用同一入口，不再把共享池按 repo/Study 名分割。未采用者维持独立 Study 合同，历史绑定不迁移。SpecBench 内容冲突拒绝覆盖，Dolly 下载缓存显式传入 datasets。
+
 E1 的有界实验入口为 `studies/trajectory_observation/flow/input_state.py`，只解析冻结配置并转调 `structure/input_state.py`。后者负责固定的八类抽样、模板编码、候选配置、dev 选择、逐提交审计和 stage 边界来源检查，不复制 decoder 或通用调度器。`structure/input_state_analysis.py` 只读新协议 A/C/S，按 prompt 配对重采样合计 τ 差，不加载模型。测试位于相同 Study 的 `structure/test_input_state.py`。运行源码从外部快照加载，后续分析代码变更不替换正在执行的版本。
 
 本次输入状态模型落位于 `structure/algorithm/mask/trajectory.py`，集中维护共同初始化、零阶／差分／Holt／二状态 Kalman 递推、稳态增益求解和纯树距离读出。`factory.py` 仅注册 `input_trajectory` 并拒绝未定义的组合，既有 provider 不迁移、不改数学。`decode/loop.py` 继续独占提交时序，追加最终保留接受量。新增测试分别镜像 `tests/spec_mtp/structure/algorithm/mask/` 与 `decode/`，登记到现有 manifest，不添加新运行器。

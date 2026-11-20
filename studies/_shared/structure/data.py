@@ -8,6 +8,7 @@ from pathlib import Path
 from spec_mtp.structure.data.factory import Data, DataRegistry
 
 from spec_mtp.data import encode_prompts, load_records, needs_tokenizer
+from spec_mtp.structure.artifact.layout import shared_resource_dir
 
 _REPO = Path(__file__).resolve().parents[3]
 _DEFAULT_SPECBENCH = _REPO / 'datasets' / 'spec_bench' / 'question.jsonl'
@@ -21,6 +22,7 @@ def _data_cfg(data_config):
 
 def _land_specbench(data_cfg, assets_dir: Path) -> dict:
     """Copy the repo SpecBench jsonl into ``shared/data/specbench`` once."""
+    assets_dir = shared_resource_dir(assets_dir, 'data', assets_dir)
     src = Path(data_cfg.get('path') or _DEFAULT_SPECBENCH)
     if not src.is_file():
         raise FileNotFoundError(f'SpecBench question file not found: {src}')
@@ -29,7 +31,9 @@ def _land_specbench(data_cfg, assets_dir: Path) -> dict:
     dest_dir.mkdir(parents=True, exist_ok=True)
     from studies._shared.structure.evidence import file_hash
 
-    if not dest.is_file() or file_hash(src) != file_hash(dest):
+    if dest.is_file() and file_hash(src) != file_hash(dest):
+        raise ValueError('shared SpecBench identity conflict; use a separately versioned data path')
+    if not dest.is_file():
         shutil.copy2(src, dest)
     if not dest.is_file():
         raise FileNotFoundError(
@@ -44,6 +48,8 @@ def _land_specbench(data_cfg, assets_dir: Path) -> dict:
 def _build(data_config, assets_dir, seed=None):
     del seed
     data_cfg = _data_cfg(data_config)
+    if data_cfg['name'] == 'dolly' and assets_dir is not None:
+        data_cfg.setdefault('cache_dir', str(shared_resource_dir(Path(assets_dir), 'data', Path(assets_dir)) / 'hf_datasets'))
     if data_cfg['name'] == 'specbench':
         data_cfg = _land_specbench(data_cfg, Path(assets_dir))
     records = load_records(data_cfg)

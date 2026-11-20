@@ -185,7 +185,7 @@ def encode_local_prompts(records, tokenizer, data_cfg):
 """Dolly-Databricks creative-writing prompts (Conover et al., 2023).
 
 Used by the Figure 2 alignment probe: 100 creative-writing samples.
-Requires the `datasets` package. Hugging Face / ModelScope caches go under the Study `shared/model`."""
+Requires `datasets`; the Study builder supplies the adopted shared data cache."""
 
 
 
@@ -193,7 +193,11 @@ def read_dolly(data_cfg):
     from datasets import load_dataset
 
     category = data_cfg.get('dolly_category', 'creative_writing')
-    ds = load_dataset('databricks/databricks-dolly-15k', split='train')
+    cache = data_cfg.get('cache_dir')
+    options = {'cache_dir': cache} if cache else {}
+    if data_cfg.get('revision') is not None:
+        options['revision'] = data_cfg['revision']
+    ds = load_dataset('databricks/databricks-dolly-15k', split='train', **options)
     records = []
     for item in ds:
         if item['category'] != category:

@@ -4229,6 +4229,27 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_registry.py::test_shared_model_consumer_uses_pool_without_study_or_repo_namespace",
+      "target": "studies._shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_registry.py::test_adopted_layout_uses_data_and_models_pools",
+      "target": "studies._shared",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/studies/shared/test_registry.py::test_shared_data_does_not_overwrite_different_identity",
+      "target": "studies._shared",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

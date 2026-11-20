@@ -42,6 +42,9 @@
 
 ## 共享资源入口
 
+- 本工作树通过 Knowledge 的 shared-repository-resources 工具接入，本机配置为未跟踪的 `.local/shared-resources.config.json`。`.local/data`、`.local/models` 分别直连共享池 data、models；只将 `.local/artifacts` 按仓库隔离。data/models 下不加仓库、Study 或研究 topic 层，按提供方、资源身份与版本组织。
+- 已接入 `.local` 时，ArtifactLayout 的 data/model 路径及 Study 的 ModelScope/HF 下载消费者使用这些共享入口（模型缓存为 `.local/models/modelscope` 或 `hf`，数据缓存为 `.local/data/hf_datasets`）。独立、未接入共享池的 Study 保留旧布局；损坏资源链接报错，不悄悄重建本地副本。历史 Run 和冻结脚本的旧绑定不改写。
+
 - 使用共享资源时，从 [Knowledge](https://github.com/DreamSoul-AI/knowledge) 查找共享资源工具，按 Workspace 配套示例将数据、模型与项目产物接入 `.local/`。本机路径从个人配置读取，实际链接与消费者按项目核对。
 
 ## Workspace 采用记录
