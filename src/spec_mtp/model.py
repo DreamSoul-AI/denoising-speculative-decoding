@@ -132,7 +132,7 @@ import torch.nn as nn
 class HFCausalLM(nn.Module):
 
     def __init__(self, name_or_path=None, local_files_only=True, torch_dtype='auto',
-                 attn_implementation='eager', tiny_config=None, cache_dir=None, *, module=None):
+                 attn_implementation='eager', tiny_config=None, cache_dir=None, *, module=None, device_map=None):
         super().__init__()
         self.hf: Any
         self._owns_model = module is None
@@ -163,6 +163,8 @@ class HFCausalLM(nn.Module):
             )
             if cache_dir:
                 kwargs['cache_dir'] = cache_dir
+            if device_map is not None:
+                kwargs['device_map'] = device_map
             try:  # transformers >= 4.56 prefers `dtype`; older only knows `torch_dtype`
                 self.hf = AutoModelForCausalLM.from_pretrained(
                     name_or_path, dtype=get_dtype(torch_dtype), **kwargs)

@@ -74,11 +74,17 @@ def analyze_run(run_root):
         if actual != {r['qid'] for r in inputs['eval']}:
             raise ValueError('incomplete evaluation arm')
     totals = {a: pooled([r for r in evaluation if r['arm'] == a]) for a in selected}
-    kalman = next(a for a in selected if a.startswith('kalman_'))
-    holt = next(a for a in selected if a.startswith('holt_'))
-    comparisons = [paired_comparison(rows, kalman, holt)]
-    comparisons.extend(paired_comparison(rows, a, 'order0') for a in selected if a != 'order0')
-    comparisons.append(paired_comparison(rows, kalman, 'fixed_gain'))
+    if config.get('comparison'):
+        pairs = [('output_' + kind, 'input_' + kind) for kind in ('order0', 'difference', 'holt', 'kalman')]
+        pairs += [(route + '_' + kind, route + '_order0') for route in ('input', 'output')
+                  for kind in ('difference', 'holt', 'kalman')]
+        comparisons = [paired_comparison(rows, a, b) for a, b in pairs]
+    else:
+        kalman = next(a for a in selected if a.startswith('kalman_'))
+        holt = next(a for a in selected if a.startswith('holt_'))
+        comparisons = [paired_comparison(rows, kalman, holt)]
+        comparisons.extend(paired_comparison(rows, a, 'order0') for a in selected if a != 'order0')
+        comparisons.append(paired_comparison(rows, kalman, 'fixed_gain'))
     categories = {c: {a: pooled([r for r in evaluation if r['arm'] == a and r['category'] == c])
                      for a in selected} for c in sorted({r['category'] for r in evaluation})}
     report = {'totals': totals, 'categories': categories, 'comparisons': comparisons,

@@ -66,6 +66,8 @@ flowchart LR
 `mask_policy` 由装配或 Study 为每条 prompt 创建，提供初始化、块内预测和提交后更新，声明是否需要 normalized hidden。decoder 只使用其行为合同，不按 Study 名加载类。输入/输出 provider 保留不同的实际观测需求，不强制制造无用 hidden。K 当前 postcommit CPU pilot 只提取同位置表示对与回归，不经过真实 speculative slot，也不以该策略接口暗示已具备起草应用。
 ## （三）科学不变量
 
+新output_trajectory组合输入路线的同一状态递推核心，但观测为真实final hidden。decoder以位置及forward提交观测，根与最终保留draft可用，未经过forward的bonus不可用；停止轮也记录可取得的已提交hidden。owner的slot目标q对应预测hidden位置q−1，距离从最后真实观测位置计算。读出固定为prompt hidden范数归一→真实输出头softmax→输入embedding期望，支持untied头，不混用旧output_hidden行为。预测不吸收draft或proxy，不创建额外forward。
+
 输入轨迹策略单独拥有每条 prompt 的 M、V、上次正式观测和提交步数。共同初始化为 prompt 均值与零速度；差分观测起点为 prompt 最后一个 embedding。Kalman 采用每个 embedding 分量的二状态模型，共享一个二阶协方差，固定 Q/R；该简化不宣称跨分量最优或基于残差自适应噪声。稳态冻结增益须实际收敛，否则拒绝配置。
 
 `covariance`、`process_noise` 与 `measurement_noise` 保存共同尺度下的归一化 P/Q/R。实际 P、Q、R 同乘正数 s² 不改变 G，因此输入版直接递推无量纲系数，不声称已经从 fit 数据识别绝对噪声或得到物理单位下的 P。默认 P0=I、Q=diag(0.01,0.01)、R=1；冻结增益模式从同样参数求稳态，再以稳态 P/G 开始状态修正，M/V 的共同初值保持不变。

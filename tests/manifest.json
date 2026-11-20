@@ -4250,6 +4250,20 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_output_trajectory.py::test_output_readout_uses_actual_untied_head_and_is_pure",
+      "target": "spec_mtp.structure.algorithm.mask",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_output_trajectory.py::test_untied_decoder_output_ledger_and_complete_argmax",
+      "target": "spec_mtp.structure.algorithm.mask",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

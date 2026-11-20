@@ -7,7 +7,7 @@
 
 2026年11月20日新增来源校准研究：在外部固定的 Jason 源码快照上，使用已有 0.6B／4B 模型开展 GPU 三臂、校准类别与 thinking 对照。该结果属于来源方法验证，不改变上述本仓实现状态。当前方法比较以实际接受量和 τ 为主，共享电脑的墙钟计时不用于判断收益。方案见[研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)，实际结果与论文接受量表见[前沿校准研究](<docs/运行记录 Run Record/2026-11-20 六十分钟前沿校准研究.md>)。
 
-当前主线为零阶 EMA、差分 EMA／Holt 与轨迹 Kalman。2026年11月21日已完成输入 E1：Qwen3-4B、八类 Dolly dev8／冻结 eval32，差分 τ=1.4486、零阶1.4413、Holt1.4444，尚未建立稳定增量；动态 Kalman1.4240，低于同Q/R冻结增益1.4476。当前优先核对P0与增益瞬态，输出观测账本及Jason组合仍待后续。条件、区间和限制见[首轮比较](<docs/研究记录 Research Record/2026-11-21 输入状态首轮比较.md>)，完整接受量表及来源见[运行记录](<docs/运行记录 Run Record/2026-11-21 输入状态E1实验.md>)。
+当前已完成8B input/output固定八臂比较：input零阶τ=1.5030；output零阶1.2331、Kalman1.3011。output Kalman对自身零阶有正向差异，但这版固定读出下output整体落后input。条件、接受量和区间见[8B路线比较](<docs/研究记录 Research Record/2026-11-21 8B输入输出路线比较.md>)与[运行记录](<docs/运行记录 Run Record/2026-11-21 8B输入输出状态比较.md>)；4B E1保留在[首轮记录](<docs/研究记录 Research Record/2026-11-21 输入状态首轮比较.md>)。下一步隔离输出读出、P0和冻结增益，不直接扩高阶。
 
 # 一、文档入口
 | **文档** | **维护内容** |
@@ -49,7 +49,7 @@ spec:
 
 # 三、开发与验证
 
-采用共享资源的工作树从`.local/data`、`.local/models`读取统一资源池；这两个池不按repo或研究topic隔离，只有`.local/artifacts`按repo隔离。通用Study的ModelScope/HF及datasets缓存已接入这些消费者路径；Qwen3-8B已准备并完成离线解析，未运行8B输出实验。配置、兼容边界与验证见[共享资源接入记录](<docs/开发记录 Development Record/2026-11-21 跨仓库资源消费者接入.md>)。历史Run及旧专用脚本的资源绑定保留原义，不将新资源替换旧版本身份。
+采用共享资源的工作树从`.local/data`、`.local/models`读取统一资源池；这两个池不按repo或研究topic隔离，只有`.local/artifacts`按repo隔离。通用Study的ModelScope/HF及datasets缓存已接入这些消费者路径；Qwen3-8B已完成资源核验及本轮input/output对比。配置、兼容边界与验证见[共享资源接入记录](<docs/开发记录 Development Record/2026-11-21 跨仓库资源消费者接入.md>)。历史Run及旧专用脚本的资源绑定保留原义，不将新资源替换旧版本身份。
 工作分支经 PR 面向 `dev`，完成检查并按当次明确授权集成，不自动发布。当前 HEAD 的本地结果、历史红项和未覆盖范围记在 PR 正文，不用旧提交结果代替。
 
 执行离线 CPU 计划：`python tests/run.py --plan cpu-pr --output-root <源码树外的新验证目录>`。静态清单先验证必需项和精确排除，逐参数 setup/call/teardown 写独立记录，缺收集、缺终态、失败、跳过和证据写失败均非零。整批预算420秒，在测试边界检查；子进程测试各有有限超时，单个本地计算不支持强制中断。运行产物不进 Git。

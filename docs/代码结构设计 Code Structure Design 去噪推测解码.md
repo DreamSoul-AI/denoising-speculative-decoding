@@ -325,6 +325,8 @@ forbidden_modules =
 
 ## 已经落位的部分
 
+8B输出策略位于`structure/algorithm/mask/output_trajectory.py`，组合既有状态递推，持有真实位置账本与固定概率读出。`factory.py`对新策略显式注入实际输出头；旧策略调用不变。`decode/loop.py`只对新策略走positioned-hidden分支，保留旧output_hidden的绑定与proxy行为；CLI按需传头。Study的`comparison_specs`固定两路线×四状态配置，分析按对应路线配对；不存在第二套decoder。
+
 共享资源解析由 `structure/artifact/layout.py::shared_resource_dir` 集中完成。已采用 `.local` 的 Study layout 与 `_shared/structure/model.py`、`data.py` 使用同一入口，不再把共享池按 repo/Study 名分割。未采用者维持独立 Study 合同，历史绑定不迁移。SpecBench 内容冲突拒绝覆盖，Dolly 下载缓存显式传入 datasets。
 
 E1 的有界实验入口为 `studies/trajectory_observation/flow/input_state.py`，只解析冻结配置并转调 `structure/input_state.py`。后者负责固定的八类抽样、模板编码、候选配置、dev 选择、逐提交审计和 stage 边界来源检查，不复制 decoder 或通用调度器。`structure/input_state_analysis.py` 只读新协议 A/C/S，按 prompt 配对重采样合计 τ 差，不加载模型。测试位于相同 Study 的 `structure/test_input_state.py`。运行源码从外部快照加载，后续分析代码变更不替换正在执行的版本。

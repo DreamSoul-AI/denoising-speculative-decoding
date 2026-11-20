@@ -82,6 +82,17 @@ def encode_inputs(tokenizer, raw_inputs):
     return encoded
 
 
+def comparison_specs():
+    """Frozen 4B-development parameters, crossed with representation route."""
+    parameters = {'order0': {'kind': 'order0', 'alpha': .1},
+                  'difference': {'kind': 'difference', 'alpha': .1, 'beta': .9999},
+                  'holt': {'kind': 'holt', 'alpha': .1, 'beta': .99},
+                  'kalman': {'kind': 'kalman', 'q_level': .01, 'q_velocity': .0001, 'r': 1., 'p0': 1.}}
+    return {route + '_' + kind: {'method': route + '_trajectory', 'num_masks': 1, 'impl': 'efficient',
+            'tree': {'mode': 'static', 'branches': [14], 'pruning': True}, 'trajectory': dict(values)}
+            for route in ('input', 'output') for kind, values in parameters.items()}
+
+
 def pooled(rows):
     counts = {key: sum(row[key] for row in rows) for key in ('A', 'C', 'S', 'N')}
     return {**counts, 'prompts': len(rows),
@@ -154,13 +165,14 @@ def run_experiment(config):
         encoded = encode_inputs(tokenizer, raw_inputs)
         write_json(root / 'inputs.json', encoded)
         torch.set_num_threads(2)
-        model = HFCausalLM(model_root, torch_dtype='bfloat16', attn_implementation='eager').to('cuda')
+        model = HFCausalLM(model_root, torch_dtype='bfloat16', attn_implementation='eager',
+                          device_map='cuda:0')
         model_info = model.describe()
         write_json(root / 'model.json', model_info)
         eos = model.hf.generation_config.eos_token_id
         eos_ids = tuple(eos if isinstance(eos, list) else [eos]) if eos is not None else ()
-        arms = candidate_specs()
-        if config.get('pilot'):
+        arms = comparison_specs() if config.get('comparison') else candidate_specs()
+        if config.get('pilot') and not config.get('comparison'):
             names = ('order0', 'diff_0.9', 'holt_0.1_0.9', 'kalman_0.01_0.01')
             arms = {name: arms[name] for name in names}
             base = arms['kalman_0.01_0.01']
@@ -178,7 +190,8 @@ def run_experiment(config):
                     request = DecodeRequest(Prompt(item['qid'], tuple(item['input_ids']), item['category']), spec,
                         max_new_tokens=config.get('new_tokens', 64), eos_ids=eos_ids,
                         seed=config.get('seed', 20261128), run_id=root.name, sources=sources)
-                    provider = build_mask_provider(spec, model.embedding_table)
+                    provider = build_mask_provider(spec, model.embedding_table,
+                        output_head=model.hf.get_output_embeddings().weight)
                     sink = ProvenanceSink(path, model_members, model_info)
                     try:
                         result = generate(request, model, provider, sink)
@@ -202,6 +215,14 @@ def run_experiment(config):
         if config.get('pilot'):
             execute('dev', encoded['dev'][:2], list(arms))
             selected = list(arms)
+        elif config.get('comparison'):
+            selected = list(arms)
+            execute('dev', encoded['dev'], selected)
+            write_json(root / 'selection.json', {'selected': selected, 'specs': arms,
+                       'policy': 'fixed prior 4B development parameters, no 8B selection'})
+            verify_model_files(model_root, model_members)
+            check_source()
+            execute('eval', encoded['eval'], selected)
         else:
             execute('dev', encoded['dev'], list(arms))
             difference = select_arm(rows, [a for a in arms if a.startswith('diff_')])

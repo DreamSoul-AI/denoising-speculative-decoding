@@ -174,7 +174,7 @@ class SpecDecoder:
         if self.impl not in ('naive', 'efficient'):
             raise ValueError(f'Unsupported spec.impl: {self.impl}')
         self.output_hidden = bool(mask_policy.needs_hidden)
-        if self.output_hidden and not model.tied_embeddings:
+        if self.output_hidden and getattr(mask_policy, 'requires_tied_embeddings', True) and not model.tied_embeddings:
             raise ValueError('output_hidden requires actually tied input/output weights')
         self._attn_cache: Any = TreeAttentionCache() if self.impl == 'efficient' else None
         # Dynamic trees: memoised, vectorised build of the same naive mask (perf only).
@@ -262,6 +262,8 @@ class SpecDecoder:
         root_token = select_verified(t - 1, 0)
         if self.output_hidden:
             cast(HiddenMaskPolicy, provider).init_hidden(out.last_hidden_state[0, :t])
+            if getattr(provider, 'positioned_hidden', False):
+                stats['output_observation_ledger'] = list(provider.ledger)
             proxy_hiddens = out.last_hidden_state[0, t:t + k].clone()
             stats['output_hidden_prefill'] = {'observed_positions': t, 'scale': float(cast(HiddenMaskPolicy, provider).scale),
                                               'state_dtype': 'float32', 'final_normalized': True}
@@ -331,7 +333,9 @@ class SpecDecoder:
             node_ids = torch.tensor([tree.tokens], dtype=torch.long, device=device)
             node_embeds = model.embed(node_ids)[0] if num_nodes else \
                 torch.empty(0, prompt_embeds.size(-1), device=device, dtype=dtype)
-            if self.output_hidden:
+            if getattr(provider, 'positioned_hidden', False):
+                owner_masks = provider.tree_masks(tree, root_position).to(dtype)
+            elif self.output_hidden:
                 depth_masks = cast(HiddenMaskPolicy, provider).masks_per_owner(proxy_hiddens).to(dtype)
                 owner_masks = depth_masks[[0] + tree.depths]
             elif for_tree is not None:
@@ -431,7 +435,17 @@ class SpecDecoder:
                 'retained_accepted_nodes': list(retained_nodes),
                 'stopped': stop, 'cache_after': None,
             })
-            if self.output_hidden:
+            if getattr(provider, 'positioned_hidden', False):
+                observed = [0] + retained_nodes
+                for row in observed:
+                    position = root_position + (tree.depths[row - 1] if row else 0)
+                    provider.observe_position(out.last_hidden_state[0, row], position, stats['decode_calls'])
+                stats['trace'][-1]['output_hidden'] = {
+                    'observed_block_rows': observed, 'last_observed_position': provider.observed_position,
+                    'last_committed_position': t + len(committed) - 1,
+                    'unavailable_bonus_positions': list(range(provider.observed_position + 1, t + len(committed)))}
+                stats['output_observation_ledger'] = list(provider.ledger)
+            elif self.output_hidden:
                 note = getattr(provider, 'note_block_hiddens', None)
                 if note is not None:
                     accepted_hiddens = [] if stop else [out.last_hidden_state[0, row] for row in accepted_nodes]
