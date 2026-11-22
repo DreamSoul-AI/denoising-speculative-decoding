@@ -21,7 +21,7 @@ def test_modelscope_respects_local_files_only(tmp_path, monkeypatch):
 
 def test_shared_model_consumer_uses_pool_without_study_or_repo_namespace(tmp_path, monkeypatch):
     root = tmp_path / 'repo'
-    pool = root / '.local/models'
+    pool = root / '.shared/models'
     pool.mkdir(parents=True)
     assets = root / 'studies/topic/shared/model'
     calls = []
@@ -38,11 +38,11 @@ def test_adopted_layout_uses_data_and_models_pools(tmp_path):
     from spec_mtp.structure.artifact.layout import artifact_layout
     root = tmp_path / 'repo'
     for name in ('data', 'models'):
-        (root / '.local' / name).mkdir(parents=True)
+        (root / '.shared' / name).mkdir(parents=True)
     study = root / 'studies/topic'
     layout = artifact_layout(study, 'run1')
-    assert layout.shared_data_dir == root / '.local/data'
-    assert layout.shared_model_dir == root / '.local/models'
+    assert layout.shared_data_dir == root / '.shared/data'
+    assert layout.shared_model_dir == root / '.shared/models'
     assert not (study / 'shared').exists()
 
 
@@ -50,7 +50,7 @@ def test_shared_data_does_not_overwrite_different_identity(tmp_path):
     import pytest
     from studies._shared.structure.data import _land_specbench
     root = tmp_path / 'repo'
-    dest = root / '.local/data/specbench/question.jsonl'
+    dest = root / '.shared/data/specbench/question.jsonl'
     dest.parent.mkdir(parents=True)
     dest.write_text('old', encoding='utf-8')
     src = tmp_path / 'source.jsonl'
