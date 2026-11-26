@@ -51,6 +51,15 @@ def _clock():
     return float(value)
 
 
+def _acceptance_metrics(stats):
+    """Final retained-token accounting, separate from legacy pre-trim accepts."""
+    calls = stats['decode_calls']
+    return {'protocol': 'retained-acceptance-v1', 'A': stats['retained_accepted'],
+            'C': calls, 'S': stats['committed'],
+            'accepted_per_call': stats['retained_accepted'] / calls if calls else None,
+            'tau': stats['committed'] / calls if calls else None}
+
+
 def _elapsed(started):
     if started is None:
         return None
@@ -165,7 +174,7 @@ class SpecDecoder:
         if self.impl not in ('naive', 'efficient'):
             raise ValueError(f'Unsupported spec.impl: {self.impl}')
         self.output_hidden = bool(mask_policy.needs_hidden)
-        if self.output_hidden and not model.tied_embeddings:
+        if self.output_hidden and getattr(mask_policy, 'requires_tied_embeddings', True) and not model.tied_embeddings:
             raise ValueError('output_hidden requires actually tied input/output weights')
         self._attn_cache: Any = TreeAttentionCache() if self.impl == 'efficient' else None
         # Dynamic trees: memoised, vectorised build of the same naive mask (perf only).
@@ -209,7 +218,7 @@ class SpecDecoder:
         # so temperature > 0 stays token-identical to ar_generate.
         provider = self.mask_policy
         stats: dict[str, Any] = {'prefill_calls': 0, 'decode_calls': 0, 'accepted': 0,
-                 'committed': 0, 'hit_context_limit': 0, 'trace': [],
+                 'retained_accepted': 0, 'committed': 0, 'hit_context_limit': 0, 'trace': [],
                  # Draft attempts/accepts at depth 1..3. An attempt is a
                  # sampled token that had tree children to match; the bonus
                  # token past the last child is not an attempt. Counted before
@@ -218,6 +227,7 @@ class SpecDecoder:
                  'accept_by_depth': [0, 0, 0, 0]}
 
         self.stats = stats
+        stats['acceptance_metrics'] = _acceptance_metrics(stats)
         self.committed = []
         if self.max_new_tokens == 0 or self._poll_cancel():
             stats.update(new_tokens=0, prefill_time=0., decode_time=0.,
@@ -237,7 +247,7 @@ class SpecDecoder:
         position_ids = torch.arange(t + k, device=device).unsqueeze(0)
         cache = model.new_cache()
         out = model(prefill_embeds, position_ids, attention_mask_4d=None,
-                    past_key_values=cache, **({'last_hidden_only': True} if self.output_hidden else {}))
+                    past_key_values=cache, **({'last_hidden_only': True} if self.output_hidden or getattr(provider, 'needs_final_hidden', False) else {}))
         stats['prefill_calls'] = 1
         cache = out.past_key_values
         logits = out.logits[0]                                        # [t+k, V]
@@ -252,10 +262,15 @@ class SpecDecoder:
         root_token = select_verified(t - 1, 0)
         if self.output_hidden:
             cast(HiddenMaskPolicy, provider).init_hidden(out.last_hidden_state[0, :t])
+            if getattr(provider, 'positioned_hidden', False):
+                stats['output_observation_ledger'] = list(provider.ledger)
             proxy_hiddens = out.last_hidden_state[0, t:t + k].clone()
             stats['output_hidden_prefill'] = {'observed_positions': t, 'scale': float(cast(HiddenMaskPolicy, provider).scale),
                                               'state_dtype': 'float32', 'final_normalized': True}
         mask_logits = logits[t:t + k].clone()                         # [k, V]
+        if hasattr(provider, 'frontier_logits'):
+            bonus_embed = model.embed(torch.tensor([root_token], device=device))[0]
+            mask_logits[0] = provider.frontier_logits(out.last_hidden_state[0,t], masks[0], bonus_embed, mask_logits[0], position=t)
         observe = getattr(provider, 'observe_mask_logits', None)
         for_tree = getattr(provider, 'masks_for_tree', None)
         if observe is not None:
@@ -321,7 +336,9 @@ class SpecDecoder:
             node_ids = torch.tensor([tree.tokens], dtype=torch.long, device=device)
             node_embeds = model.embed(node_ids)[0] if num_nodes else \
                 torch.empty(0, prompt_embeds.size(-1), device=device, dtype=dtype)
-            if self.output_hidden:
+            if getattr(provider, 'positioned_hidden', False):
+                owner_masks = provider.tree_masks(tree, root_position).to(dtype)
+            elif self.output_hidden:
                 depth_masks = cast(HiddenMaskPolicy, provider).masks_per_owner(proxy_hiddens).to(dtype)
                 owner_masks = depth_masks[[0] + tree.depths]
             elif for_tree is not None:
@@ -348,10 +365,13 @@ class SpecDecoder:
             draft_total, draft_open = _fold(draft_total, draft_open, draft_mark)
             verify_mark = _clock()
             out = model(block_embeds, position_ids, attention_mask_4d=attn,
-                        past_key_values=cache, **({'last_hidden_only': True} if self.output_hidden else {}))
+                        past_key_values=cache, **({'last_hidden_only': True} if self.output_hidden or getattr(provider, 'needs_final_hidden', False) else {}))
+            if hasattr(provider, 'label_root'):
+                provider.label_root(out.last_hidden_state[0,0], position=root_position)
             cache = out.past_key_values
             logits = out.logits[0]                                    # [block, V]
             stats['decode_calls'] += 1
+            stats['acceptance_metrics'] = _acceptance_metrics(stats)
 
             # Verify: walk the model's own prediction chain through the tree.
             cur = 0
@@ -391,6 +411,10 @@ class SpecDecoder:
                 committed_now = committed_now[:remaining]
                 stop = True
 
+            # Accepted drafts precede the bonus. A retained EOS draft counts;
+            # candidates after EOS/budget, and the bonus, do not count as A.
+            retained_nodes = accepted_nodes[:len(committed_now)]
+
             for index, token in enumerate(committed_now):
                 new_embed = model.embed(torch.tensor([[token]], device=device))[0, 0]
                 if not self.output_hidden:
@@ -398,6 +422,8 @@ class SpecDecoder:
                 prev_token_embed = new_embed
                 committed.append(token)
                 stats['committed'] += 1
+                stats['retained_accepted'] += int(index < len(accepted_nodes))
+                stats['acceptance_metrics'] = _acceptance_metrics(stats)
                 record = choices[choice_offset + index] if self.temperature <= 0 else {
                     'forward': stats['decode_calls'], 'row': ([0] + accepted_nodes)[index], 'argmax': None}
                 self._emit({'event': 'commit', 'index': len(committed) - 1,
@@ -411,9 +437,20 @@ class SpecDecoder:
             stats['trace'].append({
                 'root_position': root_position, 'cache_before': cache_len,
                 'accepted_nodes': list(accepted_nodes), 'committed_tokens': list(committed_now),
+                'retained_accepted_nodes': list(retained_nodes),
                 'stopped': stop, 'cache_after': None,
             })
-            if self.output_hidden:
+            if getattr(provider, 'positioned_hidden', False):
+                observed = [0] + retained_nodes
+                for row in observed:
+                    position = root_position + (tree.depths[row - 1] if row else 0)
+                    provider.observe_position(out.last_hidden_state[0, row], position, stats['decode_calls'])
+                stats['trace'][-1]['output_hidden'] = {
+                    'observed_block_rows': observed, 'last_observed_position': provider.observed_position,
+                    'last_committed_position': t + len(committed) - 1,
+                    'unavailable_bonus_positions': list(range(provider.observed_position + 1, t + len(committed)))}
+                stats['output_observation_ledger'] = list(provider.ledger)
+            elif self.output_hidden:
                 note = getattr(provider, 'note_block_hiddens', None)
                 if note is not None:
                     accepted_hiddens = [] if stop else [out.last_hidden_state[0, row] for row in accepted_nodes]
@@ -451,6 +488,10 @@ class SpecDecoder:
             n_star = accepted_nodes[-1] if accepted_nodes else 0
             mask_rows = mask_indices_of(tree, k, n_star)
             mask_logits = logits[mask_rows].clone()
+            if hasattr(provider, 'frontier_logits'):
+                placeholder = owner_masks[n_star,0]
+                bonus_embed = model.embed(torch.tensor([committed_now[-1]], device=device))[0]
+                mask_logits[0] = provider.frontier_logits(out.last_hidden_state[0,mask_rows[0]], placeholder, bonus_embed, mask_logits[0], position=root_position+len(accepted_nodes)+1)
             if observe is not None:
                 observe(mask_logits)
             _deliver_mask_hidden(provider, out, mask_rows)
@@ -463,6 +504,7 @@ class SpecDecoder:
         if verify_open:
             stats['verify_seconds'] = verify_total
         stats['new_tokens'] = len(committed)
+        stats['acceptance_metrics'] = _acceptance_metrics(stats)
         stats['termination_reason'] = ('cancelled' if self.was_cancelled else
             'context' if stats['hit_context_limit'] else 'eos' if self._is_eos(committed[-1]) else 'budget')
         stats['block_complexity'] = self.nominal_block_complexity

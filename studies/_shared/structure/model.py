@@ -8,6 +8,7 @@ from spec_mtp.structure.model.factory import Model, ModelRegistry
 
 from studies._shared.structure.config import _convert
 from spec_mtp.model import build_model
+from spec_mtp.structure.artifact.layout import shared_resource_dir
 
 
 def _model_cfg(model_config, model_type, assets_dir):
@@ -20,7 +21,8 @@ def _model_cfg(model_config, model_type, assets_dir):
 
 
 def _materialize_hub(model_cfg, assets_dir: Path):
-    """Land weights under the Study ``shared/model`` tree so Runs reuse one download."""
+    """Adopt the cross-repository model pool, preserving standalone Study support."""
+    assets_dir = shared_resource_dir(assets_dir, 'models', assets_dir)
     resolved = dict(model_cfg)
     resolved['cache_dir'] = str(assets_dir / 'hf')
     hub = str(model_cfg.get('hub', '') or '').lower()
@@ -29,8 +31,10 @@ def _materialize_hub(model_cfg, assets_dir: Path):
     import torch  # noqa: F401  load before ModelScope on Windows so BLAS DLLs agree
     from modelscope import snapshot_download
 
-    local = snapshot_download(str(model_cfg['name_or_path']), cache_dir=str(assets_dir / 'modelscope'),
-                              local_files_only=bool(model_cfg.get('local_files_only', False)))
+    options = {'local_files_only': bool(model_cfg.get('local_files_only', False))}
+    if model_cfg.get('revision') is not None:
+        options['revision'] = model_cfg['revision']
+    local = snapshot_download(str(model_cfg['name_or_path']), cache_dir=str(assets_dir / 'modelscope'), **options)
     resolved['name_or_path'] = local
     resolved['local_files_only'] = True
     return resolved

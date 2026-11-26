@@ -8,6 +8,18 @@ from pathlib import Path
 from spec_mtp.structure.artifact import paths
 
 
+def shared_resource_dir(anchor: Path, resource: str, fallback: Path) -> Path:
+    """Use the nearest adopted .shared pool; standalone Studies keep their layout."""
+    anchor = Path(anchor).absolute()
+    for parent in (anchor, *anchor.parents):
+        candidate = parent / '.shared' / resource
+        if candidate.exists() or candidate.is_symlink():
+            if not candidate.is_dir():
+                raise FileNotFoundError(f'shared resource is unavailable: {candidate}')
+            return candidate
+    return fallback
+
+
 def validate_run_directory(run_dir: str) -> None:
     reserved = {'CON', 'PRN', 'AUX', 'NUL'} | {f'{prefix}{n}' for prefix in ('COM', 'LPT') for n in range(1, 10)}
     if (not isinstance(run_dir, str) or not run_dir or run_dir in ('.', '..')
@@ -42,11 +54,11 @@ class ArtifactLayout:
 
     @property
     def shared_data_dir(self) -> Path:
-        return self.shared_dir / 'data'
+        return shared_resource_dir(self.study_dir, 'data', self.shared_dir / 'data')
 
     @property
     def shared_model_dir(self) -> Path:
-        return self.shared_dir / 'model'
+        return shared_resource_dir(self.study_dir, 'models', self.shared_dir / 'model')
 
     @property
     def docs_dir(self) -> Path:
@@ -61,11 +73,11 @@ class ArtifactLayout:
 
 
 def ensure_study_layout(study_dir: Path | str) -> Path:
-    """Ensure Study skeleton: ``docs/``, ``shared/{data,model}/``, ``runs/``."""
+    """Ensure Study skeleton and adopted resource pools (legacy shared dirs when standalone)."""
     study = Path(study_dir)
     (study / paths.DOCS_DIRNAME).mkdir(parents=True, exist_ok=True)
-    (study / paths.SHARED_DIRNAME / 'data').mkdir(parents=True, exist_ok=True)
-    (study / paths.SHARED_DIRNAME / 'model').mkdir(parents=True, exist_ok=True)
+    shared_resource_dir(study, 'data', study / paths.SHARED_DIRNAME / 'data').mkdir(parents=True, exist_ok=True)
+    shared_resource_dir(study, 'models', study / paths.SHARED_DIRNAME / 'model').mkdir(parents=True, exist_ok=True)
     (study / paths.RUNS_DIRNAME).mkdir(parents=True, exist_ok=True)
     return study
 

@@ -40,10 +40,10 @@ def test_pending_has_all_11_cells_without_invented_numbers_or_evidence_link(read
     reader.__file__ = str(tmp_path/'analyze_results.py')
     Path(reader.__file__).write_text('fixture')
     reader.main()
-    body = json.loads((tmp_path/'docs/paired_pending.json').read_text())
+    body = json.loads((tmp_path/'docs/paired_pending.json').read_text(encoding='utf-8'))
     assert body['complete'] is False and tuple(body['cells']) == reader.CASES
     assert all(c == {'native_status': 'pending'} for c in body['cells'].values())
-    assert 'paired_evidence_v1.json' not in (tmp_path/'docs/STUDY_REPORT.md').read_text()
+    assert 'paired_evidence_v1.json' not in (tmp_path/'docs/STUDY_REPORT.md').read_text(encoding='utf-8')
     assert '"observed": 0' in capsys.readouterr().out
 
 

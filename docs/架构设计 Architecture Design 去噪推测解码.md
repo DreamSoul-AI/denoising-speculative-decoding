@@ -1,6 +1,12 @@
 **去噪推测解码 架构设计**
 更新日期：2026年11月4日。状态：当前选定设计。科学职责保持；源码组织的目标是 `structure` / `flow` 两柱。解码合同已迁入 `structure/api`，其余模块尚未按该目标搬迁。实现差距和验收顺序见 [开发计划](<开发计划 Development Plan 去噪推测解码.md>) 与 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)。机制见 [通用调研 General Research](<调研 Search/通用调研 General Search/通用调研 General Research 去噪推测解码.md>)，历史数字见 [运行记录](<运行记录 Run Record/2026-10-31 历史证据归位.md>)，文件职责见 [代码结构设计](<代码结构设计 Code Structure Design 去噪推测解码.md>)，实验问题见 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。
 
+## 当前 input 研究合同（2026年11月27日）
+
+目标职责保持为公共起草树、块验证、提交与缓存。新的四臂仅改变探测状态更新，统一将共享 M 写入各附属槽，不添加第二套 decoder。固定增益臂维护 M 或 M/V，Kalman 臂另维护逐维 P，离线 Q/R 与初始规则在推理中冻结。初始化和当前样本 warm-up 由已冻结规则驱动，不能读取未来标签。M-only 及相应 calibration 是待实施合同，现有显式 M+hV 仍按历史协议区分。
+
+历史前沿仿射校准通过策略级 frontier_logits／label_root hook 取得 probe 与延迟同位置标签，继续由公共 decoder 持有 cache 和裁剪。它不是当前四臂之一，未通过真实来源桥接的条件不标为已验证。详细边界见 [当前总体讨论](<研究记录 Research Record/2026-11-27 Input探测状态与四组方案.md>) 与 [研究计划](<研究计划 Research Plan 去噪推测解码.md>)。
+
 # 一、从研究目标推导架构
 ## （一）目标、上下文与约束
 研究系统将冻结输入、模型与解码条件变成候选、验证提交、原始审计和可解释对照。首要目标是研究结论可靠：能定位每个提交来自哪个验证前向，来源变化会被拒绝，负结果和中断不会被改写成成功。其次是用相同科学入口比较 mask、树和预算，避免每个 Study 复制解码器。
@@ -65,6 +71,19 @@ flowchart LR
 
 `mask_policy` 由装配或 Study 为每条 prompt 创建，提供初始化、块内预测和提交后更新，声明是否需要 normalized hidden。decoder 只使用其行为合同，不按 Study 名加载类。输入/输出 provider 保留不同的实际观测需求，不强制制造无用 hidden。K 当前 postcommit CPU pilot 只提取同位置表示对与回归，不经过真实 speculative slot，也不以该策略接口暗示已具备起草应用。
 ## （三）科学不变量
+
+新output_trajectory组合输入路线的同一状态递推核心，但观测为真实final hidden。decoder以位置及forward提交观测，根与最终保留draft可用，未经过forward的bonus不可用；停止轮也记录可取得的已提交hidden。owner的slot目标q对应预测hidden位置q−1，距离从最后真实观测位置计算。读出固定为prompt hidden范数归一→真实输出头softmax→输入embedding期望，支持untied头，不混用旧output_hidden行为。预测不吸收draft或proxy，不创建额外forward。
+
+输入轨迹策略单独拥有每条 prompt 的 M、V、上次正式观测和提交步数。共同初始化为 prompt 均值与零速度；差分观测起点为 prompt 最后一个 embedding。Kalman 采用每个 embedding 分量的二状态模型，共享一个二阶协方差，固定 Q/R；该简化不宣称跨分量最优或基于残差自适应噪声。稳态冻结增益须实际收敛，否则拒绝配置。
+
+`covariance`、`process_noise` 与 `measurement_noise` 保存共同尺度下的归一化 P/Q/R。实际 P、Q、R 同乘正数 s² 不改变 G，因此输入版直接递推无量纲系数，不声称已经从 fit 数据识别绝对噪声或得到物理单位下的 P。默认 P0=I、Q=diag(0.01,0.01)、R=1；冻结增益模式从同样参数求稳态，再以稳态 P/G 开始状态修正，M/V 的共同初值保持不变。
+
+`masks()` 为 prefill 给出一基 slot 距离的预测，`masks_for_tree(tree)` 为 root 和各节点 owner 给出 `[owner, slot, embedding]`，真实距离为 `owner_depth + slot`；可显式切到仅 slot 的受控布局。二者都是纯读取。只有 decoder 对 EOS／预算裁剪后实际提交的输入 embedding 可以修正正式状态，bonus 也逐 token 修正。新策略不与旧 observation／K wrappers 自动组合。
+
+接受量追加独立口径：A=`retained_accepted`（裁剪后仍输出的 draft token），C=`decode_calls`，S=`committed`（decode 阶段实际输出，含 bonus，不含 prefill 首 token）。旧 `accepted` 保留裁剪前意义；A/C 和 S/C 在 C=0 时为 null。原始逐轮 trace 同时保留验证路径与最终保留路径。
+
+E1 Study 对每个实际提交落盘 raw，并将完整模型清单及实际模型说明附于 header。模型全部文件与冻结源码在每个模型阶段前、dev→eval 边界和结果终态前核对；为避免每条 prompt 重复读取全部权重，不使用科学 CLI 的逐 prompt 全量重哈希路径。任一末尾核对失败不产生完成 summary，已落盘观测作为部分证据保留。选择清单先于 eval 写入，评测结果不进入参数选择；离线分析仅使用新协议，不回签旧计数。
+
 - 每条生成有独立 committed 状态与 RNG，prompt 切换后不残留上一条 mask/KV。prefill 产生首 token，不能被漏审
 - 仅实际提交 token 更新 input mask 长期历史；输出长期状态仅使用已提交位置的真实 normalized hidden。预测 proxy 和块内模拟只活在当前块
 - 树节点有稳定 parent/depth/position/owner 映射。验证接受路径、bonus 与 mask-logits seed 在同一映射下解释，错误 owner 即失败

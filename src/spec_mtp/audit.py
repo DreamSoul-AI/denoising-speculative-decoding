@@ -181,6 +181,30 @@ def _check_decode_stats(stats, tokens):
             or tokens[1:] != [token for trace in traces for token in trace['committed_tokens']]):
         raise SpecMtpGateError('decode counts/trace differ from committed stream')
 
+    # Old records keep their pre-trim protocol. New fields, when present,
+    # must be complete and agree with the retained prefix in every round.
+    if ('retained_accepted' in stats or 'acceptance_metrics' in stats
+            or any('retained_accepted_nodes' in trace for trace in traces)):
+        retained = stats.get('retained_accepted')
+        if type(retained) is not int or retained < 0:
+            raise SpecMtpGateError('invalid retained accepted count')
+        for trace in traces:
+            nodes = trace.get('retained_accepted_nodes')
+            if (not isinstance(nodes, list) or any(type(node) is not int for node in nodes)
+                    or nodes != trace['accepted_nodes'][:len(trace['committed_tokens'])]):
+                raise SpecMtpGateError('retained accepted nodes differ from output prefix')
+        calls, committed = stats['decode_calls'], stats['committed']
+        expected = {'protocol': 'retained-acceptance-v1', 'A': retained, 'C': calls, 'S': committed,
+                    'accepted_per_call': retained / calls if calls else None,
+                    'tau': committed / calls if calls else None}
+        metrics = stats.get('acceptance_metrics')
+        if (retained != sum(len(trace['retained_accepted_nodes']) for trace in traces)
+                or not isinstance(metrics, dict) or metrics != expected
+                or any(type(metrics.get(key)) is not int for key in ('A', 'C', 'S'))
+                or any(metrics.get(key) is not None and type(metrics[key]) is not float
+                       for key in ('accepted_per_call', 'tau'))):
+            raise SpecMtpGateError('retained acceptance metrics differ from trace')
+
 
 def _check_argmax(item: dict[str, Any]) -> int:
     stats = item['stats']
