@@ -171,7 +171,7 @@ def run_experiment(config):
         write_json(root / 'model.json', model_info)
         eos = model.hf.generation_config.eos_token_id
         eos_ids = tuple(eos if isinstance(eos, list) else [eos]) if eos is not None else ()
-        arms = comparison_specs() if config.get('comparison') else candidate_specs()
+        arms = config.get('arms') or (comparison_specs() if config.get('comparison') else candidate_specs())
         if config.get('pilot') and not config.get('comparison'):
             names = ('order0', 'diff_0.9', 'holt_0.1_0.9', 'kalman_0.01_0.01')
             arms = {name: arms[name] for name in names}

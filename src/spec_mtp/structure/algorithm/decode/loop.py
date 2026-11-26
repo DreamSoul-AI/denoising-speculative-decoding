@@ -247,7 +247,7 @@ class SpecDecoder:
         position_ids = torch.arange(t + k, device=device).unsqueeze(0)
         cache = model.new_cache()
         out = model(prefill_embeds, position_ids, attention_mask_4d=None,
-                    past_key_values=cache, **({'last_hidden_only': True} if self.output_hidden else {}))
+                    past_key_values=cache, **({'last_hidden_only': True} if self.output_hidden or getattr(provider, 'needs_final_hidden', False) else {}))
         stats['prefill_calls'] = 1
         cache = out.past_key_values
         logits = out.logits[0]                                        # [t+k, V]
@@ -268,6 +268,9 @@ class SpecDecoder:
             stats['output_hidden_prefill'] = {'observed_positions': t, 'scale': float(cast(HiddenMaskPolicy, provider).scale),
                                               'state_dtype': 'float32', 'final_normalized': True}
         mask_logits = logits[t:t + k].clone()                         # [k, V]
+        if hasattr(provider, 'frontier_logits'):
+            bonus_embed = model.embed(torch.tensor([root_token], device=device))[0]
+            mask_logits[0] = provider.frontier_logits(out.last_hidden_state[0,t], masks[0], bonus_embed, mask_logits[0], position=t)
         observe = getattr(provider, 'observe_mask_logits', None)
         for_tree = getattr(provider, 'masks_for_tree', None)
         if observe is not None:
@@ -362,7 +365,9 @@ class SpecDecoder:
             draft_total, draft_open = _fold(draft_total, draft_open, draft_mark)
             verify_mark = _clock()
             out = model(block_embeds, position_ids, attention_mask_4d=attn,
-                        past_key_values=cache, **({'last_hidden_only': True} if self.output_hidden else {}))
+                        past_key_values=cache, **({'last_hidden_only': True} if self.output_hidden or getattr(provider, 'needs_final_hidden', False) else {}))
+            if hasattr(provider, 'label_root'):
+                provider.label_root(out.last_hidden_state[0,0], position=root_position)
             cache = out.past_key_values
             logits = out.logits[0]                                    # [block, V]
             stats['decode_calls'] += 1
@@ -483,6 +488,10 @@ class SpecDecoder:
             n_star = accepted_nodes[-1] if accepted_nodes else 0
             mask_rows = mask_indices_of(tree, k, n_star)
             mask_logits = logits[mask_rows].clone()
+            if hasattr(provider, 'frontier_logits'):
+                placeholder = owner_masks[n_star,0]
+                bonus_embed = model.embed(torch.tensor([committed_now[-1]], device=device))[0]
+                mask_logits[0] = provider.frontier_logits(out.last_hidden_state[0,mask_rows[0]], placeholder, bonus_embed, mask_logits[0], position=root_position+len(accepted_nodes)+1)
             if observe is not None:
                 observe(mask_logits)
             _deliver_mask_hidden(provider, out, mask_rows)

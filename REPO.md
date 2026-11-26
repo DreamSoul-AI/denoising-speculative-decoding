@@ -42,11 +42,16 @@
 
 ## 共享资源入口
 
-- 本工作树通过 Knowledge 的 shared-repository-resources 工具接入，本机配置为未跟踪的 `.local/shared-resources.config.json`。`.local/data`、`.local/models` 分别直连共享池 data、models；只将 `.local/artifacts` 按仓库隔离。data/models 下不加仓库、Study 或研究 topic 层，按提供方、资源身份与版本组织。
-- 已接入 `.local` 时，ArtifactLayout 的 data/model 路径及 Study 的 ModelScope/HF 下载消费者使用这些共享入口（模型缓存为 `.local/models/modelscope` 或 `hf`，数据缓存为 `.local/data/hf_datasets`）。独立、未接入共享池的 Study 保留旧布局；损坏资源链接报错，不悄悄重建本地副本。历史 Run 和冻结脚本的旧绑定不改写。
+- 本工作树通过 Knowledge 的 shared-repository-resources 工具接入，本机配置为未跟踪的 `.shared/shared-resources.config.json`。`.shared/data`、`.shared/models` 分别直连共享池 data、models；只将 `.shared/artifacts` 按仓库隔离。data/models 下不加仓库、Study 或研究 topic 层，按提供方、资源身份与版本组织。
+- 已接入 `.shared` 时，ArtifactLayout 的 data/model 路径及 Study 的 ModelScope/HF 下载消费者使用这些共享入口（模型缓存为 `.shared/models/modelscope` 或 `hf`，数据缓存为 `.shared/data/hf_datasets`）。独立、未接入共享池的 Study 保留旧布局；损坏资源链接报错，不悄悄重建本地副本。历史 Run 和冻结脚本的旧绑定不改写。
 
-- 使用共享资源时，从 [Knowledge](https://github.com/DreamSoul-AI/knowledge) 查找共享资源工具，按 Workspace 配套示例将数据、模型与项目产物接入 `.local/`。本机路径从个人配置读取，实际链接与消费者按项目核对。
+- 使用共享资源时，从 [Knowledge](https://github.com/DreamSoul-AI/knowledge) 查找共享资源工具，按 Workspace 配套示例将数据、模型与项目产物接入 `.shared/`。本机路径从个人配置读取，实际链接与消费者按项目核对。
 
 ## Workspace 采用记录
 
 - 来源 [Workspace 098bd2e](https://github.com/DreamSoul-AI/workspace/tree/098bd2eccf23eb1e6d77a3eec6db51e6bc387daf)。采用范围为Learnings 命名与分发、文档规范配置、长作业检查点与恢复、调研、研究计划与研究结论归档、发布前分支对齐、可选共享资源入口。项目专用流程见本文件。
+- 单项更新：[Workspace 823d496](https://github.com/DreamSoul-AI/workspace/tree/823d4965035899d66a2d57751f1d28fbf934f99a)。采用临时产物与共享入口分工、资料根定位、目录升级检查、双端文档先改本地及面向读者的汇报；源码、测试、项目 docs 与专有约定保留，原整版基线继续沿用。
+- 单项更新：[Workspace ea16de5](https://github.com/DreamSoul-AI/workspace/tree/ea16de5eda676aadaeefc1897ce0b83c062de2b6)。采用常规问题直接处理和主动建议下一步；Knowledge 能力更新沿 Workspace 教程按各自来源执行，保留本地定制及原整版基线。
+- 单项更新：[Workspace f020aa5](https://github.com/DreamSoul-AI/workspace/tree/f020aa5b6965766f7308fa31b0836e478c9da914)。采用加粗只包文字、所有标点放在外面的统一写法，移除未采用的本机配置默认目录及专门忽略项；配置位置和相应保护沿用项目约定，保留其他规则及原整版基线。
+- 单项更新：[Workspace a9da11e](https://github.com/DreamSoul-AI/workspace/tree/a9da11e30412aa3ec52a88cf76150da129b5063b)。文档按用途和目标读者组织正文，补齐独立阅读所需的背景与依据；保留原整版采用基线及项目约定。
+- 本轮适用更新：[Workspace 84f9696](https://github.com/DreamSoul-AI/workspace/tree/84f969679eb06b7d742ee7b384c13e371df9d425)。核对并合并当前适用的共用规则，补充新对话项目选择和按场景理解输入的约定，保留项目专有内容、个人配置、现有布局及原整版采用基线。

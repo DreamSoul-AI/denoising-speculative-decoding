@@ -9,10 +9,10 @@ from spec_mtp.structure.artifact import paths
 
 
 def shared_resource_dir(anchor: Path, resource: str, fallback: Path) -> Path:
-    """Use the nearest adopted .local pool; standalone Studies keep their layout."""
+    """Use the nearest adopted .shared pool; standalone Studies keep their layout."""
     anchor = Path(anchor).absolute()
     for parent in (anchor, *anchor.parents):
-        candidate = parent / '.local' / resource
+        candidate = parent / '.shared' / resource
         if candidate.exists() or candidate.is_symlink():
             if not candidate.is_dir():
                 raise FileNotFoundError(f'shared resource is unavailable: {candidate}')

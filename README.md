@@ -1,13 +1,15 @@
 # 去噪推测解码
-研究免训练多 token 起草与验证：以 ESP 为参照，比较输入嵌入 EMA、速度外推和输出隐藏状态掩码。中文名称为“去噪推测解码”。仓库地址：[DreamSoul-AI/denoising-speculative-decoding](https://github.com/DreamSoul-AI/denoising-speculative-decoding)。
+研究免训练多 token 起草与验证。当前聚焦 input 探测槽：保持原 ESP block、候选树和验证，比较 EMA／Holt × 固定／Kalman 增益，所有槽读取共享 M。中文名称为“去噪推测解码”。仓库地址：[DreamSoul-AI/denoising-speculative-decoding](https://github.com/DreamSoul-AI/denoising-speculative-decoding)。
 
 截至2026年10月21日的 8B 非官方 Table 1 独立复验已经完成，论文目标未复现。数字和原件在 [历史证据归位](<docs/运行记录 Run Record/2026-10-31 历史证据归位.md>)。提交 token 的验证前向 argmax 自检与独立 AR 一致率分别报告，τ 是提交数与解码调用数之比，不能据此认定实际速度收益。
 
-已实现的 K 校正是协议 `postcommit-final-norm-v1` 的合成工程夹具，不是 2026年10月31日会议中的 trajectory 与 observation 联合更新，也不是 Kalman 滤波。160 对数据协议和真实模型收益都还没有执行。会议方法的默认公式和合成测量见 [研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>) 与 [联合 mask 检查](<docs/运行记录 Run Record/2026-11-01 联合mask检查.md>)。
+已实现的 K 校正是协议 `postcommit-final-norm-v1` 的合成工程夹具，不是 2026年10月31日会议中的 trajectory 与 observation 联合更新，也不是 Kalman 滤波。160 对数据协议和真实模型收益都还没有执行。会议方法的合成测量见 [联合 mask 检查](<docs/运行记录 Run Record/2026-11-01 联合mask检查.md>)。
 
 2026年11月20日新增来源校准研究：在外部固定的 Jason 源码快照上，使用已有 0.6B／4B 模型开展 GPU 三臂、校准类别与 thinking 对照。该结果属于来源方法验证，不改变上述本仓实现状态。当前方法比较以实际接受量和 τ 为主，共享电脑的墙钟计时不用于判断收益。方案见[研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)，实际结果与论文接受量表见[前沿校准研究](<docs/运行记录 Run Record/2026-11-20 六十分钟前沿校准研究.md>)。
 
-当前已完成8B input/output固定八臂比较：input零阶τ=1.5030；output零阶1.2331、Kalman1.3011。output Kalman对自身零阶有正向差异，但这版固定读出下output整体落后input。条件、接受量和区间见[8B路线比较](<docs/研究记录 Research Record/2026-11-21 8B输入输出路线比较.md>)与[运行记录](<docs/运行记录 Run Record/2026-11-21 8B输入输出状态比较.md>)；4B E1保留在[首轮记录](<docs/研究记录 Research Record/2026-11-21 输入状态首轮比较.md>)。下一步隔离输出读出、P0和冻结增益，不直接扩高阶。
+当前已完成8B input/output固定八臂比较：input零阶τ=1.5030；output零阶1.2331、Kalman1.3011。output Kalman对自身零阶有正向差异，但这版固定读出下output整体落后input。条件、接受量和区间见[8B路线比较](<docs/研究记录 Research Record/2026-11-21 8B输入输出路线比较.md>)与[运行记录](<docs/运行记录 Run Record/2026-11-21 8B输入输出状态比较.md>)；4B E1保留在[首轮记录](<docs/研究记录 Research Record/2026-11-21 输入状态首轮比较.md>)。这些是历史显式外推与输出读出的结果，不是当前 M-only 四臂结果。下一步以[当前研究计划](<docs/研究计划 Research Plan 去噪推测解码.md>)为准，output 和额外融合暂缓。
+
+2026年11月27日研究定义已统一：[总体讨论与简图](<docs/研究记录 Research Record/2026-11-27 Input探测状态与四组方案.md>)、[EMA与Holt](<docs/算法说明 Algorithm Description/算法说明 Algorithm Description EMA与Holt.md>)、[Kalman](<docs/算法说明 Algorithm Description/算法说明 Algorithm Description Kalman.md>)。初始化、跨样本离线 calibration 和当前 prompt warm-up 分开，推理更新 M/P 或 M/V/P，Q/R 在线更新留待后续。新 M-only 四臂尚未实现或执行，不将历史配置改名当作完成。
 
 # 一、文档入口
 | **文档** | **维护内容** |
@@ -28,7 +30,7 @@
 
 第三方 ESP 来源树及 `ORIGIN.json` 保留，不能把它称为作者官方实现。原始 SpecBench 数据保留于 `datasets/spec_bench/question.jsonl`。
 
-输入轨迹通过现有 `spec` 配置启用，树、模型与输入来源沿用既有合同。例如以下片段选择 Holt：
+以下是已实现的历史显式外推接口，仍按原协议使用；当前研究计划中的 M-only 读出及新 calibration 尚待按开发计划实现。输入轨迹通过现有 `spec` 配置启用，树、模型与输入来源沿用既有合同。例如以下片段选择 Holt：
 
 ```yaml
 spec:
@@ -49,7 +51,7 @@ spec:
 
 # 三、开发与验证
 
-采用共享资源的工作树从`.local/data`、`.local/models`读取统一资源池；这两个池不按repo或研究topic隔离，只有`.local/artifacts`按repo隔离。通用Study的ModelScope/HF及datasets缓存已接入这些消费者路径；Qwen3-8B已完成资源核验及本轮input/output对比。配置、兼容边界与验证见[共享资源接入记录](<docs/开发记录 Development Record/2026-11-21 跨仓库资源消费者接入.md>)。历史Run及旧专用脚本的资源绑定保留原义，不将新资源替换旧版本身份。
+采用共享资源的工作树从`.shared/data`、`.shared/models`读取统一资源池；这两个池不按repo或研究topic隔离，只有`.shared/artifacts`按repo隔离。通用Study的ModelScope/HF及datasets缓存已接入这些消费者路径；Qwen3-8B已完成资源核验及本轮input/output对比。配置、兼容边界与验证见[共享资源接入记录](<docs/开发记录 Development Record/2026-11-21 跨仓库资源消费者接入.md>)。历史Run及旧专用脚本的资源绑定保留原义，不将新资源替换旧版本身份。
 工作分支经 PR 面向 `dev`，完成检查并按当次明确授权集成，不自动发布。当前 HEAD 的本地结果、历史红项和未覆盖范围记在 PR 正文，不用旧提交结果代替。
 
 执行离线 CPU 计划：`python tests/run.py --plan cpu-pr --output-root <源码树外的新验证目录>`。静态清单先验证必需项和精确排除，逐参数 setup/call/teardown 写独立记录，缺收集、缺终态、失败、跳过和证据写失败均非零。整批预算420秒，在测试边界检查；子进程测试各有有限超时，单个本地计算不支持强制中断。运行产物不进 Git。

@@ -4264,6 +4264,34 @@
       "tags": [
         "offline_cpu"
       ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_frontier.py::test_zero_gain_matches_esp_and_labels_only_the_next_root",
+      "target": "spec_mtp.structure.algorithm.mask",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_frontier.py::test_frontier_feature_is_same_position_bonus_minus_actual_placeholder",
+      "target": "spec_mtp.structure.algorithm.mask",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_frontier.py::test_source_ridge_leaves_intercept_unpenalized",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
+    },
+    {
+      "test_id": "tests/spec_mtp/structure/algorithm/mask/test_frontier.py::test_source_coverage_never_accepts_a_pruned_repeat",
+      "target": "studies.trajectory_observation",
+      "tags": [
+        "offline_cpu"
+      ]
     }
   ],
   "plans": {

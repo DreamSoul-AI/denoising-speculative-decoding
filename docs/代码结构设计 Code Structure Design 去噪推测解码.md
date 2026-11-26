@@ -1,6 +1,12 @@
 **去噪推测解码 代码结构设计**
 更新日期：2026年11月4日。状态：目标布局改为 `structure` / `flow` 两柱。行为合同由 [架构设计](<架构设计 Architecture Design 去噪推测解码.md>) 维护。按下面第四节分步搬迁，现有违反冻结在该节的 legacy 清单里。步骤 1 已把解码合同放到 `structure/api/decode_api.py`，`contracts.py` 已删除。步骤 2 已把树拆到 `structure/algorithm/decode/`，`tree.py` 已删除。步骤 3 已把 `masks.py` 拆到 `structure/algorithm/mask/`，顶层再导出已删除。步骤 4 已把 `decode.py` 迁到 `structure/algorithm/decode/loop.py`，顶层再导出已删除。步骤 5–8 未做。
 
+## 当前 input 的工程落点（2026年11月27日）
+
+四臂目标仍落在现有 mask provider／状态模块，通过 masks_for_tree 写入共享 M，decoder 负责正式提交后有序更新。现有 InputTrajectoryMaskProvider 的显式距离读出与共享协方差需单独保留协议，M-only 和逐维校准不能仅改名代替实现。校准收集／拟合属于 Study structure，阶段编排属于 flow，参数与运行结果沿既有制品布局，不新建源码根工具。
+
+已增加的 FrontierMaskProvider 位于 structure/algorithm/mask/frontier.py，来源仿射拟合和桥接位于 studies/trajectory_observation/structure/frontier_matrix.py，flow/frontier_matrix.py 只读配置转调。decode/loop.py 只新增可选策略 hook，未启用时维持原行为。它是历史独立来源方法，不接入当前四臂主比较。
+
 # 一、目录原则与范围
 `spec_mtp` 与每个 `studies/<name>/` 都按 RPipe 的两柱组织：`structure/` 定义一次 Run 由什么组成，`flow/` 运行 Study 的阶段链。除 `__init__.py`、`__main__.py` 与薄入口外，`src/spec_mtp/` 和 `studies/<name>/` 的顶层不得再有其他 `.py` 文件。`studies/__init__.py` 只做 Study 包标记。依赖下限保持 Python 3.10 与已固定的 Transformers，目录调整不授权升级依赖。
 
